@@ -19,7 +19,7 @@
 ## Phase 2: Frontend Service & State Integration
 **Goal:** connect the frontend application to the new backend endpoints.
 
-- [ ] Task: Update Frontend API Services (TDD)
+- [x] Task: Update Frontend API Services (TDD) [83a766e]
     - **Write Tests:** Unit tests for `conversationApi.ts` methods.
     - **Implement:** Update `src/services/conversationApi.ts` to match backend endpoints.
 - [ ] Task: Update Global Stores (TDD)
