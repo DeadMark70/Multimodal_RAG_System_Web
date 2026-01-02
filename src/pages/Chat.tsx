@@ -19,19 +19,26 @@ import {
   TagLabel, 
   TagLeftIcon,
   IconButton,
-  Tabs,
-  TabList,
-  Tab,
-  TabPanels,
+  Tabs, 
+  TabList, 
+  Tab, 
+  TabPanels, 
   TabPanel,
 } from '@chakra-ui/react';
 import { FiSend, FiCpu, FiCheckCircle, FiAlertTriangle, FiHelpCircle, FiTrash2, FiMessageSquare, FiSearch } from 'react-icons/fi';
 import MessageBubble from '../components/rag/MessageBubble';
 import DocumentSelector from '../components/rag/DocumentSelector';
 import DeepResearchPanel from '../components/rag/DeepResearchPanel';
+import ConversationSidebar from '../components/rag/ConversationSidebar';
 import { useChat } from '../hooks/useChat';
+import { useSessionStore } from '../stores/useSessionStore';
+import { useConversationMutations } from '../hooks/useConversations';
+import type { ConversationType } from '../types/conversation';
 
 export default function Chat() {
+  const { currentChatId, actions: { setCurrentChatId } } = useSessionStore();
+  const { create } = useConversationMutations();
+
   // 使用自定義 hook 管理對話
   const { 
     messages, 
@@ -40,7 +47,10 @@ export default function Chat() {
     isLoading, 
     selectedDocIds, 
     setSelectedDocIds 
-  } = useChat({ enableEvaluation: true });
+  } = useChat({ 
+    enableEvaluation: true,
+    conversationId: currentChatId
+  });
 
   const [input, setInput] = useState('');
   const [ragMode, setRagMode] = useState(true);
@@ -73,6 +83,21 @@ export default function Chat() {
     }
   };
 
+  const handleSelectConversation = (id: string) => {
+    setCurrentChatId(id);
+  };
+
+  const handleNewConversation = async (type: ConversationType) => {
+    try {
+      const newConv = await create({ title: '新對話', type });
+      setCurrentChatId(newConv.id);
+      if (type === 'chat') setActiveTab(0);
+      if (type === 'research') setActiveTab(1);
+    } catch (error) {
+      console.error('Failed to create conversation', error);
+    }
+  };
+
   // Get latest metrics for the side panel
   const lastAssistantMessage = [...messages].reverse().find(m => m.role === 'assistant' && m.metrics);
   const currentMetrics = lastAssistantMessage?.metrics;
@@ -82,6 +107,15 @@ export default function Chat() {
       <PageHeader title="對話" subtitle="RAG 問答與深度研究" />
       
       <Flex gap={6} h="calc(100vh - 140px)">
+        {/* Conversation Sidebar - Left Side */}
+        <Box w="280px" display={{ base: 'none', xl: 'block' }}>
+          <ConversationSidebar 
+            currentId={currentChatId}
+            onSelect={handleSelectConversation}
+            onNew={handleNewConversation}
+          />
+        </Box>
+
         {/* Main Content Area */}
         <Flex direction="column" flex={1}>
           {/* Mode Tabs */}
