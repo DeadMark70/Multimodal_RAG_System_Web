@@ -9,7 +9,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { askQuestion } from '../services/ragApi';
-import { getConversation } from '../services/conversationApi';
+import { getConversation, addMessage } from '../services/conversationApi';
 import type { ChatMessage, AskRequest } from '../types/rag';
 import { useToast } from '@chakra-ui/react';
 
@@ -50,7 +50,7 @@ export function useChat(options: UseChatOptions = {}) {
         // 轉換後端訊息格式為前端格式
         const loadedMessages: ChatMessage[] = conversation.messages.map(msg => ({
           id: msg.id,
-          role: msg.role === 'system' ? 'assistant' : msg.role, // Handle system messages if any
+          role: msg.role === 'system' ? 'assistant' : msg.role,
           content: msg.content,
           timestamp: new Date(msg.created_at).getTime(),
         }));
@@ -93,7 +93,7 @@ export function useChat(options: UseChatOptions = {}) {
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
 
-    // 加入使用者訊息
+    // 加入使用者訊息 (Optimistic UI)
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
@@ -101,6 +101,19 @@ export function useChat(options: UseChatOptions = {}) {
       timestamp: Date.now(),
     };
     setMessages(prev => [...prev, userMessage]);
+
+    // 持久化使用者訊息
+    if (options.conversationId) {
+      try {
+        await addMessage(options.conversationId, {
+          role: 'user',
+          content: content,
+        });
+      } catch (error) {
+        console.error('Failed to save user message', error);
+        // Silently fail or show toast? Continuing flow for now.
+      }
+    }
 
     try {
       // 準備請求
@@ -115,8 +128,6 @@ export function useChat(options: UseChatOptions = {}) {
         enable_multi_query: options.enableMultiQuery,
         enable_reranking: options.enableReranking,
         enable_evaluation: options.enableEvaluation,
-        // 🆕 傳送 conversation_id 給後端自動儲存
-        // conversation_id: options.conversationId,
       };
 
       const response = await mutation.mutateAsync(request);
@@ -131,6 +142,23 @@ export function useChat(options: UseChatOptions = {}) {
         timestamp: Date.now(),
       };
       setMessages(prev => [...prev, assistantMessage]);
+
+      // 持久化助理回應
+      if (options.conversationId) {
+        try {
+          await addMessage(options.conversationId, {
+            role: 'assistant',
+            content: response.answer,
+            metadata: {
+              sources: response.sources,
+              metrics: response.metrics,
+            },
+          });
+        } catch (error) {
+          console.error('Failed to save assistant message', error);
+        }
+      }
+
     } catch {
       // 錯誤已在 mutation.onError 處理
     }
