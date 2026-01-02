@@ -1,0 +1,940 @@
+{
+  "apiInfo": {
+    "version": "2.2.0",
+    "title": "PDF Translation & RAG API",
+    "description": "PDF OCR、翻譯、圖片翻譯、多模態 RAG 與 GraphRAG 知識圖譜服務。支援 Flutter 手機端、Web 端與 React 前端整合。",
+    "baseUrlExample": "http://localhost:8000",
+    "supportedClients": ["Flutter (Mobile/Web)", "React", "任何支援 REST API 的前端框架"],
+    "lastUpdated": "2025-12-21"
+  },
+
+  "authentication": {
+    "type": "Bearer Token (Supabase JWT)",
+    "header": "Authorization",
+    "headerFormat": "Bearer {supabase_access_token}",
+    "description": "所有受保護的端點都需要 Supabase JWT Token。前端需要先透過 Supabase Auth 登入後取得 access_token。",
+    "exampleHeader": {
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    },
+    "notes": [
+      "Token 需從 Supabase Auth 登入後取得",
+      "Flutter: 使用 supabase_flutter 套件的 supabase.auth.currentSession?.accessToken",
+      "React: 使用 @supabase/supabase-js 的 session.access_token",
+      "Token 過期需重新取得或使用 refresh_token 刷新",
+      "開發模式 (DEV_MODE=true) 可跳過認證，僅供測試用"
+    ],
+    "errorResponses": {
+      "401": {
+        "detail": "Missing Authorization Header | Invalid Authorization Header format | Invalid Token | Authentication Failed"
+      },
+      "500": {
+        "detail": "Authentication service unavailable (Supabase 連線問題)"
+      }
+    }
+  },
+
+  "endpoints": {
+    "health": {
+      "path": "/",
+      "method": "GET",
+      "description": "健康檢查端點，確認 API 服務是否正常運作",
+      "authentication": false,
+      "request": null,
+      "response": {
+        "type": "object",
+        "example": {
+          "message": "Welcome to the PDF Translation & Per-User RAG QA API."
+        }
+      },
+      "flutterExample": "final response = await http.get(Uri.parse('$baseUrl/'));",
+      "reactExample": "const response = await fetch(`${baseUrl}/`);"
+    },
+
+    "pdfmd": {
+      "prefix": "/pdfmd",
+      "description": "PDF OCR & 翻譯服務",
+      "endpoints": {
+        "list_documents": {
+          "path": "/pdfmd/list",
+          "method": "GET",
+          "description": "取得使用者的文件列表，最多返回 50 筆",
+          "authentication": true,
+          "request": null,
+          "response": {
+            "type": "DocumentListResponse",
+            "example": {
+              "documents": [
+                {
+                  "id": "f6c946b0-aebf-4860-9355-b2880ab9023c",
+                  "file_name": "2404.09556v2.pdf",
+                  "created_at": "2024-12-19T19:55:30Z",
+                  "status": "completed",
+                  "processing_step": "indexed"
+                }
+              ],
+              "total": 1
+            }
+          },
+          "flutterExample": {
+            "code": "Future<List<DocumentItem>> listDocuments(String accessToken) async {\n  final response = await http.get(\n    Uri.parse('$baseUrl/pdfmd/list'),\n    headers: {'Authorization': 'Bearer $accessToken'},\n  );\n  if (response.statusCode == 200) {\n    final data = jsonDecode(response.body);\n    return (data['documents'] as List).map((e) => DocumentItem.fromJson(e)).toList();\n  }\n  throw Exception('Failed to list documents');\n}"
+          },
+          "reactExample": {
+            "code": "async function listDocuments(accessToken: string): Promise<DocumentListResponse> {\n  const response = await fetch(`${baseUrl}/pdfmd/list`, {\n    headers: { 'Authorization': `Bearer ${accessToken}` },\n  });\n  if (!response.ok) throw new Error('Failed to list');\n  return response.json();\n}"
+          },
+          "notes": [
+            "最多返回 50 筆文件",
+            "依上傳時間降序排序",
+            "欄位 file_name 使用底線命名 (非 filename)"
+          ]
+        },
+
+        "upload_pdf": {
+          "path": "/pdfmd/upload_pdf_md",
+          "alternativePath": "/pdfmd/ocr",
+          "method": "POST",
+          "description": "上傳 PDF 文件，進行 OCR 辨識後翻譯成繁體中文，並加入 RAG 知識庫",
+          "authentication": true,
+          "request": {
+            "contentType": "multipart/form-data",
+            "parameters": {
+              "file": {
+                "type": "file",
+                "required": true,
+                "description": "PDF 檔案 (必須是 application/pdf)"
+              }
+            }
+          },
+          "response": {
+            "type": "FileResponse",
+            "contentType": "application/pdf",
+            "description": "翻譯後的 PDF 檔案",
+            "headers": {
+              "Content-Disposition": "attachment; filename=translated_{doc_id}.pdf"
+            }
+          },
+          "pipeline": [
+            "1. 儲存上傳的 PDF",
+            "2. OCR 辨識 (Local Marker - GPU 加速)",
+            "3. 翻譯內容為繁體中文 (Gemini LLM)",
+            "4. 生成翻譯後的 PDF 並回傳",
+            "5. [背景] 加入 RAG 知識庫 (FAISS 向量索引)",
+            "6. [背景] 生成文件摘要"
+          ],
+          "errorResponses": {
+            "400": "Invalid file type | 不支援的檔案格式",
+            "500": "OCR failed | Translation failed | PDF generation failed"
+          },
+          "flutterExample": {
+            "code": "Future<Uint8List> uploadPdf(File pdfFile, String accessToken) async {\n  final uri = Uri.parse('$baseUrl/pdfmd/upload_pdf_md');\n  final request = http.MultipartRequest('POST', uri)\n    ..headers['Authorization'] = 'Bearer $accessToken'\n    ..files.add(await http.MultipartFile.fromPath(\n      'file',\n      pdfFile.path,\n      contentType: MediaType('application', 'pdf'),\n    ));\n  \n  final response = await request.send();\n  if (response.statusCode == 200) {\n    return await response.stream.toBytes();\n  }\n  throw Exception('Upload failed: ${response.statusCode}');\n}"
+          },
+          "reactExample": {
+            "code": "async function uploadPdf(file: File, accessToken: string): Promise<Blob> {\n  const formData = new FormData();\n  formData.append('file', file);\n  \n  const response = await fetch(`${baseUrl}/pdfmd/upload_pdf_md`, {\n    method: 'POST',\n    headers: {\n      'Authorization': `Bearer ${accessToken}`,\n    },\n    body: formData,\n  });\n  \n  if (!response.ok) throw new Error(`Upload failed: ${response.status}`);\n  return response.blob();\n}"
+          },
+          "notes": [
+            "處理時間較長 (視 PDF 頁數而定，約 30s-5min)，建議顯示載入指示器",
+            "大檔案建議設定較長的 timeout (120秒以上)",
+            "回傳的是二進位 PDF 檔案，需用 Blob/Uint8List 處理",
+            "同時支援 /pdfmd/upload_pdf_md 和 /pdfmd/ocr 兩個路徑"
+          ]
+        },
+
+        "get_status": {
+          "path": "/pdfmd/file/{doc_id}/status",
+          "method": "GET",
+          "description": "取得文件處理狀態，用於前端輪詢顯示進度",
+          "authentication": true,
+          "request": {
+            "pathParameters": {
+              "doc_id": {
+                "type": "string",
+                "format": "uuid",
+                "required": true,
+                "description": "文件的 UUID"
+              }
+            }
+          },
+          "response": {
+            "type": "StatusResponse",
+            "example": {
+              "step": "translating",
+              "step_label": "翻譯中",
+              "is_pdf_ready": false,
+              "is_fully_complete": false
+            }
+          },
+          "processingSteps": {
+            "uploading": "上傳中",
+            "ocr": "OCR 辨識中",
+            "translating": "翻譯中",
+            "generating_pdf": "生成 PDF 中",
+            "completed": "翻譯完成 (PDF 可下載)",
+            "indexing": "建立索引中",
+            "indexed": "全部完成",
+            "failed": "處理失敗"
+          }
+        },
+        
+        "get_pdf_file": {
+          "path": "/pdfmd/file/{doc_id}",
+          "method": "GET",
+          "description": "透過文件 ID 取得已處理的 PDF 檔案",
+          "authentication": true,
+          "request": {
+            "pathParameters": {
+              "doc_id": {
+                "type": "string",
+                "format": "uuid",
+                "required": true,
+                "description": "文件的 UUID"
+              }
+            }
+          },
+          "response": {
+            "type": "FileResponse",
+            "contentType": "application/pdf",
+            "description": "PDF 檔案"
+          },
+          "errorResponses": {
+            "404": "Document not found | 文件不存在或已被刪除"
+          }
+        },
+        
+        "delete_pdf_file": {
+          "path": "/pdfmd/file/{doc_id}",
+          "method": "DELETE",
+          "description": "刪除文件及其所有相關資料（RAG 索引、實體檔案、資料庫記錄）",
+          "authentication": true,
+          "request": {
+            "pathParameters": {
+              "doc_id": {
+                "type": "string",
+                "format": "uuid",
+                "required": true,
+                "description": "文件的 UUID"
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "example": {
+              "status": "success",
+              "message": "Document deleted successfully"
+            }
+          }
+        },
+
+        "get_summary": {
+          "path": "/pdfmd/file/{doc_id}/summary",
+          "method": "GET",
+          "description": "取得文件的 AI 生成摘要",
+          "authentication": true,
+          "response": {
+            "example": {
+              "status": "ready",
+              "summary": "本文探討了..."
+            }
+          },
+          "statusValues": {
+            "ready": "摘要已就緒",
+            "generating": "正在生成中",
+            "not_available": "尚未生成"
+          }
+        },
+
+        "regenerate_summary": {
+          "path": "/pdfmd/file/{doc_id}/summary/regenerate",
+          "method": "POST",
+          "description": "重新生成文件摘要",
+          "authentication": true,
+          "response": {
+            "example": {
+              "status": "started",
+              "message": "Summary regeneration scheduled"
+            }
+          }
+        }
+      }
+    },
+
+    "rag": {
+      "prefix": "/rag",
+      "description": "RAG 問答服務 - 基於使用者知識庫的智能問答",
+      "endpoints": {
+        "ask_question_get": {
+          "path": "/rag/ask",
+          "method": "GET",
+          "description": "基本 RAG 問答 (簡易版)",
+          "authentication": true,
+          "request": {
+            "queryParameters": {
+              "question": {
+                "type": "string",
+                "required": true,
+                "description": "要問的問題"
+              },
+              "doc_ids": {
+                "type": "string",
+                "required": false,
+                "description": "逗號分隔的文件 ID，用於過濾查詢範圍",
+                "example": "uuid1,uuid2,uuid3"
+              }
+            }
+          },
+          "response": {
+            "type": "AskResponse",
+            "example": {
+              "question": "什麼是機器學習?",
+              "answer": "機器學習是人工智慧的一個分支...",
+              "sources": ["doc-uuid-1", "doc-uuid-2"]
+            }
+          }
+        },
+
+        "ask_question_post": {
+          "path": "/rag/ask",
+          "method": "POST",
+          "description": "上下文感知問答 (推薦) - 支援對話歷史、進階檢索策略、評估模式",
+          "authentication": true,
+          "request": {
+            "contentType": "application/json",
+            "body": {
+              "question": {
+                "type": "string",
+                "required": true,
+                "maxLength": 2000,
+                "description": "使用者問題"
+              },
+              "doc_ids": {
+                "type": "array",
+                "items": "string",
+                "required": false,
+                "description": "限定查詢的文件 ID 列表"
+              },
+              "history": {
+                "type": "array",
+                "items": "ChatMessage",
+                "required": false,
+                "maxItems": 10,
+                "description": "對話歷史"
+              },
+              "enable_hyde": {
+                "type": "boolean",
+                "default": false,
+                "description": "假設性文件增強檢索"
+              },
+              "enable_multi_query": {
+                "type": "boolean",
+                "default": false,
+                "description": "多重查詢融合檢索"
+              },
+              "enable_reranking": {
+                "type": "boolean",
+                "default": true,
+                "description": "Cross-Encoder 重排序"
+              },
+              "enable_evaluation": {
+                "type": "boolean",
+                "default": false,
+                "description": "🆕 啟用 Self-RAG 評估模式 (增加延遲但提供責任 AI 指標)"
+              },
+              "enable_graph_rag": {
+                "type": "boolean",
+                "default": false,
+                "description": "🆕 啟用知識圖譜增強檢索"
+              },
+              "graph_search_mode": {
+                "type": "string",
+                "enum": ["local", "global", "hybrid", "auto"],
+                "default": "auto",
+                "description": "🆕 圖譜搜尋模式"
+              },
+              "enable_graph_planning": {
+                "type": "boolean",
+                "default": false,
+                "description": "🆕 啟用圖譜輔助規劃 (Deep Research)"
+              }
+            },
+            "example": {
+              "question": "這份文件的結論是什麼？",
+              "doc_ids": ["doc-uuid-123"],
+              "history": [
+                {"role": "user", "content": "這份研究報告的主題是什麼？"},
+                {"role": "assistant", "content": "這份研究報告探討機器學習在醫療診斷中的應用..."}
+              ],
+              "enable_evaluation": false
+            }
+          },
+          "response": {
+            "description": "當 enable_evaluation=false 時回傳 AskResponse，否則回傳 EnhancedAskResponse",
+            "AskResponse": {
+              "example": {
+                "question": "...",
+                "answer": "...",
+                "sources": ["doc-id-1", "doc-id-2"]
+              }
+            },
+            "EnhancedAskResponse": {
+              "description": "🆕 評估模式回應",
+              "example": {
+                "question": "...",
+                "answer": "...",
+                "sources": [
+                  {
+                    "doc_id": "doc-id-1",
+                    "filename": "paper_a.pdf",
+                    "page": 3,
+                    "snippet": "相關段落內容...",
+                    "score": 0.85
+                  }
+                ],
+                "metrics": {
+                  "faithfulness": "grounded",
+                  "confidence_score": 0.85
+                }
+              }
+            }
+          },
+          "reactExample": {
+            "code": "async function askQuestion(\n  question: string,\n  accessToken: string,\n  options?: {\n    docIds?: string[];\n    history?: ChatMessage[];\n    enableEvaluation?: boolean;\n  }\n): Promise<AskResponse | EnhancedAskResponse> {\n  const response = await fetch(`${baseUrl}/rag/ask`, {\n    method: 'POST',\n    headers: {\n      'Authorization': `Bearer ${accessToken}`,\n      'Content-Type': 'application/json',\n    },\n    body: JSON.stringify({\n      question,\n      doc_ids: options?.docIds,\n      history: options?.history,\n      enable_evaluation: options?.enableEvaluation ?? false,\n    }),\n  });\n  if (!response.ok) throw new Error('Ask failed');\n  return response.json();\n}"
+          }
+        },
+
+        "research_question": {
+          "path": "/rag/research",
+          "method": "POST",
+          "description": "深度研究模式 - 使用 Plan-and-Solve 將複雜問題拆解為子任務，分別進行 RAG 查詢後綜合答案",
+          "authentication": true,
+          "request": {
+            "contentType": "application/json",
+            "body": {
+              "question": {
+                "type": "string",
+                "required": true,
+                "description": "要研究的複雜問題"
+              },
+              "max_subtasks": {
+                "type": "integer",
+                "required": false,
+                "default": 5,
+                "description": "最大子任務數量 (1-10)"
+              },
+              "enable_reranking": {
+                "type": "boolean",
+                "required": false,
+                "default": true,
+                "description": "是否啟用重排序優化結果"
+              }
+            }
+          },
+          "response": {
+            "type": "ResearchResponse",
+            "example": {
+              "question": "比較深度學習和傳統機器學習的優缺點",
+              "summary": "兩種方法各有優缺點...",
+              "detailed_answer": "## 深度學習\n優點：...\n## 傳統機器學習\n優點：...",
+              "sub_tasks": [
+                {"id": 1, "question": "深度學習的優點?", "answer": "...", "sources": []}
+              ],
+              "all_sources": ["doc-1", "doc-2"],
+              "confidence": 0.85
+            }
+          }
+        },
+
+        "generate_research_plan": {
+          "path": "/rag/plan",
+          "method": "POST",
+          "description": "🆕 生成研究計畫 (Human-in-the-loop) - 返回計畫供使用者確認後再執行",
+          "authentication": true,
+          "request": {
+            "contentType": "application/json",
+            "body": {
+              "question": {
+                "type": "string",
+                "required": true,
+                "maxLength": 2000,
+                "description": "要研究的複雜問題"
+              },
+              "doc_ids": {
+                "type": "array",
+                "items": "string",
+                "required": false,
+                "description": "限定查詢的文件 ID 列表"
+              },
+              "enable_graph_planning": {
+                "type": "boolean",
+                "default": false,
+                "description": "使用圖譜感知規劃"
+              }
+            }
+          },
+          "response": {
+            "type": "ResearchPlanResponse",
+            "example": {
+              "status": "waiting_confirmation",
+              "original_question": "比較 Transformer 和 RNN 的優缺點",
+              "sub_tasks": [
+                {"id": 1, "question": "Transformer 的核心架構是什麼？", "task_type": "rag", "enabled": true},
+                {"id": 2, "question": "RNN 的優缺點是什麼？", "task_type": "rag", "enabled": true},
+                {"id": 3, "question": "兩種模型的關係和差異", "task_type": "graph_analysis", "enabled": true}
+              ],
+              "estimated_complexity": "medium",
+              "doc_ids": null
+            }
+          },
+          "notes": [
+            "使用者可修改/刪除/停用子任務後再執行",
+            "task_type 決定使用向量檢索 (rag) 或圖譜分析 (graph_analysis)"
+          ]
+        },
+
+        "execute_research_plan": {
+          "path": "/rag/execute",
+          "method": "POST",
+          "description": "🆕 執行研究計畫 - 支援遞迴深入挖掘 (Drill-down)",
+          "authentication": true,
+          "request": {
+            "contentType": "application/json",
+            "body": {
+              "original_question": {
+                "type": "string",
+                "required": true,
+                "description": "原始研究問題"
+              },
+              "sub_tasks": {
+                "type": "array",
+                "items": "EditableSubTask",
+                "required": true,
+                "description": "使用者確認後的子任務列表"
+              },
+              "doc_ids": {
+                "type": "array",
+                "items": "string",
+                "required": false,
+                "description": "限定查詢的文件 ID 列表"
+              },
+              "max_iterations": {
+                "type": "integer",
+                "default": 2,
+                "range": "1-5",
+                "description": "最大遞迴深入次數"
+              },
+              "enable_reranking": {
+                "type": "boolean",
+                "default": true,
+                "description": "啟用重排序"
+              },
+              "enable_drilldown": {
+                "type": "boolean",
+                "default": true,
+                "description": "啟用遞迴深入挖掘"
+              }
+            }
+          },
+          "response": {
+            "type": "ExecutePlanResponse",
+            "example": {
+              "question": "比較 Transformer 和 RNN 的優缺點",
+              "summary": "Transformer 使用自注意力機制，RNN 使用循環結構...",
+              "detailed_answer": "## Transformer\\n優點：平行計算...\\n## RNN\\n優點：處理序列...",
+              "sub_tasks": [
+                {"id": 1, "question": "Transformer 的核心架構是什麼？", "answer": "...", "sources": ["doc-1"], "is_drilldown": false, "iteration": 0}
+              ],
+              "all_sources": ["doc-1", "doc-2"],
+              "confidence": 0.85,
+              "total_iterations": 1
+            }
+          }
+        },
+
+        "execute_research_plan_stream": {
+          "path": "/rag/execute/stream",
+          "method": "POST",
+          "description": "🆕 執行研究計畫 (SSE 串流) - 即時進度更新",
+          "authentication": true,
+          "request": {
+            "description": "與 /rag/execute 相同"
+          },
+          "response": {
+            "type": "SSE EventStream",
+            "events": {
+              "plan_confirmed": { "task_count": "number", "enabled_count": "number" },
+              "task_start": { "id": "number", "question": "string", "task_type": "string", "iteration": "number" },
+              "task_done": { "id": "number", "question": "string", "answer": "string", "sources": "string[]", "iteration": "number" },
+              "drilldown_start": { "iteration": "number", "new_task_count": "number" },
+              "synthesis_start": { "total_tasks": "number" },
+              "complete": "ExecutePlanResponse",
+              "error": { "message": "string" }
+            }
+          },
+          "notes": [
+            "使用 Server-Sent Events (SSE)",
+            "前端使用 fetch + ReadableStream 或 EventSource",
+            "complete 事件包含完整的 ExecutePlanResponse"
+          ]
+        }
+      }
+    },
+
+    "stats": {
+      "prefix": "/stats",
+      "description": "🆕 統計與分析服務",
+      "endpoints": {
+        "dashboard": {
+          "path": "/stats/dashboard",
+          "method": "GET",
+          "description": "取得使用者的儀表板統計資料",
+          "authentication": true,
+          "request": null,
+          "response": {
+            "type": "DashboardStats",
+            "example": {
+              "total_queries": 42,
+              "accuracy_rate": 0.85,
+              "grounded_count": 36,
+              "hallucinated_count": 4,
+              "uncertain_count": 2,
+              "avg_confidence": 0.78,
+              "queries_last_7_days": [5, 8, 6, 7, 4, 6, 6],
+              "top_documents": [
+                {"doc_id": "uuid-1", "filename": null, "query_count": 15}
+              ]
+            }
+          },
+          "reactExample": {
+            "code": "async function getDashboardStats(accessToken: string): Promise<DashboardStats> {\n  const response = await fetch(`${baseUrl}/stats/dashboard`, {\n    headers: { 'Authorization': `Bearer ${accessToken}` },\n  });\n  if (!response.ok) throw new Error('Failed to get stats');\n  return response.json();\n}"
+          },
+          "notes": [
+            "需先執行 Supabase migration (001_create_query_logs.sql)",
+            "使用 enable_evaluation=true 的查詢才會有評估指標"
+          ]
+        }
+      }
+    },
+
+    "imagemd": {
+      "prefix": "/imagemd",
+      "description": "圖片翻譯服務 - 原地翻譯圖片中的文字",
+      "endpoints": {
+        "translate_image": {
+          "path": "/imagemd/translate_image",
+          "method": "POST",
+          "description": "辨識圖片中的文字並翻譯，將翻譯後的文字覆蓋回原圖相同位置",
+          "authentication": true,
+          "request": {
+            "contentType": "multipart/form-data",
+            "parameters": {
+              "file": {
+                "type": "file",
+                "required": true,
+                "allowedTypes": ["image/jpeg", "image/png", "image/webp"],
+                "description": "要翻譯的圖片檔案"
+              }
+            }
+          },
+          "response": {
+            "type": "Image (bytes)",
+            "contentType": "image/jpeg",
+            "description": "翻譯後的圖片（JPEG 格式）"
+          }
+        }
+      }
+    },
+
+    "multimodal": {
+      "prefix": "/multimodal",
+      "description": "多模態 RAG 服務 - 提取 PDF 中的文字和視覺元素（圖表、公式）並建立索引",
+      "endpoints": {
+        "extract": {
+          "path": "/multimodal/extract",
+          "method": "POST",
+          "description": "從 PDF 提取文字區塊和視覺元素，用 Gemini 摘要圖片，並建立 RAG 索引",
+          "authentication": true,
+          "request": {
+            "contentType": "multipart/form-data",
+            "parameters": {
+              "file": {
+                "type": "file",
+                "required": true,
+                "description": "PDF 檔案"
+              }
+            }
+          },
+          "response": {
+            "type": "ExtractedDocument"
+          }
+        },
+
+        "delete": {
+          "path": "/multimodal/file/{doc_id}",
+          "method": "DELETE",
+          "description": "刪除多模態文件及其所有相關資料",
+          "authentication": true,
+          "response": {
+            "example": {
+              "status": "success",
+              "message": "Multimodal document deleted successfully"
+            }
+          }
+        }
+      }
+    },
+
+    "graph": {
+      "prefix": "/graph",
+      "description": "🆕 GraphRAG 知識圖譜管理服務",
+      "endpoints": {
+        "get_status": {
+          "path": "/graph/status",
+          "method": "GET",
+          "description": "取得使用者知識圖譜的狀態資訊",
+          "authentication": true,
+          "response": {
+            "type": "GraphStatusResponse",
+            "example": {
+              "has_graph": true,
+              "node_count": 1250,
+              "edge_count": 3400,
+              "community_count": 12,
+              "pending_resolution": 45,
+              "needs_optimization": true,
+              "last_updated": "2025-12-21T10:30:00Z"
+            }
+          }
+        },
+        "rebuild_graph": {
+          "path": "/graph/rebuild",
+          "method": "POST",
+          "description": "強制重建知識圖譜 (會重新從所有文件抽取實體)",
+          "authentication": true,
+          "request": {
+            "contentType": "application/json",
+            "body": {
+              "force": {
+                "type": "boolean",
+                "default": false,
+                "description": "即使圖譜為空也強制重建"
+              }
+            }
+          },
+          "response": {
+            "example": {
+              "status": "started",
+              "message": "圖譜重建已開始，請稍後檢查狀態"
+            }
+          }
+        },
+        "optimize_graph": {
+          "path": "/graph/optimize",
+          "method": "POST",
+          "description": "執行實體融合與社群重建",
+          "authentication": true,
+          "request": {
+            "contentType": "application/json",
+            "body": {
+              "regenerate_communities": {
+                "type": "boolean",
+                "default": true,
+                "description": "重新生成社群摘要"
+              }
+            }
+          },
+          "response": {
+            "example": {
+              "status": "success",
+              "message": "優化完成：合併 15 個實體，建立 8 個社群",
+              "details": {
+                "merges": 15,
+                "communities": 8,
+                "node_count": 1235
+              }
+            }
+          }
+        },
+        "get_visualization_data": {
+          "path": "/graph/data",
+          "method": "GET",
+          "description": "🆕 取得 react-force-graph 格式的圖譜資料，用於前端視覺化",
+          "authentication": true,
+          "response": {
+            "type": "GraphVisualizationData",
+            "example": {
+              "nodes": [
+                {"id": "Transformer", "group": 1, "val": 10, "desc": "Deep Learning Architecture"},
+                {"id": "BERT", "group": 1, "val": 8, "desc": "Pre-trained Model"},
+                {"id": "Attention", "group": 2, "val": 5, "desc": "Mechanism"}
+              ],
+              "links": [
+                {"source": "BERT", "target": "Transformer", "label": "based on"},
+                {"source": "Transformer", "target": "Attention", "label": "uses"}
+              ]
+            }
+          },
+          "notes": [
+            "空圖譜時回傳 {nodes: [], links: []}",
+            "group 用於前端節點著色 (0-4)",
+            "val 表示節點大小 (引用次數)"
+          ]
+        }
+      }
+    }
+  },
+
+  "schemas": {
+    "ChatMessage": {
+      "description": "對話訊息",
+      "fields": {
+        "role": { "type": "enum", "values": ["user", "assistant"], "description": "角色 (注意：不支援 system)" },
+        "content": { "type": "string", "description": "訊息內容" }
+      }
+    },
+    "AskResponse": {
+      "description": "基本 RAG 問答回應",
+      "fields": {
+        "question": { "type": "string", "description": "原始問題" },
+        "answer": { "type": "string", "description": "AI 生成的答案" },
+        "sources": { "type": "array[string]", "description": "參考的文件 ID 列表" }
+      }
+    },
+    "EnhancedAskResponse": {
+      "description": "🆕 評估模式問答回應",
+      "fields": {
+        "question": { "type": "string", "description": "原始問題" },
+        "answer": { "type": "string", "description": "AI 生成的答案" },
+        "sources": { "type": "array[SourceDetail]", "description": "詳細來源資訊" },
+        "metrics": { "type": "EvaluationMetrics | null", "description": "評估指標" }
+      }
+    },
+    "SourceDetail": {
+      "description": "🆕 詳細來源引用",
+      "fields": {
+        "doc_id": { "type": "string", "description": "文件 UUID" },
+        "filename": { "type": "string | null", "description": "檔名" },
+        "page": { "type": "integer | null", "description": "頁碼" },
+        "snippet": { "type": "string", "description": "引用段落 (前 200 字)" },
+        "score": { "type": "number", "range": "0.0-1.0", "description": "相關性分數" }
+      }
+    },
+    "EvaluationMetrics": {
+      "description": "🆕 責任 AI 評估指標",
+      "fields": {
+        "faithfulness": { "type": "enum", "values": ["grounded", "hallucinated", "uncertain"], "description": "答案可信度" },
+        "confidence_score": { "type": "number", "range": "0.0-1.0", "description": "信心分數" }
+      }
+    },
+    "DocumentItem": {
+      "description": "🆕 文件列表項目",
+      "fields": {
+        "id": { "type": "string", "description": "文件 UUID" },
+        "file_name": { "type": "string", "description": "原始檔名 (注意使用底線)" },
+        "created_at": { "type": "datetime", "description": "上傳時間" },
+        "status": { "type": "string | null", "description": "處理狀態" },
+        "processing_step": { "type": "string | null", "description": "詳細處理步驟" }
+      }
+    },
+    "DashboardStats": {
+      "description": "🆕 儀表板統計",
+      "fields": {
+        "total_queries": { "type": "integer", "description": "總查詢次數" },
+        "accuracy_rate": { "type": "number", "description": "準確率 (grounded / evaluated)" },
+        "grounded_count": { "type": "integer", "description": "有據回答數" },
+        "hallucinated_count": { "type": "integer", "description": "幻覺回答數" },
+        "uncertain_count": { "type": "integer", "description": "無法判斷數" },
+        "avg_confidence": { "type": "number", "description": "平均信心分數" },
+        "queries_last_7_days": { "type": "array[integer]", "description": "近 7 天查詢趨勢" },
+        "top_documents": { "type": "array[DocumentStat]", "description": "最常查詢的文件" }
+      }
+    },
+    "DocumentStat": {
+      "fields": {
+        "doc_id": { "type": "string" },
+        "filename": { "type": "string | null" },
+        "query_count": { "type": "integer" }
+      }
+    },
+    "ResearchResponse": {
+      "description": "深度研究回應",
+      "fields": {
+        "question": { "type": "string" },
+        "summary": { "type": "string", "description": "研究摘要" },
+        "detailed_answer": { "type": "string", "description": "詳細研究報告" },
+        "sub_tasks": { "type": "array[SubTaskResponse]" },
+        "all_sources": { "type": "array[string]" },
+        "confidence": { "type": "number", "range": "0.0-1.0" }
+      }
+    },
+    "SubTaskResponse": {
+      "fields": {
+        "id": { "type": "integer" },
+        "question": { "type": "string" },
+        "answer": { "type": "string" },
+        "sources": { "type": "array[string]" },
+        "status": { "type": "string", "enum": ["pending", "loading", "completed", "failed"], "description": "🆕 任務狀態" }
+      }
+    },
+    "GraphVisualizationData": {
+      "description": "🆕 圖譜視覺化資料 (react-force-graph 格式)",
+      "fields": {
+        "nodes": { "type": "array[VisNode]", "description": "節點陣列" },
+        "links": { "type": "array[VisLink]", "description": "連結陣列" }
+      }
+    },
+    "VisNode": {
+      "description": "🆕 視覺化節點",
+      "fields": {
+        "id": { "type": "string", "description": "節點標籤" },
+        "group": { "type": "integer", "description": "分群 ID (用於著色)" },
+        "val": { "type": "integer", "description": "節點大小" },
+        "desc": { "type": "string", "description": "描述" }
+      }
+    },
+    "VisLink": {
+      "description": "🆕 視覺化連結",
+      "fields": {
+        "source": { "type": "string", "description": "來源節點 ID" },
+        "target": { "type": "string", "description": "目標節點 ID" },
+        "label": { "type": "string", "description": "關係標籤" }
+      }
+    }
+  },
+
+  "errorHandling": {
+    "httpStatusCodes": {
+      "200": "成功",
+      "400": "請求錯誤 (無效的輸入、不支援的檔案類型)",
+      "401": "未授權 (缺少或無效的 Token)",
+      "403": "禁止存取 (Token 有效但權限不足)",
+      "404": "找不到資源 (文件不存在)",
+      "422": "驗證錯誤 (Pydantic 驗證失敗)",
+      "500": "伺服器錯誤 (處理失敗、服務不可用)"
+    },
+    "errorResponseFormat": {
+      "example": {
+        "detail": "Error message describing what went wrong"
+      }
+    }
+  },
+
+  "bestPractices": {
+    "react": [
+      "使用 React Query 或 SWR 管理伺服器狀態",
+      "建立 API client 統一處理 headers 和錯誤",
+      "使用 TypeScript 定義完整的 API 類型",
+      "檔案上傳時追蹤進度",
+      "實作 retry 機制處理暫時性錯誤"
+    ],
+    "general": [
+      "所有耗時操作都應設定適當的 timeout (建議 120 秒)",
+      "顯示載入指示器告知使用者處理中",
+      "doc_id 應妥善儲存，用於後續查詢和刪除操作",
+      "注意欄位命名：file_name (有底線)，非 filename"
+    ]
+  },
+
+  "metadata": {
+    "generatedAt": "2025-12-21T19:45:00+08:00",
+    "generatedBy": "Antigravity Agent",
+    "targetAudience": ["React Developer", "Flutter Developer", "Frontend AI Agent"],
+    "language": "zh-TW (繁體中文)"
+  }
+}

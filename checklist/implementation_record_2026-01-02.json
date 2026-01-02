@@ -1,0 +1,68 @@
+{
+  "task_id": "pdf-display-deep-research-fix-2026-01-02",
+  "task_name": "PDF 顯示與 Deep Research 結果顯示修復",
+  "date": "2026-01-02",
+  "status": "completed",
+  "issues_identified": [
+    {
+      "issue_id": 1,
+      "title": "PDF 名稱無法顯示",
+      "severity": "high",
+      "root_cause": "欄位名稱不一致：Backend API 回傳 file_name，但 Frontend 使用 filename",
+      "status": "fixed"
+    },
+    {
+      "issue_id": 2,
+      "title": "Deep Research 結果文字溢出顯示範圍",
+      "severity": "medium",
+      "root_cause": "結果區塊缺少 maxHeight 和 overflowY 設定，導致內容超出容器無法捲動",
+      "status": "fixed"
+    }
+  ],
+  "changes_made": [
+    {
+      "file": "src/types/rag.ts",
+      "change_type": "modify",
+      "description": "將 DocumentItem 介面的 filename 欄位改為 file_name",
+      "lines_affected": "66-72"
+    },
+    {
+      "file": "src/components/rag/DocumentSelector.tsx",
+      "change_type": "modify",
+      "description": "將 doc.filename 引用改為 doc.file_name",
+      "lines_affected": "153, 160"
+    },
+    {
+      "file": "src/components/rag/DocumentTable.tsx",
+      "change_type": "modify",
+      "description": "將 Document 介面的 filename 改為 file_name，並更新表格欄位引用",
+      "lines_affected": "22, 77"
+    },
+    {
+      "file": "src/components/rag/DeepResearchPanel.tsx",
+      "change_type": "modify",
+      "description": "添加 maxH='calc(100vh - 400px)' 和 overflowY='auto' 至 CardBody，並加入 word-break 樣式至 markdown 容器",
+      "lines_affected": "359, 390, 403-408"
+    }
+  ],
+  "verification": {
+    "method": "manual",
+    "steps": [
+      {
+        "step": 1,
+        "description": "進入對話頁面，查看右側選擇文件區塊",
+        "expected": "已上傳的 PDF 檔案名稱應正常顯示"
+      },
+      {
+        "step": 2,
+        "description": "進入知識庫頁面，查看文件列表",
+        "expected": "檔案名稱欄位應顯示正確的檔名"
+      },
+      {
+        "step": 3,
+        "description": "執行深度研究並等待結果",
+        "expected": "結果文字應在容器內正常換行，並可使用滾輪捲動查看完整內容"
+      }
+    ]
+  }
+}
