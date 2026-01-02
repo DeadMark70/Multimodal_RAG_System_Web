@@ -36,7 +36,7 @@
 - [x] Task: Chat History Loading (TDD) [46ba63d]
     - **Write Tests:** Integration tests for loading messages into the Chat view.
     - **Implement:** Update `src/pages/Chat.tsx` and `useChat.ts` to load message history when a conversation is selected.
-- [~] Task: Chat Message Saving (TDD)
+- [x] Task: Chat Message Saving (TDD) [d936d96]
     - **Write Tests:** Verify that sending a message calls the save API.
     - **Implement:** Update `useChat.ts` `sendMessage` function to persist messages to the backend.
 - [ ] Task: Conductor - User Manual Verification 'Standard Chat Persistence' (Protocol in workflow.md)
