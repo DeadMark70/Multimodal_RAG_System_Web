@@ -16,7 +16,7 @@
     - **Implement:** Create/Update FastAPI routes to save messages to a conversation.
 - [ ] Task: Conductor - User Manual Verification 'Backend & Database Schema Verification' (Protocol in workflow.md)
 
-## Phase 2: Frontend Service & State Integration
+## Phase 2: Frontend Service & State Integration [checkpoint: 2f7a9ef]
 **Goal:** connect the frontend application to the new backend endpoints.
 
 - [x] Task: Update Frontend API Services (TDD) [83a766e]
