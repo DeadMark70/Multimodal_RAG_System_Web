@@ -41,7 +41,7 @@
     - **Implement:** Update `useChat.ts` `sendMessage` function to persist messages to the backend.
 - [ ] Task: Conductor - User Manual Verification 'Standard Chat Persistence' (Protocol in workflow.md)
 
-## Phase 4: Deep Research Persistence
+## Phase 4: Deep Research Persistence [checkpoint: eb16151]
 **Goal:** Enable history for the Deep Research feature.
 
 - [x] Task: Deep Research Session Management (TDD) [0cf3c5d]
