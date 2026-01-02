@@ -30,10 +30,10 @@
 ## Phase 3: Standard Chat Persistence
 **Goal:** Enable history for the standard chat interface.
 
-- [~] Task: Sidebar Conversation List (TDD)
+- [x] Task: Sidebar Conversation List (TDD) [01e51ea]
     - **Write Tests:** Component tests for `Sidebar` displaying conversation items.
     - **Implement:** Update `src/components/layout/Sidebar.tsx` (and `ConversationSidebar.tsx` if separate) to list fetched conversations.
-- [ ] Task: Chat History Loading (TDD)
+- [~] Task: Chat History Loading (TDD)
     - **Write Tests:** Integration tests for loading messages into the Chat view.
     - **Implement:** Update `src/pages/Chat.tsx` and `useChat.ts` to load message history when a conversation is selected.
 - [ ] Task: Chat Message Saving (TDD)

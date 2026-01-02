@@ -50,8 +50,8 @@ export function useChat(options: UseChatOptions = {}) {
         // 轉換後端訊息格式為前端格式
         const loadedMessages: ChatMessage[] = conversation.messages.map(msg => ({
           id: msg.id,
-          role: msg.role,
-          content: msg.role === 'user' ? (msg.question ?? '') : (msg.answer ?? ''),
+          role: msg.role === 'system' ? 'assistant' : msg.role, // Handle system messages if any
+          content: msg.content,
           timestamp: new Date(msg.created_at).getTime(),
         }));
 
