@@ -22,7 +22,7 @@
 - [x] Task: Update Frontend API Services (TDD) [83a766e]
     - **Write Tests:** Unit tests for `conversationApi.ts` methods.
     - **Implement:** Update `src/services/conversationApi.ts` to match backend endpoints.
-- [ ] Task: Update Global Stores (TDD)
+- [x] Task: Update Global Stores (TDD) [cb28259]
     - **Write Tests:** Unit tests for `useConversations` store logic.
     - **Implement:** Update `src/hooks/useConversations.ts` (or `stores/useSessionStore.ts`) to fetch and store the conversation list.
 - [ ] Task: Conductor - User Manual Verification 'Frontend Service & State Integration' (Protocol in workflow.md)

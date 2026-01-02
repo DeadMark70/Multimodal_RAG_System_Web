@@ -1,4 +1,4 @@
--- Add metadata column to conversations if it doesn't exist
+-- 1. 安全地新增 metadata 到 conversations
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'conversations' AND column_name = 'metadata') THEN
@@ -6,7 +6,7 @@ BEGIN
     END IF;
 END $$;
 
--- Create messages table
+-- 2. 建立 messages 表
 CREATE TABLE IF NOT EXISTS messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE NOT NULL,
@@ -16,10 +16,16 @@ CREATE TABLE IF NOT EXISTS messages (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
--- Enable RLS on messages
+-- 新增建立索引以提升查詢效能
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_id_created_at 
+ON messages (conversation_id, created_at);
+
+-- 3. 啟用 RLS
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 
--- Create policy for messages
+-- 4. 設定 Policies
+
+-- 讀取 (Select)
 DROP POLICY IF EXISTS "Users can view messages of their own conversations" ON messages;
 CREATE POLICY "Users can view messages of their own conversations"
     ON messages FOR SELECT
@@ -31,6 +37,7 @@ CREATE POLICY "Users can view messages of their own conversations"
         )
     );
 
+-- 新增 (Insert)
 DROP POLICY IF EXISTS "Users can insert messages to their own conversations" ON messages;
 CREATE POLICY "Users can insert messages to their own conversations"
     ON messages FOR INSERT
