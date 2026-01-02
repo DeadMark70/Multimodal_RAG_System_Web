@@ -44,7 +44,7 @@
 ## Phase 4: Deep Research Persistence
 **Goal:** Enable history for the Deep Research feature.
 
-- [ ] Task: Deep Research Session Management (TDD)
+- [~] Task: Deep Research Session Management (TDD)
     - **Write Tests:** Tests for creating/loading a research session.
     - **Implement:** Update `useDeepResearch.ts` to create a conversation of type 'research' and save initial parameters.
 - [ ] Task: Deep Research UI Integration (TDD)

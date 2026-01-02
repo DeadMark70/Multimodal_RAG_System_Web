@@ -8,12 +8,13 @@
  * - 追蹤進度
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { 
   generateResearchPlan, 
   executeResearchPlanStream 
 } from '../services/ragApi';
+import { getConversation, addMessage } from '../services/conversationApi';
 import type { 
   EditableSubTask, 
   ResearchPlanResponse,
@@ -21,6 +22,8 @@ import type {
   TaskProgress,
   SSEEvent,
 } from '../types/rag';
+import { useSessionStore } from '../stores/useSessionStore';
+import { useConversationMutations } from './useConversations';
 
 interface UseDeepResearchOptions {
   docIds?: string[];
@@ -59,6 +62,35 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
   const abortControllerRef = useRef<AbortController | null>(null);
   const toast = useToast();
 
+  // Integration with Session and Conversations
+  const { currentChatId, actions: { setCurrentChatId } } = useSessionStore();
+  const { create: createConversation } = useConversationMutations();
+
+  // 載入歷史紀錄 (如果 currentChatId 存在且是研究類型)
+  useEffect(() => {
+    if (!currentChatId) return;
+
+    const loadHistory = async () => {
+      try {
+        const conversation = await getConversation(currentChatId);
+        if (conversation.type === 'research') {
+          // 嘗試從 metadata 或訊息中恢復狀態
+          if (conversation.metadata?.plan) {
+            setPlan(conversation.metadata.plan as ResearchPlanResponse);
+          }
+          if (conversation.metadata?.result) {
+            setResult(conversation.metadata.result as ExecutePlanResponse);
+          }
+          // TODO: 恢復 progress (如果有存)
+        }
+      } catch (err) {
+        console.error('Failed to load research session', err);
+      }
+    };
+
+    loadHistory();
+  }, [currentChatId]);
+
   /**
    * 生成研究計畫
    */
@@ -72,8 +104,30 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     setProgress([]);
 
     try {
+      // 1. 建立新的對話 Session (Persistence)
+      const conversation = await createConversation({
+        title: question,
+        type: 'research',
+        metadata: {
+            // 初始 metadata
+            original_question: question,
+        }
+      });
+      setCurrentChatId(conversation.id);
+
+      // 2. 生成計畫
       const planResponse = await generateResearchPlan(question, docIds, enableGraphPlanning);
       setPlan(planResponse);
+
+      // 3. 儲存計畫到 metadata (Update Conversation or Add System Message)
+      // 這裡選擇存為一則 System Message 或更新 conversation metadata
+      // 為了簡單起見，我們假設 addMessage 可以用來存儲這些檢查點
+      await addMessage(conversation.id, {
+        role: 'system',
+        content: 'Research Plan Generated',
+        metadata: { plan: planResponse }
+      });
+
     } catch (err) {
       const message = err instanceof Error ? err.message : '生成研究計畫失敗';
       setError(message);
@@ -86,7 +140,7 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     } finally {
       setIsPlanning(false);
     }
-  }, [docIds, enableGraphPlanning, toast]);
+  }, [docIds, enableGraphPlanning, toast, createConversation, setCurrentChatId]);
 
   /**
    * 更新子任務
@@ -259,6 +313,15 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
       case 'complete': {
         const completeData = data as ExecutePlanResponse;
         setResult(completeData);
+        
+        // 儲存結果 (Persistence)
+        if (currentChatId) {
+            addMessage(currentChatId, {
+                role: 'assistant',
+                content: 'Research Completed',
+                metadata: { result: completeData }
+            }).catch(console.error);
+        }
         break;
       }
 
@@ -268,7 +331,7 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
         break;
       }
     }
-  }, []);
+  }, [currentChatId]);
 
   /**
    * 取消執行
@@ -289,11 +352,12 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     setProgress([]);
     setResult(null);
     setError(null);
+    setCurrentChatId(null); // Reset chat ID
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
-  }, []);
+  }, [setCurrentChatId]);
 
   return {
     plan,
