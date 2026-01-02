@@ -27,7 +27,7 @@
     - **Implement:** Update `src/hooks/useConversations.ts` (or `stores/useSessionStore.ts`) to fetch and store the conversation list.
 - [ ] Task: Conductor - User Manual Verification 'Frontend Service & State Integration' (Protocol in workflow.md)
 
-## Phase 3: Standard Chat Persistence
+## Phase 3: Standard Chat Persistence [checkpoint: 209efac]
 **Goal:** Enable history for the standard chat interface.
 
 - [x] Task: Sidebar Conversation List (TDD) [01e51ea]
