@@ -44,10 +44,10 @@
 ## Phase 4: Deep Research Persistence
 **Goal:** Enable history for the Deep Research feature.
 
-- [~] Task: Deep Research Session Management (TDD)
+- [x] Task: Deep Research Session Management (TDD) [0cf3c5d]
     - **Write Tests:** Tests for creating/loading a research session.
     - **Implement:** Update `useDeepResearch.ts` to create a conversation of type 'research' and save initial parameters.
-- [ ] Task: Deep Research UI Integration (TDD)
+- [~] Task: Deep Research UI Integration (TDD)
     - **Write Tests:** Verify `DeepResearchPanel` restores state from loaded data.
     - **Implement:** Update `src/components/rag/DeepResearchPanel.tsx` to populate fields and results from the loaded conversation metadata/history.
 - [ ] Task: Conductor - User Manual Verification 'Deep Research Persistence' (Protocol in workflow.md)
