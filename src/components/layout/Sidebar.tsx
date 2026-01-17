@@ -14,9 +14,11 @@ import {
   DrawerHeader,
   DrawerBody,
   useDisclosure,
+  useColorMode,
+  IconButton,
 } from '@chakra-ui/react';
 import { NavLink as RouterLink, useLocation } from 'react-router-dom';
-import { FiHome, FiDatabase, FiMessageSquare, FiTrendingUp, FiSettings, FiShare2 } from 'react-icons/fi';
+import { FiHome, FiDatabase, FiMessageSquare, FiTrendingUp, FiSettings, FiShare2, FiSun, FiMoon } from 'react-icons/fi';
 import { SettingsPanel } from '../settings';
 
 interface NavItemProps {
@@ -28,6 +30,8 @@ interface NavItemProps {
 const NavItem = ({ icon, children, to }: NavItemProps) => {
   const location = useLocation();
   const isActive = location.pathname.startsWith(to);
+  const activeBg = useColorModeValue('glass.300', 'glass.700');
+  const hoverBg = useColorModeValue('glass.200', 'glass.600');
 
   return (
     <ChakraLink
@@ -45,20 +49,23 @@ const NavItem = ({ icon, children, to }: NavItemProps) => {
         cursor="pointer"
         role="group"
         transition=".2s ease"
-        bg={isActive ? 'brand.500' : 'transparent'} 
-        color={isActive ? 'white' : 'gray.500'}
+        bg={isActive ? activeBg : 'transparent'} 
+        color={isActive ? 'brand.500' : 'gray.500'}
+        fontWeight={isActive ? 'bold' : 'medium'}
+        border="1px solid"
+        borderColor={isActive ? 'brand.500' : 'transparent'}
         _hover={{
-          bg: isActive ? 'brand.600' : 'gray.100',
-          color: isActive ? 'white' : 'brand.500',
+          bg: hoverBg,
+          color: 'brand.500',
         }}
       >
         <Icon 
             mr="4" 
             fontSize="18" 
             as={icon} 
-            _groupHover={{ color: isActive ? 'white' : 'brand.500' }}
+            _groupHover={{ color: 'brand.500' }}
         />
-        <Text fontSize="md" fontWeight={isActive ? '600' : '500'}>{children}</Text>
+        <Text fontSize="md">{children}</Text>
       </Flex>
     </ChakraLink>
   );
@@ -69,21 +76,34 @@ export default function Sidebar() {
     const bg = useColorModeValue('glass.500', 'glass.600'); // Slightly more opaque for sidebar
     const borderColor = useColorModeValue('glass.300', 'glass.300');
     const { isOpen, onOpen, onClose } = useDisclosure();
+    const { colorMode, toggleColorMode } = useColorMode();
     
   return (
     <>
       <Box
-        transition="3s ease"
+        transition="0.3s ease"
         bg={bg}
         backdropFilter="blur(20px)"
         borderRight="1px"
         borderRightColor={borderColor}
+        w={{ base: 'full', md: 64 }}
+        pos="fixed"
+        h="full"
+        top="0"
+        left="0"
         zIndex="sticky"
       >
         <Flex h="20" alignItems="center" mx="8" justifyContent="space-between">
           <Text fontSize="2xl" fontFamily="monospace" fontWeight="bold" color="brand.500">
             3R 儀表板
           </Text>
+          <IconButton
+            size="sm"
+            variant="ghost"
+            aria-label="Toggle Color Mode"
+            icon={colorMode === 'light' ? <FiMoon /> : <FiSun />}
+            onClick={toggleColorMode}
+          />
         </Flex>
         <VStack spacing={2} align="stretch" mt={4}>
           <NavItem icon={FiHome} to="/dashboard">儀表板</NavItem>
@@ -103,7 +123,7 @@ export default function Sidebar() {
             cursor="pointer"
             transition=".2s ease"
             color="gray.500"
-            _hover={{ bg: 'gray.100', color: 'brand.500' }}
+            _hover={{ bg: 'glass.200', color: 'brand.500' }}
             onClick={onOpen}
           >
             <Icon mr="4" fontSize="18" as={FiSettings} />
