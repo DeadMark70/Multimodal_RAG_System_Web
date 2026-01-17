@@ -17,7 +17,7 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 60000, // 60 秒逾時 (考慮 LLM 回應時間)
+  timeout: 150000, // 150 秒逾時 (RAG 回答 + 評估可能需要 60-90 秒)
 });
 
 // 請求攔截器 - 自動注入 JWT Token

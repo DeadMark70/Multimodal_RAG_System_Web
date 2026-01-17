@@ -41,6 +41,7 @@ import {
   FiSettings,
   FiChevronDown,
   FiChevronUp,
+  FiEye,
 } from 'react-icons/fi';
 import { useState } from 'react';
 import { useSettingsStore, useSettingsActions } from '../../stores';
@@ -55,6 +56,10 @@ interface SettingItemProps {
   isEnabled: boolean;
   onChange: (value: boolean) => void;
   isNew?: boolean;
+  /** 是否禁用開關 (後端強制設定) */
+  isDisabled?: boolean;
+  /** 顯示「預設」標籤 */
+  isDefault?: boolean;
 }
 
 const SettingItem = ({
@@ -64,12 +69,14 @@ const SettingItem = ({
   isEnabled,
   onChange,
   isNew,
+  isDisabled,
+  isDefault,
 }: SettingItemProps) => {
   const textColor = useColorModeValue('gray.700', 'gray.200');
   const descColor = useColorModeValue('gray.500', 'gray.400');
 
   return (
-    <HStack justify="space-between" w="full" py={2}>
+    <HStack justify="space-between" w="full" py={2} opacity={isDisabled ? 0.7 : 1}>
       <HStack spacing={3} flex={1}>
         <Icon as={icon} color={isEnabled ? 'brand.500' : 'gray.400'} />
         <Box>
@@ -80,6 +87,11 @@ const SettingItem = ({
             {isNew && (
               <Badge colorScheme="purple" fontSize="xs" variant="subtle">
                 NEW
+              </Badge>
+            )}
+            {isDefault && (
+              <Badge colorScheme="green" fontSize="xs" variant="subtle">
+                預設
               </Badge>
             )}
           </HStack>
@@ -95,6 +107,7 @@ const SettingItem = ({
         isChecked={isEnabled}
         onChange={(e) => onChange(e.target.checked)}
         size="md"
+        isDisabled={isDisabled}
       />
     </HStack>
   );
@@ -211,14 +224,15 @@ export function SettingsPanel({ isDrawerMode = false }: SettingsPanelProps) {
             <SettingItem
               icon={FiShare2}
               label="Graph RAG"
-              description="知識圖譜增強檢索"
-              isEnabled={ragSettings.enable_graph_rag}
-              onChange={(v) => updateSetting('enable_graph_rag', v)}
-              isNew
+              description="系統預設開啟，確保全域視角分析"
+              isEnabled={true}
+              onChange={() => {}}
+              isDefault
+              isDisabled
             />
 
-            {/* 搜尋模式選擇 */}
-            <Collapse in={ragSettings.enable_graph_rag} animateOpacity>
+            {/* 搜尋模式選擇 (GraphRAG 預設開啟，所以永遠顯示) */}
+            <Collapse in={true} animateOpacity>
               <Box py={2} pl={7}>
                 <HStack justify="space-between" mb={2}>
                   <HStack spacing={2}>
@@ -253,6 +267,15 @@ export function SettingsPanel({ isDrawerMode = false }: SettingsPanelProps) {
               description="Deep Research 模式"
               isEnabled={ragSettings.enable_graph_planning}
               onChange={(v) => updateSetting('enable_graph_planning', v)}
+              isNew
+            />
+            
+            <SettingItem
+              icon={FiEye}
+              label="深度視覺查證"
+              description="圖片細節二次分析"
+              isEnabled={ragSettings.enable_deep_image_analysis}
+              onChange={(v) => updateSetting('enable_deep_image_analysis', v)}
               isNew
             />
           </VStack>

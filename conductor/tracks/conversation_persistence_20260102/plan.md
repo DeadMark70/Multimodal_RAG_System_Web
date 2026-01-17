@@ -55,7 +55,7 @@
 ## Phase 5: Final Polish & End-to-End Testing
 **Goal:** Ensure a smooth user experience and handle edge cases.
 
-- [ ] Task: End-to-End Testing
+- [x] Task: End-to-End Testing [c38e972]
     - **Implement:** Run manual or automated E2E flows: Create Chat -> Save -> Refresh -> Load; Create Research -> Save -> Refresh -> Load.
 - [x] Task: UI Refinement [6665947]
     - **Implement:** Add loading skeletons for history list and chat window. Add error toasts for failed saves/loads.

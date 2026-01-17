@@ -23,12 +23,22 @@ import type {
   SSEEvent,
 } from '../types/rag';
 import { useSessionStore } from '../stores/useSessionStore';
+import { useSettingsStore } from '../stores/useSettingsStore';
 import { useConversationMutations } from './useConversations';
 
 interface UseDeepResearchOptions {
   docIds?: string[];
   enableGraphPlanning?: boolean;
 }
+
+/** Deep Research 執行階段 (Phase 6 UX 優化) */
+export type ResearchPhase = 
+  | 'idle' 
+  | 'planning' 
+  | 'executing' 
+  | 'drilldown' 
+  | 'synthesis' 
+  | 'complete';
 
 interface UseDeepResearchReturn {
   // 狀態
@@ -38,6 +48,8 @@ interface UseDeepResearchReturn {
   progress: TaskProgress[];
   result: ExecutePlanResponse | null;
   error: string | null;
+  /** 🆕 Phase 6: 當前執行階段 */
+  currentPhase: ResearchPhase;
 
   // 方法
   generatePlan: (question: string) => Promise<void>;
@@ -51,6 +63,7 @@ interface UseDeepResearchReturn {
 
 export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepResearchReturn {
   const { docIds, enableGraphPlanning } = options;
+  const { ragSettings } = useSettingsStore();
   
   const [plan, setPlan] = useState<ResearchPlanResponse | null>(null);
   const [isPlanning, setIsPlanning] = useState(false);
@@ -58,6 +71,8 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
   const [progress, setProgress] = useState<TaskProgress[]>([]);
   const [result, setResult] = useState<ExecutePlanResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** 🆕 Phase 6: 當前執行階段 */
+  const [currentPhase, setCurrentPhase] = useState<ResearchPhase>('idle');
   
   const abortControllerRef = useRef<AbortController | null>(null);
   const toast = useToast();
@@ -119,12 +134,10 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
       const planResponse = await generateResearchPlan(question, docIds, enableGraphPlanning);
       setPlan(planResponse);
 
-      // 3. 儲存計畫到 metadata (Update Conversation or Add System Message)
-      // 這裡選擇存為一則 System Message 或更新 conversation metadata
-      // 為了簡單起見，我們假設 addMessage 可以用來存儲這些檢查點
+      // 3. 儲存使用者問題到對話 (Persistence)
       await addMessage(conversation.id, {
-        role: 'system',
-        content: 'Research Plan Generated',
+        role: 'user',
+        content: question,  // 儲存實際問題內容
         metadata: { plan: planResponse }
       });
 
@@ -201,6 +214,7 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     }
 
     setIsExecuting(true);
+    setCurrentPhase('executing');
     setError(null);
     setResult(null);
 
@@ -225,6 +239,7 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
           sub_tasks: plan.sub_tasks.filter(t => t.enabled),
           doc_ids: plan.doc_ids ?? undefined,
           enable_drilldown: true,
+          enable_deep_image_analysis: ragSettings.enable_deep_image_analysis,
         },
         (event: SSEEvent) => {
           handleSSEEvent(event);
@@ -290,11 +305,11 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
 
       case 'task_done':
       case 'drilldown_task_done': {
-        const doneData = data as { id: number; answer: string; iteration: number };
+        const doneData = data as { id: number; answer: string; iteration: number; contexts?: string[] };
         setProgress(prev =>
           prev.map(p =>
             p.id === doneData.id && p.iteration === doneData.iteration
-              ? { ...p, status: 'done', answer: doneData.answer }
+              ? { ...p, status: 'done', answer: doneData.answer, contexts: doneData.contexts }
               : p
           )
         );
@@ -302,24 +317,32 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
       }
 
       case 'drilldown_start': {
-        // 深入挖掘開始，可以顯示提示
+        // Phase 6: 深入挖掘開始
+        setCurrentPhase('drilldown');
         break;
       }
 
       case 'synthesis_start':
-        // 綜合報告生成中
+        // Phase 6: 綜合報告生成中
+        setCurrentPhase('synthesis');
         break;
 
       case 'complete': {
         const completeData = data as ExecutePlanResponse;
         setResult(completeData);
+        setCurrentPhase('complete');
         
-        // 儲存結果 (Persistence)
+        // 儲存結果 (Persistence) - 儲存摘要作為可讀內容
         if (currentChatId) {
             addMessage(currentChatId, {
                 role: 'assistant',
-                content: 'Research Completed',
-                metadata: { result: completeData }
+                content: completeData.summary || '研究完成',
+                metadata: { 
+                    result: completeData,
+                    detailed_answer: completeData.detailed_answer,
+                    confidence: completeData.confidence,
+                    sources: completeData.all_sources,
+                }
             }).catch(console.error);
         }
         break;
@@ -352,6 +375,7 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     setProgress([]);
     setResult(null);
     setError(null);
+    setCurrentPhase('idle');
     setCurrentChatId(null); // Reset chat ID
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -366,6 +390,7 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     progress,
     result,
     error,
+    currentPhase,
     generatePlan,
     updateTask,
     toggleTask,

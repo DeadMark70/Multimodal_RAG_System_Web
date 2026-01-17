@@ -38,6 +38,9 @@ export interface RagSettings {
   /** 🆕 啟用圖譜輔助規劃 (Deep Research) */
   enable_graph_planning: boolean;
 
+  /** 🆕 啟用進階圖片查證 (Deep Visual Verification) */
+  enable_deep_image_analysis: boolean;
+
   /** 研究子任務數量上限 (1-10) */
   max_subtasks: number;
 }
@@ -86,6 +89,7 @@ const DEFAULT_RAG_SETTINGS: RagSettings = {
   enable_graph_rag: false,
   graph_search_mode: 'auto',
   enable_graph_planning: false,
+  enable_deep_image_analysis: false, // 預設關閉
   max_subtasks: 5,
 };
 

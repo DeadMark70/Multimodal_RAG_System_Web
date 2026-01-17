@@ -6,8 +6,31 @@ export interface Citation {
   score: number;
 }
 
+/**
+ * 學術評估指標 (1-10 分制)
+ * @version 3.0.0
+ * 
+ * 注意：1-10 分制欄位為可選，以支援向後相容舊版 API
+ */
 export interface EvaluationMetrics {
+  // ========== 1-10 分制評估欄位 (🆕 v3.0) ==========
+  /** 精確度 (1-10) - 資料準確性，權重 50% */
+  accuracy?: number;
+  /** 完整性 (1-10) - 回答是否涵蓋所有面向，權重 30% */
+  completeness?: number;
+  /** 清晰度 (1-10) - 邏輯表達與結構，權重 20% */
+  clarity?: number;
+  /** 加權總分 (由 accuracy*0.5 + completeness*0.3 + clarity*0.2 計算) */
+  weighted_score?: number;
+  /** 是否通過學術門檻 (weighted_score >= 7.0) */
+  is_passing?: boolean;
+  /** 改進建議 (當 is_passing 為 false 時提供) */
+  suggestion?: string;
+
+  // ========== 核心欄位 (必填) ==========
+  /** 答案可信度 */
   faithfulness: 'grounded' | 'hallucinated' | 'uncertain';
+  /** 信心分數 (0.0-1.0) */
   confidence_score: number;
 }
 
@@ -147,7 +170,10 @@ export interface ExecutePlanRequest {
   max_iterations?: number;
   enable_reranking?: boolean;
   enable_drilldown?: boolean;
+  /** 🆕 v3.0 - 啟用進階圖片查證 (重新檢視圖片以驗證結論) */
+  enable_deep_image_analysis?: boolean;
 }
+
 
 /**
  * 子任務執行結果
@@ -157,6 +183,7 @@ export interface SubTaskResult {
   question: string;
   answer: string;
   sources: string[];
+  contexts?: string[]; // 🆕 Phase 13: 原始文本片段
   is_drilldown: boolean;
   iteration: number;
 }
@@ -172,6 +199,8 @@ export interface ExecutePlanResponse {
   all_sources: string[];
   confidence: number;
   total_iterations: number;
+  /** 🆕 Phase 6 - 完整評估指標 (若後端提供) */
+  metrics?: EvaluationMetrics;
 }
 
 /**
@@ -204,6 +233,7 @@ export interface TaskProgress {
   question: string;
   status: 'pending' | 'running' | 'done' | 'error';
   answer?: string;
+  contexts?: string[]; // 🆕 Phase 13: 原始文本片段
   iteration: number;
 }
 

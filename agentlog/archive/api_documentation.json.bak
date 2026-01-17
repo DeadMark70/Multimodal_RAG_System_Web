@@ -1,11 +1,11 @@
 {
   "apiInfo": {
-    "version": "2.2.0",
+    "version": "3.1.0",
     "title": "PDF Translation & RAG API",
     "description": "PDF OCR、翻譯、圖片翻譯、多模態 RAG 與 GraphRAG 知識圖譜服務。支援 Flutter 手機端、Web 端與 React 前端整合。",
     "baseUrlExample": "http://localhost:8000",
     "supportedClients": ["Flutter (Mobile/Web)", "React", "任何支援 REST API 的前端框架"],
-    "lastUpdated": "2025-12-21"
+    "lastUpdated": "2026-01-09"
   },
 
   "authentication": {
@@ -352,6 +352,11 @@
                 "type": "boolean",
                 "default": false,
                 "description": "🆕 啟用圖譜輔助規劃 (Deep Research)"
+              },
+              "enable_visual_verification": {
+                "type": "boolean",
+                "default": false,
+                "description": "🆕 啟用 Agent 視覺查證模式 (針對圖片細節進行二次分析)"
               }
             },
             "example": {
@@ -433,7 +438,7 @@
               "summary": "兩種方法各有優缺點...",
               "detailed_answer": "## 深度學習\n優點：...\n## 傳統機器學習\n優點：...",
               "sub_tasks": [
-                {"id": 1, "question": "深度學習的優點?", "answer": "...", "sources": []}
+                {"id": 1, "question": "深度學習的優點?", "answer": "...", "sources": [], "contexts": ["相關段落1...", "相關段落2..."]}
               ],
               "all_sources": ["doc-1", "doc-2"],
               "confidence": 0.85
@@ -528,6 +533,11 @@
                 "type": "boolean",
                 "default": true,
                 "description": "啟用遞迴深入挖掘"
+              },
+              "enable_deep_image_analysis": {
+                "type": "boolean",
+                "default": false,
+                "description": "🆕 啟用進階圖片查證 (Agent 會主動重新分析圖片細節)"
               }
             }
           },
@@ -538,7 +548,7 @@
               "summary": "Transformer 使用自注意力機制，RNN 使用循環結構...",
               "detailed_answer": "## Transformer\\n優點：平行計算...\\n## RNN\\n優點：處理序列...",
               "sub_tasks": [
-                {"id": 1, "question": "Transformer 的核心架構是什麼？", "answer": "...", "sources": ["doc-1"], "is_drilldown": false, "iteration": 0}
+                {"id": 1, "question": "Transformer 的核心架構是什麼？", "answer": "...", "sources": ["doc-1"], "contexts": ["...Self-Attention..."], "is_drilldown": false, "iteration": 0}
               ],
               "all_sources": ["doc-1", "doc-2"],
               "confidence": 0.85,
@@ -560,7 +570,7 @@
             "events": {
               "plan_confirmed": { "task_count": "number", "enabled_count": "number" },
               "task_start": { "id": "number", "question": "string", "task_type": "string", "iteration": "number" },
-              "task_done": { "id": "number", "question": "string", "answer": "string", "sources": "string[]", "iteration": "number" },
+              "task_done": { "id": "number", "question": "string", "answer": "string", "sources": "string[]", "contexts": "string[]", "iteration": "number" },
               "drilldown_start": { "iteration": "number", "new_task_count": "number" },
               "synthesis_start": { "total_tasks": "number" },
               "complete": "ExecutePlanResponse",
@@ -570,7 +580,8 @@
           "notes": [
             "使用 Server-Sent Events (SSE)",
             "前端使用 fetch + ReadableStream 或 EventSource",
-            "complete 事件包含完整的 ExecutePlanResponse"
+            "complete 事件包含完整的 ExecutePlanResponse",
+            "🆕 task_done 事件現在包含 contexts (參考文段全文)"
           ]
         }
       }
@@ -777,6 +788,61 @@
           ]
         }
       }
+    },
+
+    "conversations": {
+      "prefix": "/conversations",
+      "description": "🆕 對話歷史管理服務",
+      "endpoints": {
+        "list_conversations": {
+          "path": "/conversations",
+          "method": "GET",
+          "description": "取得使用者的對話列表",
+          "authentication": true,
+          "response": {
+            "type": "array[ConversationResponse]",
+            "example": [
+              {"id": "uuid", "title": "新對話", "type": "chat", "created_at": "...", "updated_at": "..."}
+            ]
+          }
+        },
+        "create_conversation": {
+          "path": "/conversations",
+          "method": "POST",
+          "description": "建立新對話",
+          "authentication": true,
+          "request": {
+            "body": {
+              "title": {"type": "string", "default": "新對話"},
+              "type": {"type": "enum", "values": ["chat", "research"], "default": "chat"}
+            }
+          }
+        },
+        "get_conversation": {
+          "path": "/conversations/{conversation_id}",
+          "method": "GET",
+          "description": "取得對話詳情 (含訊息)",
+          "authentication": true,
+          "response": {
+            "type": "ConversationDetailResponse",
+            "fields": ["id", "title", "type", "messages[]"]
+          }
+        },
+        "update_conversation": {
+          "path": "/conversations/{conversation_id}",
+          "method": "PATCH",
+          "description": "更新對話標題",
+          "authentication": true,
+          "request": {"body": {"title": {"type": "string", "required": true}}}
+        },
+        "delete_conversation": {
+          "path": "/conversations/{conversation_id}",
+          "method": "DELETE",
+          "description": "刪除對話及所有訊息",
+          "authentication": true,
+          "response": {"statusCode": 204}
+        }
+      }
     }
   },
 
@@ -816,9 +882,15 @@
       }
     },
     "EvaluationMetrics": {
-      "description": "🆕 責任 AI 評估指標",
+      "description": "🆕 責任 AI 評估指標 (1-10 分制)",
       "fields": {
-        "faithfulness": { "type": "enum", "values": ["grounded", "hallucinated", "uncertain"], "description": "答案可信度" },
+        "accuracy": { "type": "number", "range": "1.0-10.0", "description": "數據精確度 (50% 權重)" },
+        "completeness": { "type": "number", "range": "1.0-10.0", "description": "完整覆蓋率 (30% 權重)" },
+        "clarity": { "type": "number", "range": "1.0-10.0", "description": "邏輯表達 (20% 權重)" },
+        "weighted_score": { "type": "number", "description": "加權總分" },
+        "is_passing": { "type": "boolean", "description": "是否通過學術門檻 (>=7.0)" },
+        "suggestion": { "type": "string", "description": "改進建議" },
+        "faithfulness": { "type": "enum", "values": ["grounded", "hallucinated", "uncertain"], "description": "答案可信度 (映射自 Accuracy)" },
         "confidence_score": { "type": "number", "range": "0.0-1.0", "description": "信心分數" }
       }
     },

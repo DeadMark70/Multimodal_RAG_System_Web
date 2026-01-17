@@ -44,10 +44,46 @@ import {
 import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import { useDeepResearch } from '../../hooks/useDeepResearch';
+import MetricsBadge from './MetricsBadge';
+import EvaluationRadarChart from '../charts/EvaluationRadarChart';
 import type { TaskProgress } from '../../types/rag';
 
 interface DeepResearchPanelProps {
   selectedDocIds?: string[];
+}
+
+/**
+ * 參考文脈預覽元件
+ */
+function ContextPreview({ contexts }: { contexts: string[] }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const textColor = useColorModeValue('gray.600', 'gray.400');
+  const bg = useColorModeValue('gray.50', 'whiteAlpha.100');
+
+  if (!contexts || contexts.length === 0) return null;
+
+  return (
+    <Box mt={1} ml={8}>
+      <Button 
+        size="xs" 
+        variant="link" 
+        onClick={() => setIsOpen(!isOpen)}
+        colorScheme="brand"
+        fontWeight="normal"
+      >
+        {isOpen ? '收合參考文脈' : `查看參考文脈 (${contexts.length})`}
+      </Button>
+      <Collapse in={isOpen}>
+        <VStack align="start" spacing={2} mt={2}>
+          {contexts.map((ctx, idx) => (
+            <Box key={idx} p={2} bg={bg} borderRadius="md" w="100%" fontSize="xs" borderLeft="2px solid" borderColor="brand.500">
+              <Text noOfLines={5} color={textColor}>{ctx}</Text>
+            </Box>
+          ))}
+        </VStack>
+      </Collapse>
+    </Box>
+  );
 }
 
 export default function DeepResearchPanel({ selectedDocIds }: DeepResearchPanelProps) {
@@ -63,6 +99,7 @@ export default function DeepResearchPanel({ selectedDocIds }: DeepResearchPanelP
     progress,
     result,
     error,
+    currentPhase,
     generatePlan,
     updateTask,
     toggleTask,
@@ -143,6 +180,24 @@ export default function DeepResearchPanel({ selectedDocIds }: DeepResearchPanelP
         return 'red';
       default:
         return 'gray';
+    }
+  };
+
+  /**
+   * Phase 6: 取得當前階段的顯示文案
+   */
+  const getPhaseMessage = (): { icon: string; text: string } => {
+    switch (currentPhase) {
+      case 'executing':
+        return { icon: '🔍', text: '正在執行研究任務...' };
+      case 'drilldown':
+        return { icon: '🔬', text: '正在進行深度挖掘與反覆驗證...' };
+      case 'synthesis':
+        return { icon: '📝', text: '正在生成綜合研究報告...' };
+      case 'complete':
+        return { icon: '✅', text: '研究完成！' };
+      default:
+        return { icon: '⏳', text: '準備中...' };
     }
   };
 
@@ -305,9 +360,17 @@ export default function DeepResearchPanel({ selectedDocIds }: DeepResearchPanelP
         <Card bg={cardBg} borderRadius="xl">
           <CardHeader pb={2}>
             <Flex justify="space-between" align="center">
-              <Text fontWeight="bold" fontSize="lg" color={textColor}>
-                執行進度
-              </Text>
+              <VStack align="start" spacing={1}>
+                <Text fontWeight="bold" fontSize="lg" color={textColor}>
+                  執行進度
+                </Text>
+                {/* Phase 6: 顯示當前階段文案 */}
+                <HStack spacing={2}>
+                  <Text fontSize="sm" color="brand.500">
+                    {getPhaseMessage().icon} {getPhaseMessage().text}
+                  </Text>
+                </HStack>
+              </VStack>
               <Button
                 size="sm"
                 variant="ghost"
@@ -330,15 +393,21 @@ export default function DeepResearchPanel({ selectedDocIds }: DeepResearchPanelP
             />
             <VStack spacing={2} align="stretch">
               {progress.map((task, index) => (
-                <HStack key={`${task.id}-${task.iteration}-${index}`} spacing={3}>
-                  {getStatusIcon(task.status)}
-                  <Text fontSize="sm" color={textColor} flex={1}>
-                    {task.question}
-                  </Text>
-                  {task.iteration > 0 && (
-                    <Badge size="sm" colorScheme="purple">深入 #{task.iteration}</Badge>
+                <Box key={`${task.id}-${task.iteration}-${index}`}>
+                  <HStack spacing={3}>
+                    {getStatusIcon(task.status)}
+                    <Text fontSize="sm" color={textColor} flex={1}>
+                      {task.question}
+                    </Text>
+                    {task.iteration > 0 && (
+                      <Badge size="sm" colorScheme="purple">深入 #{task.iteration}</Badge>
+                    )}
+                  </HStack>
+                  {/* Phase 13: Context Bubble-up */}
+                  {task.contexts && (
+                    <ContextPreview contexts={task.contexts} />
                   )}
-                </HStack>
+                </Box>
               ))}
             </VStack>
           </CardBody>
@@ -363,9 +432,14 @@ export default function DeepResearchPanel({ selectedDocIds }: DeepResearchPanelP
                 <Text fontWeight="bold" fontSize="lg" color={textColor}>
                   📊 研究結果
                 </Text>
-                <Badge colorScheme="green">
-                  信心度 {Math.round(result.confidence * 100)}%
-                </Badge>
+                {/* Phase 6: 完整評估指標 */}
+                {result.metrics ? (
+                  <MetricsBadge metrics={result.metrics} />
+                ) : (
+                  <Badge colorScheme="green">
+                    信心度 {Math.round(result.confidence * 100)}%
+                  </Badge>
+                )}
               </HStack>
               <HStack>
                 <Button
@@ -398,6 +472,18 @@ export default function DeepResearchPanel({ selectedDocIds }: DeepResearchPanelP
                   {result.summary}
                 </Text>
               </Box>
+
+              {/* Phase 6: 評估分析雷達圖 */}
+              {result.metrics && (
+                <Box mb={4} p={4} bg={useColorModeValue('gray.50', 'whiteAlpha.50')} borderRadius="lg">
+                  <Text fontWeight="medium" color={textColor} mb={3}>
+                    📈 評估分析
+                  </Text>
+                  <Flex justify="center">
+                    <EvaluationRadarChart metrics={result.metrics} size="md" />
+                  </Flex>
+                </Box>
+              )}
               
               <Divider mb={4} />
 
