@@ -49,5 +49,6 @@
 - High accuracy in RAG responses and graph construction.
 
 ## Design & UX Principles
-- Clean, data-centric interface with collapsible panels for deep diving.
-- Intuitive visualization controls for interacting with graphs.
+- Professional Data Command Center aesthetic with full glassmorphism (blur, translucency).
+- Immersive visualizations: Interactive Tree for Deep Research progress and responsive Knowledge Graph.
+- Streamlined "Integrated Input" for seamless mode switching between Chat and Research.
