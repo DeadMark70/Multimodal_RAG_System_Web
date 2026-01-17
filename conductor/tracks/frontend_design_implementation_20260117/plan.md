@@ -12,7 +12,7 @@
 - [x] Task: Layout Overhaul [84ee992]
     - [ ] Write Tests: Snapshots or visual regression tests for Sidebar/Header layout.
     - [ ] Implement: Apply glassmorphism to `src/components/layout/Sidebar.tsx` and the sticky header in `Layout.tsx`.
-- [ ] Task: Conductor - User Manual Verification 'Global Theme & Glassmorphism' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Global Theme & Glassmorphism' (Protocol in workflow.md)
 
 ## Phase 2: Complex Component Redesign
 **Goal:** Implement immersive visualizations and streamlined interactions.
