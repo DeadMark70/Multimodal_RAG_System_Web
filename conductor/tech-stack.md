@@ -17,6 +17,10 @@
 - **Authentication:** Supabase Auth
 
 ## AI & Processing
-- **LLM:** Google Gemini API (gemini-3.0-flash, gemma-3-27b-it)
-- **OCR:** Local Marker / Datalab API
-- **Core Logic (RAG, Graph):** Python FastAPI
+- **LLM:** Google Gemini API (gemini-3.0-flash, gemma-3-27b-it), Gemini Vision
+- **OCR:** 
+    - `marker-pdf` (Local)
+    - `python-doctr` (Deep Learning OCR)
+    - Datalab API (Cloud)
+- **Graph:** `networkx`, `cdlib`, `leidenalg`
+- **Tools:** `pdf2image` (Poppler), `opencv-python` (cv2), `Pillow`, `numpy`, `langchain`, `faiss-cpu`, `sentence-transformers`, `rank_bm25`
