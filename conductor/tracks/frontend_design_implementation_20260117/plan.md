@@ -17,7 +17,7 @@
 ## Phase 2: Complex Component Redesign
 **Goal:** Implement immersive visualizations and streamlined interactions.
 
-- [ ] Task: Deep Research Interactive Tree (TDD)
+- [x] Task: Deep Research Interactive Tree (TDD) [f2ad89d]
     - [ ] Write Tests: Unit tests for tree branching logic and node animation states.
     - [ ] Implement: Redesign `DeepResearchPanel.tsx` to replace the progress list with an SVG or Canvas-based interactive tree.
 - [ ] Task: Responsive Knowledge Graph & Controls (TDD)
