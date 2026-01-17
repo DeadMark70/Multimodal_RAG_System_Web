@@ -40,7 +40,7 @@ export type ResearchPhase =
   | 'synthesis' 
   | 'complete';
 
-interface UseDeepResearchReturn {
+export interface UseDeepResearchReturn {
   // 狀態
   plan: ResearchPlanResponse | null;
   isPlanning: boolean;

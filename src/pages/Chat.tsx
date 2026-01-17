@@ -19,20 +19,20 @@ import {
   TagLabel, 
   TagLeftIcon,
   IconButton,
-  Tabs, 
-  TabList, 
-  Tab, 
-  TabPanels, 
-  TabPanel,
   Skeleton,
   Stack,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
 } from '@chakra-ui/react';
-import { FiSend, FiCpu, FiCheckCircle, FiAlertTriangle, FiHelpCircle, FiTrash2, FiMessageSquare, FiSearch } from 'react-icons/fi';
+import { FiSend, FiCpu, FiCheckCircle, FiAlertTriangle, FiHelpCircle, FiTrash2, FiMessageSquare, FiSearch, FiChevronDown } from 'react-icons/fi';
 import MessageBubble from '../components/rag/MessageBubble';
 import DocumentSelector from '../components/rag/DocumentSelector';
 import DeepResearchPanel from '../components/rag/DeepResearchPanel';
 import ConversationSidebar from '../components/rag/ConversationSidebar';
 import { useChat } from '../hooks/useChat';
+import { useDeepResearch } from '../hooks/useDeepResearch';
 import { useSessionStore } from '../stores/useSessionStore';
 import { useConversationMutations } from '../hooks/useConversations';
 import type { ConversationType } from '../types/conversation';
@@ -41,12 +41,15 @@ export default function Chat() {
   const { currentChatId, actions: { setCurrentChatId } } = useSessionStore();
   const { create } = useConversationMutations();
 
-  // 使用自定義 hook 管理對話
+  // Mode state
+  const [mode, setMode] = useState<'chat' | 'research'>('chat');
+
+  // Chat Hook
   const { 
     messages, 
     sendMessage, 
     clearMessages,
-    isLoading,
+    isLoading: isChatLoading, 
     isLoadingHistory,
     selectedDocIds, 
     setSelectedDocIds 
@@ -55,10 +58,13 @@ export default function Chat() {
     conversationId: currentChatId
   });
 
+  // Deep Research Hook
+  const deepResearch = useDeepResearch({ docIds: selectedDocIds });
+  const { isPlanning, isExecuting } = deepResearch;
+
   const [input, setInput] = useState('');
   const [ragMode, setRagMode] = useState(true);
   const [evalMode, setEvalMode] = useState(false);
-  const [activeTab, setActiveTab] = useState(0);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const panelBg = useColorModeValue('white', '#111C44');
@@ -67,16 +73,25 @@ export default function Chat() {
   const textHeaderColor = useColorModeValue('navy.700', 'white');
   const iconColor = useColorModeValue('#4318FF', '#fff');
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom for Chat
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (mode === 'chat') {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, mode]);
+
+  const isLoading = isChatLoading || isPlanning || isExecuting;
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
     const message = input;
     setInput('');
-    await sendMessage(message);
+    
+    if (mode === 'chat') {
+        await sendMessage(message);
+    } else {
+        await deepResearch.generatePlan(message);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -88,14 +103,21 @@ export default function Chat() {
 
   const handleSelectConversation = (id: string) => {
     setCurrentChatId(id);
+    // Determine mode based on conversation type? 
+    // Ideally useConversation should return type, but we load history inside hooks.
+    // For now we assume standard chat unless we add type checking logic here.
+    // If backend persistence saves type, we should retrieve it. 
+    // But currently Sidebar doesn't pass type. 
+    // Assuming user stays in current mode or we switch based on metadata loaded?
+    // Let hooks handle data loading. Mode switching might need to be manual or inferred.
   };
 
   const handleNewConversation = async (type: ConversationType) => {
     try {
       const newConv = await create({ title: '新對話', type });
       setCurrentChatId(newConv.id);
-      if (type === 'chat') setActiveTab(0);
-      if (type === 'research') setActiveTab(1);
+      if (type === 'chat') setMode('chat');
+      if (type === 'research') setMode('research');
     } catch (error) {
       console.error('Failed to create conversation', error);
     }
@@ -121,28 +143,9 @@ export default function Chat() {
 
         {/* Main Content Area */}
         <Flex direction="column" flex={1}>
-          {/* Mode Tabs */}
-          <Tabs 
-            variant="soft-rounded" 
-            colorScheme="brand" 
-            mb={4}
-            index={activeTab}
-            onChange={setActiveTab}
-          >
-            <TabList>
-              <Tab>
-                <FiMessageSquare style={{ marginRight: 8 }} />
-                快速問答
-              </Tab>
-              <Tab>
-                <FiSearch style={{ marginRight: 8 }} />
-                深度研究
-              </Tab>
-            </TabList>
-            
-            <TabPanels flex={1}>
-              {/* Quick Q&A Tab */}
-              <TabPanel p={0} pt={4} h="calc(100vh - 220px)">
+          
+          <Box flex={1} overflowY={mode === 'chat' ? 'hidden' : 'auto'} mb={4} pr={mode === 'research' ? 2 : 0}>
+             {mode === 'chat' ? (
                 <Flex 
                   direction="column" 
                   h="100%" 
@@ -170,7 +173,7 @@ export default function Chat() {
                             metrics={evalMode ? msg.metrics : undefined}
                           />
                         ))}
-                        {isLoading && (
+                        {isChatLoading && (
                           <Box p={4}>
                             <Text fontSize="sm" color="gray.500" fontStyle="italic">
                               AI 思考中...
@@ -181,52 +184,67 @@ export default function Chat() {
                       </>
                     )}
                   </Box>
-                  
-                  <Box p={6} position="relative" zIndex={2}>
-                    <Flex 
-                      gap={2}
-                      bg={inputBg}
-                      p={2}
-                      borderRadius="full"
-                      boxShadow="0px 10px 30px rgba(0,0,0,0.08)"
-                      border="1px solid"
-                      borderColor={inputBorderColor}
-                      align="center"
-                    >
-                      <Input 
-                        variant="unstyled" 
-                        placeholder="輸入您的問題..." 
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={handleKeyPress}
-                        px={6}
-                        h="50px"
-                        fontSize="md"
-                        disabled={isLoading}
-                      />
-                      <Button 
-                        colorScheme="brand" 
-                        borderRadius="full" 
-                        w="50px" h="50px"
-                        p={0}
-                        isLoading={isLoading}
-                        onClick={handleSend}
-                        bgGradient="linear(to-br, brand.400, brand.600)"
-                        _hover={{ transform: 'scale(1.05)', boxShadow: 'lg' }}
-                      >
-                        <FiSend size={20} />
-                      </Button>
-                    </Flex>
-                  </Box>
                 </Flex>
-              </TabPanel>
+             ) : (
+                <DeepResearchPanel researchState={deepResearch} />
+             )}
+          </Box>
 
-              {/* Deep Research Tab */}
-              <TabPanel p={0} pt={4} h="calc(100vh - 220px)">
-                <DeepResearchPanel selectedDocIds={selectedDocIds} />
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
+          {/* Unified Input Bar */}
+          <Box p={0} position="relative" zIndex={2}>
+            <Flex 
+              gap={2}
+              bg={inputBg}
+              p={2}
+              borderRadius="full"
+              boxShadow="0px 10px 30px rgba(0,0,0,0.08)"
+              border="1px solid"
+              borderColor={inputBorderColor}
+              align="center"
+            >
+              <Menu>
+                <MenuButton 
+                    as={Button} 
+                    leftIcon={mode === 'chat' ? <FiMessageSquare /> : <FiSearch />} 
+                    rightIcon={<FiChevronDown />} 
+                    variant="ghost" 
+                    borderRadius="full"
+                    px={4}
+                    aria-label="Select Mode"
+                >
+                    {mode === 'chat' ? '快速問答' : '深度研究'}
+                </MenuButton>
+                <MenuList>
+                    <MenuItem icon={<FiMessageSquare />} onClick={() => setMode('chat')}>快速問答</MenuItem>
+                    <MenuItem icon={<FiSearch />} onClick={() => setMode('research')}>深度研究</MenuItem>
+                </MenuList>
+              </Menu>
+
+              <Input 
+                variant="unstyled" 
+                placeholder={mode === 'chat' ? "輸入您的問題..." : "輸入研究主題..."}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyPress}
+                px={4}
+                h="50px"
+                fontSize="md"
+                disabled={isLoading}
+              />
+              <Button 
+                colorScheme="brand" 
+                borderRadius="full" 
+                w="50px" h="50px"
+                p={0}
+                isLoading={isLoading}
+                onClick={handleSend}
+                bgGradient="linear(to-br, brand.400, brand.600)"
+                _hover={{ transform: 'scale(1.05)', boxShadow: 'lg' }}
+              >
+                <FiSend size={20} />
+              </Button>
+            </Flex>
+          </Box>
         </Flex>
 
         {/* Settings Panel (Right Side) */}
@@ -243,7 +261,7 @@ export default function Chat() {
             </Card>
 
             {/* Configuration Card - Only show for Quick Q&A */}
-            {activeTab === 0 && (
+            {mode === 'chat' && (
               <Card variant="unstyled" bg={panelBg} p={5} borderRadius="20px" boxShadow="sm">
                 <CardBody p={0}>
                   <Flex justify="space-between" align="center" mb={4}>
@@ -281,7 +299,7 @@ export default function Chat() {
             )}
 
             {/* Live Analysis Card (Only visible when Eval Mode is ON and in Quick Q&A) */}
-            {evalMode && activeTab === 0 && (
+            {evalMode && mode === 'chat' && (
               <Card variant="unstyled" bg={panelBg} p={5} borderRadius="20px" boxShadow="sm">
                 <CardBody p={0}>
                   <Flex align="center" gap={2} mb={4}>

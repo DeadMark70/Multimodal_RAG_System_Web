@@ -43,14 +43,14 @@ import {
 } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import { useDeepResearch } from '../../hooks/useDeepResearch';
+import { useDeepResearch, type UseDeepResearchReturn } from '../../hooks/useDeepResearch';
 import MetricsBadge from './MetricsBadge';
 import EvaluationRadarChart from '../charts/EvaluationRadarChart';
 import ResearchTree from './ResearchTree'; // Import Tree
 import type { TaskProgress } from '../../types/rag';
 
 interface DeepResearchPanelProps {
-  selectedDocIds?: string[];
+  researchState: UseDeepResearchReturn;
 }
 
 /**
@@ -87,8 +87,7 @@ function ContextPreview({ contexts }: { contexts: string[] }) {
   );
 }
 
-export default function DeepResearchPanel({ selectedDocIds }: DeepResearchPanelProps) {
-  const [question, setQuestion] = useState('');
+export default function DeepResearchPanel({ researchState }: DeepResearchPanelProps) {
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [editingQuestion, setEditingQuestion] = useState('');
   const [showResult, setShowResult] = useState(true);
@@ -108,21 +107,12 @@ export default function DeepResearchPanel({ selectedDocIds }: DeepResearchPanelP
     executePlan,
     cancelExecution,
     reset,
-  } = useDeepResearch({ docIds: selectedDocIds });
+  } = researchState;
 
   const cardBg = useColorModeValue('white', 'navy.800');
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
   const textColor = useColorModeValue('gray.700', 'white');
   const subTextColor = useColorModeValue('gray.500', 'gray.400');
-
-  /**
-   * 處理生成計畫
-   */
-  const handleGeneratePlan = () => {
-    if (question.trim()) {
-      generatePlan(question);
-    }
-  };
 
   /**
    * 開始編輯任務
@@ -204,35 +194,30 @@ export default function DeepResearchPanel({ selectedDocIds }: DeepResearchPanelP
 
   return (
     <VStack spacing={4} align="stretch" h="100%">
-      {/* 輸入區 */}
-      <Card bg={cardBg} borderRadius="xl">
-        <CardBody>
-          <VStack spacing={4}>
-            <Text fontWeight="bold" fontSize="lg" color={textColor} alignSelf="flex-start">
-              🔬 深度研究
-            </Text>
-            <HStack w="100%">
-              <Input
-                placeholder="輸入您想深入研究的問題..."
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleGeneratePlan()}
-                disabled={isPlanning || isExecuting}
-              />
-              <Button
-                colorScheme="brand"
-                leftIcon={<FiSearch />}
-                onClick={handleGeneratePlan}
-                isLoading={isPlanning}
-                loadingText="分析中"
-                disabled={!question.trim() || isExecuting}
-              >
-                生成計畫
-              </Button>
-            </HStack>
-          </VStack>
-        </CardBody>
-      </Card>
+      
+      {/* Empty State / Welcome */}
+      {!plan && !isPlanning && !error && (
+        <Card bg={cardBg} borderRadius="xl" border="1px dashed" borderColor={borderColor}>
+            <CardBody py={10}>
+                <VStack spacing={4} align="center">
+                    <Text fontSize="xl" fontWeight="bold" color={textColor}>Deep Research</Text>
+                    <Text color={subTextColor}>請在下方輸入問題以開始深度研究</Text>
+                </VStack>
+            </CardBody>
+        </Card>
+      )}
+
+      {/* Loading Plan */}
+      {isPlanning && (
+          <Card bg={cardBg} borderRadius="xl">
+              <CardBody>
+                  <HStack justify="center" py={4}>
+                      <Spinner color="brand.500" />
+                      <Text color={textColor}>正在分析問題並生成計畫...</Text>
+                  </HStack>
+              </CardBody>
+          </Card>
+      )}
 
       {/* 計畫預覽區 */}
       {plan && !result && (
@@ -254,7 +239,7 @@ export default function DeepResearchPanel({ selectedDocIds }: DeepResearchPanelP
                   size="sm"
                   variant="ghost"
                   leftIcon={<FiRefreshCw />}
-                  onClick={() => generatePlan(question)}
+                  onClick={() => generatePlan(plan.original_question)}
                   disabled={isPlanning || isExecuting}
                 >
                   重新生成
