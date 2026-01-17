@@ -28,16 +28,16 @@
     - [ ] Implement: Refactor `Chat.tsx` to integrate the mode selector into the `Input` group.
 - [ ] Task: Conductor - User Manual Verification 'Complex Component Redesign' (Protocol in workflow.md)
 
-## Phase 3: Motion & Polish
+## Phase 3: Motion & Polish [checkpoint: pending]
 **Goal:** Add high-impact animations and interactive feedback.
 
-- [ ] Task: Page & Element Motion
-    - [ ] Write Tests: Verify motion variants and animation triggers.
-    - [ ] Implement: Add `framer-motion` transitions to page loads, tab switches, and card interactions.
-- [ ] Task: AI Streaming Typewriter Effect
-    - [ ] Write Tests: Test text-rendering logic for streaming content.
-    - [ ] Implement: Update message bubbles to support character-by-character streaming for AI responses.
-- [ ] Task: Final Polish & Accessibility
-    - [ ] Write Tests: Contrast ratio checks and performance benchmarking.
-    - [ ] Implement: Optimize `backdrop-filter` usage and ensure WCAG compliance for text-over-glass.
-- [ ] Task: Conductor - User Manual Verification 'Motion & Polish' (Protocol in workflow.md)
+- [x] Task: Page & Element Motion
+    - [x] Write Tests: Verify motion variants and animation triggers.
+    - [x] Implement: Add `framer-motion` transitions to page loads, tab switches, and card interactions.
+- [x] Task: AI Streaming Typewriter Effect
+    - [x] Write Tests: Test text-rendering logic for streaming content.
+    - [x] Implement: Update message bubbles to support character-by-character streaming for AI responses.
+- [x] Task: Final Polish & Accessibility
+    - [x] Write Tests: Contrast ratio checks and performance benchmarking.
+    - [x] Implement: Optimize `backdrop-filter` usage and ensure WCAG compliance for text-over-glass.
+- [x] Task: Conductor - User Manual Verification 'Motion & Polish' (Protocol in workflow.md)
