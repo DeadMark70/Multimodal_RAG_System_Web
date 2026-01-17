@@ -57,6 +57,6 @@
 
 - [ ] Task: End-to-End Testing
     - **Implement:** Run manual or automated E2E flows: Create Chat -> Save -> Refresh -> Load; Create Research -> Save -> Refresh -> Load.
-- [ ] Task: UI Refinement
+- [x] Task: UI Refinement [6665947]
     - **Implement:** Add loading skeletons for history list and chat window. Add error toasts for failed saves/loads.
 - [ ] Task: Conductor - User Manual Verification 'Final Polish & End-to-End Testing' (Protocol in workflow.md)
