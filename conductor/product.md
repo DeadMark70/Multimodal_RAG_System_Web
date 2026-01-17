@@ -13,6 +13,8 @@
 - Document upload and processing (PDF, etc.) with multimodal extraction.
 - Interactive chat interface for querying the knowledge base.
 - Dynamic knowledge graph visualization and exploration.
+- Persistent conversation history for standard chat and deep research sessions.
+- Session management allowing users to resume previous research or chat dialogues.
 
 ## Technical Constraints & Requirements
 - Real-time updates for chat and graph visualizations.
