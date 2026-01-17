@@ -2,7 +2,7 @@ import { Box, Text, VStack, HStack, useColorModeValue, Badge } from '@chakra-ui/
 import GlassCard from '../common/GlassCard';
 import { motion } from 'framer-motion';
 
-const MotionBox = motion(Box);
+const MotionBox = motion.create(Box);
 
 interface Task {
   id: number;
