@@ -2,8 +2,6 @@ import { Box, Text, VStack, HStack, useColorModeValue, Badge } from '@chakra-ui/
 import GlassCard from '../common/GlassCard';
 import { motion } from 'framer-motion';
 
-const MotionBox = motion.create(Box);
-
 interface Task {
   id: number;
   question: string;
@@ -22,7 +20,8 @@ export default function ResearchTree({ plan }: { plan: Plan }) {
   return (
     <VStack spacing={0} position="relative" w="full" py={4}>
       {/* Root Node */}
-      <MotionBox 
+      <Box 
+        as={motion.div}
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         zIndex={2}
@@ -30,7 +29,7 @@ export default function ResearchTree({ plan }: { plan: Plan }) {
         <GlassCard p={4} mb={8} textAlign="center" borderTop="4px solid" borderColor="brand.500">
           <Text fontWeight="bold" fontSize="md">{plan.original_question}</Text>
         </GlassCard>
-      </MotionBox>
+      </Box>
 
       {/* Connecting Line (Vertical from Root) */}
       <Box 
@@ -46,11 +45,12 @@ export default function ResearchTree({ plan }: { plan: Plan }) {
       {/* Sub Tasks Grid */}
       <HStack spacing={4} align="start" w="full" justify="center" flexWrap="wrap" px={4}>
         {plan.sub_tasks.map((task, index) => (
-          <MotionBox
+          <Box
+            as={motion.div}
             key={task.id}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.1 }}
+            transition={{ delay: index * 0.1 } as any}
             zIndex={1}
             maxW="250px"
             minW="180px"
@@ -75,7 +75,7 @@ export default function ResearchTree({ plan }: { plan: Plan }) {
                 </HStack>
                 <Text fontSize="sm" noOfLines={3}>{task.question}</Text>
              </GlassCard>
-          </MotionBox>
+          </Box>
         ))}
       </HStack>
     </VStack>
