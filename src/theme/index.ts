@@ -31,12 +31,23 @@ const colors = {
   error: {
     500: '#E31A1A', // Red for Hallucination
   },
+  glass: {
+    100: 'rgba(255, 255, 255, 0.1)', // Light Mode Card Bg
+    200: 'rgba(255, 255, 255, 0.2)', // Hover state
+    300: 'rgba(255, 255, 255, 0.08)', // Border
+    400: 'rgba(255, 255, 255, 0.6)', // Text muted
+    500: 'rgba(255, 255, 255, 0.8)',
+    600: 'rgba(11, 20, 55, 0.4)', // Dark Mode Card Bg
+    700: 'rgba(11, 20, 55, 0.6)', // Dark Mode Hover
+    800: 'rgba(11, 20, 55, 0.8)', 
+    900: 'rgba(11, 20, 55, 0.9)', 
+  },
 };
 
 const styles = {
   global: (props: any) => ({
     body: {
-      bg: mode('gray.50', '#0B1437')(props),
+      bg: mode('gray.50', '#050A20')(props), // Deeper navy for dark mode
       color: mode('gray.700', 'whiteAlpha.900')(props),
       fontFamily: 'DM Sans, sans-serif',
     },
