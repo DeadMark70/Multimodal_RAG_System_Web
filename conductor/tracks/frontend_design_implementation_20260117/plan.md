@@ -6,7 +6,7 @@
 - [x] Task: Update Theme Engine (TDD) [b172904]
     - [ ] Write Tests: Verify theme object extensions for new colors and glass variants.
     - [ ] Implement: Update `src/theme/index.ts` with "Data Command Center" palette and typography settings.
-- [ ] Task: Reusable Glass Components
+- [x] Task: Reusable Glass Components [767a6e4]
     - [ ] Write Tests: Component tests for `GlassCard` and `GlassPane` (checking styles/props).
     - [ ] Implement: Create `src/components/common/GlassCard.tsx` and `GlassPane.tsx` using Chakra UI `sx` props for `backdrop-filter`.
 - [ ] Task: Layout Overhaul
