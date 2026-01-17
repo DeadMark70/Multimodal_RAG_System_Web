@@ -46,6 +46,7 @@ import rehypeSanitize from 'rehype-sanitize';
 import { useDeepResearch } from '../../hooks/useDeepResearch';
 import MetricsBadge from './MetricsBadge';
 import EvaluationRadarChart from '../charts/EvaluationRadarChart';
+import ResearchTree from './ResearchTree'; // Import Tree
 import type { TaskProgress } from '../../types/rag';
 
 interface DeepResearchPanelProps {
@@ -391,25 +392,16 @@ export default function DeepResearchPanel({ selectedDocIds }: DeepResearchPanelP
               hasStripe
               isAnimated
             />
-            <VStack spacing={2} align="stretch">
-              {progress.map((task, index) => (
-                <Box key={`${task.id}-${task.iteration}-${index}`}>
-                  <HStack spacing={3}>
-                    {getStatusIcon(task.status)}
-                    <Text fontSize="sm" color={textColor} flex={1}>
-                      {task.question}
-                    </Text>
-                    {task.iteration > 0 && (
-                      <Badge size="sm" colorScheme="purple">深入 #{task.iteration}</Badge>
-                    )}
-                  </HStack>
-                  {/* Phase 13: Context Bubble-up */}
-                  {task.contexts && (
-                    <ContextPreview contexts={task.contexts} />
-                  )}
-                </Box>
-              ))}
-            </VStack>
+            {/* Visual Tree for Progress */}
+            <ResearchTree plan={{
+                original_question: plan?.original_question || question,
+                sub_tasks: progress.map(p => ({
+                    id: p.id,
+                    question: p.question,
+                    status: p.status,
+                    task_type: 'rag' // Simplified for now
+                }))
+            }} />
           </CardBody>
         </Card>
       )}
