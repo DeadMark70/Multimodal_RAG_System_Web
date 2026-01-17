@@ -9,7 +9,7 @@
 - [x] Task: Reusable Glass Components [767a6e4]
     - [ ] Write Tests: Component tests for `GlassCard` and `GlassPane` (checking styles/props).
     - [ ] Implement: Create `src/components/common/GlassCard.tsx` and `GlassPane.tsx` using Chakra UI `sx` props for `backdrop-filter`.
-- [ ] Task: Layout Overhaul
+- [x] Task: Layout Overhaul [84ee992]
     - [ ] Write Tests: Snapshots or visual regression tests for Sidebar/Header layout.
     - [ ] Implement: Apply glassmorphism to `src/components/layout/Sidebar.tsx` and the sticky header in `Layout.tsx`.
 - [ ] Task: Conductor - User Manual Verification 'Global Theme & Glassmorphism' (Protocol in workflow.md)
