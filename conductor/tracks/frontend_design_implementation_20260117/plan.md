@@ -20,7 +20,7 @@
 - [x] Task: Deep Research Interactive Tree (TDD) [f2ad89d]
     - [ ] Write Tests: Unit tests for tree branching logic and node animation states.
     - [ ] Implement: Redesign `DeepResearchPanel.tsx` to replace the progress list with an SVG or Canvas-based interactive tree.
-- [ ] Task: Responsive Knowledge Graph & Controls (TDD)
+- [x] Task: Responsive Knowledge Graph & Controls (TDD) [db49850]
     - [ ] Write Tests: Verify `ResizeObserver` logic in `KnowledgeGraph.tsx`.
     - [ ] Implement: Update `KnowledgeGraph.tsx` for 100% responsiveness and add floating glass control overlays.
 - [ ] Task: Integrated Chat Input (TDD)
