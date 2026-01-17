@@ -379,7 +379,7 @@ export default function DeepResearchPanel({ researchState }: DeepResearchPanelPr
             />
             {/* Visual Tree for Progress */}
             <ResearchTree plan={{
-                original_question: plan?.original_question || question,
+                original_question: plan?.original_question || '',
                 sub_tasks: progress.map(p => ({
                     id: p.id,
                     question: p.question,

@@ -1,8 +1,0 @@
-{
-  "track_id": "status_sync_design_audit_20260117",
-  "type": "chore",
-  "status": "new",
-  "created_at": "2026-01-17T19:06:00Z",
-  "updated_at": "2026-01-17T19:06:00Z",
-  "description": "根據新的checklist和agent log裡的檔案來更新此專案的狀態和spec，並使用frontend-design對網頁做檢查優化"
-}

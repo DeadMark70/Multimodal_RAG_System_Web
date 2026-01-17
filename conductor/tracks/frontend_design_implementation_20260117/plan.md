@@ -14,21 +14,21 @@
     - [ ] Implement: Apply glassmorphism to `src/components/layout/Sidebar.tsx` and the sticky header in `Layout.tsx`.
 - [x] Task: Conductor - User Manual Verification 'Global Theme & Glassmorphism' (Protocol in workflow.md)
 
-## Phase 2: Complex Component Redesign [checkpoint: f170271]
+## Phase 2: Complex Component Redesign [checkpoint: 1a22d5c]
 **Goal:** Implement immersive visualizations and streamlined interactions.
 
 - [x] Task: Deep Research Interactive Tree (TDD) [f2ad89d]
-    - [ ] Write Tests: Unit tests for tree branching logic and node animation states.
-    - [ ] Implement: Redesign `DeepResearchPanel.tsx` to replace the progress list with an SVG or Canvas-based interactive tree.
+    - [x] Write Tests: Unit tests for tree branching logic and node animation states.
+    - [x] Implement: Redesign `DeepResearchPanel.tsx` to replace the progress list with an SVG or Canvas-based interactive tree.
 - [x] Task: Responsive Knowledge Graph & Controls (TDD) [db49850]
-    - [ ] Write Tests: Verify `ResizeObserver` logic in `KnowledgeGraph.tsx`.
-    - [ ] Implement: Update `KnowledgeGraph.tsx` for 100% responsiveness and add floating glass control overlays.
+    - [x] Write Tests: Verify `ResizeObserver` logic in `KnowledgeGraph.tsx`.
+    - [x] Implement: Update `KnowledgeGraph.tsx` for 100% responsiveness and add floating glass control overlays.
 - [x] Task: Integrated Chat Input (TDD) [401e537]
-    - [ ] Write Tests: Integration tests for mode switching within the input bar.
-    - [ ] Implement: Refactor `Chat.tsx` to integrate the mode selector into the `Input` group.
-- [ ] Task: Conductor - User Manual Verification 'Complex Component Redesign' (Protocol in workflow.md)
+    - [x] Write Tests: Integration tests for mode switching within the input bar.
+    - [x] Implement: Refactor `Chat.tsx` to integrate the mode selector into the `Input` group.
+- [x] Task: Conductor - User Manual Verification 'Complex Component Redesign' (Protocol in workflow.md)
 
-## Phase 3: Motion & Polish [checkpoint: pending]
+## Phase 3: Motion & Polish [checkpoint: f14ea87]
 **Goal:** Add high-impact animations and interactive feedback.
 
 - [x] Task: Page & Element Motion
