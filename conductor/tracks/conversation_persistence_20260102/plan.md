@@ -14,7 +14,7 @@
     - **Note:** Backend code is external/inaccessible. Assuming endpoints will be available.
     - **Write Tests:** Create tests for `POST /conversations/{id}/messages`.
     - **Implement:** Create/Update FastAPI routes to save messages to a conversation.
-- [ ] Task: Conductor - User Manual Verification 'Backend & Database Schema Verification' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Backend & Database Schema Verification' (Protocol in workflow.md)
 
 ## Phase 2: Frontend Service & State Integration [checkpoint: 2f7a9ef]
 **Goal:** connect the frontend application to the new backend endpoints.
@@ -25,7 +25,7 @@
 - [x] Task: Update Global Stores (TDD) [cb28259]
     - **Write Tests:** Unit tests for `useConversations` store logic.
     - **Implement:** Update `src/hooks/useConversations.ts` (or `stores/useSessionStore.ts`) to fetch and store the conversation list.
-- [ ] Task: Conductor - User Manual Verification 'Frontend Service & State Integration' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Frontend Service & State Integration' (Protocol in workflow.md)
 
 ## Phase 3: Standard Chat Persistence [checkpoint: 209efac]
 **Goal:** Enable history for the standard chat interface.
@@ -39,7 +39,7 @@
 - [x] Task: Chat Message Saving (TDD) [d936d96]
     - **Write Tests:** Verify that sending a message calls the save API.
     - **Implement:** Update `useChat.ts` `sendMessage` function to persist messages to the backend.
-- [ ] Task: Conductor - User Manual Verification 'Standard Chat Persistence' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Standard Chat Persistence' (Protocol in workflow.md)
 
 ## Phase 4: Deep Research Persistence [checkpoint: eb16151]
 **Goal:** Enable history for the Deep Research feature.
@@ -50,13 +50,13 @@
 - [x] Task: Deep Research UI Integration (TDD) [c06eb51]
     - **Write Tests:** Verify `DeepResearchPanel` restores state from loaded data.
     - **Implement:** Update `src/components/rag/DeepResearchPanel.tsx` to populate fields and results from the loaded conversation metadata/history.
-- [ ] Task: Conductor - User Manual Verification 'Deep Research Persistence' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Deep Research Persistence' (Protocol in workflow.md)
 
-## Phase 5: Final Polish & End-to-End Testing
+## Phase 5: Final Polish & End-to-End Testing [checkpoint: ec5bc7c]
 **Goal:** Ensure a smooth user experience and handle edge cases.
 
 - [x] Task: End-to-End Testing [c38e972]
     - **Implement:** Run manual or automated E2E flows: Create Chat -> Save -> Refresh -> Load; Create Research -> Save -> Refresh -> Load.
 - [x] Task: UI Refinement [6665947]
     - **Implement:** Add loading skeletons for history list and chat window. Add error toasts for failed saves/loads.
-- [ ] Task: Conductor - User Manual Verification 'Final Polish & End-to-End Testing' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Final Polish & End-to-End Testing' (Protocol in workflow.md)
