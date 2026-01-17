@@ -10,68 +10,55 @@
  * - 內建 Mock Data 用於開發
  */
 
-import { useRef, useCallback, useMemo } from 'react';
+import { useRef, useCallback, useMemo, useState, useEffect } from 'react';
 import ForceGraph2D, { type ForceGraphMethods } from 'react-force-graph-2d';
-import { Box, useColorModeValue, Text, VStack, Spinner } from '@chakra-ui/react';
+import { Box, useColorModeValue, Text, VStack, IconButton, HStack } from '@chakra-ui/react';
+import { keyframes } from '@emotion/react';
+import { FiPlus, FiMinus, FiCpu } from 'react-icons/fi';
 import type { GraphData, GraphNode, GraphLink } from '../../types/graph';
 import { useSessionActions } from '../../stores';
+import GlassPane from '../common/GlassPane';
 
 // ========== Mock Data ==========
 
 const MOCK_GRAPH_DATA: GraphData = {
   nodes: [
-    // AI & ML 社群 (group: 1)
     { id: 'Machine Learning', group: 1, val: 12, desc: '機器學習是 AI 的核心分支', type: 'Concept' },
     { id: 'Deep Learning', group: 1, val: 10, desc: '使用神經網路的機器學習方法', type: 'Concept' },
     { id: 'Neural Networks', group: 1, val: 8, desc: '模仿生物神經元的計算模型', type: 'Concept' },
     { id: 'Transformer', group: 1, val: 9, desc: '注意力機制為核心的架構', type: 'Model' },
     { id: 'BERT', group: 1, val: 7, desc: 'Bidirectional Encoder Representations', type: 'Model' },
     { id: 'GPT', group: 1, val: 8, desc: 'Generative Pre-trained Transformer', type: 'Model' },
-
-    // NLP 社群 (group: 2)
     { id: 'Natural Language Processing', group: 2, val: 10, desc: '自然語言處理技術', type: 'Concept' },
     { id: 'Text Embedding', group: 2, val: 6, desc: '將文字轉換為向量表示', type: 'Technique' },
     { id: 'Semantic Search', group: 2, val: 7, desc: '基於語義的搜尋技術', type: 'Technique' },
     { id: 'Tokenization', group: 2, val: 5, desc: '文字分詞處理', type: 'Technique' },
-
-    // RAG 社群 (group: 3)
     { id: 'RAG', group: 3, val: 11, desc: 'Retrieval-Augmented Generation', type: 'Framework' },
     { id: 'Vector Database', group: 3, val: 8, desc: '向量資料庫如 FAISS, Pinecone', type: 'Technology' },
     { id: 'Knowledge Graph', group: 3, val: 9, desc: '知識圖譜結構化知識', type: 'Technology' },
     { id: 'GraphRAG', group: 3, val: 8, desc: '結合圖譜的 RAG 方法', type: 'Framework' },
     { id: 'Chunking', group: 3, val: 5, desc: '文件分塊策略', type: 'Technique' },
-
-    // 組織/人物 社群 (group: 4)
     { id: 'OpenAI', group: 4, val: 9, desc: 'AI 研究公司', type: 'Organization' },
     { id: 'Google', group: 4, val: 9, desc: '科技公司', type: 'Organization' },
     { id: 'Microsoft', group: 4, val: 8, desc: '科技公司', type: 'Organization' },
   ],
   links: [
-    // AI/ML 內部關係
     { source: 'Machine Learning', target: 'Deep Learning', label: 'includes' },
     { source: 'Deep Learning', target: 'Neural Networks', label: 'uses' },
     { source: 'Neural Networks', target: 'Transformer', label: 'evolved_to' },
     { source: 'Transformer', target: 'BERT', label: 'inspired' },
     { source: 'Transformer', target: 'GPT', label: 'inspired' },
-
-    // NLP 內部關係
     { source: 'Natural Language Processing', target: 'Text Embedding', label: 'uses' },
     { source: 'Natural Language Processing', target: 'Tokenization', label: 'requires' },
     { source: 'Text Embedding', target: 'Semantic Search', label: 'enables' },
-
-    // RAG 內部關係
     { source: 'RAG', target: 'Vector Database', label: 'uses' },
     { source: 'RAG', target: 'Knowledge Graph', label: 'can_use' },
     { source: 'Knowledge Graph', target: 'GraphRAG', label: 'enables' },
     { source: 'RAG', target: 'Chunking', label: 'requires' },
-
-    // 跨社群關係
     { source: 'Deep Learning', target: 'Natural Language Processing', label: 'applied_to' },
     { source: 'BERT', target: 'Text Embedding', label: 'generates' },
     { source: 'GPT', target: 'RAG', label: 'powers' },
     { source: 'Semantic Search', target: 'RAG', label: 'component_of' },
-
-    // 組織關係
     { source: 'OpenAI', target: 'GPT', label: 'created' },
     { source: 'Google', target: 'BERT', label: 'created' },
     { source: 'Google', target: 'Transformer', label: 'invented' },
@@ -79,45 +66,31 @@ const MOCK_GRAPH_DATA: GraphData = {
   ],
 };
 
-// ========== 社群顏色調色盤 ==========
-
 const COMMUNITY_COLORS = [
-  '#7C3AED', // Purple (default)
-  '#3B82F6', // Blue - AI/ML
-  '#10B981', // Green - NLP
-  '#F59E0B', // Amber - RAG
-  '#EF4444', // Red - Organizations
-  '#EC4899', // Pink
-  '#06B6D4', // Cyan
-  '#8B5CF6', // Violet
+  '#7C3AED', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4', '#8B5CF6',
 ];
 
-// ========== 介面定義 ==========
+const pulse = keyframes`
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+`;
 
 export interface KnowledgeGraphProps {
-  /** 自訂圖譜資料 (不提供則使用 Mock Data) */
   data?: GraphData;
-  /** 元件寬度 */
-  width?: number;
-  /** 元件高度 */
-  height?: number;
-  /** 節點點擊回調 */
   onNodeClick?: (node: GraphNode) => void;
-  /** 是否載入中 */
   isLoading?: boolean;
 }
 
-// ========== 主元件 ==========
-
 export function KnowledgeGraph({
   data,
-  width = 800,
-  height = 600,
   onNodeClick,
   isLoading = false,
 }: KnowledgeGraphProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const graphRef = useRef<ForceGraphMethods<any> | undefined>();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const actions = useSessionActions();
 
   // Theme colors
@@ -125,138 +98,108 @@ export function KnowledgeGraph({
   const textColor = useColorModeValue('#2d3748', '#e2e8f0');
   const linkColor = useColorModeValue('#a0aec0', '#4a5568');
 
-  // 使用 Mock Data 如果沒有提供資料
   const graphData = useMemo(() => data ?? MOCK_GRAPH_DATA, [data]);
 
-  // 節點顏色
+  // Resize Observer
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      setDimensions({ width, height });
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   const getNodeColor = useCallback((node: { group?: number }) => {
     const groupIndex = (node.group ?? 0) % COMMUNITY_COLORS.length;
     return COMMUNITY_COLORS[groupIndex];
   }, []);
 
-  // 節點點擊處理
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleNodeClick = useCallback((node: any) => {
-      // 更新 Session Store
       actions.setSelectedNodeId(node.id);
-
-      // 縮放到節點
       if (graphRef.current) {
         graphRef.current.centerAt(node.x, node.y, 500);
         graphRef.current.zoom(2, 500);
       }
-
-      // 觸發外部回調
       onNodeClick?.(node as GraphNode);
     },
     [actions, onNodeClick]
   );
 
-  // 載入中狀態
-  if (isLoading) {
-    return (
-      <Box
-        w={width}
-        h={height}
-        bg={bgColor}
-        borderRadius="xl"
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-      >
-        <VStack spacing={4}>
-          <Spinner size="xl" color="brand.500" />
-          <Text color="gray.500">載入知識圖譜中...</Text>
-        </VStack>
-      </Box>
-    );
-  }
+  const handleZoomIn = () => {
+    graphRef.current?.zoom((graphRef.current.zoom() || 1) * 1.2, 400);
+  };
 
-  // 空資料狀態
-  if (!graphData.nodes.length) {
-    return (
-      <Box
-        w={width}
-        h={height}
-        bg={bgColor}
-        borderRadius="xl"
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-      >
-        <VStack spacing={2}>
-          <Text fontSize="lg" color="gray.500">
-            尚無知識圖譜資料
-          </Text>
-          <Text fontSize="sm" color="gray.400">
-            上傳文件後系統將自動建立
-          </Text>
-        </VStack>
-      </Box>
-    );
-  }
+  const handleZoomOut = () => {
+    graphRef.current?.zoom((graphRef.current.zoom() || 1) / 1.2, 400);
+  };
 
   return (
-    <Box
-      w={width}
-      h={height}
-      bg={bgColor}
-      borderRadius="xl"
-      overflow="hidden"
-      position="relative"
-    >
-      <ForceGraph2D
-        ref={graphRef}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        graphData={graphData as any}
-        width={width}
-        height={height}
-        backgroundColor={bgColor}
-        // 節點設定
-        nodeLabel={(node: { id?: string; desc?: string }) => `${node.id ?? ''}\n${node.desc ?? ''}`}
-        nodeColor={getNodeColor}
-        nodeRelSize={6}
-        nodeVal={(node: { val?: number }) => node.val ?? 5}
-        // 連結設定
-        linkColor={() => linkColor}
-        linkWidth={1.5}
-        linkDirectionalArrowLength={4}
-        linkDirectionalArrowRelPos={0.9}
-        linkLabel={(link: GraphLink) => link.label ?? ''}
-        // 互動
-        onNodeClick={handleNodeClick}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        onNodeDragEnd={(node: any) => {
-          // 固定拖曳後的位置
-          node.fx = node.x;
-          node.fy = node.y;
-        }}
-        // Canvas 繪製
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-          const label = node.id ?? '';
-          const fontSize = 12 / globalScale;
-          const nodeSize = Math.sqrt(node.val ?? 5) * 4;
+    <Box ref={containerRef} w="full" h="full" position="relative" overflow="hidden" borderRadius="xl" bg={bgColor}>
+      {!isLoading && dimensions.width > 0 && (
+        <ForceGraph2D
+          ref={graphRef}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          graphData={graphData as any}
+          width={dimensions.width}
+          height={dimensions.height}
+          backgroundColor={bgColor}
+          nodeLabel={(node: { id?: string; desc?: string }) => `${node.id ?? ''}\n${node.desc ?? ''}`}
+          nodeColor={getNodeColor}
+          nodeRelSize={6}
+          nodeVal={(node: { val?: number }) => node.val ?? 5}
+          linkColor={() => linkColor}
+          linkWidth={1.5}
+          linkDirectionalArrowLength={4}
+          linkDirectionalArrowRelPos={0.9}
+          linkLabel={(link: GraphLink) => link.label ?? ''}
+          onNodeClick={handleNodeClick}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onNodeDragEnd={(node: any) => {
+            node.fx = node.x;
+            node.fy = node.y;
+          }}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+            const label = node.id ?? '';
+            const fontSize = 12 / globalScale;
+            const nodeSize = Math.sqrt(node.val ?? 5) * 4;
+            ctx.beginPath();
+            ctx.arc(node.x ?? 0, node.y ?? 0, nodeSize, 0, 2 * Math.PI);
+            ctx.fillStyle = getNodeColor(node);
+            ctx.fill();
+            if (globalScale > 0.7) {
+              ctx.font = `${fontSize}px Sans-Serif`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillStyle = textColor;
+              ctx.fillText(label, node.x ?? 0, (node.y ?? 0) + nodeSize + fontSize);
+            }
+          }}
+          cooldownTicks={100}
+          warmupTicks={50}
+        />
+      )}
 
-          // 繪製節點圓形
-          ctx.beginPath();
-          ctx.arc(node.x ?? 0, node.y ?? 0, nodeSize, 0, 2 * Math.PI);
-          ctx.fillStyle = getNodeColor(node);
-          ctx.fill();
+      {/* Loading Overlay */}
+      {isLoading && (
+        <Box position="absolute" inset="0" display="flex" alignItems="center" justifyContent="center" bg="blackAlpha.300" backdropFilter="blur(5px)" zIndex={20}>
+            <VStack spacing={4}>
+                <Box as={FiCpu} size="40px" color="brand.500" animation={`${pulse} 2s infinite`} />
+                <Text fontWeight="bold" color="white" textShadow="0 0 10px rgba(0,0,0,0.5)">Building Graph...</Text>
+            </VStack>
+        </Box>
+      )}
 
-          // 繪製標籤 (縮放夠大時)
-          if (globalScale > 0.7) {
-            ctx.font = `${fontSize}px Sans-Serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = textColor;
-            ctx.fillText(label, node.x ?? 0, (node.y ?? 0) + nodeSize + fontSize);
-          }
-        }}
-        // 效能優化
-        cooldownTicks={100}
-        warmupTicks={50}
-      />
+      {/* Glass Controls */}
+      <GlassPane position="absolute" bottom="4" right="4" p="2" borderRadius="lg" zIndex="10">
+        <VStack spacing="2">
+            <IconButton aria-label="Zoom In" icon={<FiPlus />} onClick={handleZoomIn} size="sm" variant="ghost" />
+            <IconButton aria-label="Zoom Out" icon={<FiMinus />} onClick={handleZoomOut} size="sm" variant="ghost" />
+        </VStack>
+      </GlassPane>
     </Box>
   );
 }
