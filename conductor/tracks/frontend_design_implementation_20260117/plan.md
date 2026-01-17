@@ -14,7 +14,7 @@
     - [ ] Implement: Apply glassmorphism to `src/components/layout/Sidebar.tsx` and the sticky header in `Layout.tsx`.
 - [x] Task: Conductor - User Manual Verification 'Global Theme & Glassmorphism' (Protocol in workflow.md)
 
-## Phase 2: Complex Component Redesign
+## Phase 2: Complex Component Redesign [checkpoint: f170271]
 **Goal:** Implement immersive visualizations and streamlined interactions.
 
 - [x] Task: Deep Research Interactive Tree (TDD) [f2ad89d]
