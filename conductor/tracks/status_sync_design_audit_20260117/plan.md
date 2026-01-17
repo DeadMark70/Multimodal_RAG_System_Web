@@ -17,17 +17,17 @@
 ## Phase 2: Frontend Design Audit (Skill-Based)
 **Goal:** Evaluate the current UI using specialized design principles.
 
-- [ ] Task: Activate `frontend-design` Skill
-    - [ ] Initialize the skill and review project-specific UI code.
-- [ ] Task: Audit Global Theme & Layout
-    - [ ] Evaluate `src/theme/` and `src/components/layout/` for consistency and aesthetic quality.
-- [ ] Task: Audit Complex Component UX
-    - [ ] Deep dive into `DeepResearchPanel`, `KnowledgeGraph`, and `Chat` components.
-- [ ] Task: Identify Polish Opportunities
-    - [ ] Scan for missing feedback mechanisms (skeletons, transitions, toasts).
-- [ ] Task: Generate Design Audit Report
-    - [ ] Create `frontend_design_audit_report.md` with prioritized, actionable recommendations.
-- [ ] Task: Conductor - User Manual Verification 'Frontend Design Audit (Skill-Based)' (Protocol in workflow.md)
+- [x] Task: Activate `frontend-design` Skill
+    - [x] Initialize the skill and review project-specific UI code.
+- [x] Task: Audit Global Theme & Layout
+    - [x] Evaluate `src/theme/` and `src/components/layout/` for consistency and aesthetic quality.
+- [x] Task: Audit Complex Component UX
+    - [x] Deep dive into `DeepResearchPanel`, `KnowledgeGraph`, and `Chat` components.
+- [x] Task: Identify Polish Opportunities
+    - [x] Scan for missing feedback mechanisms (skeletons, transitions, toasts).
+- [x] Task: Generate Design Audit Report
+    - [x] Create `frontend_design_audit_report.md` with prioritized, actionable recommendations.
+- [x] Task: Conductor - User Manual Verification 'Frontend Design Audit (Skill-Based)' (Protocol in workflow.md)
 
 ## Phase 3: Final Review & Track Handover
 **Goal:** Finalize documentation updates and prepare for implementation tracks.
