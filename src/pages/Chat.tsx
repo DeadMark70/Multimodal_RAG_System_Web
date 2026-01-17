@@ -24,6 +24,8 @@ import {
   Tab, 
   TabPanels, 
   TabPanel,
+  Skeleton,
+  Stack,
 } from '@chakra-ui/react';
 import { FiSend, FiCpu, FiCheckCircle, FiAlertTriangle, FiHelpCircle, FiTrash2, FiMessageSquare, FiSearch } from 'react-icons/fi';
 import MessageBubble from '../components/rag/MessageBubble';
@@ -44,7 +46,8 @@ export default function Chat() {
     messages, 
     sendMessage, 
     clearMessages,
-    isLoading, 
+    isLoading,
+    isLoadingHistory,
     selectedDocIds, 
     setSelectedDocIds 
   } = useChat({ 
@@ -149,23 +152,34 @@ export default function Chat() {
                   overflow="hidden"
                 >
                   <Box flex={1} overflowY="auto" p={6}>
-                    {messages.map((msg) => (
-                      <MessageBubble 
-                        key={msg.id} 
-                        role={msg.role} 
-                        content={msg.content} 
-                        sources={msg.sources}
-                        metrics={evalMode ? msg.metrics : undefined}
-                      />
-                    ))}
-                    {isLoading && (
-                      <Box p={4}>
-                        <Text fontSize="sm" color="gray.500" fontStyle="italic">
-                          AI 思考中...
-                        </Text>
-                      </Box>
+                    {isLoadingHistory ? (
+                      <Stack spacing={4} data-testid="chat-history-skeleton">
+                        <Skeleton height="40px" width="40%" alignSelf="flex-start" borderRadius="lg" />
+                        <Skeleton height="60px" width="70%" alignSelf="flex-end" borderRadius="lg" />
+                        <Skeleton height="40px" width="50%" alignSelf="flex-start" borderRadius="lg" />
+                        <Skeleton height="80px" width="80%" alignSelf="flex-end" borderRadius="lg" />
+                      </Stack>
+                    ) : (
+                      <>
+                        {messages.map((msg) => (
+                          <MessageBubble 
+                            key={msg.id} 
+                            role={msg.role} 
+                            content={msg.content} 
+                            sources={msg.sources}
+                            metrics={evalMode ? msg.metrics : undefined}
+                          />
+                        ))}
+                        {isLoading && (
+                          <Box p={4}>
+                            <Text fontSize="sm" color="gray.500" fontStyle="italic">
+                              AI 思考中...
+                            </Text>
+                          </Box>
+                        )}
+                        <div ref={messagesEndRef} />
+                      </>
                     )}
-                    <div ref={messagesEndRef} />
                   </Box>
                   
                   <Box p={6} position="relative" zIndex={2}>

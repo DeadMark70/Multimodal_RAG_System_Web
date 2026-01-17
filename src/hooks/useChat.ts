@@ -111,7 +111,12 @@ export function useChat(options: UseChatOptions = {}) {
         });
       } catch (error) {
         console.error('Failed to save user message', error);
-        // Silently fail or show toast? Continuing flow for now.
+        toast({
+          title: '儲存訊息失敗',
+          description: '無法儲存您的訊息至對話歷史',
+          status: 'error',
+          duration: 3000,
+        });
       }
     }
 
@@ -156,6 +161,12 @@ export function useChat(options: UseChatOptions = {}) {
           });
         } catch (error) {
           console.error('Failed to save assistant message', error);
+          toast({
+            title: '儲存訊息失敗',
+            description: '無法儲存 AI 回應至對話歷史',
+            status: 'error',
+            duration: 3000,
+          });
         }
       }
 
