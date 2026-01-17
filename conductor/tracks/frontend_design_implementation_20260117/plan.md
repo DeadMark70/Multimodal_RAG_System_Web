@@ -23,7 +23,7 @@
 - [x] Task: Responsive Knowledge Graph & Controls (TDD) [db49850]
     - [ ] Write Tests: Verify `ResizeObserver` logic in `KnowledgeGraph.tsx`.
     - [ ] Implement: Update `KnowledgeGraph.tsx` for 100% responsiveness and add floating glass control overlays.
-- [ ] Task: Integrated Chat Input (TDD)
+- [x] Task: Integrated Chat Input (TDD) [401e537]
     - [ ] Write Tests: Integration tests for mode switching within the input bar.
     - [ ] Implement: Refactor `Chat.tsx` to integrate the mode selector into the `Input` group.
 - [ ] Task: Conductor - User Manual Verification 'Complex Component Redesign' (Protocol in workflow.md)
