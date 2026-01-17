@@ -11,7 +11,6 @@ interface LayoutProps {
 
 export default function Layout({ children, requireAuth = true }: LayoutProps) {
   const { session, loading } = useAuth();
-  const bg = useColorModeValue('gray.50', '#0B1437');
 
   if (loading) {
       return <Box>載入中...</Box>; // Simple loading state
@@ -22,7 +21,7 @@ export default function Layout({ children, requireAuth = true }: LayoutProps) {
   }
 
   return (
-    <Box minH="100vh" bg={bg}>
+    <Box minH="100vh">
       <Sidebar />
       <Box ml={{ base: 0, md: 60 }} p="6">
         {children}

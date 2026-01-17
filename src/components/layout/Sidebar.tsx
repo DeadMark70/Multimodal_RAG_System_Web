@@ -65,9 +65,9 @@ const NavItem = ({ icon, children, to }: NavItemProps) => {
 };
 
 export default function Sidebar() {
-    // Glassmorphism background effect
-    const bg = useColorModeValue('rgba(255, 255, 255, 0.8)', 'rgba(17, 28, 68, 0.8)');
-    const borderColor = useColorModeValue('gray.100', 'whiteAlpha.100');
+    // Glassmorphism background effect using theme tokens
+    const bg = useColorModeValue('glass.500', 'glass.600'); // Slightly more opaque for sidebar
+    const borderColor = useColorModeValue('glass.300', 'glass.300');
     const { isOpen, onOpen, onClose } = useDisclosure();
     
   return (
@@ -76,9 +76,6 @@ export default function Sidebar() {
         transition="3s ease"
         bg={bg}
         backdropFilter="blur(20px)"
-        w={{ base: 'full', md: 64 }}
-        pos="fixed"
-        h="full"
         borderRight="1px"
         borderRightColor={borderColor}
         zIndex="sticky"
