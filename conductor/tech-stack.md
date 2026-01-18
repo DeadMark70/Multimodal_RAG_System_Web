@@ -6,6 +6,7 @@
 - **UI Component Library:** Chakra UI, Framer Motion, Emotion
 - **Visualization:** React Force Graph 2D, Recharts, @xyflow/react
 - **HTTP Client:** Axios
+- **Linting & Quality:** ESLint, Prettier, Husky, lint-staged (planned)
 
 ## Backend
 - **Framework:** FastAPI + Uvicorn
