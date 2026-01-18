@@ -80,12 +80,16 @@ export interface KnowledgeGraphProps {
   data?: GraphData;
   onNodeClick?: (node: GraphNode) => void;
   isLoading?: boolean;
+  width?: number;
+  height?: number;
 }
 
 export function KnowledgeGraph({
   data,
   onNodeClick,
   isLoading = false,
+  width: propWidth,
+  height: propHeight = 600,
 }: KnowledgeGraphProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const graphRef = useRef<ForceGraphMethods<any> | undefined>();
@@ -137,14 +141,14 @@ export function KnowledgeGraph({
   };
 
   return (
-    <Box ref={containerRef} w="full" h="full" position="relative" overflow="hidden" borderRadius="xl" bg={bgColor}>
-      {!isLoading && dimensions.width > 0 && (
+    <Box ref={containerRef} w="full" h={propHeight ? `${propHeight}px` : "full"} minH="400px" position="relative" overflow="hidden" borderRadius="xl" bg={bgColor}>
+      {!isLoading && (dimensions.width > 0 || propWidth) && (
         <ForceGraph2D
           ref={graphRef}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           graphData={graphData as any}
-          width={dimensions.width}
-          height={dimensions.height}
+          width={dimensions.width || propWidth || 800}
+          height={dimensions.height || propHeight || 600}
           backgroundColor={bgColor}
           nodeLabel={(node: { id?: string; desc?: string }) => `${node.id ?? ''}\n${node.desc ?? ''}`}
           nodeColor={getNodeColor}

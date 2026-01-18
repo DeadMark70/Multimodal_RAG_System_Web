@@ -1,4 +1,5 @@
-import { Box, BoxProps, useColorModeValue } from '@chakra-ui/react';
+import { Box, useColorModeValue } from '@chakra-ui/react';
+import type { BoxProps } from '@chakra-ui/react';
 
 export default function GlassCard(props: BoxProps) {
   const bg = useColorModeValue('glass.100', 'glass.600');
