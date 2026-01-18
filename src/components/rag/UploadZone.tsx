@@ -28,12 +28,12 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
         setIsDragging(false);
     };
 
-    const handleDrop = async (e: DragEvent) => {
+    const handleDrop = (e: DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
         const files = e.dataTransfer.files;
         if (files.length > 0) {
-            handleUpload(files[0]);
+            void handleUpload(files[0]);
         }
     };
 
@@ -74,7 +74,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                 status: 'success',
                 duration: 3000,
             });
-        } catch (error) {
+        } catch {
              toast({
                 title: '上傳失敗',
                 description: '發生錯誤，請稍後再試。',

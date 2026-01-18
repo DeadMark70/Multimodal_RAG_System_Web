@@ -59,9 +59,9 @@ export function useOptimizeGraph() {
   return useMutation<GraphOptimizeResponse, Error, boolean | undefined>({
     mutationFn: (regenerateCommunities = true) =>
       optimizeGraph(regenerateCommunities),
-    onSuccess: () => {
+    onSuccess: async () => {
       // 成功後重新取得圖譜資料
-      queryClient.invalidateQueries({ queryKey: ['graph'] });
+      await queryClient.invalidateQueries({ queryKey: ['graph'] });
     },
   });
 }
@@ -76,9 +76,9 @@ export function useRebuildGraph() {
 
   return useMutation<GraphRebuildResponse, Error, boolean | undefined>({
     mutationFn: (force = true) => rebuildGraph(force),
-    onSuccess: () => {
+    onSuccess: async () => {
       // 成功後重新取得圖譜資料
-      queryClient.invalidateQueries({ queryKey: ['graph'] });
+      await queryClient.invalidateQueries({ queryKey: ['graph'] });
     },
   });
 }

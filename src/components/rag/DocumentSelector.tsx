@@ -74,7 +74,7 @@ export default function DocumentSelector({
           icon={<FiRefreshCw />}
           size="sm"
           variant="ghost"
-          onClick={() => refetch()}
+          onClick={() => void refetch()}
           mt={2}
         />
       </Box>

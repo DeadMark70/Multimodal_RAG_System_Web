@@ -111,7 +111,7 @@ function SubTaskNode({ data }: NodeProps) {
         {String(data.label ?? '')}
       </Text>
 
-      {data.answer && status === 'success' && (
+      {!!data.answer && status === 'success' && (
         <Text fontSize="xs" color="gray.500" mt={2} noOfLines={2}>
           {String(data.answer)}
         </Text>

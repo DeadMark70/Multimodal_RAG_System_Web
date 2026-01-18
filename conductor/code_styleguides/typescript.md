@@ -34,8 +34,18 @@ This document summarizes key rules and best practices from the Google TypeScript
 - **Optional vs. `|undefined`:** Prefer optional parameters and fields (`?`) over adding `|undefined` to the type.
 - **`Array<T>` Type:** Use `T[]` for simple types. Use `Array<T>` for more complex union types (e.g., `Array<string | number>`).
 - **`{}` Type:** **Do not use `{}`**. Prefer `unknown`, `Record<string, unknown>`, or `object`.
+- **Type-Only Imports:** Always use `import type` for TypeScript types and interfaces.
+  - **Reason:** Enforced by `verbatimModuleSyntax` to prevent runtime import errors in ESM/Vite environments.
+  - **Do:** `import type { BoxProps } from '@chakra-ui/react';`
+  - **Don't:** `import { Box, BoxProps } from '@chakra-ui/react';`
 
-## 5. Comments and Documentation
+## 5. UI Component Standards
+- **Dimension Robustness:** Components that rely on container dimensions (e.g., Canvas, SVG, Charts) must be robust.
+  - **Pattern:** Use `ResizeObserver` (via hooks like `useResizeObserver`) combined with optional `width`/`height` props and safe fallbacks.
+  - **Guideline:** Avoid `h="full"` or `w="full"` as the sole sizing mechanism for Canvas containers, as parent elements may have 0px height.
+  - **Fallback:** Always provide a default `minH` or default numeric `height` (e.g., `600px`).
+
+## 6. Comments and Documentation
 - **JSDoc:** Use `/** JSDoc */` for documentation, `//` for implementation comments.
 - **Redundancy:** **Do not declare types in `@param` or `@return` blocks** (e.g., `/** @param {string} user */`). This is redundant in TypeScript.
 - **Add Information:** Comments must add information, not just restate the code.

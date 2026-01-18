@@ -20,7 +20,6 @@ import {
   Button,
   Skeleton,
   useColorModeValue,
-  Badge,
   Tooltip,
   Flex,
 } from '@chakra-ui/react';
@@ -32,7 +31,7 @@ import {
   FiLayers,
 } from 'react-icons/fi';
 import { useConversations } from '../../hooks/useConversations';
-import type { Conversation, ConversationType } from '../../types/conversation';
+import type { ConversationType } from '../../types/conversation';
 
 interface ConversationSidebarProps {
   currentId: string | null;

@@ -14,8 +14,6 @@ import {
   deleteConversation,
 } from '../services/conversationApi';
 import type { 
-  Conversation, 
-  ConversationDetail,
   CreateConversationRequest,
 } from '../types/conversation';
 
@@ -52,8 +50,8 @@ export function useConversationMutations() {
 
   const createMutation = useMutation({
     mutationFn: (request: CreateConversationRequest) => createConversation(request),
-    onSuccess: (newConversation) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    onSuccess: async (newConversation) => {
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
       toast({
         title: '對話已建立',
         status: 'success',
@@ -74,8 +72,8 @@ export function useConversationMutations() {
   const updateMutation = useMutation({
     mutationFn: ({ id, title }: { id: string; title: string }) => 
       updateConversation(id, { title }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
     onError: (error: Error) => {
       toast({
@@ -89,8 +87,8 @@ export function useConversationMutations() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteConversation(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
       toast({
         title: '對話已刪除',
         status: 'info',

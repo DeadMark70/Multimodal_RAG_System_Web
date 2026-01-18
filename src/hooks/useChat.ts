@@ -73,7 +73,7 @@ export function useChat(options: UseChatOptions = {}) {
       }
     };
 
-    loadHistory();
+    void loadHistory();
   }, [options.conversationId, toast]);
 
   const mutation = useMutation({

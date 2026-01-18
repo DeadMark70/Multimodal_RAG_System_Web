@@ -57,7 +57,7 @@ export default function KnowledgeBase() {
     }
   };
 
-  const handleView = (_id: string) => {
+  const handleView = () => {
     // TODO: 開啟文件預覽
     toast({
       title: '功能開發中',
@@ -88,7 +88,7 @@ export default function KnowledgeBase() {
             ) : error ? (
               <Box textAlign="center" py={8}>
                 <Text color="red.500">載入失敗：{error.message}</Text>
-                <Button mt={4} size="sm" onClick={() => refetch()}>
+                <Button mt={4} size="sm" onClick={() => void refetch()}>
                   重試
                 </Button>
               </Box>
@@ -125,7 +125,7 @@ export default function KnowledgeBase() {
               </Button>
               <Button 
                 colorScheme="red" 
-                onClick={handleDeleteConfirm} 
+                onClick={() => void handleDeleteConfirm()} 
                 ml={3}
                 isLoading={deleteMutation.isPending}
               >

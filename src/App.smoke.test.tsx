@@ -1,7 +1,6 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { render } from '@testing-library/react';
+import { describe, it, vi } from 'vitest';
 import App from './App';
-import React from 'react';
 
 // Mock components to isolate routing
 vi.mock('./pages/Dashboard', () => ({ default: () => <div>Dashboard Page</div> }));

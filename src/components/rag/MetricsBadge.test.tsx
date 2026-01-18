@@ -3,6 +3,7 @@
  */
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
 import { ChakraProvider } from '@chakra-ui/react';
 import { MetricsBadge } from './MetricsBadge';
 import type { EvaluationMetrics } from '../../types/rag';

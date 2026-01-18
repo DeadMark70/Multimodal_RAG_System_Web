@@ -1,20 +1,16 @@
 import { Box, Text, VStack, HStack, useColorModeValue, Badge } from '@chakra-ui/react';
 import GlassCard from '../common/GlassCard';
 import { motion } from 'framer-motion';
+import type { TaskProgress } from '../../types/rag';
 
-interface Task {
-  id: number;
-  question: string;
-  status: string;
-  task_type?: 'rag' | 'graph';
+interface ResearchTreeProps {
+  plan: {
+    original_question: string;
+    sub_tasks: Partial<TaskProgress & { task_type?: 'rag' | 'graph' }>[];
+  };
 }
 
-interface Plan {
-  original_question: string;
-  sub_tasks: Task[];
-}
-
-export default function ResearchTree({ plan }: { plan: Plan }) {
+export default function ResearchTree({ plan }: ResearchTreeProps) {
   const lineColor = useColorModeValue('gray.300', 'gray.600');
 
   return (
@@ -50,7 +46,8 @@ export default function ResearchTree({ plan }: { plan: Plan }) {
             key={task.id}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.1 } as any}
+            // @ts-expect-error - Chakra Box transition conflicts with Framer Motion transition
+            transition={{ delay: index * 0.1 }}
             zIndex={1}
             maxW="250px"
             minW="180px"
@@ -82,14 +79,14 @@ export default function ResearchTree({ plan }: { plan: Plan }) {
   );
 }
 
-function getStatusColor(status: string) {
+function getStatusColor(status?: string) {
     if (status === 'done') return 'green.400';
     if (status === 'running') return 'blue.400';
     if (status === 'error') return 'red.400';
     return 'gray.400';
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status }: { status?: string }) {
     if (status === 'done') return <Badge colorScheme="green">完成</Badge>;
     if (status === 'running') return <Badge colorScheme="blue">執行中</Badge>;
     if (status === 'error') return <Badge colorScheme="red">錯誤</Badge>;

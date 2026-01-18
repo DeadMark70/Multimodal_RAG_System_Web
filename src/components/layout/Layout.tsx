@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { Box, useColorModeValue } from '@chakra-ui/react';
+import { Box } from '@chakra-ui/react';
 import Sidebar from './Sidebar';
 import { useAuth } from '../../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';

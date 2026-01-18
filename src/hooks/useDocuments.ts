@@ -29,8 +29,8 @@ export function useUploadDocument() {
     mutationFn: async (file: File) => {
       return await uploadPdf(file);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['documents'] });
       toast({
         title: '上傳成功',
         description: '文件正在處理中，請稍候。',
@@ -58,8 +58,8 @@ export function useDeleteDocument() {
     mutationFn: async (docId: string) => {
       return await deleteDocument(docId);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['documents'] });
       toast({
         title: '刪除成功',
         status: 'success',

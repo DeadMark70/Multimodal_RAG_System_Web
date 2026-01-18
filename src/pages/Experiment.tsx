@@ -208,14 +208,14 @@ export default function Experiment() {
                       placeholder="輸入您要測試的問題..."
                       value={question}
                       onChange={(e) => setQuestion(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && !isRunning && runExperiment()}
+                      onKeyDown={(e) => e.key === 'Enter' && !isRunning && void runExperiment()}
                     />
                   </Box>
                   
                   <Button
                     colorScheme="brand"
                     leftIcon={<FiPlay />}
-                    onClick={runExperiment}
+                    onClick={() => void runExperiment()}
                     isLoading={isRunning}
                     loadingText="執行中..."
                     size="lg"

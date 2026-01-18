@@ -19,6 +19,7 @@ import {
   Image,
   useColorModeValue,
   useDisclosure,
+  Link,
 } from '@chakra-ui/react';
 import { FiUser, FiCpu } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
@@ -55,7 +56,7 @@ function transformImageUrl(src: string | undefined): string {
   if (!src) return '';
   
   // 處理 Windows 反斜線 (前端再防一次更安全)
-  let cleanSrc = src.replace(/\\/g, '/');
+  const cleanSrc = src.replace(/\\/g, '/');
   
   // 已經是絕對 URL
   if (cleanSrc.startsWith('http://') || cleanSrc.startsWith('https://')) {
@@ -99,11 +100,13 @@ export default function MessageBubble({
   }, [onOpen]);
   
   // Modern Gradient for User, Clean White/Dark for AI
+  const aiBg = useColorModeValue('white', '#1B254B');
   const bg = isUser 
     ? 'linear-gradient(135deg, #4318FF 0%, #774FFF 100%)' 
-    : useColorModeValue('white', '#1B254B');
+    : aiBg;
       
-  const textColor = isUser ? 'white' : useColorModeValue('navy.700', 'white');
+  const aiTextColor = useColorModeValue('navy.700', 'white');
+  const textColor = isUser ? 'white' : aiTextColor;
   const linkColor = useColorModeValue('brand.500', 'brand.300');
   const codeBg = useColorModeValue('gray.100', 'gray.700');
   
@@ -136,8 +139,7 @@ export default function MessageBubble({
     },
     // 連結元件
     a: ({ href, children, ...props }) => (
-      <Text
-        as="a"
+      <Link
         href={href}
         color={linkColor}
         textDecoration="underline"
@@ -147,7 +149,7 @@ export default function MessageBubble({
         {...props}
       >
         {children}
-      </Text>
+      </Link>
     ),
     // 程式碼區塊
     code: ({ children, className, ...props }) => {
@@ -166,6 +168,7 @@ export default function MessageBubble({
           {children}
         </Text>
       ) : (
+        // @ts-expect-error - ref type mismatch for pre element
         <Box
           as="pre"
           bg={codeBg}

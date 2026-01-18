@@ -223,6 +223,9 @@ export function MetricsBadge({
   showDetailedTooltip = true,
   showSuggestion = true,
 }: MetricsBadgeProps) {
+  const tooltipBg = useColorModeValue('white', 'gray.800');
+  const tooltipColor = useColorModeValue('gray.700', 'white');
+
   // 空值處理
   if (!metrics) return null;
 
@@ -243,8 +246,8 @@ export function MetricsBadge({
       label={tooltipContent}
       hasArrow
       placement="top"
-      bg={useColorModeValue('white', 'gray.800')}
-      color={useColorModeValue('gray.700', 'white')}
+      bg={tooltipBg}
+      color={tooltipColor}
       borderRadius="md"
       boxShadow="lg"
       p={showDetailedTooltip ? 2 : 1}

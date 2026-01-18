@@ -1,10 +1,9 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import Chat from './Chat';
 import { useSessionStore } from '../stores/useSessionStore';
 import { useConversationMutations } from '../hooks/useConversations';
 import * as conversationApi from '../services/conversationApi';
-import * as ragApi from '../services/ragApi';
 import React from 'react';
 import { ChakraProvider } from '@chakra-ui/react';
 import theme from '../theme';

@@ -12,7 +12,7 @@
 
 import { useRef, useCallback, useMemo, useState, useEffect } from 'react';
 import ForceGraph2D, { type ForceGraphMethods } from 'react-force-graph-2d';
-import { Box, useColorModeValue, Text, VStack, IconButton, HStack } from '@chakra-ui/react';
+import { Box, useColorModeValue, Text, VStack, IconButton } from '@chakra-ui/react';
 import { keyframes } from '@emotion/react';
 import { FiPlus, FiMinus, FiCpu } from 'react-icons/fi';
 import type { GraphData, GraphNode, GraphLink } from '../../types/graph';
@@ -91,8 +91,7 @@ export function KnowledgeGraph({
   width: propWidth,
   height: propHeight = 600,
 }: KnowledgeGraphProps) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const graphRef = useRef<ForceGraphMethods<any> | undefined>();
+  const graphRef = useRef<ForceGraphMethods | undefined>();
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const actions = useSessionActions();
@@ -115,19 +114,18 @@ export function KnowledgeGraph({
     return () => observer.disconnect();
   }, []);
 
-  const getNodeColor = useCallback((node: { group?: number }) => {
+  const getNodeColor = useCallback((node: GraphNode) => {
     const groupIndex = (node.group ?? 0) % COMMUNITY_COLORS.length;
     return COMMUNITY_COLORS[groupIndex];
   }, []);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleNodeClick = useCallback((node: any) => {
+  const handleNodeClick = useCallback((node: GraphNode) => {
       actions.setSelectedNodeId(node.id);
-      if (graphRef.current) {
+      if (graphRef.current && typeof node.x === 'number' && typeof node.y === 'number') {
         graphRef.current.centerAt(node.x, node.y, 500);
         graphRef.current.zoom(2, 500);
       }
-      onNodeClick?.(node as GraphNode);
+      onNodeClick?.(node);
     },
     [actions, onNodeClick]
   );
@@ -144,34 +142,34 @@ export function KnowledgeGraph({
     <Box ref={containerRef} w="full" h={propHeight ? `${propHeight}px` : "full"} minH="400px" position="relative" overflow="hidden" borderRadius="xl" bg={bgColor}>
       {!isLoading && (dimensions.width > 0 || propWidth) && (
         <ForceGraph2D
-          ref={graphRef}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ref={graphRef as any}
           graphData={graphData as any}
           width={dimensions.width || propWidth || 800}
           height={dimensions.height || propHeight || 600}
           backgroundColor={bgColor}
-          nodeLabel={(node: { id?: string; desc?: string }) => `${node.id ?? ''}\n${node.desc ?? ''}`}
+          nodeLabel={(node: GraphNode) => `${node.id ?? ''}\n${node.desc ?? ''}`}
           nodeColor={getNodeColor}
           nodeRelSize={6}
-          nodeVal={(node: { val?: number }) => node.val ?? 5}
+          nodeVal={(node: GraphNode) => node.val ?? 5}
           linkColor={() => linkColor}
           linkWidth={1.5}
           linkDirectionalArrowLength={4}
           linkDirectionalArrowRelPos={0.9}
           linkLabel={(link: GraphLink) => link.label ?? ''}
           onNodeClick={handleNodeClick}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onNodeDragEnd={(node: any) => {
+          onNodeDragEnd={(node: GraphNode) => {
             node.fx = node.x;
             node.fy = node.y;
           }}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+          nodeCanvasObject={(node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
             const label = node.id ?? '';
             const fontSize = 12 / globalScale;
             const nodeSize = Math.sqrt(node.val ?? 5) * 4;
+            const x = node.x ?? 0;
+            const y = node.y ?? 0;
+            
             ctx.beginPath();
-            ctx.arc(node.x ?? 0, node.y ?? 0, nodeSize, 0, 2 * Math.PI);
+            ctx.arc(x, y, nodeSize, 0, 2 * Math.PI);
             ctx.fillStyle = getNodeColor(node);
             ctx.fill();
             if (globalScale > 0.7) {
@@ -179,7 +177,7 @@ export function KnowledgeGraph({
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
               ctx.fillStyle = textColor;
-              ctx.fillText(label, node.x ?? 0, (node.y ?? 0) + nodeSize + fontSize);
+              ctx.fillText(label, x, y + nodeSize + fontSize);
             }
           }}
           cooldownTicks={100}

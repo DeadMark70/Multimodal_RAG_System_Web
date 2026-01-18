@@ -1,8 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import Chat from './Chat';
-import { useSessionStore } from '../stores/useSessionStore';
-import { useConversationMutations } from '../hooks/useConversations';
 import React from 'react';
 import { ChakraProvider } from '@chakra-ui/react';
 import theme from '../theme';

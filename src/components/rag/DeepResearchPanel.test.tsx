@@ -1,8 +1,6 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import DeepResearchPanel from './DeepResearchPanel';
-import { useDeepResearch } from '../../hooks/useDeepResearch';
-import React from 'react';
 
 // Mock hook
 vi.mock('../../hooks/useDeepResearch', () => ({
@@ -30,18 +28,24 @@ describe('DeepResearchPanel UI Integration', () => {
       estimated_complexity: 'simple',
     };
 
-    (useDeepResearch as any).mockReturnValue({
+    const mockState = {
       plan: mockPlan,
       isPlanning: false,
       isExecuting: false,
       progress: [],
       result: null,
       error: null,
+      currentPhase: 'initial',
       generatePlan: mockGeneratePlan,
       executePlan: mockExecutePlan,
-    });
+      updateTask: vi.fn(),
+      toggleTask: vi.fn(),
+      deleteTask: vi.fn(),
+      cancelExecution: vi.fn(),
+      reset: vi.fn(),
+    };
 
-    render(<DeepResearchPanel />);
+    render(<DeepResearchPanel researchState={mockState as any} />);
 
     // Verify loaded plan is visible
     expect(screen.getByText('原始問題：Loaded Question')).toBeInTheDocument();
@@ -60,16 +64,24 @@ describe('DeepResearchPanel UI Integration', () => {
       total_iterations: 1,
     };
 
-    (useDeepResearch as any).mockReturnValue({
+    const mockState = {
       plan: { original_question: 'Q', sub_tasks: [], estimated_complexity: 'simple' },
       isPlanning: false,
       isExecuting: false,
       progress: [],
       result: mockResult,
       error: null,
-    });
+      currentPhase: 'complete',
+      generatePlan: vi.fn(),
+      executePlan: vi.fn(),
+      updateTask: vi.fn(),
+      toggleTask: vi.fn(),
+      deleteTask: vi.fn(),
+      cancelExecution: vi.fn(),
+      reset: vi.fn(),
+    };
 
-    render(<DeepResearchPanel />);
+    render(<DeepResearchPanel researchState={mockState as any} />);
 
     // Verify loaded result is visible
     expect(screen.getByText('Loaded Summary')).toBeInTheDocument();

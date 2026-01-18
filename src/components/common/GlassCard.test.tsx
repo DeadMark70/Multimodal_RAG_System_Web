@@ -3,7 +3,6 @@ import { describe, it, expect } from 'vitest';
 import GlassCard from './GlassCard';
 import { ChakraProvider } from '@chakra-ui/react';
 import theme from '../../theme';
-import React from 'react';
 
 describe('GlassCard', () => {
   it('renders with glass styles', () => {

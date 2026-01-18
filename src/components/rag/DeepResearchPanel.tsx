@@ -31,7 +31,6 @@ import {
   Tooltip,
 } from '@chakra-ui/react';
 import { 
-  FiSearch, 
   FiPlay, 
   FiTrash2, 
   FiEdit2, 
@@ -43,48 +42,13 @@ import {
 } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import { useDeepResearch, type UseDeepResearchReturn } from '../../hooks/useDeepResearch';
+import { type UseDeepResearchReturn } from '../../hooks/useDeepResearch';
 import MetricsBadge from './MetricsBadge';
 import EvaluationRadarChart from '../charts/EvaluationRadarChart';
 import ResearchTree from './ResearchTree'; // Import Tree
-import type { TaskProgress } from '../../types/rag';
 
 interface DeepResearchPanelProps {
   researchState: UseDeepResearchReturn;
-}
-
-/**
- * 參考文脈預覽元件
- */
-function ContextPreview({ contexts }: { contexts: string[] }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const textColor = useColorModeValue('gray.600', 'gray.400');
-  const bg = useColorModeValue('gray.50', 'whiteAlpha.100');
-
-  if (!contexts || contexts.length === 0) return null;
-
-  return (
-    <Box mt={1} ml={8}>
-      <Button 
-        size="xs" 
-        variant="link" 
-        onClick={() => setIsOpen(!isOpen)}
-        colorScheme="brand"
-        fontWeight="normal"
-      >
-        {isOpen ? '收合參考文脈' : `查看參考文脈 (${contexts.length})`}
-      </Button>
-      <Collapse in={isOpen}>
-        <VStack align="start" spacing={2} mt={2}>
-          {contexts.map((ctx, idx) => (
-            <Box key={idx} p={2} bg={bg} borderRadius="md" w="100%" fontSize="xs" borderLeft="2px solid" borderColor="brand.500">
-              <Text noOfLines={5} color={textColor}>{ctx}</Text>
-            </Box>
-          ))}
-        </VStack>
-      </Collapse>
-    </Box>
-  );
 }
 
 export default function DeepResearchPanel({ researchState }: DeepResearchPanelProps) {
@@ -140,22 +104,6 @@ export default function DeepResearchPanel({ researchState }: DeepResearchPanelPr
     if (progress.length === 0) return 0;
     const completed = progress.filter(p => p.status === 'done').length;
     return Math.round((completed / progress.length) * 100);
-  };
-
-  /**
-   * 取得任務狀態圖標
-   */
-  const getStatusIcon = (status: TaskProgress['status']) => {
-    switch (status) {
-      case 'pending':
-        return <Box w={3} h={3} borderRadius="full" bg="gray.300" />;
-      case 'running':
-        return <Spinner size="xs" color="brand.500" />;
-      case 'done':
-        return <Box w={3} h={3} borderRadius="full" bg="green.500" />;
-      case 'error':
-        return <Box w={3} h={3} borderRadius="full" bg="red.500" />;
-    }
   };
 
   /**
@@ -239,7 +187,7 @@ export default function DeepResearchPanel({ researchState }: DeepResearchPanelPr
                   size="sm"
                   variant="ghost"
                   leftIcon={<FiRefreshCw />}
-                  onClick={() => generatePlan(plan.original_question)}
+                  onClick={() => void generatePlan(plan.original_question)}
                   disabled={isPlanning || isExecuting}
                 >
                   重新生成
@@ -248,7 +196,7 @@ export default function DeepResearchPanel({ researchState }: DeepResearchPanelPr
                   size="sm"
                   colorScheme="brand"
                   leftIcon={<FiPlay />}
-                  onClick={executePlan}
+                  onClick={() => void executePlan()}
                   isLoading={isExecuting}
                   loadingText="執行中"
                   disabled={plan.sub_tasks.filter(t => t.enabled).length === 0}

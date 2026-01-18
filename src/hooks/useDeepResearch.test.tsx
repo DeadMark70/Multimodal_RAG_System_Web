@@ -1,11 +1,9 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { useDeepResearch } from './useDeepResearch';
 import * as ragApi from '../services/ragApi';
-import * as conversationApi from '../services/conversationApi';
 import { useSessionStore } from '../stores/useSessionStore';
 import { useConversationMutations } from '../hooks/useConversations';
-import React from 'react';
 
 // Mock services and hooks
 vi.mock('../services/ragApi');

@@ -3,7 +3,6 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import ConversationSidebar from './ConversationSidebar';
 import { useConversations } from '../../hooks/useConversations';
 import type { Conversation } from '../../types/conversation';
-import React from 'react';
 
 // Mock the hooks
 vi.mock('../../hooks/useConversations');

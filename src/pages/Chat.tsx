@@ -137,7 +137,7 @@ export default function Chat() {
           <ConversationSidebar 
             currentId={currentChatId}
             onSelect={handleSelectConversation}
-            onNew={handleNewConversation}
+            onNew={(type) => void handleNewConversation(type)}
           />
         </Box>
 
@@ -237,7 +237,7 @@ export default function Chat() {
                 w="50px" h="50px"
                 p={0}
                 isLoading={isLoading}
-                onClick={handleSend}
+                onClick={() => void handleSend()}
                 bgGradient="linear(to-br, brand.400, brand.600)"
                 _hover={{ transform: 'scale(1.05)', boxShadow: 'lg' }}
               >

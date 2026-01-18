@@ -3,13 +3,14 @@
  */
 
 import { render, screen } from '@testing-library/react';
+import { beforeAll, describe, it, expect } from 'vitest';
 import { ChakraProvider } from '@chakra-ui/react';
 import EvaluationRadarChart from './EvaluationRadarChart';
 import type { EvaluationMetrics } from '../../types/rag';
 
 // Recharts 在測試環境需要 mock ResizeObserver
 beforeAll(() => {
-  global.ResizeObserver = class ResizeObserver {
+  window.ResizeObserver = class ResizeObserver {
     observe() {}
     unobserve() {}
     disconnect() {}

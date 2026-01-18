@@ -93,17 +93,44 @@ function metricsToRadarData(metrics: EvaluationMetrics): RadarDataPoint[] {
 
 // ========== 元件 ==========
 
+// ========== 子元件 ==========
+
+const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: RadarDataPoint }> }) => {
+  const textColor = useColorModeValue('gray.600', 'gray.300');
+  const tooltipBg = useColorModeValue('#FFFFFF', '#1A202C');
+  const tooltipBorder = useColorModeValue('#E2E8F0', '#2D3748');
+
+  if (active && payload && payload.length > 0) {
+    const { subject, value } = payload[0].payload;
+    return (
+      <Box
+        bg={tooltipBg}
+        border="1px solid"
+        borderColor={tooltipBorder}
+        borderRadius="md"
+        px={3}
+        py={2}
+        boxShadow="md"
+      >
+        <Text fontSize="sm" fontWeight="medium" color={textColor}>
+          {subject}: {value.toFixed(1)}/10
+        </Text>
+      </Box>
+    );
+  }
+  return null;
+};
+
+// ========== 元件 ==========
+
 export default function EvaluationRadarChart({ 
   metrics, 
   size = 'md',
   showLabels = true,
 }: EvaluationRadarChartProps) {
   // 主題顏色
-  const colorMode = useColorModeValue('light', 'dark') as 'light' | 'dark';
+  const colorMode = useColorModeValue('light', 'dark');
   const colors = ACADEMIC_COLORS[colorMode];
-  const textColor = useColorModeValue('gray.600', 'gray.300');
-  const tooltipBg = useColorModeValue('#FFFFFF', '#1A202C');
-  const tooltipBorder = useColorModeValue('#E2E8F0', '#2D3748');
 
   // 尺寸配置
   const sizeConfig = SIZE_CONFIG[size];
@@ -126,29 +153,6 @@ export default function EvaluationRadarChart({
   }
 
   const data = metricsToRadarData(metrics);
-
-  // 自定義 Tooltip 內容
-  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: RadarDataPoint }> }) => {
-    if (active && payload && payload.length > 0) {
-      const { subject, value } = payload[0].payload;
-      return (
-        <Box
-          bg={tooltipBg}
-          border="1px solid"
-          borderColor={tooltipBorder}
-          borderRadius="md"
-          px={3}
-          py={2}
-          boxShadow="md"
-        >
-          <Text fontSize="sm" fontWeight="medium" color={textColor}>
-            {subject}: {value.toFixed(1)}/10
-          </Text>
-        </Box>
-      );
-    }
-    return null;
-  };
 
   return (
     <Box w={sizeConfig.width} h={sizeConfig.height}>

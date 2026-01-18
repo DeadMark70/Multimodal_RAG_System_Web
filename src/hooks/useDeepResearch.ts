@@ -103,7 +103,7 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
       }
     };
 
-    loadHistory();
+    void loadHistory();
   }, [currentChatId]);
 
   /**
@@ -200,6 +200,92 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
   }, []);
 
   /**
+   * 處理 SSE 事件
+   */
+  const handleSSEEvent = useCallback((event: SSEEvent) => {
+    const { type, data } = event;
+
+    switch (type) {
+      case 'plan_confirmed':
+        // 計畫已確認，開始執行
+        break;
+
+      case 'task_start':
+      case 'drilldown_task_start': {
+        const taskData = data as { id: number; question: string; iteration: number };
+        setProgress(prev => {
+          const exists = prev.find(p => p.id === taskData.id && p.iteration === taskData.iteration);
+          if (exists) {
+            return prev.map(p =>
+              p.id === taskData.id && p.iteration === taskData.iteration
+                ? { ...p, status: 'running' }
+                : p
+            );
+          }
+          return [...prev, {
+            id: taskData.id,
+            question: taskData.question,
+            status: 'running',
+            iteration: taskData.iteration,
+          }];
+        });
+        break;
+      }
+
+      case 'task_done':
+      case 'drilldown_task_done': {
+        const doneData = data as { id: number; answer: string; iteration: number; contexts?: string[] };
+        setProgress(prev =>
+          prev.map(p =>
+            p.id === doneData.id && p.iteration === doneData.iteration
+              ? { ...p, status: 'done', answer: doneData.answer, contexts: doneData.contexts }
+              : p
+          )
+        );
+        break;
+      }
+
+      case 'drilldown_start': {
+        // Phase 6: 深入挖掘開始
+        setCurrentPhase('drilldown');
+        break;
+      }
+
+      case 'synthesis_start':
+        // Phase 6: 綜合報告生成中
+        setCurrentPhase('synthesis');
+        break;
+
+      case 'complete': {
+        const completeData = data as ExecutePlanResponse;
+        setResult(completeData);
+        setCurrentPhase('complete');
+        
+        // 儲存結果 (Persistence) - 儲存摘要作為可讀內容
+        if (currentChatId) {
+            void addMessage(currentChatId, {
+                role: 'assistant',
+                content: completeData.summary || '研究完成',
+                metadata: { 
+                    result: completeData,
+                    detailed_answer: completeData.detailed_answer,
+                    confidence: completeData.confidence,
+                    sources: completeData.all_sources,
+                }
+            }).catch(console.error);
+        }
+        break;
+      }
+
+      case 'error': {
+        const errorData = data as { message: string };
+        setError(errorData.message);
+        break;
+      }
+    }
+  }, [currentChatId]);
+
+  /**
    * 執行研究計畫
    */
   const executePlan = useCallback(async () => {
@@ -268,93 +354,7 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
       setIsExecuting(false);
       abortControllerRef.current = null;
     }
-  }, [plan, toast]);
-
-  /**
-   * 處理 SSE 事件
-   */
-  const handleSSEEvent = useCallback((event: SSEEvent) => {
-    const { type, data } = event;
-
-    switch (type) {
-      case 'plan_confirmed':
-        // 計畫已確認，開始執行
-        break;
-
-      case 'task_start':
-      case 'drilldown_task_start': {
-        const taskData = data as { id: number; question: string; iteration: number };
-        setProgress(prev => {
-          const exists = prev.find(p => p.id === taskData.id && p.iteration === taskData.iteration);
-          if (exists) {
-            return prev.map(p =>
-              p.id === taskData.id && p.iteration === taskData.iteration
-                ? { ...p, status: 'running' }
-                : p
-            );
-          }
-          return [...prev, {
-            id: taskData.id,
-            question: taskData.question,
-            status: 'running',
-            iteration: taskData.iteration,
-          }];
-        });
-        break;
-      }
-
-      case 'task_done':
-      case 'drilldown_task_done': {
-        const doneData = data as { id: number; answer: string; iteration: number; contexts?: string[] };
-        setProgress(prev =>
-          prev.map(p =>
-            p.id === doneData.id && p.iteration === doneData.iteration
-              ? { ...p, status: 'done', answer: doneData.answer, contexts: doneData.contexts }
-              : p
-          )
-        );
-        break;
-      }
-
-      case 'drilldown_start': {
-        // Phase 6: 深入挖掘開始
-        setCurrentPhase('drilldown');
-        break;
-      }
-
-      case 'synthesis_start':
-        // Phase 6: 綜合報告生成中
-        setCurrentPhase('synthesis');
-        break;
-
-      case 'complete': {
-        const completeData = data as ExecutePlanResponse;
-        setResult(completeData);
-        setCurrentPhase('complete');
-        
-        // 儲存結果 (Persistence) - 儲存摘要作為可讀內容
-        if (currentChatId) {
-            addMessage(currentChatId, {
-                role: 'assistant',
-                content: completeData.summary || '研究完成',
-                metadata: { 
-                    result: completeData,
-                    detailed_answer: completeData.detailed_answer,
-                    confidence: completeData.confidence,
-                    sources: completeData.all_sources,
-                }
-            }).catch(console.error);
-        }
-        break;
-      }
-
-      case 'error': {
-        const errorData = data as { message: string };
-        setError(errorData.message);
-        break;
-      }
-    }
-  }, [currentChatId]);
+  }, [plan, toast, handleSSEEvent, ragSettings.enable_deep_image_analysis]);
 
   /**
    * 取消執行

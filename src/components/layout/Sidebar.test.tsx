@@ -4,7 +4,6 @@ import Sidebar from './Sidebar';
 import { ChakraProvider } from '@chakra-ui/react';
 import theme from '../../theme';
 import { MemoryRouter } from 'react-router-dom';
-import React from 'react';
 
 // Mock SettingsPanel
 vi.mock('../settings', () => ({
