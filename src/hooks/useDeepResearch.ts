@@ -326,6 +326,7 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
           doc_ids: plan.doc_ids ?? undefined,
           enable_drilldown: true,
           enable_deep_image_analysis: ragSettings.enable_deep_image_analysis,
+          conversation_id: currentChatId || undefined,
         },
         (event: SSEEvent) => {
           handleSSEEvent(event);

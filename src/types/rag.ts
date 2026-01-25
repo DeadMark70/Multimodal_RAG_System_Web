@@ -172,6 +172,8 @@ export interface ExecutePlanRequest {
   enable_drilldown?: boolean;
   /** 🆕 v3.0 - 啟用進階圖片查證 (重新檢視圖片以驗證結論) */
   enable_deep_image_analysis?: boolean;
+  /** 🆕 Phase 2 - 關聯的會話 ID (用於持久化儲存) */
+  conversation_id?: string;
 }
 
 
@@ -186,6 +188,7 @@ export interface SubTaskResult {
   contexts?: string[]; // 🆕 Phase 13: 原始文本片段
   is_drilldown: boolean;
   iteration: number;
+  thought_process?: string; // 🆕 Phase 2: 思考過程
 }
 
 /**
