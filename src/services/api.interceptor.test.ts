@@ -53,6 +53,24 @@ describe('api interceptors', () => {
     ).rejects.toThrow('backend failed');
   });
 
+  it('maps new error envelope message to thrown Error', async () => {
+    const responseErrorInterceptor = (
+      api.interceptors.response as unknown as {
+        handlers: Array<{ rejected: (error: unknown) => Promise<unknown> }>;
+      }
+    ).handlers[0].rejected;
+
+    await expect(
+      responseErrorInterceptor({
+        response: {
+          status: 400,
+          data: { error: { code: 'BAD_REQUEST', message: 'invalid payload' } },
+        },
+        message: 'Request failed',
+      })
+    ).rejects.toThrow('invalid payload');
+  });
+
   it('falls back to axios error message when detail is missing', async () => {
     const responseErrorInterceptor = (
       api.interceptors.response as unknown as {

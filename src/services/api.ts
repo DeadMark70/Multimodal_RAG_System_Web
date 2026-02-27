@@ -39,15 +39,27 @@ api.interceptors.request.use(
 // 回應攔截器 - 統一錯誤處理
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<{ detail?: string }>) => {
+  (
+    error: AxiosError<{
+      detail?: string;
+      error?: {
+        message?: string;
+        code?: string;
+      };
+    }>
+  ) => {
     // 401 未授權 - 可能需要重新登入
     if (error.response?.status === 401) {
       console.error('認證失敗，請重新登入');
       // 可在此觸發登出邏輯
     }
     
-    // 提取錯誤訊息
-    const message = error.response?.data?.detail || error.message || '發生未知錯誤';
+    // 提取錯誤訊息：優先新格式 error.message，向後相容 detail。
+    const message =
+      error.response?.data?.error?.message ||
+      error.response?.data?.detail ||
+      error.message ||
+      '發生未知錯誤';
     
     return Promise.reject(new Error(message));
   }
