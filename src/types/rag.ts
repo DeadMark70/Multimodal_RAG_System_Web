@@ -94,6 +94,19 @@ export interface DocumentItem {
   processing_step: ProcessingStatus | null;
 }
 
+/**
+ * Upload response from POST /pdfmd/upload_pdf_md.
+ */
+export interface UploadPdfResponse {
+  doc_id: string;
+  status: 'completed' | 'completed_with_pdf_error' | 'processing' | 'failed';
+  message: string;
+  pdf_available: boolean;
+  pdf_download_url: string | null;
+  pdf_error: string | null;
+  rag_status: 'processing_background' | 'not_started' | string;
+}
+
 // ========== 儀表板統計型別 ==========
 
 /**

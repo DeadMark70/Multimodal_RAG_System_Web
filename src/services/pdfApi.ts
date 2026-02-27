@@ -11,7 +11,7 @@
  */
 
 import api from './api';
-import type { DocumentItem, ProcessingStatus } from '../types/rag';
+import type { DocumentItem, ProcessingStatus, UploadPdfResponse } from '../types/rag';
 
 /**
  * 文件列表回應
@@ -31,17 +31,16 @@ export async function listDocuments(): Promise<DocumentListResponse> {
 
 /**
  * 上傳 PDF 並翻譯
- * @returns 翻譯後的 PDF Blob
+ * @returns 上傳任務狀態（包含 doc_id 與背景處理資訊）
  */
-export async function uploadPdf(file: File): Promise<Blob> {
+export async function uploadPdf(file: File): Promise<UploadPdfResponse> {
   const formData = new FormData();
   formData.append('file', file);
   
-  const response = await api.post('/pdfmd/upload_pdf_md', formData, {
+  const response = await api.post<UploadPdfResponse>('/pdfmd/upload_pdf_md', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
-    responseType: 'blob',
     timeout: 300000, // 5 分鐘逾時 (大檔案處理)
   });
   

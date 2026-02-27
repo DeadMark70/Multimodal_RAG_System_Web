@@ -29,11 +29,13 @@ export function useUploadDocument() {
     mutationFn: async (file: File) => {
       return await uploadPdf(file);
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ['documents'] });
       toast({
         title: '上傳成功',
-        description: '文件正在處理中，請稍候。',
+        description: result.pdf_available
+          ? '文件已可下載，背景索引進行中。'
+          : '文件正在背景處理中，請稍候。',
         status: 'success',
         duration: 3000,
       });

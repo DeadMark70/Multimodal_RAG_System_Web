@@ -20,18 +20,17 @@ import type {
 } from '../types/rag';
 
 /**
- * 基本問答 (GET)
+ * 基本問答 (POST wrapped)
  */
 export async function askQuestionSimple(
   question: string, 
   docIds?: string[]
 ): Promise<AskResponse> {
-  const params = new URLSearchParams({ question });
-  if (docIds && docIds.length > 0) {
-    params.append('doc_ids', docIds.join(','));
-  }
-  
-  const response = await api.get<AskResponse>(`/rag/ask?${params.toString()}`);
+  const response = await api.post<AskResponse>('/rag/ask', {
+    question,
+    doc_ids: docIds ?? null,
+    enable_evaluation: true,
+  });
   return response.data;
 }
 

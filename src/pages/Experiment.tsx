@@ -37,7 +37,7 @@ import {
 import { FiPlay, FiDownload, FiTrash2, FiFileText } from 'react-icons/fi';
 import ComparisonPanel from '../components/experiment/ComparisonPanel';
 import DocumentSelector from '../components/rag/DocumentSelector';
-import { askQuestion, askQuestionSimple } from '../services/ragApi';
+import { askQuestion } from '../services/ragApi';
 import { exportToCsv, exportToJson, generateSummaryReport } from '../utils/exportData';
 import type { ExperimentResult } from '../types/rag';
 
@@ -83,8 +83,16 @@ export default function Experiment() {
           doc_ids: selectedDocIds.length > 0 ? selectedDocIds : null,
           enable_evaluation: true,
         }),
-        // Vanilla 模式：不使用 RAG，直接用 LLM
-        askQuestionSimple(question, []), // 空文件列表 = 純 LLM
+        // Vanilla baseline：使用同一路徑但關閉進階檢索選項
+        askQuestion({
+          question,
+          doc_ids: null,
+          enable_evaluation: true,
+          enable_hyde: false,
+          enable_multi_query: false,
+          enable_reranking: false,
+          enable_graph_rag: false,
+        }),
       ]);
 
       // 處理 RAG 結果

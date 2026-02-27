@@ -26,10 +26,18 @@ describe('pdfApi', () => {
     expect(result.total).toBe(1);
   });
 
-  it('uploads PDF using multipart + blob response without real API call', async () => {
-    const blob = new Blob(['mock-pdf']);
+  it('uploads PDF and returns JSON status without real API call', async () => {
+    const payload = {
+      doc_id: 'doc-1',
+      status: 'completed',
+      message: 'Upload accepted. Background indexing started.',
+      pdf_available: true,
+      pdf_download_url: '/pdfmd/file/doc-1',
+      pdf_error: null,
+      rag_status: 'processing_background',
+    };
     (api.post as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: blob,
+      data: payload,
     });
 
     const file = new File(['content'], 'demo.pdf', { type: 'application/pdf' });
@@ -38,11 +46,10 @@ describe('pdfApi', () => {
     expect(api.post).toHaveBeenCalledWith(
       '/pdfmd/upload_pdf_md',
       expect.any(FormData),
-      expect.objectContaining({
-        responseType: 'blob',
-      })
+      expect.any(Object)
     );
-    expect(result).toBe(blob);
+    expect(result.doc_id).toBe('doc-1');
+    expect(result.pdf_available).toBe(true);
   });
 
   it('gets status by doc id', async () => {

@@ -29,14 +29,18 @@ describe('ragApi', () => {
     vi.unstubAllGlobals();
   });
 
-  it('calls GET /rag/ask with question and doc_ids', async () => {
-    (api.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+  it('calls POST /rag/ask for simple ask wrapper', async () => {
+    (api.post as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { question: 'q', answer: 'a', sources: [], metrics: null },
     });
 
     const result = await ragApi.askQuestionSimple('q', ['d1', 'd2']);
 
-    expect(api.get).toHaveBeenCalledWith('/rag/ask?question=q&doc_ids=d1%2Cd2');
+    expect(api.post).toHaveBeenCalledWith('/rag/ask', {
+      question: 'q',
+      doc_ids: ['d1', 'd2'],
+      enable_evaluation: true,
+    });
     expect(result.answer).toBe('a');
   });
 
