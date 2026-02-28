@@ -1,0 +1,33 @@
+name: Frontend No-External-API Test
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  frontend-test:
+    runs-on: ubuntu-latest
+    env:
+      VITE_TEST_MODE: "true"
+      VITE_MOCK_MODE: "true"
+      VITE_API_BASE_URL: "http://127.0.0.1:8000"
+      CI_BLOCK_EXTERNAL_NETWORK: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Run unit tests
+        run: npx vitest run

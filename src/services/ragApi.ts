@@ -18,6 +18,7 @@ import type {
   ExecutePlanResponse,
   SSEEvent,
 } from '../types/rag';
+import { assertAllowedApiTarget, resolveApiUrl } from './networkPolicy';
 
 /**
  * 基本問答 (POST wrapped)
@@ -126,7 +127,10 @@ export async function executeResearchPlanStream(
     throw new Error('未登入，請重新登入');
   }
   
-  const response = await fetch(`${api.defaults.baseURL}/rag/execute/stream`, {
+  const streamUrl = resolveApiUrl(api.defaults.baseURL, '/rag/execute/stream');
+  assertAllowedApiTarget(streamUrl);
+
+  const response = await fetch(streamUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

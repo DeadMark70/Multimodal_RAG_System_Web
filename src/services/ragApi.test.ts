@@ -10,7 +10,7 @@ vi.mock('./api', () => ({
     delete: vi.fn(),
     patch: vi.fn(),
     defaults: {
-      baseURL: 'http://mock-api.local',
+      baseURL: 'http://127.0.0.1:8000',
     },
   },
 }));
@@ -102,7 +102,7 @@ describe('ragApi', () => {
     );
 
     expect(fetch).toHaveBeenCalledWith(
-      'http://mock-api.local/rag/execute/stream',
+      'http://127.0.0.1:8000/rag/execute/stream',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
@@ -119,5 +119,23 @@ describe('ragApi', () => {
       type: 'complete',
       data: { summary: 'ok' },
     });
+  });
+
+  it('blocks SSE stream when target is non-local in test mode', async () => {
+    (api.defaults as { baseURL: string }).baseURL = 'https://api.example.com';
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { session: { access_token: 'mock-token' } },
+      error: null,
+    } as never);
+
+    await expect(
+      ragApi.executeResearchPlanStream(
+        {
+          original_question: 'q',
+          sub_tasks: [{ id: 1, question: 'sq', task_type: 'rag', enabled: true }],
+        },
+        vi.fn()
+      )
+    ).rejects.toThrow('測試/模擬模式禁止呼叫非本機 API');
   });
 });
