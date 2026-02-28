@@ -41,6 +41,7 @@
 
 ### 7. Conversations
 - **History Management:** Persistent storage for standard chat and deep research sessions.
+- **Detailed Research History:** Access full research reports, executive summaries, and execution steps for past deep research sessions.
 - **Context Restoration:** Seamlessly resumes dialogue state across logins.
 
 ## Technical Constraints & Requirements

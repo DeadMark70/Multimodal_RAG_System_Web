@@ -1,3 +1,12 @@
+# Multimodal RAG Frontend
+
+## Documentation
+
+- Primary docs entry: `docs/index.md`
+- Legacy conductor docs: `conductor/`
+
+---
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
