@@ -1,17 +1,16 @@
 import { useState, type DragEvent, type ChangeEvent } from 'react';
-import { Box, Text, VStack, Icon, useColorModeValue, Progress, useToast } from '@chakra-ui/react';
-import { FiUploadCloud, FiFile } from 'react-icons/fi';
+import { Box, Text, VStack, Icon, useColorModeValue, useToast, Spinner } from '@chakra-ui/react';
+import { FiUploadCloud } from 'react-icons/fi';
 // In a real app, use react-dropzone
 // import { useDropzone } from 'react-dropzone';
 
 interface UploadZoneProps {
-    onUpload: (file: File) => Promise<void>;
+    onUpload: (file: File) => Promise<unknown>;
 }
 
 export default function UploadZone({ onUpload }: UploadZoneProps) {
     const [isDragging, setIsDragging] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
-    const [progress, setProgress] = useState(0);
     const bg = useColorModeValue('white', '#111C44');
     const borderColor = useColorModeValue('gray.300', 'gray.600');
     const activeBorderColor = 'brand.500';
@@ -55,36 +54,13 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
         }
 
         setIsUploading(true);
-        // Simulate progress
-        const interval = setInterval(() => {
-            setProgress((prev) => {
-                if (prev >= 90) {
-                    clearInterval(interval);
-                    return 90;
-                }
-                return prev + 10;
-            });
-        }, 200);
 
         try {
             await onUpload(file);
-            setProgress(100);
-            toast({
-                title: '上傳成功',
-                status: 'success',
-                duration: 3000,
-            });
         } catch {
-             toast({
-                title: '上傳失敗',
-                description: '發生錯誤，請稍後再試。',
-                status: 'error',
-                duration: 3000,
-            });
+            // 錯誤提示交由上層 mutation hook 統一處理，避免重複 toast
         } finally {
             setIsUploading(false);
-            clearInterval(interval);
-            setTimeout(() => setProgress(0), 1000);
         }
     };
 
@@ -115,9 +91,8 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
         
       {isUploading ? (
           <VStack spacing={4}>
-              <Icon as={FiFile} boxSize={10} color="brand.500" />
-              <Text fontWeight="bold">上傳中 {progress}%</Text>
-              <Progress value={progress} size="sm" colorScheme="brand" w="100%" borderRadius="full" />
+              <Spinner size="lg" color="brand.500" />
+              <Text fontWeight="bold">上傳中，正在送出檔案...</Text>
           </VStack>
       ) : (
         <VStack spacing={2}>

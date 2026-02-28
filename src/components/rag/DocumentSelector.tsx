@@ -15,6 +15,7 @@ import {
   useColorModeValue,
   IconButton,
   Tooltip,
+  Button,
 } from '@chakra-ui/react';
 import { FiRefreshCw, FiFile } from 'react-icons/fi';
 import { useDocumentList } from '../../hooks/useDocuments';
@@ -101,24 +102,22 @@ export default function DocumentSelector({
           選擇文件 ({selectedIds.length}/{maxSelection})
         </Text>
         <Flex gap={2}>
-          <Text 
-            fontSize="xs" 
-            color="brand.500" 
-            cursor="pointer" 
+          <Button
+            size="xs"
+            variant="link"
+            colorScheme="purple"
             onClick={handleSelectAll}
-            _hover={{ textDecor: 'underline' }}
           >
             全選
-          </Text>
-          <Text 
-            fontSize="xs" 
-            color="gray.500" 
-            cursor="pointer" 
+          </Button>
+          <Button
+            size="xs"
+            variant="link"
+            colorScheme="gray"
             onClick={handleClearAll}
-            _hover={{ textDecor: 'underline' }}
           >
             清除
-          </Text>
+          </Button>
         </Flex>
       </Flex>
 
@@ -139,11 +138,10 @@ export default function DocumentSelector({
             gap={2}
             p={2}
             borderRadius="md"
-            cursor="pointer"
             _hover={{ bg: hoverBg }}
-            onClick={() => handleToggle(doc.id)}
           >
             <Checkbox
+              aria-label={`選擇文件 ${doc.file_name}`}
               isChecked={selectedIds.includes(doc.id)}
               onChange={() => handleToggle(doc.id)}
               colorScheme="brand"

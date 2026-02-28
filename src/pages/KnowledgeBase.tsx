@@ -18,11 +18,15 @@ import {
   AlertDialogOverlay,
   Button,
   useToast,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription,
 } from '@chakra-ui/react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import UploadZone from '../components/rag/UploadZone';
 import DocumentTable from '../components/rag/DocumentTable';
-import { useDocumentList, useUploadDocument, useDeleteDocument } from '../hooks/useDocuments';
+import { useDocumentList, useUploadDocument, useDeleteDocument, useDocumentStatus } from '../hooks/useDocuments';
 
 export default function KnowledgeBase() {
   const { data: documents, isLoading, error, refetch } = useDocumentList();
@@ -33,16 +37,27 @@ export default function KnowledgeBase() {
   // 刪除確認對話框
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [activeUploadDocId, setActiveUploadDocId] = useState<string | null>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const { data: processingStatus } = useDocumentStatus(activeUploadDocId, !!activeUploadDocId);
 
   const handleUpload = async (file: File) => {
     try {
-      await uploadMutation.mutateAsync(file);
-      refetch();
+      const result = await uploadMutation.mutateAsync(file);
+      setActiveUploadDocId(result.doc_id);
+      await refetch();
     } catch {
       // 錯誤已在 hook 中處理
     }
   };
+
+  useEffect(() => {
+    if (!processingStatus) return;
+    if (processingStatus.is_fully_complete || processingStatus.step === 'failed') {
+      setActiveUploadDocId(null);
+      void refetch();
+    }
+  }, [processingStatus, refetch]);
 
   const handleDeleteClick = (id: string) => {
     setDeleteId(id);
@@ -75,6 +90,22 @@ export default function KnowledgeBase() {
         <Card>
           <CardBody>
             <UploadZone onUpload={handleUpload} />
+            {activeUploadDocId && processingStatus && (
+              <Alert
+                status={processingStatus.step === 'failed' ? 'error' : 'info'}
+                mt={4}
+                borderRadius="md"
+                variant="left-accent"
+              >
+                <AlertIcon />
+                <Box>
+                  <AlertTitle fontSize="sm">文件處理中</AlertTitle>
+                  <AlertDescription fontSize="sm">
+                    {processingStatus.step_label}
+                  </AlertDescription>
+                </Box>
+              </Alert>
+            )}
           </CardBody>
         </Card>
 
