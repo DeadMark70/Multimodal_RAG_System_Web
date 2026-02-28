@@ -20,8 +20,8 @@ describe('Sidebar', () => {
       </ChakraProvider>
     );
 
-    expect(screen.getByText('3R 儀表板')).toBeInTheDocument();
-    expect(screen.getByText('儀表板')).toBeInTheDocument();
+    expect(screen.getAllByText('3R 儀表板').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('儀表板').length).toBeGreaterThan(0);
     expect(screen.getByText('設定')).toBeInTheDocument();
   });
 });

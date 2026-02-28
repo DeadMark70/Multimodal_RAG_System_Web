@@ -23,7 +23,7 @@ export default function Layout({ children, requireAuth = true }: LayoutProps) {
   return (
     <Box minH="100vh">
       <Sidebar />
-      <Box ml={{ base: 0, md: 64 }} p="6">
+      <Box ml={{ base: 0, md: 64 }} p="6" pt={{ base: 20, md: 6 }}>
         {children}
       </Box>
     </Box>
