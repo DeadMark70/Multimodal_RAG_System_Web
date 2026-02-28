@@ -41,8 +41,15 @@ export async function createConversation(
 /**
  * 取得對話詳情 (含訊息)
  */
-export async function getConversation(id: string): Promise<ConversationDetail> {
-  const response = await api.get<ConversationDetail>(`/api/conversations/${id}`);
+export async function getConversation(
+  id: string,
+  options?: { includeMessages?: boolean }
+): Promise<ConversationDetail> {
+  const response = await api.get<ConversationDetail>(`/api/conversations/${id}`, {
+    params: options?.includeMessages === undefined
+      ? undefined
+      : { include_messages: options.includeMessages },
+  });
   return response.data;
 }
 

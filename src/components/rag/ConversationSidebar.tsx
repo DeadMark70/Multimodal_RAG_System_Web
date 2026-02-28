@@ -103,7 +103,7 @@ export default function ConversationSidebar({
     setActiveDetailId(id);
     setIsDetailLoading(true);
     try {
-      const detail = await getConversation(id);
+      const detail = await getConversation(id, { includeMessages: false });
       if (detail.metadata) {
         // 優先使用 metadata 中的 result，若無則嘗試直接使用 metadata (視結構而定)
         const researchData = (detail.metadata.result || detail.metadata) as ExecutePlanResponse;
