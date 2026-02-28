@@ -109,7 +109,7 @@ export interface GraphStatusResponse {
 }
 
 /**
- * 圖譜重建回應
+ * 圖譜重置/重算回應
  *
  * @description 對應 POST /graph/rebuild
  */

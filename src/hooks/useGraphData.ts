@@ -3,7 +3,7 @@
  *
  * 使用 React Query 管理知識圖譜資料
  * - Queries: 取得圖譜資料和狀態
- * - Mutations: 優化和重建圖譜
+ * - Mutations: 優化和重置/重算圖譜
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -67,9 +67,9 @@ export function useOptimizeGraph() {
 }
 
 /**
- * 重建圖譜 (重新抽取所有實體)
+ * 重置並重算圖譜（不重新抽取文件實體）
  *
- * @param force - 是否強制重建
+ * @param force - 是否強制執行
  */
 export function useRebuildGraph() {
   const queryClient = useQueryClient();

@@ -4,7 +4,7 @@
  * 端點：
  * - GET /graph/status - 圖譜狀態
  * - GET /graph/data - 圖譜節點/邊資料 (視覺化用)
- * - POST /graph/rebuild - 重建圖譜
+ * - POST /graph/rebuild - 重置並重算圖譜狀態
  * - POST /graph/optimize - 優化圖譜
  */
 
@@ -35,9 +35,9 @@ export async function getGraphData(): Promise<GraphData> {
 }
 
 /**
- * 重建知識圖譜
+ * 重置並重算知識圖譜狀態
  *
- * @param force - 是否強制重建 (即使圖譜為空)
+ * @param force - 是否強制執行 (即使圖譜為空)
  */
 export async function rebuildGraph(force = false): Promise<GraphRebuildResponse> {
   const response = await api.post<GraphRebuildResponse>('/graph/rebuild', { force });

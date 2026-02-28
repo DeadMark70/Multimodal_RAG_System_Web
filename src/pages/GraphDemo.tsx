@@ -3,7 +3,7 @@
  *
  * 功能：
  * - 使用真實 API (/graph/data) 取得知識圖譜資料
- * - 控制面板：重建圖譜、優化社群
+ * - 控制面板：重置/重算圖譜、優化社群
  * - 若 API 失敗則回退到 Mock Data
  */
 
@@ -77,8 +77,8 @@ export function GraphDemo() {
     rebuildMutation.mutate(true, {
       onSuccess: (data) => {
         toast({
-          title: '重建已啟動',
-          description: data.message || '知識圖譜正在重建中',
+          title: '重置與重算已啟動',
+          description: data.message || '知識圖譜正在重置並重算中',
           status: 'info',
           duration: 4000,
         });
@@ -126,7 +126,7 @@ export function GraphDemo() {
                 圖譜控制
               </Text>
               <HStack spacing={3}>
-                <Tooltip label="重新抽取所有文件的實體和關係" hasArrow>
+                <Tooltip label="重置目前圖譜並重算融合/社群（不重新抽取文件）" hasArrow>
                   <Button
                     leftIcon={<FiRefreshCw />}
                     colorScheme="blue"
@@ -134,9 +134,9 @@ export function GraphDemo() {
                     size="sm"
                     onClick={handleRebuild}
                     isLoading={rebuildMutation.isPending}
-                    loadingText="重建中..."
+                    loadingText="重算中..."
                   >
-                    重建圖譜
+                    重置並重算
                   </Button>
                 </Tooltip>
                 <Tooltip label="執行社群偵測和實體融合" hasArrow>
