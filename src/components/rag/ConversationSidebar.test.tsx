@@ -52,7 +52,7 @@ describe('ConversationSidebar Component', () => {
     );
 
     fireEvent.click(screen.getByText('Chat 1'));
-    expect(mockOnSelect).toHaveBeenCalledWith('1');
+    expect(mockOnSelect).toHaveBeenCalledWith(expect.objectContaining({ id: '1', type: 'chat' }));
   });
 
   it('calls onNew when add button is clicked', () => {

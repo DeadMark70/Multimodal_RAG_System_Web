@@ -18,6 +18,8 @@ interface UseChatOptions {
   enableHyde?: boolean;
   enableMultiQuery?: boolean;
   enableReranking?: boolean;
+  enableGraphRag?: boolean;
+  graphSearchMode?: 'local' | 'global' | 'hybrid' | 'auto';
   conversationId?: string | null;
 }
 
@@ -29,6 +31,14 @@ const WELCOME_MESSAGE: ChatMessage = {
 };
 
 export function useChat(options: UseChatOptions = {}) {
+  const enableEvaluation = options.enableEvaluation ?? false;
+  const enableHyde = options.enableHyde ?? false;
+  const enableMultiQuery = options.enableMultiQuery ?? false;
+  const enableReranking = options.enableReranking ?? true;
+  const enableGraphRag = options.enableGraphRag ?? false;
+  const graphSearchMode = options.graphSearchMode ?? 'auto';
+  const conversationId = options.conversationId ?? null;
+
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -36,7 +46,7 @@ export function useChat(options: UseChatOptions = {}) {
 
   // 載入對話歷史
   useEffect(() => {
-    if (!options.conversationId) {
+    if (!conversationId) {
       // 沒有 conversationId，重置為歡迎訊息
       setMessages([WELCOME_MESSAGE]);
       return;
@@ -45,13 +55,22 @@ export function useChat(options: UseChatOptions = {}) {
     const loadHistory = async () => {
       setIsLoadingHistory(true);
       try {
-        const conversation = await getConversation(options.conversationId!);
-        
+        const conversation = await getConversation(conversationId);
+
         // 轉換後端訊息格式為前端格式
         const loadedMessages: ChatMessage[] = conversation.messages.map(msg => ({
-          id: msg.id,
+          id: String(msg.id),
           role: msg.role === 'system' ? 'assistant' : msg.role,
           content: msg.content,
+          sources: Array.isArray(msg.metadata?.sources)
+            ? (msg.metadata.sources as ChatMessage['sources'])
+            : undefined,
+          metrics:
+            msg.metadata &&
+            typeof msg.metadata.metrics === 'object' &&
+            msg.metadata.metrics !== null
+              ? (msg.metadata.metrics as ChatMessage['metrics'])
+              : undefined,
           timestamp: new Date(msg.created_at).getTime(),
         }));
 
@@ -74,7 +93,7 @@ export function useChat(options: UseChatOptions = {}) {
     };
 
     void loadHistory();
-  }, [options.conversationId, toast]);
+  }, [conversationId, toast]);
 
   const mutation = useMutation({
     mutationFn: async (request: AskRequest) => {
@@ -103,9 +122,9 @@ export function useChat(options: UseChatOptions = {}) {
     setMessages(prev => [...prev, userMessage]);
 
     // 持久化使用者訊息
-    if (options.conversationId) {
+    if (conversationId) {
       try {
-        await addMessage(options.conversationId, {
+        await addMessage(conversationId, {
           role: 'user',
           content: content,
         });
@@ -129,10 +148,12 @@ export function useChat(options: UseChatOptions = {}) {
           .filter(m => m.id !== 'welcome')
           .slice(-10) // 最近 10 則對話
           .map(m => ({ role: m.role, content: m.content })),
-        enable_hyde: options.enableHyde,
-        enable_multi_query: options.enableMultiQuery,
-        enable_reranking: options.enableReranking,
-        enable_evaluation: options.enableEvaluation,
+        enable_hyde: enableHyde,
+        enable_multi_query: enableMultiQuery,
+        enable_reranking: enableReranking,
+        enable_evaluation: enableEvaluation,
+        enable_graph_rag: enableGraphRag,
+        graph_search_mode: graphSearchMode,
       };
 
       const response = await mutation.mutateAsync(request);
@@ -149,9 +170,9 @@ export function useChat(options: UseChatOptions = {}) {
       setMessages(prev => [...prev, assistantMessage]);
 
       // 持久化助理回應
-      if (options.conversationId) {
+      if (conversationId) {
         try {
-          await addMessage(options.conversationId, {
+          await addMessage(conversationId, {
             role: 'assistant',
             content: response.answer,
             metadata: {
@@ -173,7 +194,19 @@ export function useChat(options: UseChatOptions = {}) {
     } catch {
       // 錯誤已在 mutation.onError 處理
     }
-  }, [messages, selectedDocIds, options, mutation]);
+  }, [
+    conversationId,
+    enableEvaluation,
+    enableGraphRag,
+    enableHyde,
+    enableMultiQuery,
+    enableReranking,
+    graphSearchMode,
+    messages,
+    mutation,
+    selectedDocIds,
+    toast,
+  ]);
 
   const clearMessages = useCallback(() => {
     setMessages([

@@ -18,7 +18,7 @@ vi.mock('../components/layout/Layout', () => ({
 vi.mock('../components/rag/ConversationSidebar', () => ({
   default: ({ onSelect }: any) => (
     <div data-testid="sidebar">
-       <button onClick={() => onSelect('chat-1')}>Load Chat 1</button>
+       <button onClick={() => onSelect({ id: 'chat-1', type: 'chat' })}>Load Chat 1</button>
     </div>
   ),
 }));

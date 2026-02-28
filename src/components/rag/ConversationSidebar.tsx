@@ -35,13 +35,13 @@ import {
 } from 'react-icons/fi';
 import { useConversations } from '../../hooks/useConversations';
 import { getConversation } from '../../services/conversationApi';
-import type { ConversationType } from '../../types/conversation';
+import type { Conversation, ConversationType } from '../../types/conversation';
 import { ResearchDetailModal } from './ResearchDetailModal';
 import type { ExecutePlanResponse } from '../../types/rag';
 
 interface ConversationSidebarProps {
   currentId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (conversation: Conversation) => void;
   onNew: (type: ConversationType) => void;
 }
 
@@ -58,6 +58,7 @@ export default function ConversationSidebar({
   const [selectedResearch, setSelectedResearch] = useState<ExecutePlanResponse | null>(null);
   const [selectedMeta, setSelectedMeta] = useState<{question?: string, created_at?: string}>({});
   const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [activeDetailId, setActiveDetailId] = useState<string | null>(null);
   const toast = useToast();
 
   const bg = useColorModeValue('white', 'navy.800');
@@ -99,6 +100,7 @@ export default function ConversationSidebar({
 
   // 開啟研究詳情
   const handleViewDetails = async (id: string, title: string, created_at: string) => {
+    setActiveDetailId(id);
     setIsDetailLoading(true);
     try {
       const detail = await getConversation(id);
@@ -135,6 +137,7 @@ export default function ConversationSidebar({
       });
     } finally {
       setIsDetailLoading(false);
+      setActiveDetailId(null);
     }
   };
 
@@ -158,6 +161,16 @@ export default function ConversationSidebar({
                   onClick={() => onNew('chat')}
                 />
               </Tooltip>
+              <Tooltip label="新增研究" placement="top">
+                <IconButton
+                  aria-label="新增研究"
+                  icon={<FiLayers />}
+                  size="sm"
+                  colorScheme="purple"
+                  variant="ghost"
+                  onClick={() => onNew('research')}
+                />
+              </Tooltip>
             </HStack>
           </Flex>
 
@@ -167,6 +180,7 @@ export default function ConversationSidebar({
               <FiSearch color="gray" />
             </InputLeftElement>
             <Input
+              aria-label="搜尋對話"
               placeholder="搜尋對話..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -220,7 +234,7 @@ export default function ConversationSidebar({
                     cursor="pointer"
                     bg={isActive ? activeBg : 'transparent'}
                     _hover={{ bg: isActive ? activeBg : hoverBg }}
-                    onClick={() => onSelect(conv.id)}
+                    onClick={() => onSelect(conv)}
                     transition="background 0.2s"
                     role="group"
                   >
@@ -250,7 +264,7 @@ export default function ConversationSidebar({
                             size="xs"
                             variant="ghost"
                             colorScheme="purple"
-                            isLoading={isDetailLoading && selectedMeta.question === conv.title} // 簡單的 loading 判斷，可優化
+                            isLoading={isDetailLoading && activeDetailId === conv.id}
                             onClick={(e) => {
                               e.stopPropagation();
                               void handleViewDetails(conv.id, conv.title, conv.created_at);

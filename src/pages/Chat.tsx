@@ -6,6 +6,7 @@ import {
   Flex, 
   Input, 
   Button, 
+  HStack,
   VStack, 
   FormControl, 
   Switch, 
@@ -25,8 +26,15 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  Drawer,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerHeader,
+  DrawerBody,
+  DrawerCloseButton,
+  useDisclosure,
 } from '@chakra-ui/react';
-import { FiSend, FiCpu, FiCheckCircle, FiAlertTriangle, FiHelpCircle, FiTrash2, FiMessageSquare, FiSearch, FiChevronDown } from 'react-icons/fi';
+import { FiSend, FiCpu, FiCheckCircle, FiAlertTriangle, FiHelpCircle, FiTrash2, FiMessageSquare, FiSearch, FiChevronDown, FiMenu, FiSettings } from 'react-icons/fi';
 import MessageBubble from '../components/rag/MessageBubble';
 import DocumentSelector from '../components/rag/DocumentSelector';
 import DeepResearchPanel from '../components/rag/DeepResearchPanel';
@@ -34,12 +42,17 @@ import ConversationSidebar from '../components/rag/ConversationSidebar';
 import { useChat } from '../hooks/useChat';
 import { useDeepResearch } from '../hooks/useDeepResearch';
 import { useSessionStore } from '../stores/useSessionStore';
+import { useSettingsActions, useSettingsStore } from '../stores/useSettingsStore';
 import { useConversationMutations } from '../hooks/useConversations';
-import type { ConversationType } from '../types/conversation';
+import type { Conversation, ConversationType } from '../types/conversation';
 
 export default function Chat() {
   const { currentChatId, actions: { setCurrentChatId } } = useSessionStore();
+  const { ragSettings } = useSettingsStore();
+  const settingsActions = useSettingsActions();
   const { create } = useConversationMutations();
+  const conversationDrawer = useDisclosure();
+  const resourcesDrawer = useDisclosure();
 
   // Mode state
   const [mode, setMode] = useState<'chat' | 'research'>('chat');
@@ -54,17 +67,23 @@ export default function Chat() {
     selectedDocIds, 
     setSelectedDocIds 
   } = useChat({ 
-    enableEvaluation: true,
+    enableEvaluation: ragSettings.enable_evaluation,
+    enableHyde: ragSettings.enable_hyde,
+    enableMultiQuery: ragSettings.enable_multi_query,
+    enableReranking: ragSettings.enable_reranking,
+    enableGraphRag: ragSettings.enable_graph_rag,
+    graphSearchMode: ragSettings.graph_search_mode,
     conversationId: currentChatId
   });
 
   // Deep Research Hook
-  const deepResearch = useDeepResearch({ docIds: selectedDocIds });
+  const deepResearch = useDeepResearch({
+    docIds: selectedDocIds,
+    enableGraphPlanning: ragSettings.enable_graph_planning,
+  });
   const { isPlanning, isExecuting } = deepResearch;
 
   const [input, setInput] = useState('');
-  const [ragMode, setRagMode] = useState(true);
-  const [evalMode, setEvalMode] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const panelBg = useColorModeValue('white', '#111C44');
@@ -101,15 +120,10 @@ export default function Chat() {
     }
   };
 
-  const handleSelectConversation = (id: string) => {
-    setCurrentChatId(id);
-    // Determine mode based on conversation type? 
-    // Ideally useConversation should return type, but we load history inside hooks.
-    // For now we assume standard chat unless we add type checking logic here.
-    // If backend persistence saves type, we should retrieve it. 
-    // But currently Sidebar doesn't pass type. 
-    // Assuming user stays in current mode or we switch based on metadata loaded?
-    // Let hooks handle data loading. Mode switching might need to be manual or inferred.
+  const handleSelectConversation = (conversation: Conversation) => {
+    setCurrentChatId(conversation.id);
+    setMode(conversation.type === 'research' ? 'research' : 'chat');
+    conversationDrawer.onClose();
   };
 
   const handleNewConversation = async (type: ConversationType) => {
@@ -143,6 +157,24 @@ export default function Chat() {
 
         {/* Main Content Area */}
         <Flex direction="column" flex={1}>
+          <HStack spacing={2} mb={3} display={{ base: 'flex', xl: 'none' }}>
+            <Button
+              leftIcon={<FiMenu />}
+              size="sm"
+              variant="outline"
+              onClick={conversationDrawer.onOpen}
+            >
+              對話
+            </Button>
+            <Button
+              leftIcon={<FiSettings />}
+              size="sm"
+              variant="outline"
+              onClick={resourcesDrawer.onOpen}
+            >
+              資源與設定
+            </Button>
+          </HStack>
           
           <Box flex={1} overflowY={mode === 'chat' ? 'hidden' : 'auto'} mb={4} pr={mode === 'research' ? 2 : 0}>
              {mode === 'chat' ? (
@@ -170,7 +202,7 @@ export default function Chat() {
                             role={msg.role} 
                             content={msg.content} 
                             sources={msg.sources}
-                            metrics={evalMode ? msg.metrics : undefined}
+                            metrics={ragSettings.enable_evaluation ? msg.metrics : undefined}
                           />
                         ))}
                         {isChatLoading && (
@@ -221,6 +253,7 @@ export default function Chat() {
               </Menu>
 
               <Input 
+                aria-label={mode === 'chat' ? '聊天輸入框' : '研究問題輸入框'}
                 variant="unstyled" 
                 placeholder={mode === 'chat' ? "輸入您的問題..." : "輸入研究主題..."}
                 value={input}
@@ -281,7 +314,12 @@ export default function Chat() {
                         <FormLabel htmlFor="rag-mode" mb="0" fontWeight="bold">啟用 RAG</FormLabel>
                         <Text fontSize="xs" color="gray.500">從文件檢索相關內容</Text>
                       </Box>
-                      <Switch id="rag-mode" isChecked={ragMode} onChange={(e) => setRagMode(e.target.checked)} colorScheme="brand" />
+                      <Switch
+                        id="rag-mode"
+                        isChecked={ragSettings.enable_graph_rag}
+                        onChange={(e) => settingsActions.setRagSetting('enable_graph_rag', e.target.checked)}
+                        colorScheme="brand"
+                      />
                     </FormControl>
                     
                     <Divider />
@@ -291,7 +329,12 @@ export default function Chat() {
                         <FormLabel htmlFor="eval-mode" mb="0" fontWeight="bold">評估模式</FormLabel>
                         <Text fontSize="xs" color="gray.500">顯示忠實度指標</Text>
                       </Box>
-                      <Switch id="eval-mode" isChecked={evalMode} onChange={(e) => setEvalMode(e.target.checked)} colorScheme="brand" />
+                      <Switch
+                        id="eval-mode"
+                        isChecked={ragSettings.enable_evaluation}
+                        onChange={(e) => settingsActions.setRagSetting('enable_evaluation', e.target.checked)}
+                        colorScheme="brand"
+                      />
                     </FormControl>
                   </VStack>
                 </CardBody>
@@ -299,7 +342,7 @@ export default function Chat() {
             )}
 
             {/* Live Analysis Card (Only visible when Eval Mode is ON and in Quick Q&A) */}
-            {evalMode && mode === 'chat' && (
+            {ragSettings.enable_evaluation && mode === 'chat' && (
               <Card variant="unstyled" bg={panelBg} p={5} borderRadius="20px" boxShadow="sm">
                 <CardBody p={0}>
                   <Flex align="center" gap={2} mb={4}>
@@ -353,6 +396,60 @@ export default function Chat() {
           </VStack>
         </Box>
       </Flex>
+
+      <Drawer isOpen={conversationDrawer.isOpen} placement="left" onClose={conversationDrawer.onClose} size="xs">
+        <DrawerOverlay />
+        <DrawerContent>
+          <DrawerCloseButton />
+          <DrawerHeader>對話紀錄</DrawerHeader>
+          <DrawerBody p={3}>
+            <ConversationSidebar
+              currentId={currentChatId}
+              onSelect={handleSelectConversation}
+              onNew={(type) => void handleNewConversation(type)}
+            />
+          </DrawerBody>
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer isOpen={resourcesDrawer.isOpen} placement="right" onClose={resourcesDrawer.onClose} size="sm">
+        <DrawerOverlay />
+        <DrawerContent>
+          <DrawerCloseButton />
+          <DrawerHeader>資源與設定</DrawerHeader>
+          <DrawerBody>
+            <VStack spacing={4} align="stretch">
+              <DocumentSelector selectedIds={selectedDocIds} onSelectionChange={setSelectedDocIds} />
+              {mode === 'chat' && (
+                <Card variant="unstyled" bg={panelBg} p={4} borderRadius="16px" boxShadow="sm">
+                  <CardBody p={0}>
+                    <VStack spacing={4} align="stretch">
+                      <FormControl display="flex" alignItems="center" justifyContent="space-between">
+                        <FormLabel htmlFor="drawer-rag-mode" mb="0" fontWeight="bold">啟用 RAG</FormLabel>
+                        <Switch
+                          id="drawer-rag-mode"
+                          isChecked={ragSettings.enable_graph_rag}
+                          onChange={(e) => settingsActions.setRagSetting('enable_graph_rag', e.target.checked)}
+                          colorScheme="brand"
+                        />
+                      </FormControl>
+                      <FormControl display="flex" alignItems="center" justifyContent="space-between">
+                        <FormLabel htmlFor="drawer-eval-mode" mb="0" fontWeight="bold">評估模式</FormLabel>
+                        <Switch
+                          id="drawer-eval-mode"
+                          isChecked={ragSettings.enable_evaluation}
+                          onChange={(e) => settingsActions.setRagSetting('enable_evaluation', e.target.checked)}
+                          colorScheme="brand"
+                        />
+                      </FormControl>
+                    </VStack>
+                  </CardBody>
+                </Card>
+              )}
+            </VStack>
+          </DrawerBody>
+        </DrawerContent>
+      </Drawer>
     </Layout>
   );
 }
