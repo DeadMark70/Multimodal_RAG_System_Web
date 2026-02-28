@@ -5,6 +5,11 @@
 - Primary docs entry: `docs/index.md`
 - Legacy conductor docs: `conductor/`
 
+## Test vs Production API Mode
+
+- Testing/CI: set `VITE_TEST_MODE=true` and `VITE_MOCK_MODE=true` to avoid real external API usage.
+- Production/manual real usage: keep both flags `false` and point `VITE_API_BASE_URL` to your backend.
+
 ---
 
 # React + TypeScript + Vite

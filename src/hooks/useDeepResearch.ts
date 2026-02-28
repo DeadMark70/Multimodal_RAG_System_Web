@@ -64,6 +64,7 @@ export interface UseDeepResearchReturn {
 export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepResearchReturn {
   const { docIds, enableGraphPlanning } = options;
   const { ragSettings } = useSettingsStore();
+  const isTestMode = import.meta.env.MODE === 'test' || import.meta.env.VITE_TEST_MODE === 'true';
   
   const [plan, setPlan] = useState<ResearchPlanResponse | null>(null);
   const [isPlanning, setIsPlanning] = useState(false);
@@ -83,6 +84,7 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
 
   // 載入歷史紀錄 (如果 currentChatId 存在且是研究類型)
   useEffect(() => {
+    if (isTestMode) return;
     if (!currentChatId) return;
 
     const loadHistory = async () => {
@@ -104,7 +106,7 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     };
 
     void loadHistory();
-  }, [currentChatId]);
+  }, [currentChatId, isTestMode]);
 
   /**
    * 生成研究計畫

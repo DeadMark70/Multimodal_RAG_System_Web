@@ -11,6 +11,17 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { supabase } from './supabase';
 
 const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+const IS_TEST_MODE = import.meta.env.MODE === 'test' || import.meta.env.VITE_TEST_MODE === 'true';
+const IS_MOCK_MODE = import.meta.env.VITE_MOCK_MODE === 'true';
+
+function isAllowedLocalTarget(targetUrl: string): boolean {
+  try {
+    const parsed = new URL(targetUrl);
+    return parsed.hostname === '127.0.0.1' || parsed.hostname === 'localhost';
+  } catch {
+    return false;
+  }
+}
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -23,6 +34,13 @@ export const api = axios.create({
 // 請求攔截器 - 自動注入 JWT Token
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    const fullUrl = `${config.baseURL ?? ''}${config.url ?? ''}`;
+    if ((IS_TEST_MODE || IS_MOCK_MODE) && !isAllowedLocalTarget(fullUrl)) {
+      return Promise.reject(
+        new Error('測試/模擬模式禁止呼叫非本機 API，請改用 mock provider')
+      );
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     
     if (session?.access_token) {
