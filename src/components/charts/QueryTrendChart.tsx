@@ -17,7 +17,7 @@ export default function QueryTrendChart({ data }: QueryTrendChartProps) {
   const gridColor = useColorModeValue('#E2E8F0', '#2D3748');
   const tooltipBg = useColorModeValue('#fff', '#1A202C');
   const tooltipBorder = useColorModeValue('#E2E8F0', '#2D3748');
-  const lineColor = '#4318FF'; // brand.500
+  const lineColor = '#1337EC'; // brand.500
   
   // 計算當天是星期幾，然後對應到正確的標籤
   const today = new Date().getDay(); // 0 = 週日, 1 = 週一, ...
@@ -64,7 +64,7 @@ export default function QueryTrendChart({ data }: QueryTrendChartProps) {
             allowDecimals={false}
           />
           <Tooltip
-            formatter={(value) => [`${value} 次`, '查詢數']}
+            formatter={(value) => [`${String(value ?? 0)} 次`, '查詢數']}
             contentStyle={{ 
               backgroundColor: tooltipBg,
               borderColor: tooltipBorder,

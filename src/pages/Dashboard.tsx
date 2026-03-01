@@ -2,45 +2,45 @@
 import Layout from '../components/layout/Layout';
 import PageHeader from '../components/common/PageHeader';
 import { 
-  Box, 
+  Badge,
+  Box,
   SimpleGrid, 
-  Card, 
   CardBody, 
   CardHeader,
-  Text, 
-  Stat, 
-  StatLabel, 
-  StatNumber, 
-  StatHelpText,
-  StatArrow,
   Flex,
-  Spinner,
-  useColorModeValue,
+  HStack,
   Icon,
-  Badge,
   Table,
-  Thead,
   Tbody,
+  Td,
+  Text, 
+  Thead,
   Tr,
   Th,
-  Td,
+  Spinner,
+  useColorModeValue,
 } from '@chakra-ui/react';
 import { FiActivity, FiCheckCircle, FiAlertTriangle, FiHelpCircle, FiFileText } from 'react-icons/fi';
 import useDashboardStats from '../hooks/useDashboardStats';
 import AccuracyPieChart from '../components/charts/AccuracyPieChart';
 import QueryTrendChart from '../components/charts/QueryTrendChart';
+import SurfaceCard from '../components/common/SurfaceCard';
+import MetricCard from '../components/common/MetricCard';
 
 export default function Dashboard() {
   const { data: stats, isLoading, error } = useDashboardStats();
   
-  const cardBg = useColorModeValue('white', '#111C44');
-  const textColor = useColorModeValue('gray.700', 'white');
-  const subTextColor = useColorModeValue('gray.500', 'gray.400');
+  const textColor = useColorModeValue('surface.700', 'white');
+  const subTextColor = useColorModeValue('surface.500', 'surface.300');
+  const successIconBg = useColorModeValue('green.50', 'green.900');
+  const successIconColor = useColorModeValue('green.600', 'green.200');
+  const warningIconBg = useColorModeValue('orange.50', 'orange.900');
+  const warningIconColor = useColorModeValue('orange.600', 'orange.200');
 
   if (isLoading) {
     return (
       <Layout>
-        <PageHeader title="儀表板" subtitle="RAG 實驗總覽" />
+        <PageHeader title="儀表板" subtitle="RAG 實驗總覽" variant="dashboard" />
         <Flex justify="center" align="center" h="300px">
           <Spinner size="xl" color="brand.500" />
         </Flex>
@@ -51,7 +51,7 @@ export default function Dashboard() {
   if (error) {
     return (
       <Layout>
-        <PageHeader title="儀表板" subtitle="RAG 實驗總覽" />
+        <PageHeader title="儀表板" subtitle="RAG 實驗總覽" variant="dashboard" />
         <Box textAlign="center" py={10}>
           <Text color="red.500">載入失敗：{error.message}</Text>
           <Text color={subTextColor} mt={2}>請確認後端服務是否正常運作</Text>
@@ -72,85 +72,48 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <PageHeader title="儀表板" subtitle="RAG 實驗總覽" />
+      <PageHeader title="儀表板" subtitle="RAG 實驗總覽" variant="dashboard" />
       
-      {/* 統計卡片 */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={6} pt={2}>
-        <Card bg={cardBg} borderRadius="xl" boxShadow="sm">
-          <CardBody>
-            <Flex align="center" gap={4}>
-              <Box p={3} bg="brand.50" borderRadius="lg" _dark={{ bg: 'whiteAlpha.100' }}>
-                <Icon as={FiActivity} boxSize={6} color="brand.500" />
-              </Box>
-              <Stat>
-                <StatLabel color={subTextColor}>總查詢數</StatLabel>
-                <StatNumber color={textColor}>{totalQueries}</StatNumber>
-                <StatHelpText mb={0}>
-                  <StatArrow type={totalQueries > 0 ? 'increase' : 'decrease'} />
-                  近 7 天
-                </StatHelpText>
-              </Stat>
-            </Flex>
-          </CardBody>
-        </Card>
+      <HStack spacing={3} mb={4} flexWrap="wrap" data-testid="dashboard-summary">
+        <Badge colorScheme="blue" borderRadius="full" px={3} py={1}>資料版本: 即時</Badge>
+        <Badge colorScheme="green" borderRadius="full" px={3} py={1}>RAG Pipeline 正常</Badge>
+      </HStack>
 
-        <Card bg={cardBg} borderRadius="xl" boxShadow="sm">
-          <CardBody>
-            <Flex align="center" gap={4}>
-              <Box p={3} bg="green.50" borderRadius="lg" _dark={{ bg: 'whiteAlpha.100' }}>
-                <Icon as={FiCheckCircle} boxSize={6} color="green.500" />
-              </Box>
-              <Stat>
-                <StatLabel color={subTextColor}>準確率</StatLabel>
-                <StatNumber color={textColor}>{(accuracyRate * 100).toFixed(1)}%</StatNumber>
-                <StatHelpText mb={0}>
-                  {groundedCount} 有據回答
-                </StatHelpText>
-              </Stat>
-            </Flex>
-          </CardBody>
-        </Card>
-
-        <Card bg={cardBg} borderRadius="xl" boxShadow="sm">
-          <CardBody>
-            <Flex align="center" gap={4}>
-              <Box p={3} bg="orange.50" borderRadius="lg" _dark={{ bg: 'whiteAlpha.100' }}>
-                <Icon as={FiAlertTriangle} boxSize={6} color="orange.500" />
-              </Box>
-              <Stat>
-                <StatLabel color={subTextColor}>幻覺回答</StatLabel>
-                <StatNumber color={textColor}>{hallucinatedCount}</StatNumber>
-                <StatHelpText mb={0}>
-                  需要注意
-                </StatHelpText>
-              </Stat>
-            </Flex>
-          </CardBody>
-        </Card>
-
-        <Card bg={cardBg} borderRadius="xl" boxShadow="sm">
-          <CardBody>
-            <Flex align="center" gap={4}>
-              <Box p={3} bg="purple.50" borderRadius="lg" _dark={{ bg: 'whiteAlpha.100' }}>
-                <Icon as={FiHelpCircle} boxSize={6} color="purple.500" />
-              </Box>
-              <Stat>
-                <StatLabel color={subTextColor}>平均信心</StatLabel>
-                <StatNumber color={textColor}>{(avgConfidence * 100).toFixed(0)}%</StatNumber>
-                <StatHelpText mb={0}>
-                  信心分數
-                </StatHelpText>
-              </Stat>
-            </Flex>
-          </CardBody>
-        </Card>
+      <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing={4} mb={5} data-testid="dashboard-kpis">
+        <MetricCard
+          label="總查詢數"
+          value={totalQueries.toLocaleString()}
+          hint="近 7 天累計"
+          icon={FiActivity}
+        />
+        <MetricCard
+          label="準確率"
+          value={`${(accuracyRate * 100).toFixed(1)}%`}
+          hint={`${groundedCount} 則有據回答`}
+          icon={FiCheckCircle}
+          iconBg={successIconBg}
+          iconColor={successIconColor}
+        />
+        <MetricCard
+          label="幻覺回答"
+          value={hallucinatedCount}
+          hint="需人工複核"
+          icon={FiAlertTriangle}
+          iconBg={warningIconBg}
+          iconColor={warningIconColor}
+        />
+        <MetricCard
+          label="平均信心"
+          value={`${(avgConfidence * 100).toFixed(0)}%`}
+          hint="模型回覆信心值"
+          icon={FiHelpCircle}
+        />
       </SimpleGrid>
 
-      {/* 圖表區域 */}
-      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6} mb={6}>
-        <Card bg={cardBg} borderRadius="xl" boxShadow="sm">
+      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4} mb={5} data-testid="dashboard-charts">
+        <SurfaceCard>
           <CardHeader pb={0}>
-            <Text fontWeight="bold" fontSize="lg" color={textColor}>忠實度分佈</Text>
+            <Text fontWeight="800" fontSize="md" color={textColor}>忠實度分佈</Text>
           </CardHeader>
           <CardBody>
             <AccuracyPieChart 
@@ -159,22 +122,21 @@ export default function Dashboard() {
               uncertain={uncertainCount}
             />
           </CardBody>
-        </Card>
+        </SurfaceCard>
 
-        <Card bg={cardBg} borderRadius="xl" boxShadow="sm">
+        <SurfaceCard>
           <CardHeader pb={0}>
-            <Text fontWeight="bold" fontSize="lg" color={textColor}>查詢趨勢 (近 7 天)</Text>
+            <Text fontWeight="800" fontSize="md" color={textColor}>查詢趨勢（近 7 天）</Text>
           </CardHeader>
           <CardBody>
             <QueryTrendChart data={queriesLast7Days} />
           </CardBody>
-        </Card>
+        </SurfaceCard>
       </SimpleGrid>
 
-      {/* 熱門文件 */}
-      <Card bg={cardBg} borderRadius="xl" boxShadow="sm">
+      <SurfaceCard data-testid="dashboard-top-documents">
         <CardHeader>
-          <Text fontWeight="bold" fontSize="lg" color={textColor}>最常查詢文件</Text>
+          <Text fontWeight="800" fontSize="md" color={textColor}>最常查詢文件</Text>
         </CardHeader>
         <CardBody pt={0}>
           {topDocuments.length > 0 ? (
@@ -192,7 +154,7 @@ export default function Dashboard() {
                       <Flex align="center" gap={2}>
                         <Icon as={FiFileText} color="brand.500" />
                         <Text>{doc.filename || '未命名文件'}</Text>
-                        {index === 0 && <Badge colorScheme="brand" size="sm">最熱門</Badge>}
+                        {index === 0 && <Badge colorScheme="blue" size="sm">最熱門</Badge>}
                       </Flex>
                     </Td>
                     <Td isNumeric fontWeight="medium">{doc.query_count}</Td>
@@ -206,7 +168,7 @@ export default function Dashboard() {
             </Text>
           )}
         </CardBody>
-      </Card>
+      </SurfaceCard>
     </Layout>
   );
 }

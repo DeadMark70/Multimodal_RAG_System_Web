@@ -2,7 +2,6 @@
 import Layout from '../components/layout/Layout';
 import PageHeader from '../components/common/PageHeader';
 import { 
-  Card, 
   CardBody, 
   VStack, 
   Spinner, 
@@ -27,6 +26,7 @@ import { useEffect, useRef, useState } from 'react';
 import UploadZone from '../components/rag/UploadZone';
 import DocumentTable from '../components/rag/DocumentTable';
 import { useDocumentList, useUploadDocument, useDeleteDocument, useDocumentStatus } from '../hooks/useDocuments';
+import SurfaceCard from '../components/common/SurfaceCard';
 
 export default function KnowledgeBase() {
   const { data: documents, isLoading, error, refetch } = useDocumentList();
@@ -54,7 +54,9 @@ export default function KnowledgeBase() {
   useEffect(() => {
     if (!processingStatus) return;
     if (processingStatus.is_fully_complete || processingStatus.step === 'failed') {
-      setActiveUploadDocId(null);
+      setTimeout(() => {
+        setActiveUploadDocId(null);
+      }, 0);
       void refetch();
     }
   }, [processingStatus, refetch]);
@@ -87,7 +89,7 @@ export default function KnowledgeBase() {
       <PageHeader title="知識庫" subtitle="管理您的研究文件" />
       
       <VStack spacing={6} align="stretch">
-        <Card>
+        <SurfaceCard>
           <CardBody>
             <UploadZone onUpload={handleUpload} />
             {activeUploadDocId && processingStatus && (
@@ -107,9 +109,9 @@ export default function KnowledgeBase() {
               </Alert>
             )}
           </CardBody>
-        </Card>
+        </SurfaceCard>
 
-        <Card>
+        <SurfaceCard>
           <CardBody>
             {isLoading ? (
               <Flex justify="center" align="center" py={8}>
@@ -131,7 +133,7 @@ export default function KnowledgeBase() {
               />
             )}
           </CardBody>
-        </Card>
+        </SurfaceCard>
       </VStack>
 
       {/* 刪除確認對話框 */}

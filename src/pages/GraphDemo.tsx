@@ -9,8 +9,7 @@
 
 import {
   Box,
-  Container,
-  Heading,
+  Flex,
   VStack,
   Tabs,
   TabList,
@@ -26,10 +25,14 @@ import {
   Button,
   useToast,
   Tooltip,
+  useBreakpointValue,
 } from '@chakra-ui/react';
 import { FiRefreshCw, FiZap } from 'react-icons/fi';
 import { KnowledgeGraph } from '../components/graph/KnowledgeGraph';
 import { ResearchFlow } from '../components/graph/ResearchFlow';
+import Layout from '../components/layout/Layout';
+import PageHeader from '../components/common/PageHeader';
+import SurfaceCard from '../components/common/SurfaceCard';
 import {
   useGraphData,
   useGraphStatus,
@@ -38,8 +41,9 @@ import {
 } from '../hooks/useGraphData';
 
 export function GraphDemo() {
-  const bgColor = useColorModeValue('gray.50', 'gray.900');
-  const cardBg = useColorModeValue('white', 'gray.800');
+  const textColor = useColorModeValue('surface.700', 'white');
+  const subTextColor = useColorModeValue('surface.500', 'surface.300');
+  const graphWidth = useBreakpointValue({ base: 320, md: 760, xl: 1100 }) ?? 1100;
   const toast = useToast();
 
   // Queries
@@ -95,98 +99,92 @@ export function GraphDemo() {
   };
 
   return (
-    <Box bg={bgColor} minH="100vh" py={8}>
-      <Container maxW="container.xl">
-        <VStack spacing={6} align="stretch">
-          {/* 標題與狀態徽章 */}
-          <HStack justify="space-between" align="center" flexWrap="wrap" gap={4}>
-            <Heading size="lg" color="brand.500">
-              📊 視覺化元件展示
-            </Heading>
-            {graphStatus && (
-              <HStack spacing={2} flexWrap="wrap">
-                <Badge colorScheme={graphStatus.has_graph ? 'green' : 'gray'}>
-                  {graphStatus.has_graph ? '圖譜已建立' : '尚未建立'}
-                </Badge>
-                {graphStatus.has_graph && (
-                  <>
-                    <Badge colorScheme="blue">{graphStatus.node_count} 節點</Badge>
-                    <Badge colorScheme="purple">{graphStatus.edge_count} 邊</Badge>
-                    <Badge colorScheme="orange">{graphStatus.community_count} 社群</Badge>
-                  </>
-                )}
-              </HStack>
-            )}
-          </HStack>
+    <Layout>
+      <PageHeader title="知識圖譜" subtitle="視覺化元件展示與圖譜控制" />
 
-          {/* 控制面板 */}
-          <Box bg={cardBg} p={4} borderRadius="lg" boxShadow="sm">
-            <HStack justify="space-between" flexWrap="wrap" gap={4}>
-              <Text fontWeight="600" color="gray.600">
-                圖譜控制
-              </Text>
-              <HStack spacing={3}>
-                <Tooltip label="重置目前圖譜並重算融合/社群（不重新抽取文件）" hasArrow>
-                  <Button
-                    leftIcon={<FiRefreshCw />}
-                    colorScheme="blue"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRebuild}
-                    isLoading={rebuildMutation.isPending}
-                    loadingText="重算中..."
-                  >
-                    重置並重算
-                  </Button>
-                </Tooltip>
-                <Tooltip label="執行社群偵測和實體融合" hasArrow>
-                  <Button
-                    leftIcon={<FiZap />}
-                    colorScheme="purple"
-                    size="sm"
-                    onClick={handleOptimize}
-                    isLoading={optimizeMutation.isPending}
-                    loadingText="優化中..."
-                    isDisabled={!graphStatus?.has_graph}
-                  >
-                    優化社群
-                  </Button>
-                </Tooltip>
-              </HStack>
+      <VStack spacing={4} align="stretch">
+        <SurfaceCard p={4}>
+          <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
+            <HStack spacing={2} flexWrap="wrap">
+              {graphStatus && (
+                <>
+                  <Badge colorScheme={graphStatus.has_graph ? 'green' : 'gray'}>
+                    {graphStatus.has_graph ? '圖譜已建立' : '尚未建立'}
+                  </Badge>
+                  {graphStatus.has_graph && (
+                    <>
+                      <Badge colorScheme="blue">{graphStatus.node_count} 節點</Badge>
+                      <Badge colorScheme="blue">{graphStatus.edge_count} 邊</Badge>
+                      <Badge colorScheme="purple">{graphStatus.community_count} 社群</Badge>
+                    </>
+                  )}
+                </>
+              )}
             </HStack>
-          </Box>
 
-          {/* API 錯誤警告 */}
-          {graphError && (
-            <Alert status="warning" borderRadius="md">
-              <AlertIcon />
-              <Text>無法連接後端 API，顯示 Mock Data</Text>
-            </Alert>
-          )}
+            <HStack spacing={3}>
+              <Tooltip label="重置目前圖譜並重算融合/社群（不重新抽取文件）" hasArrow>
+                <Button
+                  leftIcon={<FiRefreshCw />}
+                  colorScheme="blue"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRebuild}
+                  isLoading={rebuildMutation.isPending}
+                  loadingText="重算中..."
+                >
+                  重置並重算
+                </Button>
+              </Tooltip>
+              <Tooltip label="執行社群偵測和實體融合" hasArrow>
+                <Button
+                  leftIcon={<FiZap />}
+                  colorScheme="blue"
+                  size="sm"
+                  onClick={handleOptimize}
+                  isLoading={optimizeMutation.isPending}
+                  loadingText="優化中..."
+                  isDisabled={!graphStatus?.has_graph}
+                >
+                  優化社群
+                </Button>
+              </Tooltip>
+            </HStack>
+          </Flex>
+          <Text mt={3} color={subTextColor} fontSize="sm">
+            圖譜控制與流程視覺化均使用同一份 API 狀態，便於觀察重算效果。
+          </Text>
+        </SurfaceCard>
 
-          {/* 社群為 0 提示 */}
-          {graphStatus?.has_graph && graphStatus.community_count === 0 && (
-            <Alert status="info" borderRadius="md">
-              <AlertIcon />
-              <Text>
-                圖譜尚未進行社群偵測。點擊「優化社群」可啟用 Global Search 模式。
-              </Text>
-            </Alert>
-          )}
+        {graphError && (
+          <Alert status="warning" borderRadius="md">
+            <AlertIcon />
+            <Text>無法連接後端 API，顯示 Mock Data</Text>
+          </Alert>
+        )}
 
+        {graphStatus?.has_graph && graphStatus.community_count === 0 && (
+          <Alert status="info" borderRadius="md">
+            <AlertIcon />
+            <Text color={textColor}>
+              圖譜尚未進行社群偵測。點擊「優化社群」可啟用 Global Search 模式。
+            </Text>
+          </Alert>
+        )}
+
+        <SurfaceCard p={4}>
           <Tabs colorScheme="brand" variant="enclosed">
             <TabList>
-              <Tab>🔗 知識圖譜</Tab>
-              <Tab>🔀 研究流程</Tab>
+              <Tab>知識圖譜</Tab>
+              <Tab>研究流程</Tab>
             </TabList>
 
             <TabPanels>
-              {/* 知識圖譜 Tab */}
               <TabPanel p={0} pt={4}>
-                <Box borderRadius="xl" overflow="hidden" boxShadow="lg">
+                <Box borderRadius="12px" overflow="hidden">
                   <KnowledgeGraph
                     data={graphData}
-                    width={1100}
+                    width={graphWidth}
                     height={600}
                     isLoading={isGraphLoading}
                     onNodeClick={(node) => {
@@ -196,17 +194,16 @@ export function GraphDemo() {
                 </Box>
               </TabPanel>
 
-              {/* 研究流程 Tab */}
               <TabPanel p={0} pt={4}>
-                <Box borderRadius="xl" overflow="hidden" boxShadow="lg">
-                  <ResearchFlow width={1100} height={500} />
+                <Box borderRadius="12px" overflow="hidden">
+                  <ResearchFlow width={graphWidth} height={500} />
                 </Box>
               </TabPanel>
             </TabPanels>
           </Tabs>
-        </VStack>
-      </Container>
-    </Box>
+        </SurfaceCard>
+      </VStack>
+    </Layout>
   );
 }
 

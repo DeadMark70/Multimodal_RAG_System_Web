@@ -12,7 +12,6 @@ import {
   Flex,
   VStack,
   HStack,
-  Card,
   CardBody,
   CardHeader,
   Input,
@@ -40,6 +39,7 @@ import DocumentSelector from '../components/rag/DocumentSelector';
 import { askQuestion } from '../services/ragApi';
 import { exportToCsv, exportToJson, generateSummaryReport } from '../utils/exportData';
 import type { ExperimentResult } from '../types/rag';
+import SurfaceCard from '../components/common/SurfaceCard';
 
 interface ComparisonResult {
   answer: string;
@@ -57,8 +57,8 @@ export default function Experiment() {
   const [experimentHistory, setExperimentHistory] = useState<ExperimentResult[]>([]);
   
   const toast = useToast();
-  const cardBg = useColorModeValue('white', '#111C44');
-  const textColor = useColorModeValue('gray.700', 'white');
+  const cardBg = useColorModeValue('white', 'surface.800');
+  const textColor = useColorModeValue('surface.700', 'white');
 
   const runExperiment = async () => {
     if (!question.trim()) {
@@ -103,8 +103,9 @@ export default function Experiment() {
           confidence: ragResponse.value.metrics?.confidence_score || null,
         });
       } else {
+        const ragErrorMessage = ragResponse.reason instanceof Error ? ragResponse.reason.message : '請求失敗';
         setRagResult({
-          answer: `錯誤：${ragResponse.reason?.message || '請求失敗'}`,
+          answer: `錯誤：${ragErrorMessage}`,
           faithfulness: null,
           confidence: null,
         });
@@ -118,8 +119,9 @@ export default function Experiment() {
           confidence: vanillaResponse.value.metrics?.confidence_score || null,
         });
       } else {
+        const vanillaErrorMessage = vanillaResponse.reason instanceof Error ? vanillaResponse.reason.message : '請求失敗';
         setVanillaResult({
-          answer: `錯誤：${vanillaResponse.reason?.message || '請求失敗'}`,
+          answer: `錯誤：${vanillaErrorMessage}`,
           faithfulness: null,
           confidence: null,
         });
@@ -207,7 +209,7 @@ export default function Experiment() {
         <Box flex={1}>
           <VStack spacing={6} align="stretch">
             {/* 輸入區 */}
-            <Card bg={cardBg}>
+            <SurfaceCard bg={cardBg}>
               <CardBody>
                 <VStack spacing={4} align="stretch">
                   <Box>
@@ -233,7 +235,7 @@ export default function Experiment() {
                   </Button>
                 </VStack>
               </CardBody>
-            </Card>
+            </SurfaceCard>
 
             {/* 對比結果 */}
             <ComparisonPanel
@@ -248,17 +250,17 @@ export default function Experiment() {
         <Box w={{ base: 'full', lg: '350px' }}>
           <VStack spacing={6} align="stretch">
             {/* 文件選擇 */}
-            <Card bg={cardBg}>
+            <SurfaceCard bg={cardBg}>
               <CardBody>
                 <DocumentSelector
                   selectedIds={selectedDocIds}
                   onSelectionChange={setSelectedDocIds}
                 />
               </CardBody>
-            </Card>
+            </SurfaceCard>
 
             {/* 匯出選項 */}
-            <Card bg={cardBg}>
+            <SurfaceCard bg={cardBg}>
               <CardHeader pb={2}>
                 <Flex justify="space-between" align="center">
                   <Text fontWeight="bold" color={textColor}>
@@ -346,7 +348,7 @@ export default function Experiment() {
                   </Table>
                 )}
               </CardBody>
-            </Card>
+            </SurfaceCard>
           </VStack>
         </Box>
       </Flex>

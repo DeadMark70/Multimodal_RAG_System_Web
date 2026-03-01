@@ -11,7 +11,6 @@ import {
   FormControl, 
   Switch, 
   FormLabel, 
-  Card, 
   CardBody, 
   useColorModeValue, 
   Text, 
@@ -45,6 +44,7 @@ import { useSessionStore } from '../stores/useSessionStore';
 import { useSettingsActions, useSettingsStore } from '../stores/useSettingsStore';
 import { useConversationMutations } from '../hooks/useConversations';
 import type { Conversation, ConversationType } from '../types/conversation';
+import SurfaceCard from '../components/common/SurfaceCard';
 
 export default function Chat() {
   const { currentChatId, actions: { setCurrentChatId } } = useSessionStore();
@@ -86,11 +86,12 @@ export default function Chat() {
   const [input, setInput] = useState('');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const panelBg = useColorModeValue('white', '#111C44');
-  const inputBg = useColorModeValue('white', 'navy.800');
-  const inputBorderColor = useColorModeValue('gray.100', 'whiteAlpha.100');
-  const textHeaderColor = useColorModeValue('navy.700', 'white');
-  const iconColor = useColorModeValue('#4318FF', '#fff');
+  const panelBg = useColorModeValue('white', 'surface.800');
+  const inputBg = useColorModeValue('white', 'surface.800');
+  const inputBorderColor = useColorModeValue('surface.200', 'surface.700');
+  const textHeaderColor = useColorModeValue('surface.700', 'white');
+  const iconColor = useColorModeValue('brand.500', 'brand.200');
+  const inputShadow = useColorModeValue('0px 10px 24px rgba(17, 24, 39, 0.1)', '0px 8px 30px rgba(2, 6, 23, 0.35)');
 
   // Auto-scroll to bottom for Chat
   useEffect(() => {
@@ -116,7 +117,7 @@ export default function Chat() {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      void handleSend();
     }
   };
 
@@ -229,7 +230,7 @@ export default function Chat() {
               bg={inputBg}
               p={2}
               borderRadius="full"
-              boxShadow="0px 10px 30px rgba(0,0,0,0.08)"
+              boxShadow={inputShadow}
               border="1px solid"
               borderColor={inputBorderColor}
               align="center"
@@ -271,8 +272,8 @@ export default function Chat() {
                 p={0}
                 isLoading={isLoading}
                 onClick={() => void handleSend()}
-                bgGradient="linear(to-br, brand.400, brand.600)"
-                _hover={{ transform: 'scale(1.05)', boxShadow: 'lg' }}
+                bg="brand.500"
+                _hover={{ transform: 'scale(1.05)', boxShadow: 'lg', bg: 'brand.600' }}
               >
                 <FiSend size={20} />
               </Button>
@@ -284,18 +285,18 @@ export default function Chat() {
         <Box w="320px" display={{ base: 'none', lg: 'block' }}>
           <VStack spacing={6} align="stretch">
             {/* Document Selector Card */}
-            <Card variant="unstyled" bg={panelBg} p={5} borderRadius="20px" boxShadow="sm">
+            <SurfaceCard variant="unstyled" bg={panelBg} p={5}>
               <CardBody p={0}>
                 <DocumentSelector 
                   selectedIds={selectedDocIds}
                   onSelectionChange={setSelectedDocIds}
                 />
               </CardBody>
-            </Card>
+            </SurfaceCard>
 
             {/* Configuration Card - Only show for Quick Q&A */}
             {mode === 'chat' && (
-              <Card variant="unstyled" bg={panelBg} p={5} borderRadius="20px" boxShadow="sm">
+              <SurfaceCard variant="unstyled" bg={panelBg} p={5}>
                 <CardBody p={0}>
                   <Flex justify="space-between" align="center" mb={4}>
                     <Text fontWeight="bold" fontSize="lg" color={textHeaderColor}>設定</Text>
@@ -338,12 +339,12 @@ export default function Chat() {
                     </FormControl>
                   </VStack>
                 </CardBody>
-              </Card>
+              </SurfaceCard>
             )}
 
             {/* Live Analysis Card (Only visible when Eval Mode is ON and in Quick Q&A) */}
             {ragSettings.enable_evaluation && mode === 'chat' && (
-              <Card variant="unstyled" bg={panelBg} p={5} borderRadius="20px" boxShadow="sm">
+              <SurfaceCard variant="unstyled" bg={panelBg} p={5}>
                 <CardBody p={0}>
                   <Flex align="center" gap={2} mb={4}>
                     <FiCpu size={20} color={iconColor} />
@@ -391,7 +392,7 @@ export default function Chat() {
                     </Flex>
                   )}
                 </CardBody>
-              </Card>
+              </SurfaceCard>
             )}
           </VStack>
         </Box>
@@ -421,7 +422,7 @@ export default function Chat() {
             <VStack spacing={4} align="stretch">
               <DocumentSelector selectedIds={selectedDocIds} onSelectionChange={setSelectedDocIds} />
               {mode === 'chat' && (
-                <Card variant="unstyled" bg={panelBg} p={4} borderRadius="16px" boxShadow="sm">
+                <SurfaceCard variant="unstyled" bg={panelBg} p={4}>
                   <CardBody p={0}>
                     <VStack spacing={4} align="stretch">
                       <FormControl display="flex" alignItems="center" justifyContent="space-between">
@@ -444,7 +445,7 @@ export default function Chat() {
                       </FormControl>
                     </VStack>
                   </CardBody>
-                </Card>
+                </SurfaceCard>
               )}
             </VStack>
           </DrawerBody>
