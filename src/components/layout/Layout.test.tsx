@@ -9,7 +9,7 @@ import { MemoryRouter } from 'react-router-dom';
 vi.mock('./Sidebar', () => ({ default: () => <div data-testid="sidebar">Sidebar</div> }));
 
 // Mock useAuth
-vi.mock('../../contexts/AuthContext', () => ({
+vi.mock('../../contexts/useAuth', () => ({
   useAuth: () => ({
     session: { user: { id: '1' } },
     loading: false,
