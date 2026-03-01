@@ -10,10 +10,13 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+coverage
 *.local
 .env
 .env.*
 !.env.example
+lint_report*.txt
+lint_final_verify.txt
 
 # Editor directories and files
 .vscode/*
