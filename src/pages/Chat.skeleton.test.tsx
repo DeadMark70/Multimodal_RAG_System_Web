@@ -7,6 +7,8 @@ import { useConversationMutations } from '../hooks/useConversations';
 import React from 'react';
 import { ChakraProvider } from '@chakra-ui/react';
 import theme from '../theme';
+import { asMock } from '../test/mock-utils';
+import type { ChatMessage } from '../types/rag';
 
 // Mock dependencies
 vi.mock('../components/layout/Layout', () => ({
@@ -35,25 +37,34 @@ vi.mock('../components/rag/DeepResearchPanel', () => ({ default: () => <div>Deep
 vi.mock('../components/rag/DocumentSelector', () => ({ default: () => <div>DocSelector</div> }));
 
 describe('Chat Page Skeleton Loading', () => {
+  const mockUseSessionStore = asMock(useSessionStore);
+  const mockUseConversationMutations = asMock(useConversationMutations);
+  const mockUseChat = asMock(useChat);
+
   beforeEach(() => {
     vi.clearAllMocks();
     
     // Default mocks
-    (useSessionStore as any).mockReturnValue({
+    mockUseSessionStore.mockReturnValue({
       currentChatId: '123',
       actions: { setCurrentChatId: vi.fn() },
-    });
+    } as ReturnType<typeof useSessionStore>);
 
-    (useConversationMutations as any).mockReturnValue({
+    mockUseConversationMutations.mockReturnValue({
       create: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+      isCreating: false,
+      isUpdating: false,
+      isDeleting: false,
     });
   });
 
   it('should render Skeletons when isLoadingHistory is true', () => {
     // Mock useChat to return isLoadingHistory: true
-    (useChat as any).mockReturnValue({
-      messages: [],
-      sendMessage: vi.fn(),
+    mockUseChat.mockReturnValue({
+      messages: [] as ChatMessage[],
+      sendMessage: vi.fn(() => Promise.resolve()),
       clearMessages: vi.fn(),
       isLoading: false,
       isLoadingHistory: true, // This is key
@@ -75,9 +86,9 @@ describe('Chat Page Skeleton Loading', () => {
   });
 
   it('should render Messages when isLoadingHistory is false', () => {
-     (useChat as any).mockReturnValue({
-      messages: [{ id: '1', role: 'user', content: 'hi' }],
-      sendMessage: vi.fn(),
+    mockUseChat.mockReturnValue({
+      messages: [{ id: '1', role: 'user', content: 'hi' }] as ChatMessage[],
+      sendMessage: vi.fn(() => Promise.resolve()),
       clearMessages: vi.fn(),
       isLoading: false,
       isLoadingHistory: false,

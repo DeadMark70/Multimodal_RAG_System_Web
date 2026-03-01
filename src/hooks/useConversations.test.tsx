@@ -5,6 +5,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import * as conversationApi from '../services/conversationApi';
 import type { Conversation, ConversationDetail } from '../types/conversation';
 import React from 'react';
+import { asMock } from '../test/mock-utils';
 
 // Mock the API service
 vi.mock('../services/conversationApi');
@@ -27,6 +28,10 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 );
 
 describe('useConversations Hook', () => {
+  const mockListConversations = asMock(conversationApi.listConversations);
+  const mockGetConversation = asMock(conversationApi.getConversation);
+  const mockCreateConversation = asMock(conversationApi.createConversation);
+
   beforeEach(() => {
     vi.clearAllMocks();
     queryClient.clear();
@@ -37,7 +42,7 @@ describe('useConversations Hook', () => {
       const mockList: Conversation[] = [
         { id: '1', title: 'Test', type: 'chat', created_at: '', updated_at: '' }
       ];
-      (conversationApi.listConversations as any).mockResolvedValue(mockList);
+      mockListConversations.mockResolvedValue(mockList);
 
       const { result } = renderHook(() => useConversationList(), { wrapper });
 
@@ -52,7 +57,7 @@ describe('useConversations Hook', () => {
         id: '1', title: 'Test', type: 'chat', created_at: '', updated_at: '',
         messages: []
       };
-      (conversationApi.getConversation as any).mockResolvedValue(mockDetail);
+      mockGetConversation.mockResolvedValue(mockDetail);
 
       const { result } = renderHook(() => useConversationDetail('1'), { wrapper });
 
@@ -69,13 +74,13 @@ describe('useConversations Hook', () => {
   describe('useConversationMutations', () => {
     it('should create conversation', async () => {
       const newConv: Conversation = { id: '2', title: 'New', type: 'chat', created_at: '', updated_at: '' };
-      (conversationApi.createConversation as any).mockResolvedValue(newConv);
+      mockCreateConversation.mockResolvedValue(newConv);
 
       const { result } = renderHook(() => useConversationMutations(), { wrapper });
 
       await result.current.create({ title: 'New' });
 
-      expect(conversationApi.createConversation).toHaveBeenCalledWith({ title: 'New' });
+      expect(mockCreateConversation).toHaveBeenCalledWith({ title: 'New' });
     });
   });
 });

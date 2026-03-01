@@ -5,20 +5,41 @@ import * as conversationApi from '../services/conversationApi';
 import * as ragApi from '../services/ragApi';
 import { useSessionStore } from '../stores/useSessionStore';
 import { useConversationMutations } from '../hooks/useConversations';
-import React from 'react';
+import type { ReactNode } from 'react';
 import { ChakraProvider } from '@chakra-ui/react';
 import theme from '../theme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { asMock } from '../test/mock-utils';
+import type {
+  Conversation,
+  ConversationDetail,
+  ConversationType,
+  CreateMessageRequest,
+  Message,
+} from '../types/conversation';
+import type { AskResponse } from '../types/rag';
 
 // Mock dependencies
 vi.mock('../components/layout/Layout', () => ({
-  default: ({ children }: { children: React.ReactNode }) => <div data-testid="layout">{children}</div>,
+  default: ({ children }: { children: ReactNode }) => <div data-testid="layout">{children}</div>,
 }));
 
 vi.mock('../components/rag/ConversationSidebar', () => ({
-  default: ({ onSelect }: any) => (
+  default: ({ onSelect }: { onSelect: (conversation: Conversation) => void }) => (
     <div data-testid="sidebar">
-       <button onClick={() => onSelect({ id: 'chat-1', type: 'chat' })}>Load Chat 1</button>
+       <button
+         onClick={() =>
+           onSelect({
+             id: 'chat-1',
+             title: 'Test Chat',
+             type: 'chat',
+             created_at: '',
+             updated_at: '',
+           })
+         }
+       >
+         Load Chat 1
+       </button>
     </div>
   ),
 }));
@@ -60,8 +81,14 @@ const renderWithProviders = (component: React.ReactNode) => {
 };
 
 describe('End-to-End Persistence Flow', () => {
+  const mockGetConversation = asMock(conversationApi.getConversation);
+  const mockAddMessage = asMock(conversationApi.addMessage);
+  const mockAskQuestion = asMock(ragApi.askQuestion);
+  const mockUseSessionStore = asMock(useSessionStore);
+  const mockUseConversationMutations = asMock(useConversationMutations);
+
   // Mock Database
-  let mockDbConversations: Record<string, any> = {};
+  let mockDbConversations: Record<string, ConversationDetail> = {};
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -69,36 +96,52 @@ describe('End-to-End Persistence Flow', () => {
     mockDbConversations = {};
 
     // Setup API mocks to behave like a DB
-    (conversationApi.getConversation as any).mockImplementation(async (id: string) => {
+    mockGetConversation.mockImplementation((id: string) => {
       if (!mockDbConversations[id]) {
-        throw new Error('Not found');
+        return Promise.reject(new Error('Not found'));
       }
-      return mockDbConversations[id];
+      return Promise.resolve(mockDbConversations[id]);
     });
 
-    (conversationApi.addMessage as any).mockImplementation(async (id: string, message: any) => {
+    mockAddMessage.mockImplementation((id: string, message: CreateMessageRequest) => {
       if (!mockDbConversations[id]) {
-        throw new Error('Not found');
+        return Promise.reject(new Error('Not found'));
       }
-      const newMessage = {
+      const newMessage: Message = {
         id: `msg-${Date.now()}-${Math.random()}`,
         role: message.role,
         content: message.content,
         created_at: new Date().toISOString(),
-        metadata: message.metadata
+        metadata: message.metadata,
       };
       mockDbConversations[id].messages.push(newMessage);
-      return newMessage;
+      return Promise.resolve(newMessage);
     });
 
-    (ragApi.askQuestion as any).mockResolvedValue({
+    const answer: AskResponse = {
+      question: 'Hello Persistence',
       answer: 'AI Response',
       sources: [],
       metrics: null,
-    });
+    };
+    mockAskQuestion.mockResolvedValue(answer);
 
-    (useConversationMutations as any).mockReturnValue({
-      create: vi.fn(),
+    const mockCreateConversation = vi.fn(() =>
+      Promise.resolve({
+        id: 'created-chat',
+        title: '新對話',
+        type: 'chat' as ConversationType,
+        created_at: '',
+        updated_at: '',
+      })
+    );
+    mockUseConversationMutations.mockReturnValue({
+      create: mockCreateConversation,
+      update: vi.fn(),
+      remove: vi.fn(),
+      isCreating: false,
+      isUpdating: false,
+      isDeleting: false,
     });
   });
 
@@ -110,20 +153,21 @@ describe('End-to-End Persistence Flow', () => {
       type: 'chat',
       messages: [],
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
     // 2. Render Chat with 'chat-1' selected
     let currentChatId = 'chat-1';
-    (useSessionStore as any).mockImplementation(() => ({
+    mockUseSessionStore.mockImplementation(() => ({
       currentChatId,
       actions: { setCurrentChatId: (id: string) => { currentChatId = id; } },
-    }));
+    }) as ReturnType<typeof useSessionStore>);
 
     const { unmount } = renderWithProviders(<Chat />);
 
     // Wait for initial load
     await waitFor(() => {
-      expect(conversationApi.getConversation).toHaveBeenCalledWith('chat-1');
+      expect(mockGetConversation).toHaveBeenCalledWith('chat-1');
     });
 
     // 3. User types and sends message
@@ -155,7 +199,7 @@ describe('End-to-End Persistence Flow', () => {
     // 7. Verify messages are loaded from "DB"
     await waitFor(() => {
       // Expect at least 2 calls (one initial, one reload). Might be more due to StrictMode/Rerenders
-      expect(conversationApi.getConversation).toHaveBeenCalled();
+      expect(mockGetConversation).toHaveBeenCalled();
       expect(screen.getByText(/Hello Persistence/)).toBeInTheDocument();
       expect(screen.getByText(/AI Response/)).toBeInTheDocument();
     });

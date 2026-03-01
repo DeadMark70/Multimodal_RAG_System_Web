@@ -4,6 +4,9 @@ import { useDeepResearch } from './useDeepResearch';
 import * as ragApi from '../services/ragApi';
 import { useSessionStore } from '../stores/useSessionStore';
 import { useConversationMutations } from '../hooks/useConversations';
+import { asMock } from '../test/mock-utils';
+import type { Conversation, CreateConversationRequest } from '../types/conversation';
+import type { ResearchPlanResponse } from '../types/rag';
 
 // Mock services and hooks
 vi.mock('../services/ragApi');
@@ -15,19 +18,29 @@ vi.mock('@chakra-ui/react', () => ({
 }));
 
 describe('useDeepResearch Hook - Persistence', () => {
-  const mockSetCurrentChatId = vi.fn();
-  const mockCreateConversation = vi.fn();
+  const mockSetCurrentChatId = vi.fn<(chatId: string | null) => void>();
+  const mockCreateConversation = vi.fn<
+    (request: CreateConversationRequest) => Promise<Conversation>
+  >();
+  const mockUseSessionStore = asMock(useSessionStore);
+  const mockUseConversationMutations = asMock(useConversationMutations);
+  const mockGenerateResearchPlan = asMock(ragApi.generateResearchPlan);
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useSessionStore as any).mockReturnValue({
+    mockUseSessionStore.mockReturnValue({
       currentChatId: null,
       actions: { setCurrentChatId: mockSetCurrentChatId },
-    });
+    } as ReturnType<typeof useSessionStore>);
 
-    (useConversationMutations as any).mockReturnValue({
+    mockUseConversationMutations.mockReturnValue({
       create: mockCreateConversation,
+      update: vi.fn(),
+      remove: vi.fn(),
+      isCreating: false,
+      isUpdating: false,
+      isDeleting: false,
     });
   });
 
@@ -36,15 +49,21 @@ describe('useDeepResearch Hook - Persistence', () => {
     const newConvId = 'research-123';
 
     // Mock API responses
-    (ragApi.generateResearchPlan as any).mockResolvedValue({
+    const planResponse: ResearchPlanResponse = {
+      status: 'waiting_confirmation',
       original_question: question,
       sub_tasks: [],
-    });
+      estimated_complexity: 'simple',
+      doc_ids: null,
+    };
+    mockGenerateResearchPlan.mockResolvedValue(planResponse);
 
-    (mockCreateConversation as any).mockResolvedValue({
+    mockCreateConversation.mockResolvedValue({
       id: newConvId,
       title: question,
       type: 'research',
+      created_at: '',
+      updated_at: '',
     });
 
     const { result } = renderHook(() => useDeepResearch());
@@ -61,7 +80,7 @@ describe('useDeepResearch Hook - Persistence', () => {
     expect(mockSetCurrentChatId).toHaveBeenCalledWith(newConvId);
   });
 
-  it('should load existing plan from history if conversationId is set', async () => {
+  it('should load existing plan from history if conversationId is set', () => {
     // This test simulates loading a previous session.
     // Since useDeepResearch currently doesn't auto-load, we might need to implement that.
     // For now, let's verify if we can manually trigger a load or if we pass an ID it loads.

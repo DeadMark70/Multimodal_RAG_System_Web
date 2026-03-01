@@ -5,6 +5,9 @@ import * as ragApi from '../services/ragApi';
 import * as conversationApi from '../services/conversationApi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
+import { asMock } from '../test/mock-utils';
+import type { AskResponse } from '../types/rag';
+import type { ConversationDetail } from '../types/conversation';
 
 // Mock services
 vi.mock('../services/ragApi');
@@ -27,6 +30,10 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 );
 
 describe('useChat Hook Error Handling', () => {
+  const mockAskQuestion = asMock(ragApi.askQuestion);
+  const mockGetConversation = asMock(conversationApi.getConversation);
+  const mockAddMessage = asMock(conversationApi.addMessage);
+
   beforeEach(() => {
     vi.clearAllMocks();
     queryClient.clear();
@@ -38,25 +45,32 @@ describe('useChat Hook Error Handling', () => {
     const aiAnswer = 'Hi user';
 
     // Mock successful history load
-    (conversationApi.getConversation as any).mockResolvedValue({
+    const conversation: ConversationDetail = {
       id: conversationId,
+      title: 'Test',
+      type: 'chat',
+      created_at: '',
+      updated_at: '',
       messages: [],
-    });
+    };
+    mockGetConversation.mockResolvedValue(conversation);
     
     // Mock FAILED save message
-    (conversationApi.addMessage as any).mockRejectedValue(new Error('Save failed'));
+    mockAddMessage.mockRejectedValue(new Error('Save failed'));
     
     // Mock successful RAG response
-    (ragApi.askQuestion as any).mockResolvedValue({
+    const answer: AskResponse = {
+      question: userMessage,
       answer: aiAnswer,
       sources: [],
       metrics: null,
-    });
+    };
+    mockAskQuestion.mockResolvedValue(answer);
 
     const { result } = renderHook(() => useChat({ conversationId }), { wrapper });
 
     // Wait for history load
-    await waitFor(() => expect(conversationApi.getConversation).toHaveBeenCalled());
+    await waitFor(() => expect(mockGetConversation).toHaveBeenCalled());
 
     // Send message
     await act(async () => {

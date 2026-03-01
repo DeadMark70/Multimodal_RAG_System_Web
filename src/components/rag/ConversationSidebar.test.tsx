@@ -3,6 +3,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import ConversationSidebar from './ConversationSidebar';
 import { useConversations } from '../../hooks/useConversations';
 import type { Conversation } from '../../types/conversation';
+import { asMock } from '../../test/mock-utils';
 
 // Mock the hooks
 vi.mock('../../hooks/useConversations');
@@ -18,15 +19,22 @@ describe('ConversationSidebar Component', () => {
   const mockRemove = vi.fn();
   const mockOnSelect = vi.fn();
   const mockOnNew = vi.fn();
+  const mockUseConversations = asMock(useConversations);
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useConversations as any).mockReturnValue({
+    mockUseConversations.mockReturnValue({
       conversations: mockConversations,
       isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
       remove: mockRemove,
+      isCreating: false,
+      isUpdating: false,
       isDeleting: false,
-    });
+    } as ReturnType<typeof useConversations>);
   });
 
   it('renders list of conversations', () => {

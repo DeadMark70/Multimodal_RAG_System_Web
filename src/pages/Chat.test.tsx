@@ -4,20 +4,41 @@ import Chat from './Chat';
 import { useSessionStore } from '../stores/useSessionStore';
 import { useConversationMutations } from '../hooks/useConversations';
 import * as conversationApi from '../services/conversationApi';
-import React from 'react';
+import type { ReactNode } from 'react';
 import { ChakraProvider } from '@chakra-ui/react';
 import theme from '../theme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { asMock } from '../test/mock-utils';
+import type { ChatMessage } from '../types/rag';
+import type { Conversation, ConversationDetail, ConversationType } from '../types/conversation';
 
 // Mock dependencies
 vi.mock('../components/layout/Layout', () => ({
-  default: ({ children }: { children: React.ReactNode }) => <div data-testid="layout">{children}</div>,
+  default: ({ children }: { children: ReactNode }) => <div data-testid="layout">{children}</div>,
 }));
 
 vi.mock('../components/rag/ConversationSidebar', () => ({
-  default: ({ onSelect, onNew }: any) => (
+  default: ({
+    onSelect,
+    onNew,
+  }: {
+    onSelect: (conversation: Conversation) => void;
+    onNew: (type: ConversationType) => void;
+  }) => (
     <div data-testid="conversation-sidebar">
-      <button onClick={() => onSelect({ id: '123', type: 'chat' })}>Select Chat 123</button>
+      <button
+        onClick={() =>
+          onSelect({
+            id: '123',
+            title: 'Selected',
+            type: 'chat',
+            created_at: '',
+            updated_at: '',
+          })
+        }
+      >
+        Select Chat 123
+      </button>
       <button onClick={() => onNew('chat')}>New Chat</button>
     </div>
   ),
@@ -37,7 +58,9 @@ vi.mock('../services/ragApi');
 
 // Mock other components
 vi.mock('../components/rag/MessageBubble', () => ({ 
-  default: ({ content, role }: any) => <div data-testid="message-bubble">{role}: {content}</div> 
+  default: ({ content, role }: Pick<ChatMessage, 'content' | 'role'>) => (
+    <div data-testid="message-bubble">{role}: {content}</div>
+  ),
 }));
 vi.mock('../components/rag/DeepResearchPanel', () => ({ default: () => <div>DeepResearch</div> }));
 vi.mock('../components/rag/DocumentSelector', () => ({ default: () => <div>DocSelector</div> }));
@@ -62,8 +85,11 @@ const renderWithProviders = (component: React.ReactNode) => {
 };
 
 describe('Chat Page Integration', () => {
-  const mockSetCurrentChatId = vi.fn();
+  const mockSetCurrentChatId = vi.fn<(id: string | null) => void>();
   const mockCreate = vi.fn();
+  const mockUseSessionStore = asMock(useSessionStore);
+  const mockUseConversationMutations = asMock(useConversationMutations);
+  const mockGetConversation = asMock(conversationApi.getConversation);
   
   // Fake state for session store to simulate hook behavior
   let currentChatId: string | null = null;
@@ -74,7 +100,7 @@ describe('Chat Page Integration', () => {
     currentChatId = null;
 
     // Mock useSessionStore to behave like a real store for currentChatId
-    (useSessionStore as any).mockImplementation(() => ({
+    mockUseSessionStore.mockImplementation(() => ({
       currentChatId,
       actions: { 
         setCurrentChatId: (id: string) => {
@@ -84,14 +110,19 @@ describe('Chat Page Integration', () => {
       },
     }));
 
-    (useConversationMutations as any).mockReturnValue({
+    mockUseConversationMutations.mockReturnValue({
       create: mockCreate,
+      update: vi.fn(),
+      remove: vi.fn(),
+      isCreating: false,
+      isUpdating: false,
+      isDeleting: false,
     });
   });
 
   it('loads conversation history when a conversation is selected', async () => {
     // Setup mock response for getConversation
-    const mockDetail = {
+    const mockDetail: ConversationDetail = {
       id: '123',
       title: 'Test Chat',
       type: 'chat',
@@ -102,7 +133,7 @@ describe('Chat Page Integration', () => {
         { id: 'm2', role: 'assistant', content: 'Hi there', created_at: new Date().toISOString() }
       ]
     };
-    (conversationApi.getConversation as any).mockResolvedValue(mockDetail);
+    mockGetConversation.mockResolvedValue(mockDetail);
 
     // Initial render
     const { rerender } = renderWithProviders(<Chat />);
@@ -113,7 +144,7 @@ describe('Chat Page Integration', () => {
     // Trigger selection (simulating Sidebar click)
     // Update mock to return new ID and re-render
     currentChatId = '123';
-    (useSessionStore as any).mockImplementation(() => ({
+    mockUseSessionStore.mockImplementation(() => ({
       currentChatId: '123',
       actions: { setCurrentChatId: mockSetCurrentChatId },
     }));
@@ -128,7 +159,7 @@ describe('Chat Page Integration', () => {
 
     // Wait for history to load
     await waitFor(() => {
-      expect(conversationApi.getConversation).toHaveBeenCalledWith('123');
+      expect(mockGetConversation).toHaveBeenCalledWith('123');
       expect(screen.getByText('user: Hello History')).toBeInTheDocument();
       expect(screen.getByText('assistant: Hi there')).toBeInTheDocument();
     });

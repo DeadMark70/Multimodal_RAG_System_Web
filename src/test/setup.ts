@@ -2,19 +2,22 @@ import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 import { assertAllowedApiTarget } from '../services/networkPolicy'
 
-// Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: vi.fn().mockImplementation(query => ({
+const createMatchMedia = (query: string): MediaQueryList =>
+  ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: vi.fn(), // deprecated
-    removeListener: vi.fn(), // deprecated
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
-  })),
+  } as MediaQueryList)
+
+// Mock window.matchMedia
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn<(query: string) => MediaQueryList>(createMatchMedia),
 })
 
 // Mock scrollIntoView

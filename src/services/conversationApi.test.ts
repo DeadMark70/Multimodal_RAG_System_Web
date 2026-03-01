@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as conversationApi from './conversationApi';
 import api from './api';
+import type { Conversation, ConversationDetail, Message } from '../types/conversation';
 
 // Mock the api module
 vi.mock('./api', () => ({
@@ -13,10 +14,21 @@ vi.mock('./api', () => ({
 }));
 
 describe('Conversation API', () => {
-  const mockConversations = [
+  const mockConversations: Conversation[] = [
     { id: '1', title: 'Test Chat', type: 'chat' },
     { id: '2', title: 'Research Session', type: 'research' },
-  ];
+  ].map((conversation) => ({
+    ...conversation,
+    created_at: '',
+    updated_at: '',
+  }));
+
+  const mockedApi = api as {
+    get: ReturnType<typeof vi.fn>;
+    post: ReturnType<typeof vi.fn>;
+    patch: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -24,71 +36,84 @@ describe('Conversation API', () => {
 
   describe('listConversations', () => {
     it('should fetch list of conversations', async () => {
-      (api.get as any).mockResolvedValue({ data: mockConversations });
+      mockedApi.get.mockResolvedValue({ data: mockConversations });
 
       const result = await conversationApi.listConversations();
 
-      expect(api.get).toHaveBeenCalledWith('/api/conversations');
+      expect(mockedApi.get).toHaveBeenCalledWith('/api/conversations');
       expect(result).toEqual(mockConversations);
     });
   });
 
   describe('createConversation', () => {
     it('should create a new conversation', async () => {
-      const newConv = { id: '3', title: 'New Chat', type: 'chat' };
-      (api.post as any).mockResolvedValue({ data: newConv });
+      const newConv: Conversation = {
+        id: '3',
+        title: 'New Chat',
+        type: 'chat',
+        created_at: '',
+        updated_at: '',
+      };
+      mockedApi.post.mockResolvedValue({ data: newConv });
 
       const request = { title: 'New Chat', type: 'chat' as const };
       const result = await conversationApi.createConversation(request);
 
-      expect(api.post).toHaveBeenCalledWith('/api/conversations', request);
+      expect(mockedApi.post).toHaveBeenCalledWith('/api/conversations', request);
       expect(result).toEqual(newConv);
     });
   });
 
   describe('getConversation', () => {
     it('should fetch conversation details', async () => {
-      const detail = { ...mockConversations[0], messages: [] };
-      (api.get as any).mockResolvedValue({ data: detail });
+      const detail: ConversationDetail = { ...mockConversations[0], messages: [] };
+      mockedApi.get.mockResolvedValue({ data: detail });
 
       const result = await conversationApi.getConversation('1');
 
-      expect(api.get).toHaveBeenCalledWith('/api/conversations/1');
+      expect(mockedApi.get).toHaveBeenCalledWith('/api/conversations/1', {
+        params: undefined,
+      });
       expect(result).toEqual(detail);
     });
   });
 
   describe('updateConversation', () => {
     it('should update conversation title', async () => {
-      const updated = { ...mockConversations[0], title: 'Updated' };
-      (api.patch as any).mockResolvedValue({ data: updated });
+      const updated: Conversation = { ...mockConversations[0], title: 'Updated' };
+      mockedApi.patch.mockResolvedValue({ data: updated });
 
       const result = await conversationApi.updateConversation('1', { title: 'Updated' });
 
-      expect(api.patch).toHaveBeenCalledWith('/api/conversations/1', { title: 'Updated' });
+      expect(mockedApi.patch).toHaveBeenCalledWith('/api/conversations/1', { title: 'Updated' });
       expect(result).toEqual(updated);
     });
   });
 
   describe('deleteConversation', () => {
     it('should delete a conversation', async () => {
-      (api.delete as any).mockResolvedValue({});
+      mockedApi.delete.mockResolvedValue({});
 
       await conversationApi.deleteConversation('1');
 
-      expect(api.delete).toHaveBeenCalledWith('/api/conversations/1');
+      expect(mockedApi.delete).toHaveBeenCalledWith('/api/conversations/1');
     });
   });
 
   describe('addMessage', () => {
     it('should add a message to conversation', async () => {
-      const message = { id: 'm1', role: 'user', content: 'hello' };
-      (api.post as any).mockResolvedValue({ data: message });
+      const message: Message = {
+        id: 'm1',
+        role: 'user',
+        content: 'hello',
+        created_at: '',
+      };
+      mockedApi.post.mockResolvedValue({ data: message });
 
       const request = { role: 'user' as const, content: 'hello' };
       const result = await conversationApi.addMessage('1', request);
 
-      expect(api.post).toHaveBeenCalledWith('/api/conversations/1/messages', request);
+      expect(mockedApi.post).toHaveBeenCalledWith('/api/conversations/1/messages', request);
       expect(result).toEqual(message);
     });
   });

@@ -5,6 +5,9 @@ import * as ragApi from '../services/ragApi';
 import * as conversationApi from '../services/conversationApi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
+import { asMock } from '../test/mock-utils';
+import type { AskResponse } from '../types/rag';
+import type { ConversationDetail, Message } from '../types/conversation';
 
 // Mock services
 vi.mock('../services/ragApi');
@@ -27,6 +30,10 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 );
 
 describe('useChat Hook', () => {
+  const mockAskQuestion = asMock(ragApi.askQuestion);
+  const mockGetConversation = asMock(conversationApi.getConversation);
+  const mockAddMessage = asMock(conversationApi.addMessage);
+
   beforeEach(() => {
     vi.clearAllMocks();
     queryClient.clear();
@@ -38,23 +45,36 @@ describe('useChat Hook', () => {
     const aiAnswer = 'Hi user';
 
     // Mock API responses
-    (conversationApi.getConversation as any).mockResolvedValue({
+    const conversation: ConversationDetail = {
       id: conversationId,
+      title: 'Test',
+      type: 'chat',
+      created_at: '',
+      updated_at: '',
       messages: [],
-    });
+    };
+    mockGetConversation.mockResolvedValue(conversation);
     
-    (conversationApi.addMessage as any).mockResolvedValue({});
+    const persistedMessage: Message = {
+      id: 'persisted-1',
+      role: 'assistant',
+      content: aiAnswer,
+      created_at: '',
+    };
+    mockAddMessage.mockResolvedValue(persistedMessage);
     
-    (ragApi.askQuestion as any).mockResolvedValue({
+    const answer: AskResponse = {
+      question: userMessage,
       answer: aiAnswer,
       sources: [],
       metrics: null,
-    });
+    };
+    mockAskQuestion.mockResolvedValue(answer);
 
     const { result } = renderHook(() => useChat({ conversationId }), { wrapper });
 
     // Wait for history load
-    await waitFor(() => expect(conversationApi.getConversation).toHaveBeenCalled());
+      await waitFor(() => expect(mockGetConversation).toHaveBeenCalled());
 
     // Send message
     await act(async () => {
@@ -62,18 +82,18 @@ describe('useChat Hook', () => {
     });
 
     // Verify user message saved
-    expect(conversationApi.addMessage).toHaveBeenCalledWith(conversationId, {
+    expect(mockAddMessage).toHaveBeenCalledWith(conversationId, {
       role: 'user',
       content: userMessage,
     });
 
     // Verify RAG called
-    expect(ragApi.askQuestion).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mockAskQuestion).toHaveBeenCalledWith(expect.objectContaining({
       question: userMessage,
     }));
 
     // Verify AI message saved (with metadata)
-    expect(conversationApi.addMessage).toHaveBeenCalledWith(conversationId, {
+    expect(mockAddMessage).toHaveBeenCalledWith(conversationId, {
       role: 'assistant',
       content: aiAnswer,
       metadata: {
@@ -87,11 +107,13 @@ describe('useChat Hook', () => {
     const userMessage = 'Hello';
     const aiAnswer = 'Hi user';
 
-    (ragApi.askQuestion as any).mockResolvedValue({
+    const answer: AskResponse = {
+      question: userMessage,
       answer: aiAnswer,
       sources: [],
       metrics: null,
-    });
+    };
+    mockAskQuestion.mockResolvedValue(answer);
 
     const { result } = renderHook(() => useChat({}), { wrapper });
 
@@ -99,7 +121,7 @@ describe('useChat Hook', () => {
       await result.current.sendMessage(userMessage);
     });
 
-    expect(conversationApi.addMessage).not.toHaveBeenCalled();
-    expect(ragApi.askQuestion).toHaveBeenCalled();
+    expect(mockAddMessage).not.toHaveBeenCalled();
+    expect(mockAskQuestion).toHaveBeenCalled();
   });
 });

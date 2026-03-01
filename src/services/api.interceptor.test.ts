@@ -11,12 +11,14 @@ vi.mock('./supabase', () => ({
 }));
 
 describe('api interceptors', () => {
+  const mockedAuth = vi.mocked(supabase.auth);
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('injects Authorization header when session exists', async () => {
-    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+    mockedAuth.getSession.mockResolvedValue({
       data: { session: { access_token: 'token-123' } },
       error: null,
     } as never);
