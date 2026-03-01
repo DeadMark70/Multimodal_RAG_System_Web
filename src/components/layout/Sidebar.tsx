@@ -1,4 +1,3 @@
-
 import {
   Box,
   Flex,
@@ -40,8 +39,12 @@ interface NavItemProps {
 const NavItem = ({ icon, children, to }: NavItemProps) => {
   const location = useLocation();
   const isActive = location.pathname.startsWith(to);
-  const activeBg = useColorModeValue('glass.300', 'glass.700');
-  const hoverBg = useColorModeValue('glass.200', 'glass.600');
+  const activeBg = useColorModeValue('brand.50', 'brand.900');
+  const activeColor = useColorModeValue('brand.600', 'brand.200');
+  const iconDefaultColor = useColorModeValue('surface.500', 'surface.300');
+  const textColor = useColorModeValue('surface.600', 'surface.200');
+  const borderColor = useColorModeValue('brand.200', 'brand.700');
+  const hoverBg = useColorModeValue('surface.100', 'surface.700');
 
   return (
     <ChakraLink
@@ -52,39 +55,43 @@ const NavItem = ({ icon, children, to }: NavItemProps) => {
     >
       <Flex
         align="center"
-        p="3"
-        mx="4"
-        my="1"
-        borderRadius="xl"
+        p={3}
+        mx={3}
+        my={1}
+        borderRadius="10px"
         cursor="pointer"
         role="group"
-        transition=".2s ease"
-        bg={isActive ? activeBg : 'transparent'} 
-        color={isActive ? 'brand.500' : 'gray.500'}
-        fontWeight={isActive ? 'bold' : 'medium'}
+        transition="all .2s ease"
+        bg={isActive ? activeBg : 'transparent'}
+        color={isActive ? activeColor : textColor}
+        fontWeight={isActive ? '700' : '600'}
         border="1px solid"
-        borderColor={isActive ? 'brand.500' : 'transparent'}
+        borderColor={isActive ? borderColor : 'transparent'}
         _hover={{
           bg: hoverBg,
-          color: 'brand.500',
+          color: activeColor,
         }}
       >
-        <Icon 
-            mr="4" 
-            fontSize="18" 
-            as={icon} 
-            _groupHover={{ color: 'brand.500' }}
+        <Icon
+            mr={3}
+            fontSize="17"
+            as={icon}
+            color={isActive ? activeColor : iconDefaultColor}
+            _groupHover={{ color: activeColor }}
         />
-        <Text fontSize="md">{children}</Text>
+        <Text fontSize="sm">{children}</Text>
       </Flex>
     </ChakraLink>
   );
 };
 
 export default function Sidebar() {
-  // Glassmorphism background effect using theme tokens
-  const bg = useColorModeValue('glass.500', 'glass.600'); // Slightly more opaque for sidebar
-  const borderColor = useColorModeValue('glass.300', 'glass.300');
+  const bg = useColorModeValue('bg.sidebar', 'bg.sidebar');
+  const borderColor = useColorModeValue('surface.200', 'surface.700');
+  const logoColor = useColorModeValue('brand.600', 'brand.200');
+  const mutedText = useColorModeValue('surface.500', 'surface.300');
+  const settingsHoverBg = useColorModeValue('surface.100', 'surface.700');
+  const shadow = useColorModeValue('0 8px 24px rgba(17, 24, 39, 0.08)', '0 8px 30px rgba(2, 6, 23, 0.35)');
   const settingsDrawer = useDisclosure();
   const mobileNavDrawer = useDisclosure();
   const { colorMode, toggleColorMode } = useColorMode();
@@ -103,7 +110,7 @@ export default function Sidebar() {
         align="center"
         justify="space-between"
         bg={bg}
-        backdropFilter="blur(20px)"
+        boxShadow={shadow}
         borderBottom="1px solid"
         borderColor={borderColor}
         zIndex={1200}
@@ -115,7 +122,7 @@ export default function Sidebar() {
           variant="ghost"
           onClick={mobileNavDrawer.onOpen}
         />
-        <Text fontSize="lg" fontFamily="monospace" fontWeight="bold" color="brand.500">
+        <Text fontSize="lg" fontWeight="800" color={logoColor}>
           3R 儀表板
         </Text>
         <IconButton
@@ -132,7 +139,7 @@ export default function Sidebar() {
         display={{ base: 'none', md: 'block' }}
         transition="0.3s ease"
         bg={bg}
-        backdropFilter="blur(20px)"
+        boxShadow={shadow}
         borderRight="1px"
         borderRightColor={borderColor}
         w={64}
@@ -142,10 +149,13 @@ export default function Sidebar() {
         left="0"
         zIndex="sticky"
       >
-        <Flex h="20" alignItems="center" mx="8" justifyContent="space-between">
-          <Text fontSize="2xl" fontFamily="monospace" fontWeight="bold" color="brand.500">
-            3R 儀表板
-          </Text>
+        <Flex h="20" alignItems="center" mx={6} justifyContent="space-between">
+          <Box>
+            <Text fontSize="xl" fontWeight="800" color={logoColor} lineHeight={1.1}>
+              3R 儀表板
+            </Text>
+            <Text fontSize="xs" color={mutedText}>Professional Workspace</Text>
+          </Box>
           <IconButton
             size="sm"
             variant="ghost"
@@ -154,7 +164,10 @@ export default function Sidebar() {
             onClick={toggleColorMode}
           />
         </Flex>
-        <VStack spacing={2} align="stretch" mt={4}>
+        <Text px={6} pt={2} pb={2} fontSize="xs" color={mutedText} textTransform="uppercase" letterSpacing="0.08em">
+          Navigation
+        </Text>
+        <VStack spacing={1} align="stretch">
           <NavItem icon={FiHome} to="/dashboard">儀表板</NavItem>
           <NavItem icon={FiDatabase} to="/knowledge">知識庫</NavItem>
           <NavItem icon={FiMessageSquare} to="/chat">對話</NavItem>
@@ -163,16 +176,16 @@ export default function Sidebar() {
         </VStack>
 
         {/* Settings Button */}
-        <Box pos="absolute" bottom="8" left="0" right="0" px="4">
+        <Box pos="absolute" bottom={8} left={0} right={0} px={3}>
           <Flex
             align="center"
-            p="3"
-            mx="4"
-            borderRadius="xl"
+            p={3}
+            mx={3}
+            borderRadius="10px"
             cursor="pointer"
             transition=".2s ease"
-            color="gray.500"
-            _hover={{ bg: 'glass.200', color: 'brand.500' }}
+            color={mutedText}
+            _hover={{ bg: settingsHoverBg, color: logoColor }}
             onClick={settingsDrawer.onOpen}
           >
             <Icon mr="4" fontSize="18" as={FiSettings} />
@@ -192,15 +205,15 @@ export default function Sidebar() {
         <DrawerContent>
           <DrawerCloseButton />
           <DrawerHeader borderBottomWidth="1px">導覽</DrawerHeader>
-          <DrawerBody p={0}>
-            <VStack spacing={2} align="stretch" mt={4}>
+          <DrawerBody p={2}>
+            <VStack spacing={1} align="stretch" mt={2}>
               <NavItem icon={FiHome} to="/dashboard">儀表板</NavItem>
               <NavItem icon={FiDatabase} to="/knowledge">知識庫</NavItem>
               <NavItem icon={FiMessageSquare} to="/chat">對話</NavItem>
               <NavItem icon={FiTrendingUp} to="/experiment">實驗室</NavItem>
               <NavItem icon={FiShare2} to="/graph-demo">知識圖譜</NavItem>
             </VStack>
-            <Box px={4} mt={4}>
+            <Box px={2} mt={2}>
               <IconButton
                 aria-label="開啟設定"
                 icon={<FiSettings />}

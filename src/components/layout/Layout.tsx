@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { Box } from '@chakra-ui/react';
+import { Box, useColorModeValue } from '@chakra-ui/react';
 import Sidebar from './Sidebar';
 import { useAuth } from '../../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -11,6 +11,8 @@ interface LayoutProps {
 
 export default function Layout({ children, requireAuth = true }: LayoutProps) {
   const { session, loading } = useAuth();
+  const contentBg = useColorModeValue('transparent', 'transparent');
+  const divider = useColorModeValue('surface.200', 'surface.700');
 
   if (loading) {
       return <Box>載入中...</Box>; // Simple loading state
@@ -21,9 +23,16 @@ export default function Layout({ children, requireAuth = true }: LayoutProps) {
   }
 
   return (
-    <Box minH="100vh">
+    <Box minH="100vh" bg="bg.canvas">
       <Sidebar />
-      <Box ml={{ base: 0, md: 64 }} p="6" pt={{ base: 20, md: 6 }}>
+      <Box
+        ml={{ base: 0, md: 64 }}
+        p={{ base: 4, md: 6 }}
+        pt={{ base: 20, md: 6 }}
+        bg={contentBg}
+        borderTop="1px solid"
+        borderColor={{ base: divider, md: 'transparent' }}
+      >
         {children}
       </Box>
     </Box>

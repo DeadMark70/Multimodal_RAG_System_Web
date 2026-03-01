@@ -13,7 +13,7 @@ describe('Theme Engine', () => {
 
   it('should have updated typography settings', () => {
     // We want to ensure specific font weights are available
-    expect(theme.fonts.heading).toBe('DM Sans, sans-serif');
-    expect(theme.fonts.body).toContain('DM Sans');
+    expect(theme.fonts.heading).toContain('Manrope');
+    expect(theme.fonts.body).toContain('Noto Sans TC');
   });
 });
