@@ -77,6 +77,7 @@ export default function DeepResearchPanel({ researchState }: DeepResearchPanelPr
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
   const textColor = useColorModeValue('gray.700', 'white');
   const subTextColor = useColorModeValue('gray.500', 'gray.400');
+  const detailPanelBg = useColorModeValue('gray.50', 'whiteAlpha.50');
 
   /**
    * 開始編輯任務
@@ -215,7 +216,7 @@ export default function DeepResearchPanel({ researchState }: DeepResearchPanelPr
                 <HStack
                   key={task.id}
                   p={3}
-                  bg={useColorModeValue('gray.50', 'whiteAlpha.50')}
+                  bg={detailPanelBg}
                   borderRadius="md"
                   border="1px solid"
                   borderColor={borderColor}
@@ -400,7 +401,7 @@ export default function DeepResearchPanel({ researchState }: DeepResearchPanelPr
 
               {/* Phase 6: 評估分析雷達圖 */}
               {result.metrics && (
-                <Box mb={4} p={4} bg={useColorModeValue('gray.50', 'whiteAlpha.50')} borderRadius="lg">
+                <Box mb={4} p={4} bg={detailPanelBg} borderRadius="lg">
                   <Text fontWeight="medium" color={textColor} mb={3}>
                     📈 評估分析
                   </Text>

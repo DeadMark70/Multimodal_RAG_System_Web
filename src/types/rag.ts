@@ -104,7 +104,7 @@ export interface UploadPdfResponse {
   pdf_available: boolean;
   pdf_download_url: string | null;
   pdf_error: string | null;
-  rag_status: 'processing_background' | 'not_started' | string;
+  rag_status: 'processing_background' | 'not_started' | (string & {});
 }
 
 // ========== 儀表板統計型別 ==========

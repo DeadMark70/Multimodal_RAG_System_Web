@@ -36,7 +36,10 @@ api.interceptors.request.use(
     return config;
   },
   (error: unknown) => {
-    return Promise.reject(error);
+    if (error instanceof Error) {
+      return Promise.reject(error);
+    }
+    return Promise.reject(new Error('Request interceptor failed'));
   }
 );
 

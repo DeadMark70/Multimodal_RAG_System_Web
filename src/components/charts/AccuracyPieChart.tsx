@@ -67,7 +67,7 @@ export default function AccuracyPieChart({ grounded, hallucinated, uncertain }: 
             ))}
           </Pie>
           <Tooltip 
-            formatter={(value) => [`${value} 次`, '查詢數']}
+            formatter={(value) => [`${String(value ?? 0)} 次`, '查詢數']}
             contentStyle={{ 
               backgroundColor: tooltipBg,
               borderColor: tooltipBorder,

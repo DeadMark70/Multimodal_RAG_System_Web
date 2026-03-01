@@ -38,7 +38,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
-            handleUpload(e.target.files[0]);
+            void handleUpload(e.target.files[0]);
         }
     };
 

@@ -45,6 +45,13 @@ const STATUS_CONFIG = {
   error: { icon: FiAlertCircle, color: 'red.400', label: '失敗' },
 };
 
+function toNodeText(value: unknown): string {
+  if (typeof value === 'string' || typeof value === 'number') {
+    return String(value);
+  }
+  return '';
+}
+
 // ========== 自訂節點：問題節點 ==========
 
 function QuestionNode({ data }: NodeProps) {
@@ -65,7 +72,7 @@ function QuestionNode({ data }: NodeProps) {
         研究問題
       </Text>
       <Text fontSize="sm" fontWeight="500">
-        {String(data.label ?? '')}
+        {toNodeText(data.label)}
       </Text>
       <Handle type="source" position={Position.Bottom} />
     </Box>
@@ -98,7 +105,7 @@ function SubTaskNode({ data }: NodeProps) {
 
       <HStack justify="space-between" mb={2}>
         <Badge colorScheme={status === 'success' ? 'green' : status === 'error' ? 'red' : 'gray'}>
-          子任務 {String(data.taskId ?? '')}
+          子任務 {toNodeText(data.taskId)}
         </Badge>
         {status === 'loading' ? (
           <Spinner size="xs" color="yellow.400" />
@@ -108,12 +115,12 @@ function SubTaskNode({ data }: NodeProps) {
       </HStack>
 
       <Text fontSize="sm" fontWeight="500" noOfLines={2}>
-        {String(data.label ?? '')}
+        {toNodeText(data.label)}
       </Text>
 
       {!!data.answer && status === 'success' && (
         <Text fontSize="xs" color="gray.500" mt={2} noOfLines={2}>
-          {String(data.answer)}
+          {toNodeText(data.answer)}
         </Text>
       )}
 
@@ -149,7 +156,7 @@ function SummaryNode({ data }: NodeProps) {
         {status === 'success' && <Icon as={FiCheckCircle} />}
       </HStack>
       <Text fontSize="sm" fontWeight="500">
-        {String(data.label ?? '')}
+        {toNodeText(data.label)}
       </Text>
     </Box>
   );

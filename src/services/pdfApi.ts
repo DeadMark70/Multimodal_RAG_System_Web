@@ -69,7 +69,7 @@ export async function getDocumentStatus(docId: string): Promise<StatusResponse> 
  * 下載翻譯後的 PDF
  */
 export async function downloadPdf(docId: string): Promise<Blob> {
-  const response = await api.get(`/pdfmd/file/${docId}`, {
+  const response = await api.get<Blob>(`/pdfmd/file/${docId}`, {
     responseType: 'blob',
   });
   return response.data;
@@ -79,7 +79,7 @@ export async function downloadPdf(docId: string): Promise<Blob> {
  * 刪除文件
  */
 export async function deleteDocument(docId: string): Promise<{ status: string; message: string }> {
-  const response = await api.delete(`/pdfmd/file/${docId}`);
+  const response = await api.delete<{ status: string; message: string }>(`/pdfmd/file/${docId}`);
   return response.data;
 }
 
@@ -103,6 +103,6 @@ export async function getDocumentSummary(docId: string): Promise<SummaryResponse
  * 重新生成摘要
  */
 export async function regenerateSummary(docId: string): Promise<{ status: string; message: string }> {
-  const response = await api.post(`/pdfmd/file/${docId}/summary/regenerate`);
+  const response = await api.post<{ status: string; message: string }>(`/pdfmd/file/${docId}/summary/regenerate`);
   return response.data;
 }

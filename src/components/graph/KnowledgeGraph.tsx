@@ -84,6 +84,16 @@ export interface KnowledgeGraphProps {
   height?: number;
 }
 
+type ForceNode = Omit<GraphNode, 'fx' | 'fy'> & {
+  fx?: number;
+  fy?: number;
+};
+
+type ForceLink = Omit<GraphLink, 'source' | 'target'> & {
+  source: string | number | ForceNode;
+  target: string | number | ForceNode;
+};
+
 export function KnowledgeGraph({
   data,
   onNodeClick,
@@ -91,7 +101,7 @@ export function KnowledgeGraph({
   width: propWidth,
   height: propHeight = 600,
 }: KnowledgeGraphProps) {
-  const graphRef = useRef<ForceGraphMethods | undefined>();
+  const graphRef = useRef<ForceGraphMethods<ForceNode, ForceLink> | undefined>();
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const actions = useSessionActions();
@@ -102,6 +112,19 @@ export function KnowledgeGraph({
   const linkColor = useColorModeValue('#a0aec0', '#4a5568');
 
   const graphData = useMemo(() => data ?? MOCK_GRAPH_DATA, [data]);
+  const forceGraphData = useMemo(
+    () => ({
+      nodes: graphData.nodes.map((node) => ({
+        ...node,
+        fx: node.fx ?? undefined,
+        fy: node.fy ?? undefined,
+      })),
+      links: graphData.links.map((link) => ({
+        ...link,
+      })),
+    }),
+    [graphData]
+  );
 
   // Resize Observer
   useEffect(() => {
@@ -114,18 +137,18 @@ export function KnowledgeGraph({
     return () => observer.disconnect();
   }, []);
 
-  const getNodeColor = useCallback((node: GraphNode) => {
+  const getNodeColor = useCallback((node: ForceNode) => {
     const groupIndex = (node.group ?? 0) % COMMUNITY_COLORS.length;
     return COMMUNITY_COLORS[groupIndex];
   }, []);
 
-  const handleNodeClick = useCallback((node: GraphNode) => {
+  const handleNodeClick = useCallback((node: ForceNode) => {
       actions.setSelectedNodeId(node.id);
       if (graphRef.current && typeof node.x === 'number' && typeof node.y === 'number') {
         graphRef.current.centerAt(node.x, node.y, 500);
         graphRef.current.zoom(2, 500);
       }
-      onNodeClick?.(node);
+      onNodeClick?.(node as GraphNode);
     },
     [actions, onNodeClick]
   );
@@ -142,26 +165,26 @@ export function KnowledgeGraph({
     <Box ref={containerRef} w="full" h={propHeight ? `${propHeight}px` : "full"} minH="400px" position="relative" overflow="hidden" borderRadius="xl" bg={bgColor}>
       {!isLoading && (dimensions.width > 0 || propWidth) && (
         <ForceGraph2D
-          ref={graphRef as any}
-          graphData={graphData as any}
+          ref={graphRef}
+          graphData={forceGraphData}
           width={dimensions.width || propWidth || 800}
           height={dimensions.height || propHeight || 600}
           backgroundColor={bgColor}
-          nodeLabel={(node: GraphNode) => `${node.id ?? ''}\n${node.desc ?? ''}`}
+          nodeLabel={(node: ForceNode) => `${node.id ?? ''}\n${node.desc ?? ''}`}
           nodeColor={getNodeColor}
           nodeRelSize={6}
-          nodeVal={(node: GraphNode) => node.val ?? 5}
+          nodeVal={(node: ForceNode) => node.val ?? 5}
           linkColor={() => linkColor}
           linkWidth={1.5}
           linkDirectionalArrowLength={4}
           linkDirectionalArrowRelPos={0.9}
-          linkLabel={(link: GraphLink) => link.label ?? ''}
-          onNodeClick={handleNodeClick}
-          onNodeDragEnd={(node: GraphNode) => {
+          linkLabel={(link: ForceLink) => link.label ?? ''}
+          onNodeClick={(node) => handleNodeClick(node as ForceNode)}
+          onNodeDragEnd={(node: ForceNode) => {
             node.fx = node.x;
             node.fy = node.y;
           }}
-          nodeCanvasObject={(node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
+          nodeCanvasObject={(node: ForceNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
             const label = node.id ?? '';
             const fontSize = 12 / globalScale;
             const nodeSize = Math.sqrt(node.val ?? 5) * 4;

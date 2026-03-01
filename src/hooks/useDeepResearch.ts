@@ -357,7 +357,7 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
       setIsExecuting(false);
       abortControllerRef.current = null;
     }
-  }, [plan, toast, handleSSEEvent, ragSettings.enable_deep_image_analysis]);
+  }, [plan, toast, handleSSEEvent, ragSettings.enable_deep_image_analysis, currentChatId]);
 
   /**
    * 取消執行

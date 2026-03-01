@@ -5,9 +5,16 @@
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
 
 function isTrue(value: unknown): boolean {
-  return String(value ?? '')
-    .trim()
-    .toLowerCase() === 'true';
+  if (typeof value === 'string') {
+    return value.trim().toLowerCase() === 'true';
+  }
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return String(value).trim().toLowerCase() === 'true';
+  }
+  return false;
 }
 
 export function isTestLikeMode(): boolean {

@@ -129,7 +129,7 @@ export default function ConversationSidebar({
             status: 'info',
         });
       }
-    } catch (error) {
+    } catch {
       toast({
         title: '載入失敗',
         description: '無法載入研究詳情',
