@@ -30,3 +30,14 @@ export type {
   GraphCameraPosition,
   NodeClickEvent,
 } from './graph';
+
+// Evaluation 相關類型
+export type {
+  TestCase,
+  GoldenDatasetImportRequest,
+  ImportResult,
+  DeleteResult,
+  ModelConfig,
+  ModelConfigInput,
+  AvailableModel,
+} from './evaluation';

@@ -9,6 +9,7 @@ import KnowledgeBase from './pages/KnowledgeBase';
 import Chat from './pages/Chat';
 import Experiment from './pages/Experiment';
 import GraphDemo from './pages/GraphDemo';
+import EvaluationCenter from './pages/EvaluationCenter';
 
 // 建立 React Query 客戶端
 const queryClient = new QueryClient({
@@ -32,6 +33,7 @@ function App() {
                   <Route path="/knowledge" element={<KnowledgeBase />} />
                   <Route path="/chat" element={<Chat />} />
                   <Route path="/experiment" element={<Experiment />} />
+                  <Route path="/evaluation" element={<EvaluationCenter />} />
                   <Route path="/graph-demo" element={<GraphDemo />} />
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
               </Routes>
@@ -43,4 +45,3 @@ function App() {
 }
 
 export default App;
-

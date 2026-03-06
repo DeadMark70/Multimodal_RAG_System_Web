@@ -24,6 +24,7 @@ import {
   FiTrendingUp,
   FiSettings,
   FiShare2,
+  FiBookOpen,
   FiSun,
   FiMoon,
   FiMenu,
@@ -172,6 +173,7 @@ export default function Sidebar() {
           <NavItem icon={FiDatabase} to="/knowledge">知識庫</NavItem>
           <NavItem icon={FiMessageSquare} to="/chat">對話</NavItem>
           <NavItem icon={FiTrendingUp} to="/experiment">實驗室</NavItem>
+          <NavItem icon={FiBookOpen} to="/evaluation">評估中心</NavItem>
           <NavItem icon={FiShare2} to="/graph-demo">知識圖譜</NavItem>
         </VStack>
 
@@ -211,6 +213,7 @@ export default function Sidebar() {
               <NavItem icon={FiDatabase} to="/knowledge">知識庫</NavItem>
               <NavItem icon={FiMessageSquare} to="/chat">對話</NavItem>
               <NavItem icon={FiTrendingUp} to="/experiment">實驗室</NavItem>
+              <NavItem icon={FiBookOpen} to="/evaluation">評估中心</NavItem>
               <NavItem icon={FiShare2} to="/graph-demo">知識圖譜</NavItem>
             </VStack>
             <Box px={2} mt={2}>
