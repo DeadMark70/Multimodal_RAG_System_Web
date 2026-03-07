@@ -52,3 +52,92 @@ export interface AvailableModel {
   supported_actions: string[];
 }
 
+export type CampaignMode = 'naive' | 'advanced' | 'graph' | 'agentic';
+
+export type CampaignLifecycleStatus =
+  | 'pending'
+  | 'running'
+  | 'evaluating'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
+
+export type CampaignResultStatus = 'completed' | 'failed';
+
+export interface CampaignConfigInput {
+  test_case_ids: string[];
+  modes: CampaignMode[];
+  model_config: ModelConfig;
+  model_config_id?: string;
+  repeat_count: number;
+  batch_size: number;
+  rpm_limit: number;
+}
+
+export interface CampaignCreateRequest extends CampaignConfigInput {
+  name?: string;
+}
+
+export interface CampaignCreateResponse {
+  campaign_id: string;
+  status: CampaignLifecycleStatus;
+}
+
+export interface CampaignStatus {
+  id: string;
+  name?: string | null;
+  status: CampaignLifecycleStatus;
+  config: CampaignConfigInput;
+  completed_units: number;
+  total_units: number;
+  current_question_id?: string | null;
+  current_mode?: CampaignMode | null;
+  error_message?: string | null;
+  cancel_requested: boolean;
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  updated_at: string;
+}
+
+export interface CampaignResult {
+  id: string;
+  campaign_id: string;
+  question_id: string;
+  question: string;
+  ground_truth: string;
+  mode: CampaignMode;
+  run_number: number;
+  answer: string;
+  contexts: string[];
+  source_doc_ids: string[];
+  expected_sources: string[];
+  latency_ms: number;
+  token_usage: Record<string, number>;
+  category?: string | null;
+  difficulty?: string | null;
+  status: CampaignResultStatus;
+  error_message?: string | null;
+  created_at: string;
+}
+
+export interface CampaignResultsResponse {
+  campaign: CampaignStatus;
+  results: CampaignResult[];
+}
+
+export interface CampaignProgressEvent {
+  campaign_id: string;
+  completed_units: number;
+  total_units: number;
+  current_question_id?: string | null;
+  current_mode?: CampaignMode | null;
+  latest_result_id?: string | null;
+}
+
+export type CampaignStreamEvent =
+  | { type: 'campaign_snapshot'; data: CampaignStatus }
+  | { type: 'campaign_progress'; data: CampaignProgressEvent }
+  | { type: 'campaign_completed'; data: CampaignStatus }
+  | { type: 'campaign_failed'; data: CampaignStatus }
+  | { type: 'campaign_cancelled'; data: CampaignStatus };

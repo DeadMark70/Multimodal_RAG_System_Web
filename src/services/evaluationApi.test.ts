@@ -1,24 +1,51 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import api from './api';
 import {
+  cancelCampaign,
+  createCampaign,
   createModelConfig,
   createTestCase,
   deleteModelConfig,
   deleteTestCase,
+  getCampaignResults,
   importTestCases,
   listAvailableModels,
+  listCampaigns,
   listModelConfigs,
   listTestCases,
+  streamCampaign,
   updateModelConfig,
   updateTestCase,
 } from './evaluationApi';
 
 vi.mock('./api', () => ({
   default: {
+    defaults: {
+      baseURL: 'http://127.0.0.1:8000',
+    },
     get: vi.fn(),
     post: vi.fn(),
     put: vi.fn(),
     delete: vi.fn(),
+  },
+}));
+
+vi.mock('./networkPolicy', () => ({
+  assertAllowedApiTarget: vi.fn(),
+  resolveApiUrl: vi.fn((baseUrl: string, path: string) => `${baseUrl}${path}`),
+}));
+
+vi.mock('./supabase', () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn().mockResolvedValue({
+        data: {
+          session: {
+            access_token: 'test-token',
+          },
+        },
+      }),
+    },
   },
 }));
 
@@ -116,5 +143,92 @@ describe('evaluationApi', () => {
 
     await deleteModelConfig('cfg-1');
     expect(mockedApi.delete).toHaveBeenCalledWith('/api/evaluation/model-configs/cfg-1');
+  });
+
+  it('creates, lists, fetches results, and cancels campaigns', async () => {
+    mockedApi.post
+      .mockResolvedValueOnce({ data: { campaign_id: 'cmp-1', status: 'pending' } })
+      .mockResolvedValueOnce({ data: { id: 'cmp-1', status: 'cancelled' } });
+    mockedApi.get
+      .mockResolvedValueOnce({ data: [{ id: 'cmp-1', status: 'running' }] })
+      .mockResolvedValueOnce({ data: { campaign: { id: 'cmp-1' }, results: [] } });
+
+    await createCampaign({
+      name: 'Smoke',
+      test_case_ids: ['Q1'],
+      modes: ['naive'],
+      model_config: {
+        id: 'cfg-1',
+        name: 'Balanced',
+        model_name: 'gemini-2.5-flash',
+        temperature: 0.7,
+        top_p: 0.95,
+        top_k: 40,
+        max_input_tokens: 8192,
+        max_output_tokens: 2048,
+        thinking_mode: false,
+        thinking_budget: 8192,
+      },
+      model_config_id: 'cfg-1',
+      repeat_count: 1,
+      batch_size: 1,
+      rpm_limit: 60,
+    });
+    expect(mockedApi.post).toHaveBeenNthCalledWith(1, '/api/evaluation/campaigns', expect.any(Object));
+
+    await listCampaigns();
+    expect(mockedApi.get).toHaveBeenNthCalledWith(1, '/api/evaluation/campaigns');
+
+    await getCampaignResults('cmp-1');
+    expect(mockedApi.get).toHaveBeenNthCalledWith(2, '/api/evaluation/campaigns/cmp-1/results');
+
+    await cancelCampaign('cmp-1');
+    expect(mockedApi.post).toHaveBeenNthCalledWith(2, '/api/evaluation/campaigns/cmp-1/cancel');
+  });
+
+  it('streams campaign SSE events via fetch', async () => {
+    const encoder = new TextEncoder();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      body: {
+        getReader: () => {
+          let emitted = false;
+          return {
+            read: vi.fn(async () => {
+              if (emitted) {
+                return { done: true, value: undefined };
+              }
+              emitted = true;
+              return {
+                done: false,
+                value: encoder.encode(
+                  'event: campaign_snapshot\n' +
+                    'data: {"id":"cmp-1","status":"running","config":{"test_case_ids":["Q1"],"modes":["naive"],"model_config":{"id":"cfg-1","name":"Balanced","model_name":"gemini","temperature":0.7,"top_p":0.95,"top_k":40,"max_input_tokens":8192,"max_output_tokens":2048,"thinking_mode":false,"thinking_budget":8192},"repeat_count":1,"batch_size":1,"rpm_limit":60},"completed_units":0,"total_units":1,"cancel_requested":false,"created_at":"2026-03-07T00:00:00+00:00","updated_at":"2026-03-07T00:00:00+00:00"}\n\n' +
+                    'event: campaign_completed\n' +
+                    'data: {"id":"cmp-1","status":"completed","config":{"test_case_ids":["Q1"],"modes":["naive"],"model_config":{"id":"cfg-1","name":"Balanced","model_name":"gemini","temperature":0.7,"top_p":0.95,"top_k":40,"max_input_tokens":8192,"max_output_tokens":2048,"thinking_mode":false,"thinking_budget":8192},"repeat_count":1,"batch_size":1,"rpm_limit":60},"completed_units":1,"total_units":1,"cancel_requested":false,"created_at":"2026-03-07T00:00:00+00:00","completed_at":"2026-03-07T00:00:10+00:00","updated_at":"2026-03-07T00:00:10+00:00"}\n\n'
+                ),
+              };
+            }),
+          };
+        },
+      },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const events: string[] = [];
+    await streamCampaign('cmp-1', (event) => {
+      events.push(event.type);
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/evaluation/campaigns/cmp-1/stream',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-token',
+        }),
+      })
+    );
+    expect(events).toEqual(['campaign_snapshot', 'campaign_completed']);
   });
 });

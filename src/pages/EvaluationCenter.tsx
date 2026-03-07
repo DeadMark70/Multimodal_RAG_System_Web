@@ -3,6 +3,7 @@ import Layout from '../components/layout/Layout';
 import PageHeader from '../components/common/PageHeader';
 import TestCaseManager from '../components/evaluation/TestCaseManager';
 import ModelConfigPanel from '../components/evaluation/ModelConfigPanel';
+import CampaignRunner from '../components/evaluation/CampaignRunner';
 
 export default function EvaluationCenter() {
   return (
@@ -13,7 +14,7 @@ export default function EvaluationCenter() {
         <TabList>
           <Tab>題庫管理</Tab>
           <Tab>模型設定</Tab>
-          <Tab isDisabled>評估活動（Phase 2）</Tab>
+          <Tab>評估活動</Tab>
           <Tab isDisabled>結果分析（Phase 3）</Tab>
         </TabList>
 
@@ -24,8 +25,8 @@ export default function EvaluationCenter() {
           <TabPanel px={0} pt={4}>
             <ModelConfigPanel />
           </TabPanel>
-          <TabPanel>
-            <Text color="gray.500">此功能會在 Phase 2 實作。</Text>
+          <TabPanel px={0} pt={4}>
+            <CampaignRunner />
           </TabPanel>
           <TabPanel>
             <Text color="gray.500">此功能會在 Phase 3 實作。</Text>
@@ -35,4 +36,3 @@ export default function EvaluationCenter() {
     </Layout>
   );
 }
-

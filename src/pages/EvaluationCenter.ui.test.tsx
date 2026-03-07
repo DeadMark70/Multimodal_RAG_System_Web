@@ -17,6 +17,10 @@ vi.mock('../components/evaluation/ModelConfigPanel', () => ({
   default: () => <div>ModelConfigPanel</div>,
 }));
 
+vi.mock('../components/evaluation/CampaignRunner', () => ({
+  default: () => <div>CampaignRunner</div>,
+}));
+
 describe('EvaluationCenter UI', () => {
   it('renders evaluation tabs', () => {
     render(
@@ -28,7 +32,7 @@ describe('EvaluationCenter UI', () => {
     expect(screen.getByTestId('layout')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '題庫管理' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '模型設定' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '評估活動' })).toBeInTheDocument();
     expect(screen.getByText('TestCaseManager')).toBeInTheDocument();
   });
 });
-
