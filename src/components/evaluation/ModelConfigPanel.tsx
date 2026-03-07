@@ -47,6 +47,34 @@ const defaultConfigState = (): ModelConfigInput => ({
   thinking_budget: 8192,
 });
 
+const toErrorMessage = (error: unknown): string => {
+  if (typeof error === 'string' && error) {
+    return error;
+  }
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const maybeMessage = (error as { message?: unknown }).message;
+    if (typeof maybeMessage === 'string' && maybeMessage) {
+      return maybeMessage;
+    }
+  }
+  return '未知錯誤';
+};
+
+const isAuthErrorMessage = (message: string): boolean => {
+  const text = message.toLowerCase();
+  return (
+    text.includes('authorization') ||
+    text.includes('unauthorized') ||
+    text.includes('auth') ||
+    text.includes('missing authorization header') ||
+    text.includes('401') ||
+    text.includes('認證')
+  );
+};
+
 export default function ModelConfigPanel() {
   const [loading, setLoading] = useState(true);
   const [refreshingModels, setRefreshingModels] = useState(false);
@@ -70,6 +98,68 @@ export default function ModelConfigPanel() {
       listModelConfigs(),
     ]);
 
+    const modelErrorMessage =
+      modelsResult.status === 'rejected' ? toErrorMessage(modelsResult.reason) : null;
+    const configErrorMessage =
+      configsResult.status === 'rejected' ? toErrorMessage(configsResult.reason) : null;
+
+    const firstAuthError = [modelErrorMessage, configErrorMessage].find(
+      (message): message is string => Boolean(message && isAuthErrorMessage(message))
+    );
+
+    const bothFailed =
+      modelsResult.status === 'rejected' && configsResult.status === 'rejected';
+    if (bothFailed) {
+      const combinedMessage = [modelErrorMessage, configErrorMessage].filter(Boolean).join(' | ');
+      const authRelated = isAuthErrorMessage(combinedMessage);
+
+      setModels([]);
+      setConfigs([]);
+      setModelLoadError(
+        authRelated
+          ? '登入狀態已失效，請重新登入後再試。'
+          : '模型與預設組載入失敗，請稍後重試。'
+      );
+
+      const toastId = authRelated ? 'evaluation-auth-error' : 'evaluation-load-error';
+      if (!toast.isActive(toastId)) {
+        toast({
+          id: toastId,
+          title: authRelated ? '登入狀態已失效' : '載入失敗',
+          description: authRelated
+            ? '請重新登入後再載入模型與預設組。'
+            : combinedMessage || '請稍後再試。',
+          status: authRelated ? 'error' : 'warning',
+        });
+      }
+      if (forceRefreshModels) {
+        setRefreshingModels(false);
+      } else {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (firstAuthError) {
+      setModels([]);
+      setConfigs([]);
+      setModelLoadError('登入狀態已失效，請重新登入後再試。');
+      if (!toast.isActive('evaluation-auth-error')) {
+        toast({
+          id: 'evaluation-auth-error',
+          title: '登入狀態已失效',
+          description: '請重新登入後再載入模型與預設組。',
+          status: 'error',
+        });
+      }
+      if (forceRefreshModels) {
+        setRefreshingModels(false);
+      } else {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (modelsResult.status === 'fulfilled') {
       const availableModels = modelsResult.value;
       setModels(availableModels);
@@ -86,7 +176,7 @@ export default function ModelConfigPanel() {
         }));
       }
     } else {
-      const message = modelsResult.reason instanceof Error ? modelsResult.reason.message : '未知錯誤';
+      const message = modelErrorMessage ?? '未知錯誤';
       setModelLoadError(message);
       toast({
         title: '模型列表載入失敗',
@@ -98,9 +188,10 @@ export default function ModelConfigPanel() {
     if (configsResult.status === 'fulfilled') {
       setConfigs(configsResult.value);
     } else {
+      setConfigs([]);
       toast({
         title: '載入模型預設組失敗',
-        description: configsResult.reason instanceof Error ? configsResult.reason.message : '未知錯誤',
+        description: configErrorMessage ?? '未知錯誤',
         status: 'error',
       });
     }
