@@ -3,6 +3,7 @@ import type {
   AvailableModel,
   CampaignCreateRequest,
   CampaignCreateResponse,
+  CampaignMetricsResponse,
   CampaignResultsResponse,
   CampaignStatus,
   CampaignStreamEvent,
@@ -80,6 +81,16 @@ export async function listCampaigns(): Promise<CampaignStatus[]> {
 
 export async function getCampaignResults(campaignId: string): Promise<CampaignResultsResponse> {
   const response = await api.get<CampaignResultsResponse>(`/api/evaluation/campaigns/${campaignId}/results`);
+  return response.data;
+}
+
+export async function getCampaignMetrics(campaignId: string): Promise<CampaignMetricsResponse> {
+  const response = await api.get<CampaignMetricsResponse>(`/api/evaluation/campaigns/${campaignId}/metrics`);
+  return response.data;
+}
+
+export async function evaluateCampaign(campaignId: string): Promise<CampaignStatus> {
+  const response = await api.post<CampaignStatus>(`/api/evaluation/campaigns/${campaignId}/evaluate`);
   return response.data;
 }
 

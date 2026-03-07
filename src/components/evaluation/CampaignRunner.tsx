@@ -62,8 +62,12 @@ interface ActiveCampaignState {
 function progressFromCampaign(campaign: CampaignStatus): CampaignProgressEvent {
   return {
     campaign_id: campaign.id,
+    status: campaign.status,
+    phase: campaign.phase,
     completed_units: campaign.completed_units,
     total_units: campaign.total_units,
+    evaluation_completed_units: campaign.evaluation_completed_units,
+    evaluation_total_units: campaign.evaluation_total_units,
     current_question_id: campaign.current_question_id,
     current_mode: campaign.current_mode,
   };
@@ -80,8 +84,12 @@ function patchCampaignProgress(campaigns: CampaignStatus[], progress: CampaignPr
     campaign.id === progress.campaign_id
       ? {
           ...campaign,
+          status: progress.status,
+          phase: progress.phase,
           completed_units: progress.completed_units,
           total_units: progress.total_units,
+          evaluation_completed_units: progress.evaluation_completed_units,
+          evaluation_total_units: progress.evaluation_total_units,
           current_question_id: progress.current_question_id,
           current_mode: progress.current_mode,
         }
@@ -161,10 +169,15 @@ export default function CampaignRunner() {
     [categoryFilter, testCases]
   );
   const activeProgress = activeCampaign.progress ?? (activeCampaign.snapshot ? progressFromCampaign(activeCampaign.snapshot) : null);
-  const progressPercent =
-    activeProgress && activeProgress.total_units > 0
-      ? Math.round((activeProgress.completed_units / activeProgress.total_units) * 100)
-      : 0;
+  const progressPercent = activeProgress
+    ? activeProgress.phase === 'evaluation'
+      ? activeProgress.evaluation_total_units > 0
+        ? Math.round((activeProgress.evaluation_completed_units / activeProgress.evaluation_total_units) * 100)
+        : 0
+      : activeProgress.total_units > 0
+        ? Math.round((activeProgress.completed_units / activeProgress.total_units) * 100)
+        : 0
+    : 0;
 
   const reloadCampaigns = useCallback(async (): Promise<CampaignStatus[]> => {
     const items = await listCampaigns();
@@ -178,8 +191,12 @@ export default function CampaignRunner() {
         snapshot: prev.snapshot && prev.snapshot.id === event.data.campaign_id
           ? {
               ...prev.snapshot,
+              status: event.data.status,
+              phase: event.data.phase,
               completed_units: event.data.completed_units,
               total_units: event.data.total_units,
+              evaluation_completed_units: event.data.evaluation_completed_units,
+              evaluation_total_units: event.data.evaluation_total_units,
               current_question_id: event.data.current_question_id,
               current_mode: event.data.current_mode,
             }
@@ -516,7 +533,12 @@ export default function CampaignRunner() {
                 </HStack>
                 <Progress value={progressPercent} borderRadius="md" />
                 <Text>
-                  {activeProgress?.completed_units ?? 0} / {activeProgress?.total_units ?? 0}
+                  {activeProgress?.phase === 'evaluation'
+                    ? `${activeProgress?.evaluation_completed_units ?? 0} / ${activeProgress?.evaluation_total_units ?? 0}`
+                    : `${activeProgress?.completed_units ?? 0} / ${activeProgress?.total_units ?? 0}`}
+                </Text>
+                <Text color="gray.600">
+                  目前階段：{activeProgress?.phase === 'evaluation' ? 'RAGAS 評估' : 'Raw 執行'}
                 </Text>
                 <Text color="gray.600">
                   目前題目：{activeProgress?.current_question_id || '待命中'}
@@ -632,4 +654,3 @@ export default function CampaignRunner() {
     </VStack>
   );
 }
-

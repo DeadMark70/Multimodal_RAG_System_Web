@@ -53,6 +53,7 @@ export interface AvailableModel {
 }
 
 export type CampaignMode = 'naive' | 'advanced' | 'graph' | 'agentic';
+export type CampaignEvaluationPhase = 'execution' | 'evaluation';
 
 export type CampaignLifecycleStatus =
   | 'pending'
@@ -87,9 +88,12 @@ export interface CampaignStatus {
   id: string;
   name?: string | null;
   status: CampaignLifecycleStatus;
+  phase: CampaignEvaluationPhase;
   config: CampaignConfigInput;
   completed_units: number;
   total_units: number;
+  evaluation_completed_units: number;
+  evaluation_total_units: number;
   current_question_id?: string | null;
   current_mode?: CampaignMode | null;
   error_message?: string | null;
@@ -128,11 +132,53 @@ export interface CampaignResultsResponse {
 
 export interface CampaignProgressEvent {
   campaign_id: string;
+  status: CampaignLifecycleStatus;
+  phase: CampaignEvaluationPhase;
   completed_units: number;
   total_units: number;
+  evaluation_completed_units: number;
+  evaluation_total_units: number;
   current_question_id?: string | null;
   current_mode?: CampaignMode | null;
   latest_result_id?: string | null;
+}
+
+export interface MetricAggregate {
+  mean: number;
+  max: number;
+  stddev: number;
+}
+
+export interface CampaignMetricRow {
+  campaign_result_id: string;
+  question_id: string;
+  question: string;
+  mode: CampaignMode;
+  run_number: number;
+  category?: string | null;
+  difficulty?: string | null;
+  total_tokens: number;
+  faithfulness: number;
+  answer_correctness: number;
+}
+
+export interface ModeMetricsSummary {
+  mode: CampaignMode;
+  sample_count: number;
+  faithfulness: MetricAggregate;
+  answer_correctness: MetricAggregate;
+  total_tokens: MetricAggregate;
+  delta_answer_correctness: number;
+  delta_total_tokens: number;
+  ecr?: number | null;
+  ecr_note?: string | null;
+}
+
+export interface CampaignMetricsResponse {
+  campaign: CampaignStatus;
+  evaluator_model: string;
+  summary_by_mode: Partial<Record<CampaignMode, ModeMetricsSummary>>;
+  rows: CampaignMetricRow[];
 }
 
 export type CampaignStreamEvent =

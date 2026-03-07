@@ -7,6 +7,8 @@ import {
   createTestCase,
   deleteModelConfig,
   deleteTestCase,
+  evaluateCampaign,
+  getCampaignMetrics,
   getCampaignResults,
   importTestCases,
   listAvailableModels,
@@ -145,13 +147,36 @@ describe('evaluationApi', () => {
     expect(mockedApi.delete).toHaveBeenCalledWith('/api/evaluation/model-configs/cfg-1');
   });
 
-  it('creates, lists, fetches results, and cancels campaigns', async () => {
+  it('creates, lists, fetches results, evaluates, loads metrics, and cancels campaigns', async () => {
     mockedApi.post
       .mockResolvedValueOnce({ data: { campaign_id: 'cmp-1', status: 'pending' } })
+      .mockResolvedValueOnce({
+        data: {
+          id: 'cmp-1',
+          status: 'evaluating',
+          phase: 'evaluation',
+          config: {},
+          completed_units: 1,
+          total_units: 1,
+          evaluation_completed_units: 0,
+          evaluation_total_units: 1,
+          cancel_requested: false,
+          created_at: '2026-03-07T00:00:00+00:00',
+          updated_at: '2026-03-07T00:00:00+00:00',
+        },
+      })
       .mockResolvedValueOnce({ data: { id: 'cmp-1', status: 'cancelled' } });
     mockedApi.get
-      .mockResolvedValueOnce({ data: [{ id: 'cmp-1', status: 'running' }] })
-      .mockResolvedValueOnce({ data: { campaign: { id: 'cmp-1' }, results: [] } });
+      .mockResolvedValueOnce([{ data: [{ id: 'cmp-1', status: 'running' }] }][0])
+      .mockResolvedValueOnce({ data: { campaign: { id: 'cmp-1' }, results: [] } })
+      .mockResolvedValueOnce({
+        data: {
+          campaign: { id: 'cmp-1' },
+          evaluator_model: 'gemini-2.5-pro',
+          summary_by_mode: {},
+          rows: [],
+        },
+      });
 
     await createCampaign({
       name: 'Smoke',
@@ -182,8 +207,14 @@ describe('evaluationApi', () => {
     await getCampaignResults('cmp-1');
     expect(mockedApi.get).toHaveBeenNthCalledWith(2, '/api/evaluation/campaigns/cmp-1/results');
 
+    await getCampaignMetrics('cmp-1');
+    expect(mockedApi.get).toHaveBeenNthCalledWith(3, '/api/evaluation/campaigns/cmp-1/metrics');
+
+    await evaluateCampaign('cmp-1');
+    expect(mockedApi.post).toHaveBeenNthCalledWith(2, '/api/evaluation/campaigns/cmp-1/evaluate');
+
     await cancelCampaign('cmp-1');
-    expect(mockedApi.post).toHaveBeenNthCalledWith(2, '/api/evaluation/campaigns/cmp-1/cancel');
+    expect(mockedApi.post).toHaveBeenNthCalledWith(3, '/api/evaluation/campaigns/cmp-1/cancel');
   });
 
   it('streams campaign SSE events via fetch', async () => {
@@ -203,9 +234,9 @@ describe('evaluationApi', () => {
                 done: false,
                 value: encoder.encode(
                   'event: campaign_snapshot\n' +
-                    'data: {"id":"cmp-1","status":"running","config":{"test_case_ids":["Q1"],"modes":["naive"],"model_config":{"id":"cfg-1","name":"Balanced","model_name":"gemini","temperature":0.7,"top_p":0.95,"top_k":40,"max_input_tokens":8192,"max_output_tokens":2048,"thinking_mode":false,"thinking_budget":8192},"repeat_count":1,"batch_size":1,"rpm_limit":60},"completed_units":0,"total_units":1,"cancel_requested":false,"created_at":"2026-03-07T00:00:00+00:00","updated_at":"2026-03-07T00:00:00+00:00"}\n\n' +
+                    'data: {"id":"cmp-1","status":"running","phase":"execution","config":{"test_case_ids":["Q1"],"modes":["naive"],"model_config":{"id":"cfg-1","name":"Balanced","model_name":"gemini","temperature":0.7,"top_p":0.95,"top_k":40,"max_input_tokens":8192,"max_output_tokens":2048,"thinking_mode":false,"thinking_budget":8192},"repeat_count":1,"batch_size":1,"rpm_limit":60},"completed_units":0,"total_units":1,"evaluation_completed_units":0,"evaluation_total_units":0,"cancel_requested":false,"created_at":"2026-03-07T00:00:00+00:00","updated_at":"2026-03-07T00:00:00+00:00"}\n\n' +
                     'event: campaign_completed\n' +
-                    'data: {"id":"cmp-1","status":"completed","config":{"test_case_ids":["Q1"],"modes":["naive"],"model_config":{"id":"cfg-1","name":"Balanced","model_name":"gemini","temperature":0.7,"top_p":0.95,"top_k":40,"max_input_tokens":8192,"max_output_tokens":2048,"thinking_mode":false,"thinking_budget":8192},"repeat_count":1,"batch_size":1,"rpm_limit":60},"completed_units":1,"total_units":1,"cancel_requested":false,"created_at":"2026-03-07T00:00:00+00:00","completed_at":"2026-03-07T00:00:10+00:00","updated_at":"2026-03-07T00:00:10+00:00"}\n\n'
+                    'data: {"id":"cmp-1","status":"completed","phase":"evaluation","config":{"test_case_ids":["Q1"],"modes":["naive"],"model_config":{"id":"cfg-1","name":"Balanced","model_name":"gemini","temperature":0.7,"top_p":0.95,"top_k":40,"max_input_tokens":8192,"max_output_tokens":2048,"thinking_mode":false,"thinking_budget":8192},"repeat_count":1,"batch_size":1,"rpm_limit":60},"completed_units":1,"total_units":1,"evaluation_completed_units":1,"evaluation_total_units":1,"cancel_requested":false,"created_at":"2026-03-07T00:00:00+00:00","completed_at":"2026-03-07T00:00:10+00:00","updated_at":"2026-03-07T00:00:10+00:00"}\n\n'
                 ),
               };
             }),
