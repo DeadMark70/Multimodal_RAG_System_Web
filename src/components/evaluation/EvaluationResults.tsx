@@ -62,6 +62,59 @@ const MODE_COLORS: Record<CampaignMode, string> = {
   agentic: '#C53030',
 };
 
+function downloadTextFile(filename: string, content: string, mimeType: string): void {
+  const blob = new Blob([content], { type: `${mimeType};charset=utf-8` });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function csvCell(value: string | number | null | undefined): string {
+  if (value == null) {
+    return '';
+  }
+  const text = String(value);
+  if (text.includes(',') || text.includes('"') || text.includes('\n')) {
+    return `"${text.replaceAll('"', '""')}"`;
+  }
+  return text;
+}
+
+function metricsToCsv(metrics: CampaignMetricsResponse): string {
+  const headers = [
+    'campaign_result_id',
+    'question_id',
+    'question',
+    'mode',
+    'run_number',
+    'category',
+    'difficulty',
+    'total_tokens',
+    'faithfulness',
+    'answer_correctness',
+  ];
+  const rows = metrics.rows.map((row) =>
+    [
+      row.campaign_result_id,
+      row.question_id,
+      row.question,
+      row.mode,
+      row.run_number,
+      row.category,
+      row.difficulty,
+      row.total_tokens,
+      row.faithfulness,
+      row.answer_correctness,
+    ]
+      .map(csvCell)
+      .join(',')
+  );
+  return [headers.join(','), ...rows].join('\n');
+}
+
 function ecrColor(ecr?: number | null): string {
   if (ecr == null) {
     return 'gray';
@@ -201,6 +254,28 @@ export default function EvaluationResults() {
     [metrics]
   );
 
+  const handleExportJson = useCallback(() => {
+    if (!metrics) {
+      return;
+    }
+    downloadTextFile(
+      `campaign-${metrics.campaign.id}-metrics.json`,
+      `${JSON.stringify(metrics, null, 2)}\n`,
+      'application/json'
+    );
+  }, [metrics]);
+
+  const handleExportCsv = useCallback(() => {
+    if (!metrics) {
+      return;
+    }
+    downloadTextFile(
+      `campaign-${metrics.campaign.id}-metrics.csv`,
+      metricsToCsv(metrics),
+      'text/csv'
+    );
+  }, [metrics]);
+
   const radarData = useMemo(() => {
     if (summaryEntries.length === 0) {
       return [];
@@ -255,6 +330,12 @@ export default function EvaluationResults() {
             </Select>
           </Box>
           <HStack>
+            <Button variant="outline" onClick={handleExportJson} isDisabled={!metrics}>
+              匯出 JSON
+            </Button>
+            <Button variant="outline" onClick={handleExportCsv} isDisabled={!metrics}>
+              匯出 CSV
+            </Button>
             {selectedCampaign && (
               <Badge colorScheme={selectedCampaign.status === 'failed' ? 'red' : selectedCampaign.status === 'evaluating' ? 'blue' : 'green'}>
                 {selectedCampaign.status}

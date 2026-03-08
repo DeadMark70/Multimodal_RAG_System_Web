@@ -11,11 +11,14 @@ interface StabilityChartProps {
 
 interface BoxStats {
   mode: CampaignMode;
+  values: number[];
   min: number;
   q1: number;
+  mean: number;
   median: number;
   q3: number;
   max: number;
+  stddev: number;
 }
 
 const MODE_COLORS: Record<CampaignMode, string> = {
@@ -46,6 +49,74 @@ function percentile(sorted: number[], ratio: number): number {
   return sorted[lower] * (1 - weight) + sorted[upper] * weight;
 }
 
+function average(values: number[]): number {
+  if (values.length === 0) {
+    return 0;
+  }
+  return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
+function sampleStddev(values: number[]): number {
+  if (values.length <= 1) {
+    return 0;
+  }
+  const mean = average(values);
+  const variance =
+    values.reduce((total, value) => total + (value - mean) ** 2, 0) / (values.length - 1);
+  return Math.sqrt(variance);
+}
+
+function violinPath(
+  values: number[],
+  {
+    x,
+    maxHalfWidth,
+    yFor,
+  }: {
+    x: number;
+    maxHalfWidth: number;
+    yFor: (value: number) => number;
+  }
+): string {
+  if (values.length < 2) {
+    return '';
+  }
+
+  const sorted = [...values].sort((left, right) => left - right);
+  const min = sorted[0];
+  const max = sorted[sorted.length - 1];
+
+  if (min === max) {
+    const y = yFor(min);
+    return `M ${x - 4} ${y} L ${x + 4} ${y}`;
+  }
+
+  const bandwidth = Math.max((max - min) / 6, Number.EPSILON);
+  const steps = 24;
+  const points = Array.from({ length: steps + 1 }, (_, index) => {
+    const value = min + ((max - min) * index) / steps;
+    const density = sorted.reduce((total, sample) => {
+      const normalized = (value - sample) / bandwidth;
+      return total + Math.exp(-0.5 * normalized * normalized);
+    }, 0);
+    return { value, density };
+  });
+
+  const peakDensity = Math.max(...points.map((point) => point.density), Number.EPSILON);
+  const left = points.map((point) => {
+    const halfWidth = (point.density / peakDensity) * maxHalfWidth;
+    return `${(x - halfWidth).toFixed(2)} ${yFor(point.value).toFixed(2)}`;
+  });
+  const right = [...points]
+    .reverse()
+    .map((point) => {
+      const halfWidth = (point.density / peakDensity) * maxHalfWidth;
+      return `${(x + halfWidth).toFixed(2)} ${yFor(point.value).toFixed(2)}`;
+    });
+
+  return `M ${left[0]} L ${left.slice(1).join(' L ')} L ${right.join(' L ')} Z`;
+}
+
 function metricLabel(metric: StabilityMetric): string {
   switch (metric) {
     case 'answer_correctness':
@@ -72,11 +143,14 @@ export default function StabilityChart({ rows, metric }: StabilityChartProps) {
       const sorted = [...values].sort((left, right) => left - right);
       return {
         mode,
+        values: sorted,
         min: sorted[0] ?? 0,
         q1: percentile(sorted, 0.25),
+        mean: average(sorted),
         median: percentile(sorted, 0.5),
         q3: percentile(sorted, 0.75),
         max: sorted[sorted.length - 1] ?? 0,
+        stddev: sampleStddev(sorted),
       } satisfies BoxStats;
     });
   }, [metric, rows]);
@@ -100,7 +174,7 @@ export default function StabilityChart({ rows, metric }: StabilityChartProps) {
     return (
       <Box borderWidth="1px" borderRadius="lg" p={5}>
         <Heading size="md" mb={4}>穩定性分佈</Heading>
-        <Text color="gray.500">沒有足夠資料可繪製 box plot。</Text>
+        <Text color="gray.500">沒有足夠資料可繪製 box / violin plot。</Text>
       </Box>
     );
   }
@@ -110,7 +184,12 @@ export default function StabilityChart({ rows, metric }: StabilityChartProps) {
       <Heading size="md" mb={4}>穩定性分佈：{metricLabel(metric)}</Heading>
       <VStack align="stretch" spacing={3}>
         <Box overflowX="auto">
-          <svg width={chartWidth} height={chartHeight} role="img" aria-label={`${metricLabel(metric)} box plot`}>
+          <svg
+            width={chartWidth}
+            height={chartHeight}
+            role="img"
+            aria-label={`${metricLabel(metric)} box and violin plot`}
+          >
             <line
               x1={leftPadding}
               y1={chartHeight - bottomPadding}
@@ -121,9 +200,20 @@ export default function StabilityChart({ rows, metric }: StabilityChartProps) {
             {stats.map((entry, index) => {
               const x = leftPadding + ((index + 0.5) * innerWidth) / stats.length;
               const boxWidth = Math.min(44, innerWidth / Math.max(stats.length * 2, 2));
+              const violinWidth = Math.max(boxWidth, 28);
               const color = MODE_COLORS[entry.mode];
               return (
                 <g key={entry.mode}>
+                  <path
+                    d={violinPath(entry.values, {
+                      x,
+                      maxHalfWidth: violinWidth,
+                      yFor,
+                    })}
+                    fill={color}
+                    fillOpacity="0.12"
+                    stroke="none"
+                  />
                   <line x1={x} y1={yFor(entry.min)} x2={x} y2={yFor(entry.max)} stroke={color} strokeWidth="2" />
                   <line x1={x - 12} y1={yFor(entry.min)} x2={x + 12} y2={yFor(entry.min)} stroke={color} strokeWidth="2" />
                   <line x1={x - 12} y1={yFor(entry.max)} x2={x + 12} y2={yFor(entry.max)} stroke={color} strokeWidth="2" />
@@ -160,8 +250,16 @@ export default function StabilityChart({ rows, metric }: StabilityChartProps) {
           </svg>
         </Box>
         <Text color="gray.600" fontSize="sm">
-          顯示每個 mode 的 min / Q1 / median / Q3 / max。
+          顯示每個 mode 的 violin density 與 min / Q1 / median / Q3 / max。
         </Text>
+        <VStack align="stretch" spacing={1}>
+          {stats.map((entry) => (
+            <Text key={entry.mode} color="gray.600" fontSize="sm">
+              {MODE_LABELS[entry.mode]}: mean {entry.mean.toFixed(3)} / max {entry.max.toFixed(3)} / σ{' '}
+              {entry.stddev.toFixed(3)}
+            </Text>
+          ))}
+        </VStack>
       </VStack>
     </Box>
   );

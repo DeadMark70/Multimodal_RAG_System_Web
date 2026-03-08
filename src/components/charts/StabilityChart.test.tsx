@@ -12,10 +12,10 @@ describe('StabilityChart', () => {
       </ChakraProvider>
     );
 
-    expect(screen.getByText('沒有足夠資料可繪製 box plot。')).toBeInTheDocument();
+    expect(screen.getByText('沒有足夠資料可繪製 box / violin plot。')).toBeInTheDocument();
   });
 
-  it('renders svg box plot when rows exist', () => {
+  it('renders svg box and violin plot with summary stats when rows exist', () => {
     render(
       <ChakraProvider theme={theme}>
         <StabilityChart
@@ -46,6 +46,7 @@ describe('StabilityChart', () => {
       </ChakraProvider>
     );
 
-    expect(screen.getByRole('img', { name: 'Answer Correctness box plot' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Answer Correctness box and violin plot' })).toBeInTheDocument();
+    expect(screen.getByText(/Naive: mean 0\.550 \/ max 0\.700 \/ σ 0\.212/)).toBeInTheDocument();
   });
 });

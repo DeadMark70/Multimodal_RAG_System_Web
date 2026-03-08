@@ -41,6 +41,17 @@ beforeAll(() => {
 
 describe('EvaluationResults', () => {
   it('renders metrics summary and rerun action', async () => {
+    const createObjectURL = vi.fn(() => 'blob:metrics');
+    const revokeObjectURL = vi.fn();
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => {});
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL,
+      revokeObjectURL,
+    });
+
     mockListCampaigns.mockResolvedValue([
       {
         id: 'cmp-1',
@@ -172,9 +183,19 @@ describe('EvaluationResults', () => {
     expect(screen.getAllByText('Advanced').length).toBeGreaterThan(0);
     expect(screen.getAllByText('6.00%').length).toBeGreaterThan(0);
 
+    fireEvent.click(screen.getByRole('button', { name: '匯出 JSON' }));
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: '匯出 CSV' }));
+    expect(createObjectURL).toHaveBeenCalledTimes(2);
+    expect(clickSpy).toHaveBeenCalledTimes(2);
+
     fireEvent.click(screen.getByRole('button', { name: '重新執行 RAGAS' }));
     await waitFor(() => {
       expect(mockEvaluateCampaign).toHaveBeenCalledWith('cmp-1');
     });
+
+    clickSpy.mockRestore();
   });
 });
