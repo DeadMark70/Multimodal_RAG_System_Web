@@ -1,17 +1,24 @@
 import { ChakraProvider } from '@chakra-ui/react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import type {
+  getCampaignResultTrace as getCampaignResultTraceFn,
+  listCampaignTraces as listCampaignTracesFn,
+  listCampaigns as listCampaignsFn,
+} from '../../services/evaluationApi';
 import theme from '../../theme';
 import AgentTraceViewer from './AgentTraceViewer';
 
-const mockListCampaigns = vi.fn();
-const mockListCampaignTraces = vi.fn();
-const mockGetCampaignResultTrace = vi.fn();
+const { mockListCampaigns, mockListCampaignTraces, mockGetCampaignResultTrace } = vi.hoisted(() => ({
+  mockListCampaigns: vi.fn<typeof listCampaignsFn>(),
+  mockListCampaignTraces: vi.fn<typeof listCampaignTracesFn>(),
+  mockGetCampaignResultTrace: vi.fn<typeof getCampaignResultTraceFn>(),
+}));
 
 vi.mock('../../services/evaluationApi', () => ({
-  listCampaigns: () => mockListCampaigns(),
-  listCampaignTraces: (...args: unknown[]) => mockListCampaignTraces(...args),
-  getCampaignResultTrace: (...args: unknown[]) => mockGetCampaignResultTrace(...args),
+  listCampaigns: mockListCampaigns,
+  listCampaignTraces: mockListCampaignTraces,
+  getCampaignResultTrace: mockGetCampaignResultTrace,
 }));
 
 describe('AgentTraceViewer', () => {
@@ -80,9 +87,9 @@ describe('AgentTraceViewer', () => {
         created_at: '2026-03-08T00:01:00+00:00',
       },
     ]);
-    mockGetCampaignResultTrace.mockImplementation(async (_campaignId: string, resultId: string) => {
+    mockGetCampaignResultTrace.mockImplementation((_campaignId: string, resultId: string) => {
       if (resultId === 'result-2') {
-        return {
+        return Promise.resolve({
           trace_id: 'trace-2',
           campaign_id: 'cmp-1',
           campaign_result_id: 'result-2',
@@ -111,10 +118,10 @@ describe('AgentTraceViewer', () => {
               metadata: {},
             },
           ],
-        };
+        });
       }
 
-      return {
+      return Promise.resolve({
         trace_id: 'trace-1',
         campaign_id: 'cmp-1',
         campaign_result_id: 'result-1',
@@ -164,7 +171,7 @@ describe('AgentTraceViewer', () => {
             metadata: {},
           },
         ],
-      };
+      });
     });
 
     render(

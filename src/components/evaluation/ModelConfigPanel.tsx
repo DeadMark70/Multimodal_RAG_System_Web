@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Box,
@@ -86,7 +86,7 @@ export default function ModelConfigPanel() {
   const [form, setForm] = useState<ModelConfigInput>(defaultConfigState);
   const toast = useToast();
 
-  const reload = async (forceRefreshModels = false) => {
+  const reload = useCallback(async (forceRefreshModels = false) => {
     if (forceRefreshModels) {
       setRefreshingModels(true);
     } else {
@@ -164,8 +164,11 @@ export default function ModelConfigPanel() {
       const availableModels = modelsResult.value;
       setModels(availableModels);
       setModelLoadError(null);
-      if (!form.model_name && availableModels.length > 0) {
-        setForm((prev) => ({
+      setForm((prev) => {
+        if (prev.model_name || availableModels.length === 0) {
+          return prev;
+        }
+        return {
           ...prev,
           model_name: availableModels[0].name,
           max_input_tokens: availableModels[0].input_token_limit ?? prev.max_input_tokens,
@@ -173,8 +176,8 @@ export default function ModelConfigPanel() {
             prev.max_output_tokens,
             availableModels[0].output_token_limit ?? prev.max_output_tokens
           ),
-        }));
-      }
+        };
+      });
     } else {
       const message = modelErrorMessage ?? '未知錯誤';
       setModelLoadError(message);
@@ -201,11 +204,11 @@ export default function ModelConfigPanel() {
     } else {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     void reload();
-  }, []);
+  }, [reload]);
 
   const selectedModel = useMemo(
     () => models.find((item) => item.name === form.model_name) ?? null,

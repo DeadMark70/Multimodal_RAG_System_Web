@@ -1,27 +1,35 @@
 import { ChakraProvider } from '@chakra-ui/react';
-import { cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
+import { cloneElement, isValidElement, type ReactNode } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import type * as Recharts from 'recharts';
+import type {
+  evaluateCampaign as evaluateCampaignFn,
+  getCampaignMetrics as getCampaignMetricsFn,
+  listCampaigns as listCampaignsFn,
+} from '../../services/evaluationApi';
 import theme from '../../theme';
 import EvaluationResults from './EvaluationResults';
 
-const mockListCampaigns = vi.fn();
-const mockGetCampaignMetrics = vi.fn();
-const mockEvaluateCampaign = vi.fn();
+const { mockListCampaigns, mockGetCampaignMetrics, mockEvaluateCampaign } = vi.hoisted(() => ({
+  mockListCampaigns: vi.fn<typeof listCampaignsFn>(),
+  mockGetCampaignMetrics: vi.fn<typeof getCampaignMetricsFn>(),
+  mockEvaluateCampaign: vi.fn<typeof evaluateCampaignFn>(),
+}));
 
 vi.mock('../../services/evaluationApi', () => ({
-  listCampaigns: () => mockListCampaigns(),
-  getCampaignMetrics: (...args: unknown[]) => mockGetCampaignMetrics(...args),
-  evaluateCampaign: (...args: unknown[]) => mockEvaluateCampaign(...args),
+  listCampaigns: mockListCampaigns,
+  getCampaignMetrics: mockGetCampaignMetrics,
+  evaluateCampaign: mockEvaluateCampaign,
 }));
 
 vi.mock('recharts', async () => {
-  const actual = await vi.importActual<typeof import('recharts')>('recharts');
+  const actual = await vi.importActual<typeof Recharts>('recharts');
   return {
     ...actual,
     ResponsiveContainer: ({ children }: { children: ReactNode }) => {
-      if (isValidElement(children)) {
-        return cloneElement(children as ReactElement<{ width?: number; height?: number }>, {
+      if (isValidElement<{ width?: number; height?: number }>(children)) {
+        return cloneElement(children, {
           width: 800,
           height: 320,
         });

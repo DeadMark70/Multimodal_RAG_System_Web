@@ -1,25 +1,44 @@
 import { ChakraProvider } from '@chakra-ui/react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import type {
+  cancelCampaign as cancelCampaignFn,
+  createCampaign as createCampaignFn,
+  getCampaignResults as getCampaignResultsFn,
+  listCampaigns as listCampaignsFn,
+  listModelConfigs as listModelConfigsFn,
+  listTestCases as listTestCasesFn,
+  streamCampaign as streamCampaignFn,
+} from '../../services/evaluationApi';
 import theme from '../../theme';
 import CampaignRunner from './CampaignRunner';
 
-const mockListTestCases = vi.fn();
-const mockListModelConfigs = vi.fn();
-const mockListCampaigns = vi.fn();
-const mockCreateCampaign = vi.fn();
-const mockStreamCampaign = vi.fn();
-const mockGetCampaignResults = vi.fn();
-const mockCancelCampaign = vi.fn();
+const {
+  mockListTestCases,
+  mockListModelConfigs,
+  mockListCampaigns,
+  mockCreateCampaign,
+  mockStreamCampaign,
+  mockGetCampaignResults,
+  mockCancelCampaign,
+} = vi.hoisted(() => ({
+  mockListTestCases: vi.fn<typeof listTestCasesFn>(),
+  mockListModelConfigs: vi.fn<typeof listModelConfigsFn>(),
+  mockListCampaigns: vi.fn<typeof listCampaignsFn>(),
+  mockCreateCampaign: vi.fn<typeof createCampaignFn>(),
+  mockStreamCampaign: vi.fn<typeof streamCampaignFn>(),
+  mockGetCampaignResults: vi.fn<typeof getCampaignResultsFn>(),
+  mockCancelCampaign: vi.fn<typeof cancelCampaignFn>(),
+}));
 
 vi.mock('../../services/evaluationApi', () => ({
-  listTestCases: () => mockListTestCases(),
-  listModelConfigs: () => mockListModelConfigs(),
-  listCampaigns: () => mockListCampaigns(),
-  createCampaign: (...args: unknown[]) => mockCreateCampaign(...args),
-  streamCampaign: (...args: unknown[]) => mockStreamCampaign(...args),
-  getCampaignResults: (...args: unknown[]) => mockGetCampaignResults(...args),
-  cancelCampaign: (...args: unknown[]) => mockCancelCampaign(...args),
+  listTestCases: mockListTestCases,
+  listModelConfigs: mockListModelConfigs,
+  listCampaigns: mockListCampaigns,
+  createCampaign: mockCreateCampaign,
+  streamCampaign: mockStreamCampaign,
+  getCampaignResults: mockGetCampaignResults,
+  cancelCampaign: mockCancelCampaign,
 }));
 
 describe('CampaignRunner', () => {
@@ -125,7 +144,7 @@ describe('CampaignRunner', () => {
         },
       ]);
     mockCreateCampaign.mockResolvedValue({ campaign_id: 'cmp-1', status: 'pending' });
-    mockStreamCampaign.mockImplementation(async (_campaignId: string, onEvent: (event: unknown) => void) => {
+    mockStreamCampaign.mockImplementation((_campaignId, onEvent) => {
       onEvent({
         type: 'campaign_snapshot',
         data: {
@@ -203,6 +222,7 @@ describe('CampaignRunner', () => {
           updated_at: '2026-03-07T00:00:10+00:00',
         },
       });
+      return Promise.resolve();
     });
     mockGetCampaignResults.mockResolvedValue({
       campaign: {

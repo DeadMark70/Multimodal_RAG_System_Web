@@ -250,7 +250,10 @@ export default function EvaluationResults() {
   };
 
   const summaryEntries = useMemo(
-    () => Object.values(metrics?.summary_by_mode ?? {}) as ModeMetricsSummary[],
+    () =>
+      Object.values(metrics?.summary_by_mode ?? {}).filter(
+        (entry): entry is ModeMetricsSummary => entry !== undefined
+      ),
     [metrics]
   );
 
@@ -341,7 +344,13 @@ export default function EvaluationResults() {
                 {selectedCampaign.status}
               </Badge>
             )}
-            <Button onClick={handleRerun} isLoading={rerunning} loadingText="重跑中">
+            <Button
+              onClick={() => {
+                void handleRerun();
+              }}
+              isLoading={rerunning}
+              loadingText="重跑中"
+            >
               重新執行 RAGAS
             </Button>
           </HStack>

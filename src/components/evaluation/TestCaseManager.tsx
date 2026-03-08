@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Badge,
   Box,
@@ -74,7 +74,7 @@ export default function TestCaseManager() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
-  const reload = async () => {
+  const reload = useCallback(async () => {
     setLoading(true);
     try {
       const data = await listTestCases();
@@ -88,11 +88,11 @@ export default function TestCaseManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     void reload();
-  }, []);
+  }, [reload]);
 
   const categories = useMemo(() => {
     return Array.from(new Set(cases.map((item) => item.category).filter(Boolean)));
@@ -486,4 +486,3 @@ export default function TestCaseManager() {
     </VStack>
   );
 }
-

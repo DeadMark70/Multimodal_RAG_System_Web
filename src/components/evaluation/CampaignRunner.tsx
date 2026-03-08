@@ -510,7 +510,9 @@ export default function CampaignRunner() {
 
               <Button
                 colorScheme="blue"
-                onClick={startCampaign}
+                onClick={() => {
+                  void startCampaign();
+                }}
                 isLoading={creating}
                 loadingText="建立中"
               >

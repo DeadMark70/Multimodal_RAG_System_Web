@@ -19,6 +19,29 @@ import type {
 import { assertAllowedApiTarget, resolveApiUrl } from './networkPolicy';
 import { supabase } from './supabase';
 
+type CampaignStreamEventType = CampaignStreamEvent['type'];
+
+function parseCampaignStreamEventData(raw: string): unknown {
+  return JSON.parse(raw) as unknown;
+}
+
+function toCampaignStreamEvent(eventType: string, rawData: string): CampaignStreamEvent | null {
+  const data = parseCampaignStreamEventData(rawData);
+
+  switch (eventType) {
+    case 'campaign_snapshot':
+      return { type: 'campaign_snapshot', data: data as CampaignStatus };
+    case 'campaign_progress':
+      return { type: 'campaign_progress', data: data as CampaignStreamEvent['data'] };
+    case 'campaign_completed':
+      return { type: 'campaign_completed', data: data as CampaignStatus };
+    case 'campaign_failed':
+      return { type: 'campaign_failed', data: data as CampaignStatus };
+    default:
+      return null;
+  }
+}
+
 export async function listTestCases(): Promise<TestCase[]> {
   const response = await api.get<TestCase[]>('/api/evaluation/test-cases');
   return response.data;
@@ -149,7 +172,7 @@ export async function streamCampaign(
 
   const decoder = new TextDecoder();
   let buffer = '';
-  let currentEvent = '';
+  let currentEvent: CampaignStreamEventType | '' = '';
   let currentData = '';
 
   while (true) {
@@ -169,10 +192,10 @@ export async function streamCampaign(
         currentData = line.slice(5).trim();
       } else if (line === '') {
         if (currentEvent && currentData) {
-          onEvent({
-            type: currentEvent as CampaignStreamEvent['type'],
-            data: JSON.parse(currentData),
-          } as CampaignStreamEvent);
+          const event = toCampaignStreamEvent(currentEvent, currentData);
+          if (event) {
+            onEvent(event);
+          }
         }
         currentEvent = '';
         currentData = '';
@@ -181,9 +204,9 @@ export async function streamCampaign(
   }
 
   if (currentEvent && currentData) {
-    onEvent({
-      type: currentEvent as CampaignStreamEvent['type'],
-      data: JSON.parse(currentData),
-    } as CampaignStreamEvent);
+    const event = toCampaignStreamEvent(currentEvent, currentData);
+    if (event) {
+      onEvent(event);
+    }
   }
 }
