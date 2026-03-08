@@ -3,6 +3,7 @@ import api from './api';
 import {
   cancelCampaign,
   createCampaign,
+  getCampaignResultTrace,
   createModelConfig,
   createTestCase,
   deleteModelConfig,
@@ -13,6 +14,7 @@ import {
   importTestCases,
   listAvailableModels,
   listCampaigns,
+  listCampaignTraces,
   listModelConfigs,
   listTestCases,
   streamCampaign,
@@ -169,6 +171,8 @@ describe('evaluationApi', () => {
     mockedApi.get
       .mockResolvedValueOnce([{ data: [{ id: 'cmp-1', status: 'running' }] }][0])
       .mockResolvedValueOnce({ data: { campaign: { id: 'cmp-1' }, results: [] } })
+      .mockResolvedValueOnce({ data: [{ trace_id: 'trace-1', campaign_result_id: 'r1' }] })
+      .mockResolvedValueOnce({ data: { trace_id: 'trace-1', campaign_result_id: 'r1', steps: [] } })
       .mockResolvedValueOnce({
         data: {
           campaign: { id: 'cmp-1' },
@@ -207,8 +211,14 @@ describe('evaluationApi', () => {
     await getCampaignResults('cmp-1');
     expect(mockedApi.get).toHaveBeenNthCalledWith(2, '/api/evaluation/campaigns/cmp-1/results');
 
+    await listCampaignTraces('cmp-1');
+    expect(mockedApi.get).toHaveBeenNthCalledWith(3, '/api/evaluation/campaigns/cmp-1/traces');
+
+    await getCampaignResultTrace('cmp-1', 'r1');
+    expect(mockedApi.get).toHaveBeenNthCalledWith(4, '/api/evaluation/campaigns/cmp-1/results/r1/trace');
+
     await getCampaignMetrics('cmp-1');
-    expect(mockedApi.get).toHaveBeenNthCalledWith(3, '/api/evaluation/campaigns/cmp-1/metrics');
+    expect(mockedApi.get).toHaveBeenNthCalledWith(5, '/api/evaluation/campaigns/cmp-1/metrics');
 
     await evaluateCampaign('cmp-1');
     expect(mockedApi.post).toHaveBeenNthCalledWith(2, '/api/evaluation/campaigns/cmp-1/evaluate');

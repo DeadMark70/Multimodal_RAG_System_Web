@@ -122,6 +122,7 @@ export interface CampaignResult {
   difficulty?: string | null;
   status: CampaignResultStatus;
   error_message?: string | null;
+  has_trace: boolean;
   created_at: string;
 }
 
@@ -179,6 +180,53 @@ export interface CampaignMetricsResponse {
   evaluator_model: string;
   summary_by_mode: Partial<Record<CampaignMode, ModeMetricsSummary>>;
   rows: CampaignMetricRow[];
+}
+
+export type AgentTracePhase = 'planning' | 'execution' | 'drilldown' | 'evaluation' | 'synthesis';
+export type AgentTraceStatus = 'completed' | 'partial' | 'failed';
+
+export interface AgentTraceToolCall {
+  index: number;
+  action: string;
+  status: AgentTraceStatus;
+  payload: Record<string, unknown>;
+  result_preview?: string | null;
+}
+
+export interface AgentTraceStep {
+  step_id: string;
+  phase: AgentTracePhase;
+  step_type: string;
+  title: string;
+  status: AgentTraceStatus;
+  started_at?: string | null;
+  completed_at?: string | null;
+  input_preview?: string | null;
+  output_preview?: string | null;
+  raw_text?: string | null;
+  tool_calls: AgentTraceToolCall[];
+  token_usage: Record<string, number>;
+  metadata: Record<string, unknown>;
+}
+
+export interface AgentTraceSummary {
+  trace_id: string;
+  campaign_result_id: string;
+  question_id: string;
+  question: string;
+  mode: CampaignMode;
+  run_number: number;
+  trace_status: AgentTraceStatus;
+  summary: string;
+  step_count: number;
+  tool_call_count: number;
+  total_tokens: number;
+  created_at: string;
+}
+
+export interface AgentTraceDetail extends AgentTraceSummary {
+  campaign_id: string;
+  steps: AgentTraceStep[];
 }
 
 export type CampaignStreamEvent =

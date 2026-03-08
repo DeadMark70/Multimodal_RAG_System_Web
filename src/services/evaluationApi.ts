@@ -1,5 +1,7 @@
 import api from './api';
 import type {
+  AgentTraceDetail,
+  AgentTraceSummary,
   AvailableModel,
   CampaignCreateRequest,
   CampaignCreateResponse,
@@ -81,6 +83,21 @@ export async function listCampaigns(): Promise<CampaignStatus[]> {
 
 export async function getCampaignResults(campaignId: string): Promise<CampaignResultsResponse> {
   const response = await api.get<CampaignResultsResponse>(`/api/evaluation/campaigns/${campaignId}/results`);
+  return response.data;
+}
+
+export async function listCampaignTraces(campaignId: string): Promise<AgentTraceSummary[]> {
+  const response = await api.get<AgentTraceSummary[]>(`/api/evaluation/campaigns/${campaignId}/traces`);
+  return response.data;
+}
+
+export async function getCampaignResultTrace(
+  campaignId: string,
+  campaignResultId: string
+): Promise<AgentTraceDetail> {
+  const response = await api.get<AgentTraceDetail>(
+    `/api/evaluation/campaigns/${campaignId}/results/${campaignResultId}/trace`
+  );
   return response.data;
 }
 

@@ -25,6 +25,10 @@ vi.mock('../components/evaluation/EvaluationResults', () => ({
   default: () => <div>EvaluationResults</div>,
 }));
 
+vi.mock('../components/evaluation/AgentTraceViewer', () => ({
+  default: () => <div>AgentTraceViewer</div>,
+}));
+
 describe('EvaluationCenter UI', () => {
   it('renders evaluation tabs', () => {
     render(
@@ -38,6 +42,7 @@ describe('EvaluationCenter UI', () => {
     expect(screen.getByRole('tab', { name: '模型設定' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '評估活動' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '結果分析' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Agent Trace' })).toBeInTheDocument();
     expect(screen.getByText('TestCaseManager')).toBeInTheDocument();
   });
 });

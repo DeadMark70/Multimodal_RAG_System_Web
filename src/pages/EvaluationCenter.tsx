@@ -5,6 +5,7 @@ import TestCaseManager from '../components/evaluation/TestCaseManager';
 import ModelConfigPanel from '../components/evaluation/ModelConfigPanel';
 import CampaignRunner from '../components/evaluation/CampaignRunner';
 import EvaluationResults from '../components/evaluation/EvaluationResults';
+import AgentTraceViewer from '../components/evaluation/AgentTraceViewer';
 
 export default function EvaluationCenter() {
   return (
@@ -17,6 +18,7 @@ export default function EvaluationCenter() {
           <Tab>模型設定</Tab>
           <Tab>評估活動</Tab>
           <Tab>結果分析</Tab>
+          <Tab>Agent Trace</Tab>
         </TabList>
 
         <TabPanels>
@@ -31,6 +33,9 @@ export default function EvaluationCenter() {
           </TabPanel>
           <TabPanel px={0} pt={4}>
             <EvaluationResults />
+          </TabPanel>
+          <TabPanel px={0} pt={4}>
+            <AgentTraceViewer />
           </TabPanel>
         </TabPanels>
       </Tabs>
