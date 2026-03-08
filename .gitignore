@@ -17,6 +17,9 @@ coverage
 !.env.example
 lint_report*.txt
 lint_final_verify.txt
+task_plan.md
+findings.md
+progress.md
 
 # Editor directories and files
 .vscode/*
