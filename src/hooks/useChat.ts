@@ -221,7 +221,6 @@ export function useChat(options: UseChatOptions = {}) {
     selectedDocIds,
     ensureConversation,
     showPersistenceError,
-    toast,
   ]);
 
   const clearMessages = useCallback(() => {
