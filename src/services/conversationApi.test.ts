@@ -88,6 +88,20 @@ describe('Conversation API', () => {
       expect(mockedApi.patch).toHaveBeenCalledWith('/api/conversations/1', { title: 'Updated' });
       expect(result).toEqual(updated);
     });
+
+    it('should update conversation metadata without title', async () => {
+      const updated: Conversation = {
+        ...mockConversations[1],
+        metadata: { plan: { status: 'waiting_confirmation' } },
+      };
+      mockedApi.patch.mockResolvedValue({ data: updated });
+
+      const request = { metadata: { plan: { status: 'waiting_confirmation' } } };
+      const result = await conversationApi.updateConversation('2', request);
+
+      expect(mockedApi.patch).toHaveBeenCalledWith('/api/conversations/2', request);
+      expect(result).toEqual(updated);
+    });
   });
 
   describe('deleteConversation', () => {

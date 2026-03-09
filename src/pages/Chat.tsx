@@ -73,7 +73,17 @@ export default function Chat() {
     enableReranking: ragSettings.enable_reranking,
     enableGraphRag: ragSettings.enable_graph_rag,
     graphSearchMode: ragSettings.graph_search_mode,
-    conversationId: currentChatId
+    conversationId: currentChatId,
+    ensureConversation: async () => {
+      try {
+        const newConv = await create({ title: '新對話', type: 'chat' });
+        setCurrentChatId(newConv.id);
+        return newConv.id;
+      } catch (error) {
+        console.error('Failed to auto-create chat conversation', error);
+        return null;
+      }
+    },
   });
 
   // Deep Research Hook

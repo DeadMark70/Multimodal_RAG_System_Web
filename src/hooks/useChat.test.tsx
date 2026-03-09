@@ -103,7 +103,49 @@ describe('useChat Hook', () => {
     });
   });
 
-  it('should NOT save to history if conversationId is missing', async () => {
+  it('should create a conversation and save first-turn history when ensureConversation is provided', async () => {
+    const userMessage = 'Hello';
+    const aiAnswer = 'Hi user';
+    const ensureConversation = vi.fn<() => Promise<string | null>>().mockResolvedValue('new-chat');
+
+    const persistedMessage: Message = {
+      id: 'persisted-2',
+      role: 'assistant',
+      content: aiAnswer,
+      created_at: '',
+    };
+    mockAddMessage.mockResolvedValue(persistedMessage);
+
+    const answer: AskResponse = {
+      question: userMessage,
+      answer: aiAnswer,
+      sources: [],
+      metrics: null,
+    };
+    mockAskQuestion.mockResolvedValue(answer);
+
+    const { result } = renderHook(() => useChat({ ensureConversation }), { wrapper });
+
+    await act(async () => {
+      await result.current.sendMessage(userMessage);
+    });
+
+    expect(ensureConversation).toHaveBeenCalledTimes(1);
+    expect(mockAddMessage).toHaveBeenCalledWith('new-chat', {
+      role: 'user',
+      content: userMessage,
+    });
+    expect(mockAddMessage).toHaveBeenCalledWith('new-chat', {
+      role: 'assistant',
+      content: aiAnswer,
+      metadata: {
+        sources: [],
+        metrics: null,
+      },
+    });
+  });
+
+  it('should NOT save to history if conversationId is missing and no creator is provided', async () => {
     const userMessage = 'Hello';
     const aiAnswer = 'Hi user';
 

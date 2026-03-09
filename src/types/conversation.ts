@@ -53,7 +53,8 @@ export interface CreateConversationRequest {
  * 更新對話請求
  */
 export interface UpdateConversationRequest {
-  title: string;
+  title?: string;
+  metadata?: Record<string, unknown>;
 }
 
 /**

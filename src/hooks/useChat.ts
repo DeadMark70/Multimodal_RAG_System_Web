@@ -21,6 +21,7 @@ interface UseChatOptions {
   enableGraphRag?: boolean;
   graphSearchMode?: 'local' | 'global' | 'hybrid' | 'auto';
   conversationId?: string | null;
+  ensureConversation?: () => Promise<string | null>;
 }
 
 const WELCOME_MESSAGE: ChatMessage = {
@@ -38,6 +39,7 @@ export function useChat(options: UseChatOptions = {}) {
   const enableGraphRag = options.enableGraphRag ?? false;
   const graphSearchMode = options.graphSearchMode ?? 'auto';
   const conversationId = options.conversationId ?? null;
+  const ensureConversation = options.ensureConversation;
 
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
@@ -109,6 +111,15 @@ export function useChat(options: UseChatOptions = {}) {
     },
   });
 
+  const showPersistenceError = useCallback((description: string) => {
+    toast({
+      title: '儲存訊息失敗',
+      description,
+      status: 'error',
+      duration: 3000,
+    });
+  }, [toast]);
+
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
 
@@ -121,21 +132,29 @@ export function useChat(options: UseChatOptions = {}) {
     };
     setMessages(prev => [...prev, userMessage]);
 
-    // 持久化使用者訊息
-    if (conversationId) {
+    let activeConversationId = conversationId;
+    if (!activeConversationId && ensureConversation) {
       try {
-        await addMessage(conversationId, {
+        activeConversationId = await ensureConversation();
+        if (!activeConversationId) {
+          showPersistenceError('無法儲存您的訊息至對話歷史');
+        }
+      } catch (error) {
+        console.error('Failed to create chat conversation', error);
+        showPersistenceError('無法儲存您的訊息至對話歷史');
+      }
+    }
+
+    // 持久化使用者訊息
+    if (activeConversationId) {
+      try {
+        await addMessage(activeConversationId, {
           role: 'user',
           content: content,
         });
       } catch (error) {
         console.error('Failed to save user message', error);
-        toast({
-          title: '儲存訊息失敗',
-          description: '無法儲存您的訊息至對話歷史',
-          status: 'error',
-          duration: 3000,
-        });
+        showPersistenceError('無法儲存您的訊息至對話歷史');
       }
     }
 
@@ -170,9 +189,9 @@ export function useChat(options: UseChatOptions = {}) {
       setMessages(prev => [...prev, assistantMessage]);
 
       // 持久化助理回應
-      if (conversationId) {
+      if (activeConversationId) {
         try {
-          await addMessage(conversationId, {
+          await addMessage(activeConversationId, {
             role: 'assistant',
             content: response.answer,
             metadata: {
@@ -182,12 +201,7 @@ export function useChat(options: UseChatOptions = {}) {
           });
         } catch (error) {
           console.error('Failed to save assistant message', error);
-          toast({
-            title: '儲存訊息失敗',
-            description: '無法儲存 AI 回應至對話歷史',
-            status: 'error',
-            duration: 3000,
-          });
+          showPersistenceError('無法儲存 AI 回應至對話歷史');
         }
       }
 
@@ -205,6 +219,8 @@ export function useChat(options: UseChatOptions = {}) {
     messages,
     mutation,
     selectedDocIds,
+    ensureConversation,
+    showPersistenceError,
     toast,
   ]);
 

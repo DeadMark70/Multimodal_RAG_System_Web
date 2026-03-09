@@ -14,7 +14,7 @@ import {
   generateResearchPlan, 
   executeResearchPlanStream 
 } from '../services/ragApi';
-import { getConversation, addMessage } from '../services/conversationApi';
+import { getConversation, addMessage, updateConversation } from '../services/conversationApi';
 import type { 
   EditableSubTask, 
   ResearchPlanResponse,
@@ -29,6 +29,14 @@ import { useConversationMutations } from './useConversations';
 interface UseDeepResearchOptions {
   docIds?: string[];
   enableGraphPlanning?: boolean;
+}
+
+interface ResearchConversationMetadata extends Record<string, unknown> {
+  original_question?: string;
+  plan?: ResearchPlanResponse;
+  result?: ExecutePlanResponse;
+  summary?: string;
+  detailed_answer?: string;
 }
 
 /** Deep Research 執行階段 (Phase 6 UX 優化) */
@@ -64,7 +72,6 @@ export interface UseDeepResearchReturn {
 export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepResearchReturn {
   const { docIds, enableGraphPlanning } = options;
   const { ragSettings } = useSettingsStore();
-  const isTestMode = import.meta.env.MODE === 'test' || import.meta.env.VITE_TEST_MODE === 'true';
   
   const [plan, setPlan] = useState<ResearchPlanResponse | null>(null);
   const [isPlanning, setIsPlanning] = useState(false);
@@ -84,21 +91,26 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
 
   // 載入歷史紀錄 (如果 currentChatId 存在且是研究類型)
   useEffect(() => {
-    if (isTestMode) return;
     if (!currentChatId) return;
 
     const loadHistory = async () => {
       try {
         const conversation = await getConversation(currentChatId);
         if (conversation.type === 'research') {
-          // 嘗試從 metadata 或訊息中恢復狀態
-          if (conversation.metadata?.plan) {
-            setPlan(conversation.metadata.plan as ResearchPlanResponse);
+          const metadata = (conversation.metadata ?? {}) as ResearchConversationMetadata;
+          if (metadata.plan) {
+            setPlan(metadata.plan);
           }
-          if (conversation.metadata?.result) {
-            setResult(conversation.metadata.result as ExecutePlanResponse);
+
+          const restoredResult = metadata.result ?? (
+            metadata.summary || metadata.detailed_answer
+              ? metadata as unknown as ExecutePlanResponse
+              : null
+          );
+          if (restoredResult) {
+            setResult(restoredResult);
+            setCurrentPhase('complete');
           }
-          // TODO: 恢復 progress (如果有存)
         }
       } catch (err) {
         console.error('Failed to load research session', err);
@@ -106,7 +118,7 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     };
 
     void loadHistory();
-  }, [currentChatId, isTestMode]);
+  }, [currentChatId]);
 
   /**
    * 生成研究計畫
@@ -136,11 +148,18 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
       const planResponse = await generateResearchPlan(question, docIds, enableGraphPlanning);
       setPlan(planResponse);
 
-      // 3. 儲存使用者問題到對話 (Persistence)
+      // 3. 儲存 canonical research metadata
+      await updateConversation(conversation.id, {
+        metadata: {
+          original_question: question,
+          plan: planResponse,
+        },
+      });
+
+      // 4. 儲存使用者問題到對話時間線
       await addMessage(conversation.id, {
         role: 'user',
-        content: question,  // 儲存實際問題內容
-        metadata: { plan: planResponse }
+        content: question,
       });
 
     } catch (err) {
@@ -263,14 +282,12 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
         setResult(completeData);
         setCurrentPhase('complete');
         
-        // 儲存結果 (Persistence) - 儲存摘要作為可讀內容
+        // 儲存摘要作為時間線訊息，完整結果以 conversation metadata 為準
         if (currentChatId) {
             void addMessage(currentChatId, {
                 role: 'assistant',
                 content: completeData.summary || '研究完成',
                 metadata: { 
-                    result: completeData,
-                    detailed_answer: completeData.detailed_answer,
                     confidence: completeData.confidence,
                     sources: completeData.all_sources,
                 }
@@ -321,6 +338,15 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     abortControllerRef.current = new AbortController();
 
     try {
+      if (currentChatId) {
+        await updateConversation(currentChatId, {
+          metadata: {
+            original_question: plan.original_question,
+            plan,
+          },
+        });
+      }
+
       await executeResearchPlanStream(
         {
           original_question: plan.original_question,

@@ -1,12 +1,13 @@
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { useDeepResearch } from './useDeepResearch';
 import * as ragApi from '../services/ragApi';
+import * as conversationApi from '../services/conversationApi';
 import { useSessionStore } from '../stores/useSessionStore';
 import { useConversationMutations } from '../hooks/useConversations';
 import { asMock } from '../test/mock-utils';
-import type { Conversation, CreateConversationRequest } from '../types/conversation';
-import type { ResearchPlanResponse } from '../types/rag';
+import type { Conversation, ConversationDetail, CreateConversationRequest, Message } from '../types/conversation';
+import type { ExecutePlanResponse, ResearchPlanResponse } from '../types/rag';
 
 // Mock services and hooks
 vi.mock('../services/ragApi');
@@ -25,6 +26,9 @@ describe('useDeepResearch Hook - Persistence', () => {
   const mockUseSessionStore = asMock(useSessionStore);
   const mockUseConversationMutations = asMock(useConversationMutations);
   const mockGenerateResearchPlan = asMock(ragApi.generateResearchPlan);
+  const mockGetConversation = asMock(conversationApi.getConversation);
+  const mockAddMessage = asMock(conversationApi.addMessage);
+  const mockUpdateConversation = asMock(conversationApi.updateConversation);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -42,6 +46,29 @@ describe('useDeepResearch Hook - Persistence', () => {
       isUpdating: false,
       isDeleting: false,
     });
+
+    mockGetConversation.mockResolvedValue({
+      id: 'unused',
+      title: 'Unused',
+      type: 'research',
+      created_at: '',
+      updated_at: '',
+      messages: [],
+    } as ConversationDetail);
+    mockAddMessage.mockResolvedValue({
+      id: 'msg-1',
+      role: 'user',
+      content: 'Research topic',
+      created_at: '',
+    } as Message);
+    mockUpdateConversation.mockResolvedValue({
+      id: 'unused',
+      title: 'Unused',
+      type: 'research',
+      created_at: '',
+      updated_at: '',
+      metadata: {},
+    } as Conversation);
   });
 
   it('should create a research conversation when generating a plan', async () => {
@@ -78,14 +105,94 @@ describe('useDeepResearch Hook - Persistence', () => {
     }));
     
     expect(mockSetCurrentChatId).toHaveBeenCalledWith(newConvId);
+    expect(mockUpdateConversation).toHaveBeenCalledWith(newConvId, {
+      metadata: {
+        original_question: question,
+        plan: planResponse,
+      },
+    });
+    expect(mockAddMessage).toHaveBeenCalledWith(newConvId, {
+      role: 'user',
+      content: question,
+    });
   });
 
-  it('should load existing plan from history if conversationId is set', () => {
-    // This test simulates loading a previous session.
-    // Since useDeepResearch currently doesn't auto-load, we might need to implement that.
-    // For now, let's verify if we can manually trigger a load or if we pass an ID it loads.
-    
-    // NOTE: The current implementation of useDeepResearch DOES NOT accept a conversationId to load.
-    // We need to implement this capability.
+  it('restores research state from canonical conversation metadata', async () => {
+    const loadedPlan: ResearchPlanResponse = {
+      status: 'waiting_confirmation',
+      original_question: 'Loaded Question',
+      sub_tasks: [],
+      estimated_complexity: 'medium',
+      doc_ids: null,
+    };
+    const loadedResult: ExecutePlanResponse = {
+      question: 'Loaded Question',
+      summary: 'Loaded Summary',
+      detailed_answer: 'Loaded Detailed Answer',
+      sub_tasks: [],
+      all_sources: [],
+      confidence: 0.8,
+      total_iterations: 1,
+    };
+
+    mockUseSessionStore.mockReturnValue({
+      currentChatId: 'research-123',
+      actions: { setCurrentChatId: mockSetCurrentChatId },
+    } as ReturnType<typeof useSessionStore>);
+
+    mockGetConversation.mockResolvedValue({
+      id: 'research-123',
+      title: 'Loaded Question',
+      type: 'research',
+      created_at: '',
+      updated_at: '',
+      metadata: {
+        original_question: 'Loaded Question',
+        plan: loadedPlan,
+        result: loadedResult,
+      },
+      messages: [],
+    } as ConversationDetail);
+
+    const { result } = renderHook(() => useDeepResearch());
+
+    await waitFor(() => {
+      expect(result.current.plan).toEqual(loadedPlan);
+      expect(result.current.result).toEqual(loadedResult);
+    });
+  });
+
+  it('falls back to legacy flat metadata results', async () => {
+    mockUseSessionStore.mockReturnValue({
+      currentChatId: 'legacy-123',
+      actions: { setCurrentChatId: mockSetCurrentChatId },
+    } as ReturnType<typeof useSessionStore>);
+
+    mockGetConversation.mockResolvedValue({
+      id: 'legacy-123',
+      title: 'Legacy Question',
+      type: 'research',
+      created_at: '',
+      updated_at: '',
+      metadata: {
+        original_question: 'Legacy Question',
+        question: 'Legacy Question',
+        summary: 'Legacy Summary',
+        detailed_answer: 'Legacy Detailed Answer',
+        sub_tasks: [],
+        all_sources: [],
+        confidence: 0.7,
+        total_iterations: 0,
+      },
+      messages: [],
+    } as ConversationDetail);
+
+    const { result } = renderHook(() => useDeepResearch());
+
+    await waitFor(() => {
+      expect(result.current.plan).toBeNull();
+      expect(result.current.result?.summary).toBe('Legacy Summary');
+      expect(result.current.result?.detailed_answer).toBe('Legacy Detailed Answer');
+    });
   });
 });
