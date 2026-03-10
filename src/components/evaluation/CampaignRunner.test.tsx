@@ -259,7 +259,27 @@ describe('CampaignRunner', () => {
         completed_at: '2026-03-07T00:00:10+00:00',
         updated_at: '2026-03-07T00:00:10+00:00',
       },
-      results: [],
+      results: [
+        {
+          id: 'result-1',
+          campaign_id: 'cmp-1',
+          question_id: 'Q1',
+          question: 'Question 1',
+          ground_truth: 'Answer 1',
+          mode: 'agentic',
+          execution_profile: 'agentic_eval_v1',
+          run_number: 1,
+          answer: 'agentic answer',
+          contexts: ['ctx-1'],
+          source_doc_ids: ['doc-1'],
+          expected_sources: [],
+          latency_ms: 10,
+          token_usage: { total_tokens: 42 },
+          status: 'completed',
+          has_trace: true,
+          created_at: '2026-03-07T00:00:10+00:00',
+        },
+      ],
     });
     mockCancelCampaign.mockResolvedValue({});
 
@@ -287,5 +307,6 @@ describe('CampaignRunner', () => {
     await waitFor(() => {
       expect(mockGetCampaignResults).toHaveBeenCalledWith('cmp-1');
     });
+    expect(screen.getByText('agentic_eval_v1')).toBeInTheDocument();
   });
 });

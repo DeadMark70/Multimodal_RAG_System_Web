@@ -64,6 +64,7 @@ describe('AgentTraceViewer', () => {
         question_id: 'Q1',
         question: 'Question 1',
         mode: 'agentic',
+        execution_profile: 'agentic_eval_v1',
         run_number: 1,
         trace_status: 'completed',
         summary: 'Primary summary',
@@ -78,6 +79,7 @@ describe('AgentTraceViewer', () => {
         question_id: 'Q1',
         question: 'Question 1 rerun',
         mode: 'agentic',
+        execution_profile: 'legacy_shared',
         run_number: 2,
         trace_status: 'partial',
         summary: 'Secondary summary',
@@ -96,6 +98,7 @@ describe('AgentTraceViewer', () => {
           question_id: 'Q1',
           question: 'Question 1 rerun',
           mode: 'agentic',
+          execution_profile: 'legacy_shared',
           run_number: 2,
           trace_status: 'partial',
           summary: 'Secondary summary',
@@ -128,6 +131,7 @@ describe('AgentTraceViewer', () => {
         question_id: 'Q1',
         question: 'Question 1',
         mode: 'agentic',
+        execution_profile: 'agentic_eval_v1',
         run_number: 1,
         trace_status: 'completed',
         summary: 'Primary summary',
@@ -187,6 +191,7 @@ describe('AgentTraceViewer', () => {
     await waitFor(() => {
       expect(screen.getByText('Primary summary')).toBeInTheDocument();
     });
+    expect(screen.getAllByText('profile agentic_eval_v1').length).toBeGreaterThan(0);
     expect(screen.getByText('Generate research plan')).toBeInTheDocument();
     expect(screen.getByText('VERIFY_IMAGE')).toBeInTheDocument();
 
@@ -198,6 +203,7 @@ describe('AgentTraceViewer', () => {
       expect(mockGetCampaignResultTrace).toHaveBeenCalledWith('cmp-1', 'result-2');
     });
     expect(screen.getByText('Secondary summary')).toBeInTheDocument();
+    expect(screen.getAllByText('profile legacy_shared').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Raw Thought' })[0]);
     expect(screen.getByText('raw thought text')).toBeInTheDocument();

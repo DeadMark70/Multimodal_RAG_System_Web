@@ -636,7 +636,14 @@ export default function CampaignRunner() {
                 {resultsView.results.map((result) => (
                   <Tr key={result.id}>
                     <Td>{result.question_id}</Td>
-                    <Td>{result.mode}</Td>
+                    <Td>
+                      <HStack spacing={2}>
+                        <Badge colorScheme="blue">{result.mode}</Badge>
+                        {result.execution_profile && (
+                          <Badge colorScheme="purple">{result.execution_profile}</Badge>
+                        )}
+                      </HStack>
+                    </Td>
                     <Td>{result.run_number}</Td>
                     <Td>
                       <Badge colorScheme={result.status === 'completed' ? 'green' : 'red'}>

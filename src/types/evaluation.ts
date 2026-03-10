@@ -111,6 +111,7 @@ export interface CampaignResult {
   question: string;
   ground_truth: string;
   mode: CampaignMode;
+  execution_profile?: string | null;
   run_number: number;
   answer: string;
   contexts: string[];
@@ -215,6 +216,7 @@ export interface AgentTraceSummary {
   question_id: string;
   question: string;
   mode: CampaignMode;
+  execution_profile?: string | null;
   run_number: number;
   trace_status: AgentTraceStatus;
   summary: string;

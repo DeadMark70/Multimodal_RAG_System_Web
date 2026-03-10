@@ -76,6 +76,10 @@ function formatModeCampaign(campaign: CampaignStatus): string {
   return `${campaign.name || campaign.id} (${campaign.config.modes.join(', ')})`;
 }
 
+function profileLabel(profile?: string | null): string | null {
+  return profile ? `profile ${profile}` : null;
+}
+
 function TraceStepCard({ step }: { step: AgentTraceStep }) {
   const toolTokenCount = step.token_usage.total_tokens ?? 0;
 
@@ -175,6 +179,9 @@ function TraceColumn({ detail }: { detail: AgentTraceDetail }) {
           <Text mt={1}>{detail.question}</Text>
           <HStack mt={2}>
             <Badge colorScheme={phaseColor('execution')}>{detail.mode}</Badge>
+            {profileLabel(detail.execution_profile) && (
+              <Badge colorScheme="purple">{profileLabel(detail.execution_profile)}</Badge>
+            )}
             <Badge colorScheme={statusColor(detail.trace_status)}>{detail.trace_status}</Badge>
             <Badge colorScheme="gray">run {detail.run_number}</Badge>
             <Badge colorScheme="gray">{detail.total_tokens} tokens</Badge>
@@ -344,7 +351,7 @@ export default function AgentTraceViewer() {
               <Select value={primaryResultId} onChange={(event) => setPrimaryResultId(event.target.value)} isDisabled={traceSummaries.length === 0}>
                 {traceSummaries.map((summary) => (
                   <option key={summary.campaign_result_id} value={summary.campaign_result_id}>
-                    {summary.question_id} / run {summary.run_number} / {summary.trace_status}
+                    {summary.question_id} / run {summary.run_number} / {summary.execution_profile ?? 'legacy'} / {summary.trace_status}
                   </option>
                 ))}
               </Select>
@@ -362,7 +369,7 @@ export default function AgentTraceViewer() {
                 <option value="">不比較</option>
                 {availableComparisonOptions.map((summary) => (
                   <option key={summary.campaign_result_id} value={summary.campaign_result_id}>
-                    {summary.question_id} / run {summary.run_number} / {summary.trace_status}
+                    {summary.question_id} / run {summary.run_number} / {summary.execution_profile ?? 'legacy'} / {summary.trace_status}
                   </option>
                 ))}
               </Select>
@@ -398,6 +405,9 @@ export default function AgentTraceViewer() {
                     </Text>
                   </Box>
                   <HStack>
+                    {profileLabel(summary.execution_profile) && (
+                      <Badge colorScheme="purple">{profileLabel(summary.execution_profile)}</Badge>
+                    )}
                     <Badge colorScheme={statusColor(summary.trace_status)}>{summary.trace_status}</Badge>
                     <Badge colorScheme="gray">{summary.step_count} steps</Badge>
                     <Badge colorScheme="gray">{summary.tool_call_count} tools</Badge>
