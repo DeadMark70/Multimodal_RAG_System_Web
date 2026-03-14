@@ -56,7 +56,7 @@ export interface AskRequest {
   /** 啟用知識圖譜增強檢索 */
   enable_graph_rag?: boolean;
   /** 圖譜搜尋模式 */
-  graph_search_mode?: 'local' | 'global' | 'hybrid' | 'auto';
+  graph_search_mode?: 'local' | 'global' | 'hybrid' | 'auto' | 'generic';
   /** 啟用圖譜輔助規劃 (Deep Research) */
   enable_graph_planning?: boolean;
 }

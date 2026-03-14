@@ -322,8 +322,8 @@ export default function Chat() {
                   <VStack spacing={4} align="stretch">
                     <FormControl display="flex" alignItems="center" justifyContent="space-between">
                       <Box>
-                        <FormLabel htmlFor="rag-mode" mb="0" fontWeight="bold">啟用 RAG</FormLabel>
-                        <Text fontSize="xs" color="gray.500">從文件檢索相關內容</Text>
+                        <FormLabel htmlFor="rag-mode" mb="0" fontWeight="bold">啟用 GraphRAG</FormLabel>
+                        <Text fontSize="xs" color="gray.500">預設走 Generic Mode，自動調整圖譜檢索路徑</Text>
                       </Box>
                       <Switch
                         id="rag-mode"
@@ -436,7 +436,7 @@ export default function Chat() {
                   <CardBody p={0}>
                     <VStack spacing={4} align="stretch">
                       <FormControl display="flex" alignItems="center" justifyContent="space-between">
-                        <FormLabel htmlFor="drawer-rag-mode" mb="0" fontWeight="bold">啟用 RAG</FormLabel>
+                        <FormLabel htmlFor="drawer-rag-mode" mb="0" fontWeight="bold">啟用 GraphRAG</FormLabel>
                         <Switch
                           id="drawer-rag-mode"
                           isChecked={ragSettings.enable_graph_rag}

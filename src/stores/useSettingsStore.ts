@@ -33,7 +33,7 @@ export interface RagSettings {
   enable_graph_rag: boolean;
 
   /** 🆕 圖譜搜尋模式 */
-  graph_search_mode: 'local' | 'global' | 'hybrid' | 'auto';
+  graph_search_mode: 'local' | 'global' | 'hybrid' | 'auto' | 'generic';
 
   /** 🆕 啟用圖譜輔助規劃 (Deep Research) */
   enable_graph_planning: boolean;
@@ -86,8 +86,8 @@ const DEFAULT_RAG_SETTINGS: RagSettings = {
   enable_multi_query: false,
   enable_reranking: true, // 預設開啟
   enable_evaluation: false,
-  enable_graph_rag: false,
-  graph_search_mode: 'auto',
+  enable_graph_rag: true,
+  graph_search_mode: 'generic',
   enable_graph_planning: false,
   enable_deep_image_analysis: false, // 預設關閉
   max_subtasks: 5,

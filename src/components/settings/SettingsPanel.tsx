@@ -224,15 +224,13 @@ export function SettingsPanel({ isDrawerMode = false }: SettingsPanelProps) {
             <SettingItem
               icon={FiShare2}
               label="Graph RAG"
-              description="系統預設開啟，確保全域視角分析"
-              isEnabled={true}
-              onChange={() => {}}
+              description="預設啟用，可搭配 Generic Mode 自動路由"
+              isEnabled={ragSettings.enable_graph_rag}
+              onChange={(v) => updateSetting('enable_graph_rag', v)}
               isDefault
-              isDisabled
             />
 
-            {/* 搜尋模式選擇 (GraphRAG 預設開啟，所以永遠顯示) */}
-            <Collapse in={true} animateOpacity>
+            <Collapse in={ragSettings.enable_graph_rag} animateOpacity>
               <Box py={2} pl={7}>
                 <HStack justify="space-between" mb={2}>
                   <HStack spacing={2}>
@@ -253,11 +251,15 @@ export function SettingsPanel({ isDrawerMode = false }: SettingsPanelProps) {
                   }
                   bg={bg}
                 >
-                  <option value="auto">🤖 自動 (推薦)</option>
+                  <option value="generic">🧠 Generic (推薦)</option>
+                  <option value="auto">🤖 Auto (相容)</option>
                   <option value="local">📍 區域搜尋</option>
                   <option value="global">🌐 全域搜尋</option>
                   <option value="hybrid">🔀 混合搜尋</option>
                 </Select>
+                <Text mt={2} fontSize="xs" color="gray.500">
+                  Generic Mode 會依問題類型在 local/global 間自動路由並控制圖譜上下文密度。
+                </Text>
               </Box>
             </Collapse>
 
