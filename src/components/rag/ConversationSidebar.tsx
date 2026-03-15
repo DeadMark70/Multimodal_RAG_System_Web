@@ -43,12 +43,14 @@ interface ConversationSidebarProps {
   currentId: string | null;
   onSelect: (conversation: Conversation) => void;
   onNew: (type: ConversationType) => void;
+  defaultNewType?: ConversationType;
 }
 
 export default function ConversationSidebar({ 
   currentId, 
   onSelect, 
   onNew,
+  defaultNewType = 'chat',
 }: ConversationSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const { conversations, isLoading, remove, isDeleting } = useConversations();
@@ -151,24 +153,17 @@ export default function ConversationSidebar({
               對話紀錄
             </Text>
             <HStack>
-              <Tooltip label="新增對話" placement="top">
+              <Tooltip
+                label={defaultNewType === 'research' ? '新增 Agentic 對話' : '新增對話'}
+                placement="top"
+              >
                 <IconButton
                   aria-label="新增對話"
-                  icon={<FiPlus />}
+                  icon={defaultNewType === 'research' ? <FiLayers /> : <FiPlus />}
                   size="sm"
-                  colorScheme="brand"
+                  colorScheme={defaultNewType === 'research' ? 'purple' : 'brand'}
                   variant="ghost"
-                  onClick={() => onNew('chat')}
-                />
-              </Tooltip>
-              <Tooltip label="新增研究" placement="top">
-                <IconButton
-                  aria-label="新增研究"
-                  icon={<FiLayers />}
-                  size="sm"
-                  colorScheme="purple"
-                  variant="ghost"
-                  onClick={() => onNew('research')}
+                  onClick={() => onNew(defaultNewType)}
                 />
               </Tooltip>
             </HStack>
@@ -215,9 +210,9 @@ export default function ConversationSidebar({
                 colorScheme="brand"
                 mt={3}
                 leftIcon={<FiPlus />}
-                onClick={() => onNew('chat')}
+                onClick={() => onNew(defaultNewType)}
               >
-                開始新對話
+                {defaultNewType === 'research' ? '開始新 Agentic 對話' : '開始新對話'}
               </Button>
             </Flex>
           ) : (

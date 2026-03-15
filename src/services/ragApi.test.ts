@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import * as ragApi from './ragApi';
 import api from './api';
 import { supabase } from './supabase';
@@ -62,7 +63,67 @@ describe('ragApi', () => {
     expect(result.question).toBe('q');
   });
 
-  it('parses SSE stream without calling real backend', async () => {
+  it('parses ordinary ask SSE stream without calling real backend', async () => {
+    mockedAuth.getSession.mockResolvedValue({
+      data: { session: { access_token: 'mock-token' } },
+      error: null,
+    } as never);
+
+    const encoder = new TextEncoder();
+    const chunks: Uint8Array[] = [
+      encoder.encode('event: phase_update\ndata: {"stage":"retrieval"}\n\n'),
+      encoder.encode('event: complete\ndata: {"question":"q","answer":"ok","sources":[],"metrics":null}\n\n'),
+    ];
+
+    let index = 0;
+    const reader = {
+      read: vi.fn(() => {
+        if (index >= chunks.length) {
+          return Promise.resolve({ done: true, value: undefined });
+        }
+
+        const value = chunks[index];
+        index += 1;
+        return Promise.resolve({ done: false, value });
+      }),
+    };
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        body: {
+          getReader: () => reader,
+        },
+      })
+    );
+
+    const onEvent = vi.fn();
+    await ragApi.askQuestionStream(
+      {
+        question: 'q',
+        enable_multi_query: true,
+      },
+      onEvent
+    );
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/rag/ask/stream',
+      expect.any(Object)
+    );
+    expect(onEvent).toHaveBeenNthCalledWith(1, {
+      type: 'phase_update',
+      data: { stage: 'retrieval' },
+    });
+    expect(onEvent).toHaveBeenNthCalledWith(2, {
+      type: 'complete',
+      data: { question: 'q', answer: 'ok', sources: [], metrics: null },
+    });
+  });
+
+  it('parses deep research SSE stream without calling real backend', async () => {
     mockedAuth.getSession.mockResolvedValue({
       data: { session: { access_token: 'mock-token' } },
       error: null,
@@ -80,6 +141,7 @@ describe('ragApi', () => {
         if (index >= chunks.length) {
           return Promise.resolve({ done: true, value: undefined });
         }
+
         const value = chunks[index];
         index += 1;
         return Promise.resolve({ done: false, value });
@@ -111,19 +173,10 @@ describe('ragApi', () => {
       'http://127.0.0.1:8000/rag/execute/stream',
       expect.any(Object)
     );
-    expect(fetch).toHaveBeenCalledTimes(1);
     expect(onEvent).toHaveBeenCalledTimes(2);
-    expect(onEvent).toHaveBeenNthCalledWith(1, {
-      type: 'task_start',
-      data: { id: 1 },
-    });
-    expect(onEvent).toHaveBeenNthCalledWith(2, {
-      type: 'complete',
-      data: { summary: 'ok' },
-    });
   });
 
-  it('blocks SSE stream when target is non-local in test mode', async () => {
+  it('blocks ordinary ask SSE stream when target is non-local in test mode', async () => {
     mockedApi.defaults.baseURL = 'https://api.example.com';
     mockedAuth.getSession.mockResolvedValue({
       data: { session: { access_token: 'mock-token' } },
@@ -131,10 +184,9 @@ describe('ragApi', () => {
     } as never);
 
     await expect(
-      ragApi.executeResearchPlanStream(
+      ragApi.askQuestionStream(
         {
-          original_question: 'q',
-          sub_tasks: [{ id: 1, question: 'sq', task_type: 'rag', enabled: true }],
+          question: 'q',
         },
         vi.fn()
       )

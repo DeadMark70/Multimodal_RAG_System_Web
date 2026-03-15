@@ -1,16 +1,20 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import Chat from './Chat';
-import React from 'react';
-import { ChakraProvider } from '@chakra-ui/react';
-import theme from '../theme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ChakraProvider } from '@chakra-ui/react';
+import { describe, expect, it, vi } from 'vitest';
+import React from 'react';
 
-// Mock dependencies
+import Chat from './Chat';
+import theme from '../theme';
+
 vi.mock('../components/layout/Layout', () => ({
   default: ({ children }: { children: React.ReactNode }) => <div data-testid="layout">{children}</div>,
 }));
 vi.mock('../components/rag/ConversationSidebar', () => ({ default: () => <div>Sidebar</div> }));
+vi.mock('../components/rag/DocumentSelector', () => ({ default: () => <div>DocSelector</div> }));
+vi.mock('../components/rag/MessageBubble', () => ({ default: () => <div>MessageBubble</div> }));
+vi.mock('../components/rag/DeepResearchPanel', () => ({ default: () => <div>DeepResearch</div> }));
+vi.mock('../components/settings/SettingsPanel', () => ({ default: () => <div>SettingsPanel</div> }));
 vi.mock('../stores/useSessionStore', () => ({
   useSessionStore: vi.fn(() => ({ currentChatId: null, actions: { setCurrentChatId: vi.fn() } })),
 }));
@@ -26,14 +30,32 @@ vi.mock('../hooks/useChat', () => ({
     isLoadingHistory: false,
     selectedDocIds: [],
     setSelectedDocIds: vi.fn(),
+    currentStage: null,
   })),
 }));
-vi.mock('../components/rag/DeepResearchPanel', () => ({ default: () => <div>DeepResearch</div> }));
+vi.mock('../hooks/useDeepResearch', () => ({
+  useDeepResearch: vi.fn(() => ({
+    plan: null,
+    isPlanning: false,
+    isExecuting: false,
+    progress: [],
+    result: null,
+    error: null,
+    currentPhase: 'idle',
+    generatePlan: vi.fn(),
+    updateTask: vi.fn(),
+    toggleTask: vi.fn(),
+    deleteTask: vi.fn(),
+    executePlan: vi.fn(),
+    cancelExecution: vi.fn(),
+    reset: vi.fn(),
+  })),
+}));
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
 describe('Chat Input Integration', () => {
-  it('renders mode switcher in input area', () => {
+  it('renders preset mode switcher in input area', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <ChakraProvider theme={theme}>
@@ -41,7 +63,8 @@ describe('Chat Input Integration', () => {
         </ChakraProvider>
       </QueryClientProvider>
     );
-    // Expect failure initially
+
     expect(screen.getByLabelText('Select Mode')).toBeInTheDocument();
+    expect(screen.getByLabelText('聊天輸入框')).toBeInTheDocument();
   });
 });

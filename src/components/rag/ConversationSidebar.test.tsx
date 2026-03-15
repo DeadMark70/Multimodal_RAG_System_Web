@@ -68,13 +68,27 @@ describe('ConversationSidebar Component', () => {
       <ConversationSidebar 
         currentId={null} 
         onSelect={mockOnSelect} 
-        onNew={mockOnNew} 
+        onNew={mockOnNew}
       />
     );
 
     const addButton = screen.getByLabelText('新增對話');
     fireEvent.click(addButton);
     expect(mockOnNew).toHaveBeenCalledWith('chat');
+  });
+
+  it('uses the active default type when creating a new agentic conversation', () => {
+    render(
+      <ConversationSidebar
+        currentId={null}
+        onSelect={mockOnSelect}
+        onNew={mockOnNew}
+        defaultNewType="research"
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText('新增對話'));
+    expect(mockOnNew).toHaveBeenCalledWith('research');
   });
 
   it('filters conversations based on search input', () => {

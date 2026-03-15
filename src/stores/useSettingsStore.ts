@@ -1,17 +1,14 @@
 /**
  * useSettingsStore - Zustand 持久化設定 Store
  *
- * 管理所有 RAG 參數與使用者偏好，自動同步至 localStorage
- *
- * @remarks
- * - 遵循 Frontend Development Standards 的 Strict TypeScript 規範
- * - 所有設定在頁面重整後仍會保留
+ * 管理 RAG 參數、聊天 mode preset 與使用者偏好，自動同步至 localStorage。
  */
 
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
-// ========== RAG 設定介面 ==========
+import type { ConversationType } from '../types/conversation';
 
 /**
  * RAG 檢索策略設定
@@ -29,27 +26,50 @@ export interface RagSettings {
   /** Self-RAG 評估模式 (增加延遲但提供責任 AI 指標) */
   enable_evaluation: boolean;
 
-  /** 🆕 啟用知識圖譜增強檢索 */
+  /** 啟用知識圖譜增強檢索 */
   enable_graph_rag: boolean;
 
-  /** 🆕 圖譜搜尋模式 */
+  /** 圖譜搜尋模式 */
   graph_search_mode: 'local' | 'global' | 'hybrid' | 'auto' | 'generic';
 
-  /** 🆕 啟用圖譜輔助規劃 (Deep Research) */
+  /** 啟用圖譜輔助規劃 (Deep Research) */
   enable_graph_planning: boolean;
 
-  /** 🆕 啟用進階圖片查證 (Deep Visual Verification) */
+  /** 啟用進階圖片查證 (Deep Visual Verification) */
   enable_deep_image_analysis: boolean;
 
   /** 研究子任務數量上限 (1-10) */
   max_subtasks: number;
 }
 
-// ========== Store State 介面 ==========
+export type OfficialChatMode = 'native' | 'advanced' | 'graph' | 'agentic';
+export type ChatModeBase = OfficialChatMode;
+
+export interface CustomChatPreset {
+  id: string;
+  name: string;
+  baseMode: ChatModeBase;
+  config: RagSettings;
+}
+
+export interface ChatModePreset {
+  id: string;
+  name: string;
+  baseMode: ChatModeBase;
+  description: string;
+  config: RagSettings;
+  isOfficial: boolean;
+}
 
 interface SettingsState {
-  /** RAG 設定 */
+  /** 目前作用中的 RAG 設定 */
   ragSettings: RagSettings;
+
+  /** 當前聊天 mode ID（官方或 custom preset） */
+  selectedChatModeId: string;
+
+  /** 使用者自訂 preset */
+  customChatPresets: CustomChatPreset[];
 
   /** 主題模式 */
   theme: 'light' | 'dark' | 'system';
@@ -57,96 +77,286 @@ interface SettingsState {
   /** 側邊欄展開狀態 */
   sidebarOpen: boolean;
 
-  /** Actions */
   actions: {
-    /** 更新單一 RAG 設定 */
     setRagSetting: <K extends keyof RagSettings>(key: K, value: RagSettings[K]) => void;
-
-    /** 批量更新 RAG 設定 */
     setRagSettings: (settings: Partial<RagSettings>) => void;
-
-    /** 重置 RAG 設定為預設值 */
     resetRagSettings: () => void;
-
-    /** 切換主題 */
+    setChatMode: (modeId: string) => void;
+    restoreConversationMode: (
+      metadata?: Record<string, unknown>,
+      conversationType?: ConversationType
+    ) => void;
+    saveCurrentAsCustomPreset: (name: string, baseMode?: ChatModeBase) => CustomChatPreset;
+    updateCustomPreset: (id: string, updates: Partial<Pick<CustomChatPreset, 'name' | 'config' | 'baseMode'>>) => void;
+    deleteCustomPreset: (id: string) => void;
+    resetCurrentModeToPreset: () => void;
     setTheme: (theme: 'light' | 'dark' | 'system') => void;
-
-    /** 切換側邊欄 */
     toggleSidebar: () => void;
-
-    /** 設定側邊欄狀態 */
     setSidebarOpen: (open: boolean) => void;
   };
 }
 
-// ========== 預設值 ==========
+const OFFICIAL_PRESET_ORDER: OfficialChatMode[] = ['native', 'advanced', 'graph', 'agentic'];
+const DEFAULT_CHAT_MODE_ID: OfficialChatMode = 'graph';
 
-const DEFAULT_RAG_SETTINGS: RagSettings = {
-  enable_hyde: false,
-  enable_multi_query: true,
-  enable_reranking: true, // 預設開啟
-  enable_evaluation: false,
-  enable_graph_rag: true,
-  graph_search_mode: 'generic',
-  enable_graph_planning: false,
-  enable_deep_image_analysis: false, // 預設關閉
-  max_subtasks: 5,
-};
+function clampMaxSubtasks(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 5;
+  }
+  return Math.min(10, Math.max(1, Math.round(value)));
+}
 
 function normalizeRagSettings(
   settings: Partial<RagSettings>,
-  base: RagSettings = DEFAULT_RAG_SETTINGS,
-  preferredMode?: 'hyde' | 'multi_query'
+  base?: RagSettings,
+  preferredMode?: 'hyde' | 'multi_query' | 'none'
 ): RagSettings {
-  const merged: RagSettings = { ...base, ...settings };
+  const merged: RagSettings = {
+    enable_hyde: false,
+    enable_multi_query: false,
+    enable_reranking: true,
+    enable_evaluation: false,
+    enable_graph_rag: true,
+    graph_search_mode: 'generic',
+    enable_graph_planning: false,
+    enable_deep_image_analysis: false,
+    max_subtasks: 5,
+    ...base,
+    ...settings,
+  };
 
-  // Query expansion is mutually exclusive in the current backend contract.
   if (preferredMode === 'hyde') {
     merged.enable_hyde = true;
     merged.enable_multi_query = false;
   } else if (preferredMode === 'multi_query') {
     merged.enable_hyde = false;
     merged.enable_multi_query = true;
-  } else if (merged.enable_hyde) {
+  } else if (preferredMode === 'none') {
+    merged.enable_hyde = false;
     merged.enable_multi_query = false;
-  } else if (merged.enable_multi_query) {
-    merged.enable_hyde = false;
-  } else {
-    merged.enable_multi_query = true;
-    merged.enable_hyde = false;
+  } else if (merged.enable_hyde && merged.enable_multi_query) {
+    merged.enable_multi_query = false;
+  }
+
+  merged.max_subtasks = clampMaxSubtasks(merged.max_subtasks);
+  if (!merged.enable_graph_rag) {
+    merged.graph_search_mode = 'generic';
+    merged.enable_graph_planning = false;
   }
 
   return merged;
 }
 
-// ========== Store 實作 ==========
+function createPresetConfig(baseMode: OfficialChatMode): RagSettings {
+  switch (baseMode) {
+    case 'native':
+      return normalizeRagSettings(
+        {
+          enable_hyde: false,
+          enable_multi_query: false,
+          enable_reranking: false,
+          enable_evaluation: false,
+          enable_graph_rag: false,
+          graph_search_mode: 'generic',
+          enable_graph_planning: false,
+          enable_deep_image_analysis: false,
+          max_subtasks: 5,
+        },
+        undefined,
+        'none'
+      );
+    case 'advanced':
+      return normalizeRagSettings(
+        {
+          enable_hyde: false,
+          enable_multi_query: true,
+          enable_reranking: true,
+          enable_evaluation: false,
+          enable_graph_rag: false,
+          graph_search_mode: 'generic',
+          enable_graph_planning: false,
+          enable_deep_image_analysis: false,
+          max_subtasks: 5,
+        },
+        undefined,
+        'multi_query'
+      );
+    case 'graph':
+      return normalizeRagSettings(
+        {
+          enable_hyde: false,
+          enable_multi_query: true,
+          enable_reranking: true,
+          enable_evaluation: false,
+          enable_graph_rag: true,
+          graph_search_mode: 'generic',
+          enable_graph_planning: false,
+          enable_deep_image_analysis: false,
+          max_subtasks: 5,
+        },
+        undefined,
+        'multi_query'
+      );
+    case 'agentic':
+      return normalizeRagSettings(
+        {
+          enable_hyde: false,
+          enable_multi_query: true,
+          enable_reranking: true,
+          enable_evaluation: false,
+          enable_graph_rag: true,
+          graph_search_mode: 'generic',
+          enable_graph_planning: true,
+          enable_deep_image_analysis: true,
+          max_subtasks: 5,
+        },
+        undefined,
+        'multi_query'
+      );
+  }
+}
 
-/**
- * useSettingsStore - 持久化設定 Store
- *
- * @example
- * ```tsx
- * const { ragSettings, actions } = useSettingsStore();
- *
- * // 讀取設定
- * console.log(ragSettings.enable_hyde);
- *
- * // 更新單一設定
- * actions.setRagSetting('enable_hyde', true);
- *
- * // 批量更新
- * actions.setRagSettings({ enable_hyde: true });
- * ```
- */
+export const OFFICIAL_CHAT_PRESETS: Record<OfficialChatMode, ChatModePreset> = {
+  native: {
+    id: 'native',
+    name: 'Native',
+    baseMode: 'native',
+    description: '純 RAG 基線，不加 query expansion、rerank、GraphRAG。',
+    config: createPresetConfig('native'),
+    isOfficial: true,
+  },
+  advanced: {
+    id: 'advanced',
+    name: 'Advanced',
+    baseMode: 'advanced',
+    description: '加入 query expansion 與 rerank，預設使用 Multi-Query。',
+    config: createPresetConfig('advanced'),
+    isOfficial: true,
+  },
+  graph: {
+    id: 'graph',
+    name: 'Graph RAG',
+    baseMode: 'graph',
+    description: '包含 Advanced 能力，再加上 Generic GraphRAG。',
+    config: createPresetConfig('graph'),
+    isOfficial: true,
+  },
+  agentic: {
+    id: 'agentic',
+    name: 'Agentic RAG',
+    baseMode: 'agentic',
+    description: '包含 Graph RAG，再加上計畫、drill-down 與視覺查證。',
+    config: createPresetConfig('agentic'),
+    isOfficial: true,
+  },
+};
+
+export const DEFAULT_RAG_SETTINGS = OFFICIAL_CHAT_PRESETS[DEFAULT_CHAT_MODE_ID].config;
+
+function buildCustomPreset(
+  preset: CustomChatPreset
+): ChatModePreset {
+  return {
+    id: preset.id,
+    name: preset.name,
+    baseMode: preset.baseMode,
+    description: `${OFFICIAL_CHAT_PRESETS[preset.baseMode].name} 的自訂 preset`,
+    config: normalizeRagSettings(preset.config),
+    isOfficial: false,
+  };
+}
+
+export function getAllChatPresets(customPresets: CustomChatPreset[]): ChatModePreset[] {
+  return [
+    ...OFFICIAL_PRESET_ORDER.map((mode) => OFFICIAL_CHAT_PRESETS[mode]),
+    ...customPresets.map(buildCustomPreset),
+  ];
+}
+
+function resolvePresetFromState(
+  selectedChatModeId: string,
+  customChatPresets: CustomChatPreset[]
+): ChatModePreset {
+  const official = OFFICIAL_CHAT_PRESETS[selectedChatModeId as OfficialChatMode];
+  if (official) {
+    return official;
+  }
+
+  const custom = customChatPresets.find((preset) => preset.id === selectedChatModeId);
+  if (custom) {
+    return buildCustomPreset(custom);
+  }
+
+  return OFFICIAL_CHAT_PRESETS[DEFAULT_CHAT_MODE_ID];
+}
+
+function isKnownPresetId(
+  presetId: string,
+  customChatPresets: CustomChatPreset[]
+): boolean {
+  return Boolean(
+    OFFICIAL_CHAT_PRESETS[presetId as OfficialChatMode] ||
+      customChatPresets.some((preset) => preset.id === presetId)
+  );
+}
+
+function detectPreferredQueryMode(settings: RagSettings): 'hyde' | 'multi_query' | 'none' | undefined {
+  if (settings.enable_hyde) {
+    return 'hyde';
+  }
+  if (settings.enable_multi_query) {
+    return 'multi_query';
+  }
+  return 'none';
+}
+
+function buildCustomPresetId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `custom-${crypto.randomUUID()}`;
+  }
+
+  return `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizeCustomPresets(presets: CustomChatPreset[] | undefined): CustomChatPreset[] {
+  if (!Array.isArray(presets)) {
+    return [];
+  }
+
+  return presets.map((preset, index) => ({
+    id: typeof preset.id === 'string' && preset.id ? preset.id : `custom-${index}`,
+    name: typeof preset.name === 'string' && preset.name.trim() ? preset.name.trim() : `自訂模式 ${index + 1}`,
+    baseMode: OFFICIAL_CHAT_PRESETS[preset.baseMode]?.baseMode ?? 'graph',
+    config: normalizeRagSettings(preset.config ?? {}),
+  }));
+}
+
+function extractConversationSnapshot(
+  metadata?: Record<string, unknown>
+): { modeId?: string; snapshot?: RagSettings } {
+  if (!metadata) {
+    return {};
+  }
+
+  const modeId = typeof metadata.mode_preset === 'string' ? metadata.mode_preset : undefined;
+  const snapshotCandidate = metadata.mode_config_snapshot;
+  const snapshot =
+    snapshotCandidate && typeof snapshotCandidate === 'object'
+      ? normalizeRagSettings(snapshotCandidate as Partial<RagSettings>)
+      : undefined;
+
+  return { modeId, snapshot };
+}
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
-    (set) => ({
-      // Initial State
+    (set, get) => ({
       ragSettings: DEFAULT_RAG_SETTINGS,
+      selectedChatModeId: DEFAULT_CHAT_MODE_ID,
+      customChatPresets: [],
       theme: 'system',
       sidebarOpen: true,
 
-      // Actions (不會被持久化)
       actions: {
         setRagSetting: (key, value) =>
           set((state) => ({
@@ -157,7 +367,11 @@ export const useSettingsStore = create<SettingsState>()(
                 ? 'hyde'
                 : key === 'enable_multi_query' && value
                   ? 'multi_query'
-                  : undefined
+                  : key === 'enable_hyde' && value === false && !state.ragSettings.enable_multi_query
+                    ? 'none'
+                    : key === 'enable_multi_query' && value === false && !state.ragSettings.enable_hyde
+                      ? 'none'
+                      : undefined
             ),
           })),
 
@@ -165,12 +379,123 @@ export const useSettingsStore = create<SettingsState>()(
           set((state) => ({
             ragSettings: normalizeRagSettings(
               { ...state.ragSettings, ...settings },
-              state.ragSettings
+              state.ragSettings,
+              settings.enable_hyde === true
+                ? 'hyde'
+                : settings.enable_multi_query === true
+                  ? 'multi_query'
+                  : settings.enable_hyde === false && settings.enable_multi_query === false
+                    ? 'none'
+                    : undefined
             ),
           })),
 
         resetRagSettings: () =>
-          set({ ragSettings: normalizeRagSettings(DEFAULT_RAG_SETTINGS) }),
+          set(() => {
+            const preset = resolvePresetFromState(
+              get().selectedChatModeId,
+              get().customChatPresets
+            );
+            return {
+              ragSettings: normalizeRagSettings(preset.config),
+            };
+          }),
+
+        setChatMode: (modeId) =>
+          set((state) => {
+            const preset = resolvePresetFromState(modeId, state.customChatPresets);
+            return {
+              selectedChatModeId: preset.id,
+              ragSettings: normalizeRagSettings(preset.config),
+            };
+          }),
+
+        restoreConversationMode: (metadata, conversationType) =>
+          set((state) => {
+            const { modeId, snapshot } = extractConversationSnapshot(metadata);
+            const fallbackMode: OfficialChatMode = conversationType === 'research' ? 'agentic' : 'graph';
+            const resolvedModeId =
+              modeId && isKnownPresetId(modeId, state.customChatPresets)
+                ? modeId
+                : fallbackMode;
+            const resolvedPreset = resolvePresetFromState(
+              resolvedModeId,
+              state.customChatPresets
+            );
+
+            return {
+              selectedChatModeId: resolvedModeId,
+              ragSettings: snapshot
+                ? normalizeRagSettings(snapshot)
+                : normalizeRagSettings(resolvedPreset.config),
+            };
+          }),
+
+        saveCurrentAsCustomPreset: (name, baseMode) => {
+          const trimmed = name.trim();
+          const state = get();
+          const activePreset = resolvePresetFromState(state.selectedChatModeId, state.customChatPresets);
+          const customPreset: CustomChatPreset = {
+            id: buildCustomPresetId(),
+            name: trimmed || `${activePreset.name} Custom`,
+            baseMode: baseMode ?? activePreset.baseMode,
+            config: normalizeRagSettings(state.ragSettings),
+          };
+
+          set((current) => ({
+            customChatPresets: [...current.customChatPresets, customPreset],
+            selectedChatModeId: customPreset.id,
+          }));
+
+          return customPreset;
+        },
+
+        updateCustomPreset: (id, updates) =>
+          set((state) => ({
+            customChatPresets: state.customChatPresets.map((preset) => {
+              if (preset.id !== id) {
+                return preset;
+              }
+
+              return {
+                ...preset,
+                name: updates.name?.trim() || preset.name,
+                baseMode: updates.baseMode ?? preset.baseMode,
+                config: updates.config
+                  ? normalizeRagSettings(
+                      updates.config,
+                      preset.config,
+                      detectPreferredQueryMode(normalizeRagSettings(updates.config, preset.config))
+                    )
+                  : preset.config,
+              };
+            }),
+          })),
+
+        deleteCustomPreset: (id) =>
+          set((state) => {
+            const nextPresets = state.customChatPresets.filter((preset) => preset.id !== id);
+            const nextSelected =
+              state.selectedChatModeId === id ? DEFAULT_CHAT_MODE_ID : state.selectedChatModeId;
+            const nextPreset = resolvePresetFromState(nextSelected, nextPresets);
+
+            return {
+              customChatPresets: nextPresets,
+              selectedChatModeId: nextSelected,
+              ragSettings:
+                state.selectedChatModeId === id
+                  ? normalizeRagSettings(nextPreset.config)
+                  : state.ragSettings,
+            };
+          }),
+
+        resetCurrentModeToPreset: () =>
+          set((state) => {
+            const preset = resolvePresetFromState(state.selectedChatModeId, state.customChatPresets);
+            return {
+              ragSettings: normalizeRagSettings(preset.config),
+            };
+          }),
 
         setTheme: (theme) => set({ theme }),
 
@@ -181,22 +506,34 @@ export const useSettingsStore = create<SettingsState>()(
       },
     }),
     {
-      name: 'rag-settings-storage', // localStorage key
+      name: 'rag-settings-storage',
       storage: createJSONStorage(() => localStorage),
-      // 只持久化 state，不持久化 actions
       partialize: (state) => ({
         ragSettings: state.ragSettings,
+        selectedChatModeId: state.selectedChatModeId,
+        customChatPresets: state.customChatPresets,
         theme: state.theme,
         sidebarOpen: state.sidebarOpen,
       }),
       merge: (persistedState, currentState) => {
         const typedState = persistedState as Partial<SettingsState> | undefined;
+        const customChatPresets = normalizeCustomPresets(typedState?.customChatPresets);
+        const requestedChatModeId =
+          typeof typedState?.selectedChatModeId === 'string' && typedState.selectedChatModeId
+            ? typedState.selectedChatModeId
+            : DEFAULT_CHAT_MODE_ID;
+        const selectedChatModeId = isKnownPresetId(requestedChatModeId, customChatPresets)
+          ? requestedChatModeId
+          : DEFAULT_CHAT_MODE_ID;
+        const preset = resolvePresetFromState(selectedChatModeId, customChatPresets);
 
         return {
           ...currentState,
           ...typedState,
+          customChatPresets,
+          selectedChatModeId,
           ragSettings: normalizeRagSettings(
-            typedState?.ragSettings ?? currentState.ragSettings
+            typedState?.ragSettings ?? preset.config
           ),
         };
       },
@@ -204,21 +541,35 @@ export const useSettingsStore = create<SettingsState>()(
   )
 );
 
-// ========== Selector Hooks (效能優化) ==========
-
-/**
- * 只選取 RAG 設定 (避免不必要的重新渲染)
- */
 export const useRagSettings = () => useSettingsStore((state) => state.ragSettings);
 
-/**
- * 只選取 Actions
- */
 export const useSettingsActions = () => useSettingsStore((state) => state.actions);
 
-/**
- * 只選取主題
- */
 export const useTheme = () => useSettingsStore((state) => state.theme);
+
+export const useSelectedChatModeId = () =>
+  useSettingsStore((state) => state.selectedChatModeId);
+
+export const useCustomChatPresets = () =>
+  useSettingsStore((state) => state.customChatPresets);
+
+export const useChatPresetList = () => {
+  const customChatPresets = useCustomChatPresets();
+  return useMemo(() => getAllChatPresets(customChatPresets), [customChatPresets]);
+};
+
+export const useActiveChatPreset = () => {
+  const selectedChatModeId = useSelectedChatModeId();
+  const customChatPresets = useCustomChatPresets();
+
+  return useMemo(
+    () => resolvePresetFromState(selectedChatModeId, customChatPresets),
+    [selectedChatModeId, customChatPresets]
+  );
+};
+
+export function getConversationTypeForMode(baseMode: ChatModeBase): ConversationType {
+  return baseMode === 'agentic' ? 'research' : 'chat';
+}
 
 export default useSettingsStore;

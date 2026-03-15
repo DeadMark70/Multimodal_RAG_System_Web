@@ -1,69 +1,87 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
-import Chat from './Chat';
-import { useSessionStore } from '../stores/useSessionStore';
-import { useConversationMutations } from '../hooks/useConversations';
-import * as conversationApi from '../services/conversationApi';
-import type { ReactNode } from 'react';
-import { ChakraProvider } from '@chakra-ui/react';
-import theme from '../theme';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { asMock } from '../test/mock-utils';
-import type { ChatMessage } from '../types/rag';
-import type { Conversation, ConversationDetail, ConversationType } from '../types/conversation';
+import { ChakraProvider } from '@chakra-ui/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import React from 'react';
 
-// Mock dependencies
+import Chat from './Chat';
+import theme from '../theme';
+import { useSettingsStore } from '../stores';
+
+const mockSetCurrentChatId = vi.fn();
+
 vi.mock('../components/layout/Layout', () => ({
-  default: ({ children }: { children: ReactNode }) => <div data-testid="layout">{children}</div>,
+  default: ({ children }: { children: React.ReactNode }) => <div data-testid="layout">{children}</div>,
 }));
-
 vi.mock('../components/rag/ConversationSidebar', () => ({
   default: ({
     onSelect,
-    onNew,
   }: {
-    onSelect: (conversation: Conversation) => void;
-    onNew: (type: ConversationType) => void;
+    onSelect: (conversation: {
+      id: string;
+      title: string;
+      type: 'research';
+      created_at: string;
+      updated_at: string;
+      metadata: Record<string, unknown>;
+    }) => void;
   }) => (
-    <div data-testid="conversation-sidebar">
-      <button
-        onClick={() =>
-          onSelect({
-            id: '123',
-            title: 'Selected',
-            type: 'chat',
-            created_at: '',
-            updated_at: '',
-          })
-        }
-      >
-        Select Chat 123
-      </button>
-      <button onClick={() => onNew('chat')}>New Chat</button>
-    </div>
+    <button
+      onClick={() =>
+        onSelect({
+          id: 'research-123',
+          title: 'Agentic Session',
+          type: 'research',
+          created_at: '',
+          updated_at: '',
+          metadata: {},
+        })
+      }
+    >
+      Select Research
+    </button>
   ),
 }));
-
-vi.mock('../stores/useSessionStore', () => ({
-  useSessionStore: vi.fn(),
-}));
-
-vi.mock('../hooks/useConversations', () => ({
-  useConversationMutations: vi.fn(),
-}));
-
-// Mock API services
-vi.mock('../services/conversationApi');
-vi.mock('../services/ragApi');
-
-// Mock other components
-vi.mock('../components/rag/MessageBubble', () => ({ 
-  default: ({ content, role }: Pick<ChatMessage, 'content' | 'role'>) => (
-    <div data-testid="message-bubble">{role}: {content}</div>
-  ),
-}));
-vi.mock('../components/rag/DeepResearchPanel', () => ({ default: () => <div>DeepResearch</div> }));
 vi.mock('../components/rag/DocumentSelector', () => ({ default: () => <div>DocSelector</div> }));
+vi.mock('../components/rag/MessageBubble', () => ({ default: () => <div>MessageBubble</div> }));
+vi.mock('../components/rag/DeepResearchPanel', () => ({ default: () => <div>DeepResearch</div> }));
+vi.mock('../components/settings/SettingsPanel', () => ({ default: () => <div>SettingsPanel</div> }));
+vi.mock('../stores/useSessionStore', () => ({
+  useSessionStore: vi.fn(() => ({ currentChatId: null, actions: { setCurrentChatId: mockSetCurrentChatId } })),
+}));
+vi.mock('../hooks/useConversations', () => ({
+  useConversationMutations: vi.fn(() => ({ create: vi.fn() })),
+}));
+vi.mock('../hooks/useChat', () => ({
+  useChat: vi.fn(() => ({
+    messages: [],
+    sendMessage: vi.fn(),
+    clearMessages: vi.fn(),
+    isLoading: false,
+    isLoadingHistory: false,
+    selectedDocIds: [],
+    setSelectedDocIds: vi.fn(),
+    currentStage: null,
+  })),
+}));
+vi.mock('../hooks/useDeepResearch', () => ({
+  useDeepResearch: vi.fn(() => ({
+    plan: null,
+    isPlanning: false,
+    isExecuting: false,
+    progress: [],
+    result: null,
+    error: null,
+    currentPhase: 'idle',
+    generatePlan: vi.fn(),
+    updateTask: vi.fn(),
+    toggleTask: vi.fn(),
+    deleteTask: vi.fn(),
+    executePlan: vi.fn(),
+    cancelExecution: vi.fn(),
+    reset: vi.fn(),
+  })),
+}));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -73,95 +91,40 @@ const queryClient = new QueryClient({
   },
 });
 
-// Wrap with ChakraProvider and QueryClientProvider
-const renderWithProviders = (component: React.ReactNode) => {
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <ChakraProvider theme={theme}>
-        {component}
-      </ChakraProvider>
-    </QueryClientProvider>
-  );
-};
-
 describe('Chat Page Integration', () => {
-  const mockSetCurrentChatId = vi.fn<(id: string | null) => void>();
-  const mockCreate = vi.fn();
-  const mockUseSessionStore = asMock(useSessionStore);
-  const mockUseConversationMutations = asMock(useConversationMutations);
-  const mockGetConversation = asMock(conversationApi.getConversation);
-  
-  // Fake state for session store to simulate hook behavior
-  let currentChatId: string | null = null;
-
   beforeEach(() => {
-    vi.clearAllMocks();
-    queryClient.clear();
-    currentChatId = null;
-
-    // Mock useSessionStore to behave like a real store for currentChatId
-    mockUseSessionStore.mockImplementation(() => ({
-      currentChatId,
-      actions: { 
-        setCurrentChatId: (id: string) => {
-          currentChatId = id;
-          mockSetCurrentChatId(id);
-        } 
+    localStorage.clear();
+    useSettingsStore.setState({
+      ...useSettingsStore.getState(),
+      ragSettings: {
+        enable_hyde: false,
+        enable_multi_query: true,
+        enable_reranking: true,
+        enable_evaluation: false,
+        enable_graph_rag: true,
+        graph_search_mode: 'generic',
+        enable_graph_planning: false,
+        enable_deep_image_analysis: false,
+        max_subtasks: 5,
       },
-    }));
-
-    mockUseConversationMutations.mockReturnValue({
-      create: mockCreate,
-      update: vi.fn(),
-      remove: vi.fn(),
-      isCreating: false,
-      isUpdating: false,
-      isDeleting: false,
+      selectedChatModeId: 'graph',
+      customChatPresets: [],
     });
+    mockSetCurrentChatId.mockReset();
   });
 
-  it('loads conversation history when a conversation is selected', async () => {
-    // Setup mock response for getConversation
-    const mockDetail: ConversationDetail = {
-      id: '123',
-      title: 'Test Chat',
-      type: 'chat',
-      created_at: '',
-      updated_at: '',
-      messages: [
-        { id: 'm1', role: 'user', content: 'Hello History', created_at: new Date().toISOString() },
-        { id: 'm2', role: 'assistant', content: 'Hi there', created_at: new Date().toISOString() }
-      ]
-    };
-    mockGetConversation.mockResolvedValue(mockDetail);
-
-    // Initial render
-    const { rerender } = renderWithProviders(<Chat />);
-    
-    // Initial state (Welcome message)
-    expect(screen.getByText(/您好！我是您的研究助理/)).toBeInTheDocument();
-
-    // Trigger selection (simulating Sidebar click)
-    // Update mock to return new ID and re-render
-    currentChatId = '123';
-    mockUseSessionStore.mockImplementation(() => ({
-      currentChatId: '123',
-      actions: { setCurrentChatId: mockSetCurrentChatId },
-    }));
-
-    rerender(
-        <QueryClientProvider client={queryClient}>
-            <ChakraProvider theme={theme}>
-                <Chat />
-            </ChakraProvider>
-        </QueryClientProvider>
+  it('restores agentic preset when a research conversation is selected', () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChakraProvider theme={theme}>
+          <Chat />
+        </ChakraProvider>
+      </QueryClientProvider>
     );
 
-    // Wait for history to load
-    await waitFor(() => {
-      expect(mockGetConversation).toHaveBeenCalledWith('123');
-      expect(screen.getByText('user: Hello History')).toBeInTheDocument();
-      expect(screen.getByText('assistant: Hi there')).toBeInTheDocument();
-    });
+    fireEvent.click(screen.getByText('Select Research'));
+
+    expect(mockSetCurrentChatId).toHaveBeenCalledWith('research-123');
+    expect(useSettingsStore.getState().selectedChatModeId).toBe('agentic');
   });
 });

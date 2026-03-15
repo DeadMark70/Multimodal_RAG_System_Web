@@ -1,17 +1,24 @@
 /**
  * useChat Hook
- * 
- * 管理 RAG 對話功能
+ *
+ * 管理一般聊天問答功能：
  * - 支援 conversationId 整合
  * - 自動載入/儲存對話歷史
+ * - 使用 SSE 顯示目前問答進度
  */
 
-import { useState, useCallback, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { askQuestion } from '../services/ragApi';
-import { getConversation, addMessage } from '../services/conversationApi';
-import type { ChatMessage, AskRequest } from '../types/rag';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@chakra-ui/react';
+
+import { askQuestionStream } from '../services/ragApi';
+import { getConversation, addMessage } from '../services/conversationApi';
+import type {
+  AskRequest,
+  AskResponse,
+  ChatMessage,
+  ChatPipelineStage,
+  ChatStreamEvent,
+} from '../types/rag';
 
 interface UseChatOptions {
   enableEvaluation?: boolean;
@@ -19,7 +26,7 @@ interface UseChatOptions {
   enableMultiQuery?: boolean;
   enableReranking?: boolean;
   enableGraphRag?: boolean;
-  graphSearchMode?: 'local' | 'global' | 'hybrid' | 'auto';
+  graphSearchMode?: 'local' | 'global' | 'hybrid' | 'auto' | 'generic';
   conversationId?: string | null;
   ensureConversation?: () => Promise<string | null>;
 }
@@ -27,7 +34,7 @@ interface UseChatOptions {
 const WELCOME_MESSAGE: ChatMessage = {
   id: 'welcome',
   role: 'assistant',
-  content: '您好！我是您的研究助理。我可以協助您使用 RAG 技術分析您上傳的論文。開啟**評估模式**可查看幻覺指標。',
+  content: '您好！我是您的研究助理。我可以協助您使用 RAG 技術分析您上傳的論文。',
   sources: [],
 };
 
@@ -37,19 +44,27 @@ export function useChat(options: UseChatOptions = {}) {
   const enableMultiQuery = options.enableMultiQuery ?? false;
   const enableReranking = options.enableReranking ?? true;
   const enableGraphRag = options.enableGraphRag ?? false;
-  const graphSearchMode = options.graphSearchMode ?? 'auto';
+  const graphSearchMode = options.graphSearchMode ?? 'generic';
   const conversationId = options.conversationId ?? null;
   const ensureConversation = options.ensureConversation;
 
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [currentStage, setCurrentStage] = useState<ChatPipelineStage | null>(null);
   const toast = useToast();
 
-  // 載入對話歷史
+  const messagesRef = useRef(messages);
+  const protectedEmptyHistoryConversationIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
   useEffect(() => {
     if (!conversationId) {
-      // 沒有 conversationId，重置為歡迎訊息
+      protectedEmptyHistoryConversationIdRef.current = null;
       setMessages([WELCOME_MESSAGE]);
       return;
     }
@@ -58,9 +73,7 @@ export function useChat(options: UseChatOptions = {}) {
       setIsLoadingHistory(true);
       try {
         const conversation = await getConversation(conversationId);
-
-        // 轉換後端訊息格式為前端格式
-        const loadedMessages: ChatMessage[] = conversation.messages.map(msg => ({
+        const loadedMessages: ChatMessage[] = conversation.messages.map((msg) => ({
           id: String(msg.id),
           role: msg.role === 'system' ? 'assistant' : msg.role,
           content: msg.content,
@@ -78,7 +91,17 @@ export function useChat(options: UseChatOptions = {}) {
 
         if (loadedMessages.length > 0) {
           setMessages(loadedMessages);
-        } else {
+          if (protectedEmptyHistoryConversationIdRef.current === conversationId) {
+            protectedEmptyHistoryConversationIdRef.current = null;
+          }
+          return;
+        }
+
+        const hasLocalMessages = messagesRef.current.some((msg) => msg.id !== 'welcome');
+        const shouldProtectOptimisticState =
+          protectedEmptyHistoryConversationIdRef.current === conversationId && hasLocalMessages;
+
+        if (!shouldProtectOptimisticState) {
           setMessages([WELCOME_MESSAGE]);
         }
       } catch (error) {
@@ -97,133 +120,166 @@ export function useChat(options: UseChatOptions = {}) {
     void loadHistory();
   }, [conversationId, toast]);
 
-  const mutation = useMutation({
-    mutationFn: async (request: AskRequest) => {
-      return await askQuestion(request);
-    },
-    onError: (error: Error) => {
+  const showPersistenceError = useCallback(
+    (description: string) => {
       toast({
-        title: '請求失敗',
-        description: error.message || '無法取得回應',
+        title: '儲存訊息失敗',
+        description,
         status: 'error',
-        duration: 5000,
+        duration: 3000,
       });
     },
-  });
+    [toast]
+  );
 
-  const showPersistenceError = useCallback((description: string) => {
-    toast({
-      title: '儲存訊息失敗',
-      description,
-      status: 'error',
-      duration: 3000,
-    });
-  }, [toast]);
-
-  const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim()) return;
-
-    // 加入使用者訊息 (Optimistic UI)
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content,
-      timestamp: Date.now(),
-    };
-    setMessages(prev => [...prev, userMessage]);
-
-    let activeConversationId = conversationId;
-    if (!activeConversationId && ensureConversation) {
-      try {
-        activeConversationId = await ensureConversation();
-        if (!activeConversationId) {
-          showPersistenceError('無法儲存您的訊息至對話歷史');
-        }
-      } catch (error) {
-        console.error('Failed to create chat conversation', error);
-        showPersistenceError('無法儲存您的訊息至對話歷史');
+  const sendMessage = useCallback(
+    async (content: string) => {
+      if (!content.trim() || isSending) {
+        return;
       }
-    }
 
-    // 持久化使用者訊息
-    if (activeConversationId) {
-      try {
-        await addMessage(activeConversationId, {
-          role: 'user',
-          content: content,
-        });
-      } catch (error) {
-        console.error('Failed to save user message', error);
-        showPersistenceError('無法儲存您的訊息至對話歷史');
-      }
-    }
-
-    try {
-      // 準備請求
-      const request: AskRequest = {
-        question: content,
-        doc_ids: selectedDocIds.length > 0 ? selectedDocIds : null,
-        history: messages
-          .filter(m => m.id !== 'welcome')
-          .slice(-10) // 最近 10 則對話
-          .map(m => ({ role: m.role, content: m.content })),
-        enable_hyde: enableHyde,
-        enable_multi_query: enableMultiQuery,
-        enable_reranking: enableReranking,
-        enable_evaluation: enableEvaluation,
-        enable_graph_rag: enableGraphRag,
-        graph_search_mode: graphSearchMode,
-      };
-
-      const response = await mutation.mutateAsync(request);
-
-      // 加入助理回應
-      const assistantMessage: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: response.answer,
-        sources: response.sources,
-        metrics: response.metrics ?? undefined,
+      const userMessage: ChatMessage = {
+        id: `user-${Date.now()}`,
+        role: 'user',
+        content,
         timestamp: Date.now(),
       };
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages((prev) => [...prev, userMessage]);
 
-      // 持久化助理回應
+      let activeConversationId = conversationId;
+      if (!activeConversationId && ensureConversation) {
+        try {
+          activeConversationId = await ensureConversation();
+          if (activeConversationId) {
+            protectedEmptyHistoryConversationIdRef.current = activeConversationId;
+          } else {
+            showPersistenceError('無法儲存您的訊息至對話歷史');
+          }
+        } catch (error) {
+          console.error('Failed to create chat conversation', error);
+          showPersistenceError('無法儲存您的訊息至對話歷史');
+        }
+      }
+
       if (activeConversationId) {
         try {
           await addMessage(activeConversationId, {
-            role: 'assistant',
-            content: response.answer,
-            metadata: {
-              sources: response.sources,
-              metrics: response.metrics,
-            },
+            role: 'user',
+            content,
           });
         } catch (error) {
-          console.error('Failed to save assistant message', error);
-          showPersistenceError('無法儲存 AI 回應至對話歷史');
+          console.error('Failed to save user message', error);
+          showPersistenceError('無法儲存您的訊息至對話歷史');
         }
       }
 
-    } catch {
-      // 錯誤已在 mutation.onError 處理
-    }
-  }, [
-    conversationId,
-    enableEvaluation,
-    enableGraphRag,
-    enableHyde,
-    enableMultiQuery,
-    enableReranking,
-    graphSearchMode,
-    messages,
-    mutation,
-    selectedDocIds,
-    ensureConversation,
-    showPersistenceError,
-  ]);
+      setIsSending(true);
+      setCurrentStage(null);
+
+      try {
+        const request: AskRequest = {
+          question: content,
+          doc_ids: selectedDocIds.length > 0 ? selectedDocIds : null,
+          history: messagesRef.current
+            .filter((message) => message.id !== 'welcome')
+            .slice(-10)
+            .map((message) => ({ role: message.role, content: message.content })),
+          enable_hyde: enableHyde,
+          enable_multi_query: enableMultiQuery,
+          enable_reranking: enableReranking,
+          enable_evaluation: enableEvaluation,
+          enable_graph_rag: enableGraphRag,
+          graph_search_mode: graphSearchMode,
+        };
+
+        let responsePayload: AskResponse | null = null;
+        let streamError: string | null = null;
+
+        await askQuestionStream(
+          request,
+          (event: ChatStreamEvent) => {
+            if (event.type === 'phase_update') {
+              const phase = event.data as { stage?: ChatPipelineStage };
+              if (phase.stage) {
+                setCurrentStage(phase.stage);
+              }
+              return;
+            }
+
+            if (event.type === 'complete') {
+              responsePayload = event.data as AskResponse;
+              return;
+            }
+
+            const errorPayload = event.data as { message?: string };
+            streamError = errorPayload.message ?? '無法取得回應';
+          }
+        );
+
+        if (streamError) {
+          throw new Error(streamError);
+        }
+
+        if (!responsePayload) {
+          throw new Error('未收到完整回應');
+        }
+
+        const assistantMessage: ChatMessage = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: responsePayload.answer,
+          sources: responsePayload.sources,
+          metrics: responsePayload.metrics ?? undefined,
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+
+        if (activeConversationId) {
+          try {
+            await addMessage(activeConversationId, {
+              role: 'assistant',
+              content: responsePayload.answer,
+              metadata: {
+                sources: responsePayload.sources,
+                metrics: responsePayload.metrics,
+              },
+            });
+          } catch (error) {
+            console.error('Failed to save assistant message', error);
+            showPersistenceError('無法儲存 AI 回應至對話歷史');
+          }
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '無法取得回應';
+        toast({
+          title: '請求失敗',
+          description: message,
+          status: 'error',
+          duration: 5000,
+        });
+      } finally {
+        setIsSending(false);
+        setCurrentStage(null);
+      }
+    },
+    [
+      conversationId,
+      enableEvaluation,
+      enableGraphRag,
+      enableHyde,
+      enableMultiQuery,
+      enableReranking,
+      ensureConversation,
+      graphSearchMode,
+      isSending,
+      selectedDocIds,
+      showPersistenceError,
+      toast,
+    ]
+  );
 
   const clearMessages = useCallback(() => {
+    protectedEmptyHistoryConversationIdRef.current = null;
     setMessages([
       {
         id: 'welcome',
@@ -238,10 +294,11 @@ export function useChat(options: UseChatOptions = {}) {
     messages,
     sendMessage,
     clearMessages,
-    isLoading: mutation.isPending,
+    isLoading: isSending,
     isLoadingHistory,
     selectedDocIds,
     setSelectedDocIds,
+    currentStage,
   };
 }
 

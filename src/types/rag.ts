@@ -68,6 +68,23 @@ export interface AskResponse {
   metrics: EvaluationMetrics | null;
 }
 
+export type ChatPipelineStage =
+  | 'query_expansion'
+  | 'retrieval'
+  | 'reranking'
+  | 'graph_context'
+  | 'answer_generation';
+
+export interface ChatPhaseUpdate {
+  stage: ChatPipelineStage;
+  message?: string;
+}
+
+export interface ChatStreamEvent {
+  type: 'phase_update' | 'complete' | 'error';
+  data: ChatPhaseUpdate | AskResponse | { message: string };
+}
+
 // ========== 文件管理型別 ==========
 
 /**

@@ -44,6 +44,7 @@ import {
   FiChevronDown,
   FiChevronUp,
   FiEye,
+  FiMessageSquare,
 } from 'react-icons/fi';
 import { useState } from 'react';
 import { useSettingsStore, useSettingsActions } from '../../stores';
@@ -133,7 +134,11 @@ export function SettingsPanel({ isDrawerMode = false }: SettingsPanelProps) {
   const bg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.100', 'gray.700');
   const sectionBg = useColorModeValue('gray.50', 'gray.900');
-  const queryMode = ragSettings.enable_hyde ? 'hyde' : 'multi_query';
+  const queryMode = ragSettings.enable_hyde
+    ? 'hyde'
+    : ragSettings.enable_multi_query
+      ? 'multi_query'
+      : 'none';
 
   // Helper to update setting
   const updateSetting = <K extends keyof RagSettings>(
@@ -189,6 +194,14 @@ export function SettingsPanel({ isDrawerMode = false }: SettingsPanelProps) {
               <RadioGroup
                 value={queryMode}
                 onChange={(value) => {
+                  if (value === 'none') {
+                    actions.setRagSettings({
+                      enable_hyde: false,
+                      enable_multi_query: false,
+                    });
+                    return;
+                  }
+
                   if (value === 'hyde') {
                     actions.setRagSettings({
                       enable_hyde: true,
@@ -204,6 +217,32 @@ export function SettingsPanel({ isDrawerMode = false }: SettingsPanelProps) {
                 }}
               >
                 <VStack align="stretch" spacing={3}>
+                  <Box
+                    borderWidth="1px"
+                    borderColor={queryMode === 'none' ? 'gray.300' : borderColor}
+                    bg={queryMode === 'none' ? 'gray.50' : bg}
+                    borderRadius="lg"
+                    p={3}
+                  >
+                    <HStack align="start" spacing={3}>
+                      <Radio value="none" colorScheme="gray" mt={1} />
+                      <Box flex={1}>
+                        <HStack spacing={2} mb={1}>
+                          <Icon as={FiMessageSquare} color="gray.500" />
+                          <Text fontSize="sm" fontWeight="600">
+                            不擴展查詢
+                          </Text>
+                          <Badge colorScheme="gray" fontSize="xs" variant="subtle">
+                            Native
+                          </Badge>
+                        </HStack>
+                        <Text fontSize="xs" color="gray.500">
+                          直接用原始問題檢索，適合需要最低延遲或做基線比較。
+                        </Text>
+                      </Box>
+                    </HStack>
+                  </Box>
+
                   <Box
                     borderWidth="1px"
                     borderColor={queryMode === 'multi_query' ? 'brand.200' : borderColor}

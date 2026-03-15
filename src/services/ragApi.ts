@@ -13,6 +13,7 @@ import api from './api';
 import type { 
   AskRequest, 
   AskResponse,
+  ChatStreamEvent,
   ResearchPlanResponse,
   ExecutePlanRequest,
   ExecutePlanResponse,
@@ -41,6 +42,95 @@ export async function askQuestionSimple(
 export async function askQuestion(request: AskRequest): Promise<AskResponse> {
   const response = await api.post<AskResponse>('/rag/ask', request);
   return response.data;
+}
+
+async function getAccessToken(): Promise<string> {
+  const { supabase } = await import('./supabase');
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error('未登入，請重新登入');
+  }
+
+  return session.access_token;
+}
+
+async function streamSse<TEvent extends { type: string; data: unknown }>(
+  path: string,
+  request: unknown,
+  onEvent: (event: TEvent) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  const accessToken = await getAccessToken();
+  const streamUrl = resolveApiUrl(api.defaults.baseURL, path);
+  assertAllowedApiTarget(streamUrl);
+
+  const response = await fetch(streamUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(request),
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('Response body is not readable');
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let currentEvent = '';
+  let currentData = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (line.startsWith('event:')) {
+        currentEvent = line.slice(6).trim();
+      } else if (line.startsWith('data:')) {
+        currentData = line.slice(5).trim();
+      } else if (line === '') {
+        if (currentEvent && currentData) {
+          onEvent({
+            type: currentEvent,
+            data: JSON.parse(currentData),
+          } as TEvent);
+        }
+        currentEvent = '';
+        currentData = '';
+      }
+    }
+  }
+
+  if (currentEvent && currentData) {
+    onEvent({
+      type: currentEvent,
+      data: JSON.parse(currentData),
+    } as TEvent);
+  }
+}
+
+export async function askQuestionStream(
+  request: AskRequest,
+  onEvent: (event: ChatStreamEvent) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  await streamSse<ChatStreamEvent>('/rag/ask/stream', request, onEvent, signal);
 }
 
 /**
@@ -119,84 +209,6 @@ export async function executeResearchPlanStream(
   onEvent: (event: SSEEvent) => void,
   signal?: AbortSignal
 ): Promise<void> {
-  // 🔧 直接從 Supabase 取得 session token (修復 401 問題)
-  const { supabase } = await import('./supabase');
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session?.access_token) {
-    throw new Error('未登入，請重新登入');
-  }
-  
-  const streamUrl = resolveApiUrl(api.defaults.baseURL, '/rag/execute/stream');
-  assertAllowedApiTarget(streamUrl);
-
-  const response = await fetch(streamUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify(request),
-    signal,
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
-
-  const reader = response.body?.getReader();
-  if (!reader) {
-    throw new Error('Response body is not readable');
-  }
-
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let currentEvent = '';
-  let currentData = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || ''; // 保留最後不完整的行
-
-    for (const line of lines) {
-      if (line.startsWith('event:')) {
-        currentEvent = line.slice(6).trim();
-      } else if (line.startsWith('data:')) {
-        currentData = line.slice(5).trim();
-      } else if (line === '') {
-        // 空行表示事件結束，觸發 callback
-        if (currentEvent && currentData) {
-          try {
-            console.log('[SSE] Event:', currentEvent, 'Data:', currentData.slice(0, 100) + '...');
-            onEvent({ 
-              type: currentEvent as SSEEvent['type'], 
-              data: JSON.parse(currentData) 
-            });
-          } catch (e) {
-            console.error('[SSE] Parse error:', e);
-          }
-        }
-        currentEvent = '';
-        currentData = '';
-      }
-    }
-  }
-
-  // 處理最後殘留的事件 (如果沒有結尾空行)
-  if (currentEvent && currentData) {
-    try {
-      console.log('[SSE] Final Event:', currentEvent);
-      onEvent({ 
-        type: currentEvent as SSEEvent['type'], 
-        data: JSON.parse(currentData) 
-      });
-    } catch (e) {
-      console.error('[SSE] Final parse error:', e);
-    }
-  }
+  await streamSse<SSEEvent>('/rag/execute/stream', request, onEvent, signal);
 }
 

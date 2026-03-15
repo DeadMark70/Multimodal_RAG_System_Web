@@ -10,7 +10,18 @@ export {
   useRagSettings,
   useSettingsActions,
   useTheme,
+  useSelectedChatModeId,
+  useCustomChatPresets,
+  useChatPresetList,
+  useActiveChatPreset,
+  OFFICIAL_CHAT_PRESETS,
+  getAllChatPresets,
+  getConversationTypeForMode,
   type RagSettings,
+  type OfficialChatMode,
+  type ChatModeBase,
+  type CustomChatPreset,
+  type ChatModePreset,
 } from './useSettingsStore';
 
 // Session Store (暫態)

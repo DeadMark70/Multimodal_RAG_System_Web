@@ -1,19 +1,18 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { useChat } from './useChat';
 import * as ragApi from '../services/ragApi';
 import * as conversationApi from '../services/conversationApi';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React from 'react';
 import { asMock } from '../test/mock-utils';
-import type { AskResponse } from '../types/rag';
+import type { ChatStreamEvent } from '../types/rag';
 import type { ConversationDetail } from '../types/conversation';
 
-// Mock services
 vi.mock('../services/ragApi');
 vi.mock('../services/conversationApi');
 
-// Mock toast
 const mockToast = vi.fn();
 vi.mock('@chakra-ui/react', () => ({
   useToast: () => mockToast,
@@ -30,7 +29,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 );
 
 describe('useChat Hook Error Handling', () => {
-  const mockAskQuestion = asMock(ragApi.askQuestion);
+  const mockAskQuestionStream = asMock(ragApi.askQuestionStream);
   const mockGetConversation = asMock(conversationApi.getConversation);
   const mockAddMessage = asMock(conversationApi.addMessage);
 
@@ -39,48 +38,38 @@ describe('useChat Hook Error Handling', () => {
     queryClient.clear();
   });
 
-  it('should show error toast when saving user message fails', async () => {
+  it('shows error toast when saving user message fails', async () => {
     const conversationId = '123';
-    const userMessage = 'Hello';
-    const aiAnswer = 'Hi user';
 
-    // Mock successful history load
-    const conversation: ConversationDetail = {
+    mockGetConversation.mockResolvedValue({
       id: conversationId,
       title: 'Test',
       type: 'chat',
       created_at: '',
       updated_at: '',
       messages: [],
-    };
-    mockGetConversation.mockResolvedValue(conversation);
-    
-    // Mock FAILED save message
+    } as ConversationDetail);
     mockAddMessage.mockRejectedValue(new Error('Save failed'));
-    
-    // Mock successful RAG response
-    const answer: AskResponse = {
-      question: userMessage,
-      answer: aiAnswer,
-      sources: [],
-      metrics: null,
-    };
-    mockAskQuestion.mockResolvedValue(answer);
+    mockAskQuestionStream.mockImplementation(async (_request, onEvent) => {
+      onEvent({
+        type: 'complete',
+        data: { question: 'Hello', answer: 'Hi user', sources: [], metrics: null },
+      } as ChatStreamEvent);
+    });
 
     const { result } = renderHook(() => useChat({ conversationId }), { wrapper });
 
-    // Wait for history load
-    await waitFor(() => expect(mockGetConversation).toHaveBeenCalled());
+    await waitFor(() => expect(mockGetConversation).toHaveBeenCalledWith(conversationId));
 
-    // Send message
     await act(async () => {
-      await result.current.sendMessage(userMessage);
+      await result.current.sendMessage('Hello');
     });
 
-    // Verify toast was called for the save failure
-    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
-      title: '儲存訊息失敗',
-      status: 'error',
-    }));
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: '儲存訊息失敗',
+        status: 'error',
+      })
+    );
   });
 });
