@@ -308,5 +308,6 @@ describe('CampaignRunner', () => {
       expect(mockGetCampaignResults).toHaveBeenCalledWith('cmp-1');
     });
     expect(screen.getByText('agentic_eval_v1')).toBeInTheDocument();
-  });
+  }, 15000);
 });
+

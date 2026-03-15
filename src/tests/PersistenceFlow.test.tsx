@@ -17,7 +17,7 @@ import type {
   CreateMessageRequest,
   Message,
 } from '../types/conversation';
-import type { AskResponse } from '../types/rag';
+import type { AskResponse, ChatStreamEvent } from '../types/rag';
 
 // Mock dependencies
 vi.mock('../components/layout/Layout', () => ({
@@ -83,7 +83,7 @@ const renderWithProviders = (component: React.ReactNode) => {
 describe('End-to-End Persistence Flow', () => {
   const mockGetConversation = asMock(conversationApi.getConversation);
   const mockAddMessage = asMock(conversationApi.addMessage);
-  const mockAskQuestion = asMock(ragApi.askQuestion);
+  const mockAskQuestionStream = asMock(ragApi.askQuestionStream);
   const mockUseSessionStore = asMock(useSessionStore);
   const mockUseConversationMutations = asMock(useConversationMutations);
 
@@ -124,7 +124,13 @@ describe('End-to-End Persistence Flow', () => {
       sources: [],
       metrics: null,
     };
-    mockAskQuestion.mockResolvedValue(answer);
+    mockAskQuestionStream.mockImplementation((_request, onEvent) => {
+      onEvent({
+        type: 'complete',
+        data: answer,
+      } as ChatStreamEvent);
+      return Promise.resolve();
+    });
 
     const mockCreateConversation = vi.fn(() =>
       Promise.resolve({

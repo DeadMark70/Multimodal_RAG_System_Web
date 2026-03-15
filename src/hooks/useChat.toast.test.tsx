@@ -50,11 +50,12 @@ describe('useChat Hook Error Handling', () => {
       messages: [],
     } as ConversationDetail);
     mockAddMessage.mockRejectedValue(new Error('Save failed'));
-    mockAskQuestionStream.mockImplementation(async (_request, onEvent) => {
+    mockAskQuestionStream.mockImplementation((_request, onEvent) => {
       onEvent({
         type: 'complete',
         data: { question: 'Hello', answer: 'Hi user', sources: [], metrics: null },
       } as ChatStreamEvent);
+      return Promise.resolve();
     });
 
     const { result } = renderHook(() => useChat({ conversationId }), { wrapper });

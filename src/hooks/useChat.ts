@@ -31,6 +31,24 @@ interface UseChatOptions {
   ensureConversation?: () => Promise<string | null>;
 }
 
+function isPhaseUpdatePayload(data: ChatStreamEvent['data']): data is { stage?: ChatPipelineStage } {
+  return typeof data === 'object' && data !== null && 'stage' in data;
+}
+
+function isAskResponsePayload(data: ChatStreamEvent['data']): data is AskResponse {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'question' in data &&
+    'answer' in data &&
+    'sources' in data
+  );
+}
+
+function isErrorPayload(data: ChatStreamEvent['data']): data is { message?: string } {
+  return typeof data === 'object' && data !== null && 'message' in data;
+}
+
 const WELCOME_MESSAGE: ChatMessage = {
   id: 'welcome',
   role: 'assistant',
@@ -192,44 +210,53 @@ export function useChat(options: UseChatOptions = {}) {
           graph_search_mode: graphSearchMode,
         };
 
-        let responsePayload: AskResponse | null = null;
-        let streamError: string | null = null;
+        const answerPayload = await new Promise<AskResponse>((resolve, reject) => {
+          let isSettled = false;
 
-        await askQuestionStream(
-          request,
-          (event: ChatStreamEvent) => {
+          void askQuestionStream(request, (event: ChatStreamEvent) => {
+            if (isSettled) {
+              return;
+            }
+
             if (event.type === 'phase_update') {
-              const phase = event.data as { stage?: ChatPipelineStage };
-              if (phase.stage) {
-                setCurrentStage(phase.stage);
+              if (isPhaseUpdatePayload(event.data) && event.data.stage) {
+                setCurrentStage(event.data.stage);
               }
               return;
             }
 
             if (event.type === 'complete') {
-              responsePayload = event.data as AskResponse;
+              if (isAskResponsePayload(event.data)) {
+                isSettled = true;
+                resolve(event.data);
+                return;
+              }
+
+              isSettled = true;
+              reject(new Error('未收到完整回應'));
               return;
             }
 
-            const errorPayload = event.data as { message?: string };
-            streamError = errorPayload.message ?? '無法取得回應';
-          }
-        );
+            if (isErrorPayload(event.data)) {
+              isSettled = true;
+              reject(new Error(event.data.message ?? '無法取得回應'));
+            }
+          }).catch((error: unknown) => {
+            if (isSettled) {
+              return;
+            }
 
-        if (streamError) {
-          throw new Error(streamError);
-        }
-
-        if (!responsePayload) {
-          throw new Error('未收到完整回應');
-        }
+            isSettled = true;
+            reject(error instanceof Error ? error : new Error('無法取得回應'));
+          });
+        });
 
         const assistantMessage: ChatMessage = {
           id: `assistant-${Date.now()}`,
           role: 'assistant',
-          content: responsePayload.answer,
-          sources: responsePayload.sources,
-          metrics: responsePayload.metrics ?? undefined,
+          content: answerPayload.answer,
+          sources: answerPayload.sources,
+          metrics: answerPayload.metrics ?? undefined,
           timestamp: Date.now(),
         };
         setMessages((prev) => [...prev, assistantMessage]);
@@ -238,10 +265,10 @@ export function useChat(options: UseChatOptions = {}) {
           try {
             await addMessage(activeConversationId, {
               role: 'assistant',
-              content: responsePayload.answer,
+              content: answerPayload.answer,
               metadata: {
-                sources: responsePayload.sources,
-                metrics: responsePayload.metrics,
+                sources: answerPayload.sources,
+                metrics: answerPayload.metrics,
               },
             });
           } catch (error) {

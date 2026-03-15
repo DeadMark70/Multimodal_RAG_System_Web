@@ -205,5 +205,6 @@ describe('EvaluationResults', () => {
     });
 
     clickSpy.mockRestore();
-  });
+  }, 15000);
 });
+

@@ -57,12 +57,13 @@ describe('useChat Hook', () => {
       content: 'Hi user',
       created_at: '',
     } as Message);
-    mockAskQuestionStream.mockImplementation(async (_request, onEvent) => {
+    mockAskQuestionStream.mockImplementation((_request, onEvent) => {
       onEvent({ type: 'phase_update', data: { stage: 'retrieval' } } as ChatStreamEvent);
       onEvent({
         type: 'complete',
         data: { question: userMessage, answer: 'Hi user', sources: [], metrics: null },
       } as ChatStreamEvent);
+      return Promise.resolve();
     });
 
     const { result } = renderHook(() => useChat({ conversationId }), { wrapper });
@@ -104,12 +105,13 @@ describe('useChat Hook', () => {
       content: 'Answer',
       created_at: '',
     } as Message);
-    mockAskQuestionStream.mockImplementation(async (_request, onEvent) => {
+    mockAskQuestionStream.mockImplementation((_request, onEvent) => {
       onEvent({ type: 'phase_update', data: { stage: 'retrieval' } } as ChatStreamEvent);
       onEvent({
         type: 'complete',
         data: { question: userMessage, answer: 'Answer', sources: [], metrics: null },
       } as ChatStreamEvent);
+      return Promise.resolve();
     });
 
     const { result } = renderHook(
@@ -117,9 +119,9 @@ describe('useChat Hook', () => {
         const [conversationId, setConversationId] = useState<string | null>(null);
         return useChat({
           conversationId,
-          ensureConversation: async () => {
+          ensureConversation: () => {
             setConversationId('new-chat');
-            return 'new-chat';
+            return Promise.resolve('new-chat');
           },
         });
       },
@@ -137,11 +139,12 @@ describe('useChat Hook', () => {
   });
 
   it('does not save to history if conversationId is missing and no creator is provided', async () => {
-    mockAskQuestionStream.mockImplementation(async (_request, onEvent) => {
+    mockAskQuestionStream.mockImplementation((_request, onEvent) => {
       onEvent({
         type: 'complete',
         data: { question: 'Hello', answer: 'Hi user', sources: [], metrics: null },
       } as ChatStreamEvent);
+      return Promise.resolve();
     });
 
     const { result } = renderHook(() => useChat({}), { wrapper });
