@@ -83,7 +83,7 @@ interface SettingsState {
 
 const DEFAULT_RAG_SETTINGS: RagSettings = {
   enable_hyde: false,
-  enable_multi_query: false,
+  enable_multi_query: true,
   enable_reranking: true, // 預設開啟
   enable_evaluation: false,
   enable_graph_rag: true,
@@ -92,6 +92,32 @@ const DEFAULT_RAG_SETTINGS: RagSettings = {
   enable_deep_image_analysis: false, // 預設關閉
   max_subtasks: 5,
 };
+
+function normalizeRagSettings(
+  settings: Partial<RagSettings>,
+  base: RagSettings = DEFAULT_RAG_SETTINGS,
+  preferredMode?: 'hyde' | 'multi_query'
+): RagSettings {
+  const merged: RagSettings = { ...base, ...settings };
+
+  // Query expansion is mutually exclusive in the current backend contract.
+  if (preferredMode === 'hyde') {
+    merged.enable_hyde = true;
+    merged.enable_multi_query = false;
+  } else if (preferredMode === 'multi_query') {
+    merged.enable_hyde = false;
+    merged.enable_multi_query = true;
+  } else if (merged.enable_hyde) {
+    merged.enable_multi_query = false;
+  } else if (merged.enable_multi_query) {
+    merged.enable_hyde = false;
+  } else {
+    merged.enable_multi_query = true;
+    merged.enable_hyde = false;
+  }
+
+  return merged;
+}
 
 // ========== Store 實作 ==========
 
@@ -109,7 +135,7 @@ const DEFAULT_RAG_SETTINGS: RagSettings = {
  * actions.setRagSetting('enable_hyde', true);
  *
  * // 批量更新
- * actions.setRagSettings({ enable_hyde: true, enable_multi_query: true });
+ * actions.setRagSettings({ enable_hyde: true });
  * ```
  */
 export const useSettingsStore = create<SettingsState>()(
@@ -124,16 +150,27 @@ export const useSettingsStore = create<SettingsState>()(
       actions: {
         setRagSetting: (key, value) =>
           set((state) => ({
-            ragSettings: { ...state.ragSettings, [key]: value },
+            ragSettings: normalizeRagSettings(
+              { ...state.ragSettings, [key]: value },
+              state.ragSettings,
+              key === 'enable_hyde' && value
+                ? 'hyde'
+                : key === 'enable_multi_query' && value
+                  ? 'multi_query'
+                  : undefined
+            ),
           })),
 
         setRagSettings: (settings) =>
           set((state) => ({
-            ragSettings: { ...state.ragSettings, ...settings },
+            ragSettings: normalizeRagSettings(
+              { ...state.ragSettings, ...settings },
+              state.ragSettings
+            ),
           })),
 
         resetRagSettings: () =>
-          set({ ragSettings: DEFAULT_RAG_SETTINGS }),
+          set({ ragSettings: normalizeRagSettings(DEFAULT_RAG_SETTINGS) }),
 
         setTheme: (theme) => set({ theme }),
 
@@ -152,6 +189,17 @@ export const useSettingsStore = create<SettingsState>()(
         theme: state.theme,
         sidebarOpen: state.sidebarOpen,
       }),
+      merge: (persistedState, currentState) => {
+        const typedState = persistedState as Partial<SettingsState> | undefined;
+
+        return {
+          ...currentState,
+          ...typedState,
+          ragSettings: normalizeRagSettings(
+            typedState?.ragSettings ?? currentState.ragSettings
+          ),
+        };
+      },
     }
   )
 );

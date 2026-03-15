@@ -8,7 +8,7 @@ describe('useSettingsStore', () => {
     useSettingsStore.setState({
       ragSettings: {
         enable_hyde: false,
-        enable_multi_query: false,
+        enable_multi_query: true,
         enable_reranking: true,
         enable_evaluation: false,
         enable_graph_rag: true,
@@ -23,9 +23,11 @@ describe('useSettingsStore', () => {
     });
   });
 
-  it('defaults GraphRAG to enabled generic mode', () => {
+  it('defaults to Multi-Query with GraphRAG generic mode enabled', () => {
     const { ragSettings } = useSettingsStore.getState();
 
+    expect(ragSettings.enable_hyde).toBe(false);
+    expect(ragSettings.enable_multi_query).toBe(true);
     expect(ragSettings.enable_graph_rag).toBe(true);
     expect(ragSettings.graph_search_mode).toBe('generic');
   });
@@ -42,5 +44,43 @@ describe('useSettingsStore', () => {
     const { ragSettings } = useSettingsStore.getState();
     expect(ragSettings.enable_graph_rag).toBe(true);
     expect(ragSettings.graph_search_mode).toBe('generic');
+    expect(ragSettings.enable_hyde).toBe(false);
+    expect(ragSettings.enable_multi_query).toBe(true);
+  });
+
+  it('keeps HyDE and Multi-Query mutually exclusive for single-setting updates', () => {
+    const { actions } = useSettingsStore.getState();
+
+    actions.setRagSetting('enable_hyde', true);
+    let { ragSettings } = useSettingsStore.getState();
+    expect(ragSettings.enable_hyde).toBe(true);
+    expect(ragSettings.enable_multi_query).toBe(false);
+
+    actions.setRagSetting('enable_multi_query', true);
+    ragSettings = useSettingsStore.getState().ragSettings;
+    expect(ragSettings.enable_hyde).toBe(false);
+    expect(ragSettings.enable_multi_query).toBe(true);
+  });
+
+  it('normalizes invalid bulk settings back to a single active query mode', () => {
+    const { actions } = useSettingsStore.getState();
+
+    actions.setRagSettings({
+      enable_hyde: true,
+      enable_multi_query: true,
+    });
+
+    let { ragSettings } = useSettingsStore.getState();
+    expect(ragSettings.enable_hyde).toBe(true);
+    expect(ragSettings.enable_multi_query).toBe(false);
+
+    actions.setRagSettings({
+      enable_hyde: false,
+      enable_multi_query: false,
+    });
+
+    ragSettings = useSettingsStore.getState().ragSettings;
+    expect(ragSettings.enable_hyde).toBe(false);
+    expect(ragSettings.enable_multi_query).toBe(true);
   });
 });

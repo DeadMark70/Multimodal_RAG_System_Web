@@ -28,6 +28,8 @@ import {
   Collapse,
   IconButton,
   Heading,
+  Radio,
+  RadioGroup,
 } from '@chakra-ui/react';
 import {
   FiZap,
@@ -131,6 +133,7 @@ export function SettingsPanel({ isDrawerMode = false }: SettingsPanelProps) {
   const bg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.100', 'gray.700');
   const sectionBg = useColorModeValue('gray.50', 'gray.900');
+  const queryMode = ragSettings.enable_hyde ? 'hyde' : 'multi_query';
 
   // Helper to update setting
   const updateSetting = <K extends keyof RagSettings>(
@@ -176,20 +179,85 @@ export function SettingsPanel({ isDrawerMode = false }: SettingsPanelProps) {
             p={3}
             borderRadius="lg"
           >
-            <SettingItem
-              icon={FiZap}
-              label="HyDE 增強"
-              description="假設性文件嵌入"
-              isEnabled={ragSettings.enable_hyde}
-              onChange={(v) => updateSetting('enable_hyde', v)}
-            />
-            <SettingItem
-              icon={FiLayers}
-              label="多重查詢"
-              description="多角度查詢融合"
-              isEnabled={ragSettings.enable_multi_query}
-              onChange={(v) => updateSetting('enable_multi_query', v)}
-            />
+            <Box py={2}>
+              <HStack spacing={2} mb={2}>
+                <Icon as={FiSearch} color="brand.500" />
+                <Text fontSize="sm" fontWeight="500">
+                  查詢增強模式
+                </Text>
+              </HStack>
+              <RadioGroup
+                value={queryMode}
+                onChange={(value) => {
+                  if (value === 'hyde') {
+                    actions.setRagSettings({
+                      enable_hyde: true,
+                      enable_multi_query: false,
+                    });
+                    return;
+                  }
+
+                  actions.setRagSettings({
+                    enable_hyde: false,
+                    enable_multi_query: true,
+                  });
+                }}
+              >
+                <VStack align="stretch" spacing={3}>
+                  <Box
+                    borderWidth="1px"
+                    borderColor={queryMode === 'multi_query' ? 'brand.200' : borderColor}
+                    bg={queryMode === 'multi_query' ? 'brand.50' : bg}
+                    borderRadius="lg"
+                    p={3}
+                  >
+                    <HStack align="start" spacing={3}>
+                      <Radio value="multi_query" colorScheme="brand" mt={1} />
+                      <Box flex={1}>
+                        <HStack spacing={2} mb={1}>
+                          <Icon as={FiLayers} color="brand.500" />
+                          <Text fontSize="sm" fontWeight="600">
+                            多重查詢
+                          </Text>
+                          <Badge colorScheme="green" fontSize="xs" variant="subtle">
+                            預設
+                          </Badge>
+                        </HStack>
+                        <Text fontSize="xs" color="gray.500">
+                          以 3-4 個角度擴展檢索，適合比較題、綜合題與跨文件問答。
+                        </Text>
+                      </Box>
+                    </HStack>
+                  </Box>
+
+                  <Box
+                    borderWidth="1px"
+                    borderColor={queryMode === 'hyde' ? 'orange.200' : borderColor}
+                    bg={queryMode === 'hyde' ? 'orange.50' : bg}
+                    borderRadius="lg"
+                    p={3}
+                  >
+                    <HStack align="start" spacing={3}>
+                      <Radio value="hyde" colorScheme="orange" mt={1} />
+                      <Box flex={1}>
+                        <HStack spacing={2} mb={1}>
+                          <Icon as={FiZap} color="orange.400" />
+                          <Text fontSize="sm" fontWeight="600">
+                            HyDE 增強
+                          </Text>
+                          <Badge colorScheme="orange" fontSize="xs" variant="subtle">
+                            進階
+                          </Badge>
+                        </HStack>
+                        <Text fontSize="xs" color="gray.500">
+                          先生成假設性答案再檢索，適合短問題或語意模糊的查詢。啟用後會取代 Multi-Query。
+                        </Text>
+                      </Box>
+                    </HStack>
+                  </Box>
+                </VStack>
+              </RadioGroup>
+            </Box>
             <SettingItem
               icon={FiFilter}
               label="重排序"
