@@ -16,6 +16,7 @@ import type {
   AskRequest,
   AskResponse,
   ChatMessage,
+  ChatPhaseUpdate,
   ChatPipelineStage,
   ChatStreamEvent,
 } from '../types/rag';
@@ -31,8 +32,13 @@ interface UseChatOptions {
   ensureConversation?: () => Promise<string | null>;
 }
 
-function isPhaseUpdatePayload(data: ChatStreamEvent['data']): data is { stage?: ChatPipelineStage } {
-  return typeof data === 'object' && data !== null && 'stage' in data;
+function isPhaseUpdatePayload(data: ChatStreamEvent['data']): data is ChatPhaseUpdate {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'stage' in data &&
+    typeof data.stage === 'string'
+  );
 }
 
 function isAskResponsePayload(data: ChatStreamEvent['data']): data is AskResponse {
@@ -45,8 +51,13 @@ function isAskResponsePayload(data: ChatStreamEvent['data']): data is AskRespons
   );
 }
 
-function isErrorPayload(data: ChatStreamEvent['data']): data is { message?: string } {
-  return typeof data === 'object' && data !== null && 'message' in data;
+function isErrorPayload(data: ChatStreamEvent['data']): data is { message: string } {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'message' in data &&
+    typeof data.message === 'string'
+  );
 }
 
 const WELCOME_MESSAGE: ChatMessage = {

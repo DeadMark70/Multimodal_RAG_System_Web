@@ -175,7 +175,38 @@ describe('EvaluationResults', () => {
         },
       ],
     });
-    mockEvaluateCampaign.mockResolvedValue({});
+    mockEvaluateCampaign.mockResolvedValue({
+      id: 'cmp-1',
+      name: 'Campaign 1',
+      status: 'evaluating',
+      phase: 'evaluation',
+      config: {
+        test_case_ids: ['Q1'],
+        modes: ['naive', 'advanced'],
+        model_config: {
+          id: 'cfg-1',
+          name: 'Balanced',
+          model_name: 'gemini-2.5-flash',
+          temperature: 0.7,
+          top_p: 0.95,
+          top_k: 40,
+          max_input_tokens: 8192,
+          max_output_tokens: 2048,
+          thinking_mode: false,
+          thinking_budget: 8192,
+        },
+        repeat_count: 1,
+        batch_size: 1,
+        rpm_limit: 60,
+      },
+      completed_units: 2,
+      total_units: 2,
+      evaluation_completed_units: 0,
+      evaluation_total_units: 2,
+      cancel_requested: false,
+      created_at: '2026-03-08T00:00:00+00:00',
+      updated_at: '2026-03-08T00:00:00+00:00',
+    });
 
     render(
       <ChakraProvider theme={theme}>

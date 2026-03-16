@@ -6,6 +6,7 @@ import type {
   CampaignCreateRequest,
   CampaignCreateResponse,
   CampaignMetricsResponse,
+  CampaignProgressEvent,
   CampaignResultsResponse,
   CampaignStatus,
   CampaignStreamEvent,
@@ -21,6 +22,16 @@ import { supabase } from './supabase';
 
 type CampaignStreamEventType = CampaignStreamEvent['type'];
 
+function isCampaignStreamEventType(eventType: string): eventType is CampaignStreamEventType {
+  return [
+    'campaign_snapshot',
+    'campaign_progress',
+    'campaign_completed',
+    'campaign_failed',
+    'campaign_cancelled',
+  ].includes(eventType);
+}
+
 function parseCampaignStreamEventData(raw: string): unknown {
   return JSON.parse(raw) as unknown;
 }
@@ -32,11 +43,13 @@ function toCampaignStreamEvent(eventType: string, rawData: string): CampaignStre
     case 'campaign_snapshot':
       return { type: 'campaign_snapshot', data: data as CampaignStatus };
     case 'campaign_progress':
-      return { type: 'campaign_progress', data: data as CampaignStreamEvent['data'] };
+      return { type: 'campaign_progress', data: data as CampaignProgressEvent };
     case 'campaign_completed':
       return { type: 'campaign_completed', data: data as CampaignStatus };
     case 'campaign_failed':
       return { type: 'campaign_failed', data: data as CampaignStatus };
+    case 'campaign_cancelled':
+      return { type: 'campaign_cancelled', data: data as CampaignStatus };
     default:
       return null;
   }
@@ -187,7 +200,8 @@ export async function streamCampaign(
 
     for (const line of lines) {
       if (line.startsWith('event:')) {
-        currentEvent = line.slice(6).trim();
+        const nextEvent = line.slice(6).trim();
+        currentEvent = isCampaignStreamEventType(nextEvent) ? nextEvent : '';
       } else if (line.startsWith('data:')) {
         currentData = line.slice(5).trim();
       } else if (line === '') {

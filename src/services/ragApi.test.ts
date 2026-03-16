@@ -25,7 +25,7 @@ vi.mock('./supabase', () => ({
 }));
 
 describe('ragApi', () => {
-  const mockedApi = api as {
+  const mockedApi = api as unknown as {
     post: ReturnType<typeof vi.fn>;
     defaults: { baseURL: string };
   };

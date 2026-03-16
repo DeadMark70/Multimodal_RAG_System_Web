@@ -135,6 +135,15 @@ function ecrLabel(ecr?: number | null): string {
   return `${ecr.toFixed(2)}%`;
 }
 
+function formatTooltipPercent(value: number | string | undefined): string {
+  return typeof value === 'number' ? `${value.toFixed(1)}%` : String(value ?? '');
+}
+
+function formatTooltipDecimal(value: number | string | undefined): string {
+  return typeof value === 'number' ? value.toFixed(3) : String(value ?? '');
+}
+
+
 export default function EvaluationResults() {
   const [campaigns, setCampaigns] = useState<CampaignStatus[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
@@ -431,7 +440,7 @@ export default function EvaluationResults() {
                           fillOpacity={0.15}
                         />
                       ))}
-                      <Tooltip formatter={(value: number) => `${value.toFixed(1)}%`} />
+                      <Tooltip formatter={formatTooltipPercent} />
                     </RadarChart>
                   </ResponsiveContainer>
                 </Box>
@@ -458,10 +467,7 @@ export default function EvaluationResults() {
                         domain={[0, 1]}
                       />
                       <ZAxis type="number" dataKey="faithfulness" range={[60, 280]} name="Faithfulness" />
-                      <Tooltip
-                        formatter={(value: number) => value.toFixed(3)}
-                        cursor={{ strokeDasharray: '4 4' }}
-                      />
+                      <Tooltip formatter={formatTooltipDecimal} cursor={{ strokeDasharray: '4 4' }} />
                       {(['naive', 'advanced', 'graph', 'agentic'] as CampaignMode[]).map((mode) => (
                         <Scatter
                           key={mode}

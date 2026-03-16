@@ -15,15 +15,11 @@ vi.mock('./api', () => ({
 
 describe('Conversation API', () => {
   const mockConversations: Conversation[] = [
-    { id: '1', title: 'Test Chat', type: 'chat' },
-    { id: '2', title: 'Research Session', type: 'research' },
-  ].map((conversation) => ({
-    ...conversation,
-    created_at: '',
-    updated_at: '',
-  }));
+    { id: '1', title: 'Test Chat', type: 'chat', created_at: '', updated_at: '' },
+    { id: '2', title: 'Research Session', type: 'research', created_at: '', updated_at: '' },
+  ];
 
-  const mockedApi = api as {
+  const mockedApi = api as unknown as {
     get: ReturnType<typeof vi.fn>;
     post: ReturnType<typeof vi.fn>;
     patch: ReturnType<typeof vi.fn>;
