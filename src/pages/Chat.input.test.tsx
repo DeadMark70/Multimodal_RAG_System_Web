@@ -66,5 +66,6 @@ describe('Chat Input Integration', () => {
 
     expect(screen.getByLabelText('Select Mode')).toBeInTheDocument();
     expect(screen.getByLabelText('聊天輸入框')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-desktop-right-rail')).toBeInTheDocument();
   });
 });

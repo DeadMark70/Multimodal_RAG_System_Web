@@ -16,9 +16,11 @@ import {
 } from '../services/ragApi';
 import { getConversation, addMessage, updateConversation } from '../services/conversationApi';
 import type { 
+  ChatPipelineStage,
   EditableSubTask, 
   ResearchPlanResponse,
   ExecutePlanResponse,
+  TaskPhaseUpdate,
   TaskProgress,
   SSEEvent,
 } from '../types/rag';
@@ -67,6 +69,54 @@ export interface UseDeepResearchReturn {
   executePlan: () => Promise<void>;
   cancelExecution: () => void;
   reset: () => void;
+}
+
+type TaskStartEvent = {
+  id: number;
+  question: string;
+  task_type: EditableSubTask['task_type'];
+  iteration: number;
+};
+
+type TaskDoneEvent = {
+  id: number;
+  answer: string;
+  contexts?: string[];
+  iteration: number;
+};
+
+function upsertTaskProgress(
+  previous: TaskProgress[],
+  nextTask: TaskProgress
+): TaskProgress[] {
+  const index = previous.findIndex(
+    (task) => task.id === nextTask.id && task.iteration === nextTask.iteration
+  );
+
+  if (index === -1) {
+    return [...previous, nextTask];
+  }
+
+  const updated = [...previous];
+  updated[index] = { ...updated[index], ...nextTask };
+  return updated;
+}
+
+function defaultStageLabel(stage: ChatPipelineStage): string {
+  switch (stage) {
+    case 'query_expansion':
+      return '正在擴展查詢';
+    case 'retrieval':
+      return '正在檢索文件';
+    case 'reranking':
+      return '正在重排序結果';
+    case 'graph_context':
+      return '正在分析圖譜上下文';
+    case 'answer_generation':
+      return '正在生成回答';
+    default:
+      return '任務處理中';
+  }
 }
 
 export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepResearchReturn {
@@ -127,6 +177,7 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     if (!question.trim()) return;
 
     setIsPlanning(true);
+    setCurrentPhase('planning');
     setError(null);
     setPlan(null);
     setResult(null);
@@ -229,38 +280,60 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     switch (type) {
       case 'plan_confirmed':
         // 計畫已確認，開始執行
+        setCurrentPhase('executing');
         break;
 
       case 'task_start':
       case 'drilldown_task_start': {
-        const taskData = data as { id: number; question: string; iteration: number };
-        setProgress(prev => {
-          const exists = prev.find(p => p.id === taskData.id && p.iteration === taskData.iteration);
-          if (exists) {
-            return prev.map(p =>
-              p.id === taskData.id && p.iteration === taskData.iteration
-                ? { ...p, status: 'running' }
-                : p
-            );
-          }
-          return [...prev, {
+        const taskData = data as TaskStartEvent;
+        setProgress((prev) =>
+          upsertTaskProgress(prev, {
             id: taskData.id,
             question: taskData.question,
+            taskType: taskData.task_type,
             status: 'running',
+            stage: undefined,
+            stageLabel: undefined,
+            details: null,
             iteration: taskData.iteration,
-          }];
-        });
+          })
+        );
+        setCurrentPhase(taskData.iteration > 0 ? 'drilldown' : 'executing');
+        break;
+      }
+
+      case 'task_phase_update': {
+        const phaseData = data as TaskPhaseUpdate;
+        setProgress((prev) =>
+          prev.map((task) =>
+            task.id === phaseData.id && task.iteration === phaseData.iteration
+              ? {
+                  ...task,
+                  status: 'running',
+                  stage: phaseData.stage,
+                  stageLabel: phaseData.label ?? defaultStageLabel(phaseData.stage),
+                  details: phaseData.details ?? null,
+                }
+              : task
+          )
+        );
         break;
       }
 
       case 'task_done':
       case 'drilldown_task_done': {
-        const doneData = data as { id: number; answer: string; iteration: number; contexts?: string[] };
-        setProgress(prev =>
-          prev.map(p =>
-            p.id === doneData.id && p.iteration === doneData.iteration
-              ? { ...p, status: 'done', answer: doneData.answer, contexts: doneData.contexts }
-              : p
+        const doneData = data as TaskDoneEvent;
+        setProgress((prev) =>
+          prev.map((task) =>
+            task.id === doneData.id && task.iteration === doneData.iteration
+              ? {
+                  ...task,
+                  status: 'done',
+                  answer: doneData.answer,
+                  contexts: doneData.contexts,
+                  stageLabel: task.stageLabel ?? '回答完成',
+                }
+              : task
           )
         );
         break;
@@ -329,7 +402,9 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
       .map(task => ({
         id: task.id,
         question: task.question,
+        taskType: task.task_type,
         status: 'pending',
+        details: null,
         iteration: 0,
       }));
     setProgress(initialProgress);
@@ -352,6 +427,7 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
           original_question: plan.original_question,
           sub_tasks: plan.sub_tasks.filter(t => t.enabled),
           doc_ids: plan.doc_ids ?? undefined,
+          enable_reranking: ragSettings.enable_reranking,
           enable_drilldown: true,
           enable_deep_image_analysis: ragSettings.enable_deep_image_analysis,
           conversation_id: currentChatId || undefined,
@@ -383,7 +459,14 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
       setIsExecuting(false);
       abortControllerRef.current = null;
     }
-  }, [plan, toast, handleSSEEvent, ragSettings.enable_deep_image_analysis, currentChatId]);
+  }, [
+    plan,
+    toast,
+    handleSSEEvent,
+    ragSettings.enable_deep_image_analysis,
+    ragSettings.enable_reranking,
+    currentChatId,
+  ]);
 
   /**
    * 取消執行

@@ -186,7 +186,7 @@ export default function MessageBubble({
     },
     // 段落
     p: ({ children, ...props }) => (
-      <Text mb={2} lineHeight="1.7" {...props}>
+      <Text mb={2} lineHeight="1.7" sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }} {...props}>
         {children}
       </Text>
     ),
@@ -227,7 +227,12 @@ export default function MessageBubble({
   return (
     <>
       <Flex direction="column" align={align} w="100%" mb={6}>
-        <Flex maxW="85%" direction={isUser ? 'row-reverse' : 'row'} gap={4}>
+        <Flex
+          maxW={{ base: '100%', md: '85%' }}
+          minW={0}
+          direction={isUser ? 'row-reverse' : 'row'}
+          gap={4}
+        >
           {/* Avatar */}
           <Avatar 
             size="sm" 
@@ -246,19 +251,37 @@ export default function MessageBubble({
             color={textColor}
             px={6}
             py={5}
+            maxW="100%"
+            minW={0}
             borderRadius="20px"
             borderTopRightRadius={isUser ? '4px' : '20px'}
             borderTopLeftRadius={!isUser ? '4px' : '20px'}
             boxShadow={boxShadow}
             position="relative"
+            sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
           >
             {/* Message Content - Markdown 渲染 (僅 AI 回覆) */}
             {isUser ? (
-              <Text fontSize="md" whiteSpace="pre-wrap" lineHeight="1.6">
+              <Text
+                fontSize="md"
+                whiteSpace="pre-wrap"
+                lineHeight="1.6"
+                sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+              >
                 {content}
               </Text>
             ) : (
-              <Box className="markdown-content">
+              <Box
+                className="markdown-content"
+                sx={{
+                  overflowWrap: 'anywhere',
+                  wordBreak: 'break-word',
+                  '& *': {
+                    overflowWrap: 'anywhere',
+                    wordBreak: 'break-word',
+                  },
+                }}
+              >
                 <ReactMarkdown
                   rehypePlugins={[rehypeSanitize]}
                   components={markdownComponents}
@@ -291,10 +314,14 @@ export default function MessageBubble({
                     borderColor={isUser ? 'transparent' : 'brand.100'}
                     px={3} py={1.5}
                     borderRadius="lg"
+                    maxW="100%"
+                    whiteSpace="normal"
+                    textAlign="left"
+                    sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
                     _hover={{ opacity: 0.8, transform: 'translateY(-1px)', boxShadow: 'sm' }}
                     transition="all 0.2s"
                   >
-                    📄 {source.filename}
+                    📄 {source.filename ?? source.doc_id}
                   </Box>
                 ))}
               </Flex>

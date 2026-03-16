@@ -56,8 +56,9 @@ import {
   useSettingsStore,
 } from '../stores';
 import type { Conversation, ConversationType } from '../types/conversation';
+import type { RagSettings } from '../stores/useSettingsStore';
 
-function areSettingsEqual(left: Record<string, unknown>, right: Record<string, unknown>): boolean {
+function areSettingsEqual(left: RagSettings, right: RagSettings): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
@@ -267,7 +268,7 @@ export default function Chat() {
     <Layout>
       <PageHeader title="對話" subtitle="Preset-driven RAG 問答與 Agentic 研究" />
 
-      <Flex gap={6} h="calc(100vh - 140px)">
+      <Flex gap={6} h={{ base: 'auto', lg: 'calc(100vh - 140px)' }} minH={0} align="stretch">
         <Box w="280px" display={{ base: 'none', xl: 'block' }}>
           <ConversationSidebar
             currentId={currentChatId}
@@ -277,7 +278,7 @@ export default function Chat() {
           />
         </Box>
 
-        <Flex direction="column" flex={1}>
+        <Flex direction="column" flex={1} minW={0}>
           <HStack spacing={2} mb={3} display={{ base: 'flex', xl: 'none' }}>
             <Button
               leftIcon={<FiMenu />}
@@ -297,7 +298,14 @@ export default function Chat() {
             </Button>
           </HStack>
 
-          <Box flex={1} overflowY={isAgenticMode ? 'auto' : 'hidden'} mb={4} pr={isAgenticMode ? 2 : 0}>
+          <Box
+            flex={1}
+            minH={0}
+            minW={0}
+            overflowY={isAgenticMode ? 'auto' : 'hidden'}
+            mb={4}
+            pr={isAgenticMode ? 2 : 0}
+          >
             {isAgenticMode ? (
               <DeepResearchPanel researchState={deepResearch} />
             ) : (
@@ -368,6 +376,8 @@ export default function Chat() {
                 gap={2}
                 bg={inputBg}
                 p={2}
+                minW={0}
+                flexWrap={{ base: 'wrap', md: 'nowrap' }}
                 borderRadius="full"
                 boxShadow={inputShadow}
                 border="1px solid"
@@ -382,6 +392,7 @@ export default function Chat() {
                     variant="ghost"
                     borderRadius="full"
                     px={4}
+                    flexShrink={0}
                     aria-label="Select Mode"
                   >
                     {activePreset.name}
@@ -412,6 +423,8 @@ export default function Chat() {
                   px={4}
                   h="50px"
                   fontSize="md"
+                  minW={0}
+                  flex={1}
                   disabled={isLoading}
                 />
 
@@ -433,8 +446,24 @@ export default function Chat() {
           </Box>
         </Flex>
 
-        <Box w="320px" display={{ base: 'none', lg: 'block' }}>
-          <VStack spacing={6} align="stretch">
+        <Box
+          w="320px"
+          display={{ base: 'none', lg: 'block' }}
+          flexShrink={0}
+          position="sticky"
+          top={0}
+          alignSelf="flex-start"
+          h="100%"
+          data-testid="chat-desktop-right-rail"
+        >
+          <VStack
+            spacing={6}
+            align="stretch"
+            h="100%"
+            maxH="calc(100vh - 140px)"
+            overflowY="auto"
+            pr={1}
+          >
             <SurfaceCard variant="unstyled" bg={panelBg} p={5}>
               <CardBody p={0}>
                 <DocumentSelector
@@ -448,7 +477,7 @@ export default function Chat() {
               <CardBody p={0}>
                 <VStack spacing={4} align="stretch">
                   <HStack justify="space-between" align="start">
-                    <Box>
+                    <Box minW={0}>
                       <Text fontWeight="bold" fontSize="lg" color={textHeaderColor}>
                         問答模式
                       </Text>

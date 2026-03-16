@@ -236,12 +236,21 @@ export interface ExecutePlanResponse {
   metrics?: EvaluationMetrics;
 }
 
+export interface TaskPhaseUpdate {
+  id: number;
+  iteration: number;
+  stage: ChatPipelineStage;
+  label?: string;
+  details?: Record<string, unknown> | null;
+}
+
 /**
  * SSE 事件類型
  */
 export type SSEEventType = 
   | 'plan_confirmed'
   | 'task_start'
+  | 'task_phase_update'
   | 'task_done'
   | 'drilldown_start'
   | 'drilldown_task_start'
@@ -264,7 +273,11 @@ export interface SSEEvent {
 export interface TaskProgress {
   id: number;
   question: string;
+  taskType: EditableSubTask['task_type'];
   status: 'pending' | 'running' | 'done' | 'error';
+  stage?: ChatPipelineStage;
+  stageLabel?: string;
+  details?: Record<string, unknown> | null;
   answer?: string;
   contexts?: string[]; // 🆕 Phase 13: 原始文本片段
   iteration: number;

@@ -26,6 +26,7 @@ describe('useDeepResearch Hook - Persistence', () => {
   const mockUseSessionStore = asMock(useSessionStore);
   const mockUseConversationMutations = asMock(useConversationMutations);
   const mockGenerateResearchPlan = asMock(ragApi.generateResearchPlan);
+  const mockExecuteResearchPlanStream = asMock(ragApi.executeResearchPlanStream);
   const mockGetConversation = asMock(conversationApi.getConversation);
   const mockAddMessage = asMock(conversationApi.addMessage);
   const mockUpdateConversation = asMock(conversationApi.updateConversation);
@@ -69,6 +70,7 @@ describe('useDeepResearch Hook - Persistence', () => {
       updated_at: '',
       metadata: {},
     } as Conversation);
+    mockExecuteResearchPlanStream.mockResolvedValue(undefined);
   });
 
   it('should create a research conversation when generating a plan', async () => {
@@ -193,6 +195,95 @@ describe('useDeepResearch Hook - Persistence', () => {
       expect(result.current.plan).toBeNull();
       expect(result.current.result?.summary).toBe('Legacy Summary');
       expect(result.current.result?.detailed_answer).toBe('Legacy Detailed Answer');
+    });
+  });
+
+  it('tracks per-task stage updates during streamed execution', async () => {
+    const question = 'Research topic';
+    const newConvId = 'research-123';
+    const planResponse: ResearchPlanResponse = {
+      status: 'waiting_confirmation',
+      original_question: question,
+      sub_tasks: [
+        { id: 1, question: 'Find evidence', task_type: 'rag', enabled: true },
+      ],
+      estimated_complexity: 'simple',
+      doc_ids: null,
+    };
+
+    mockCreateConversation.mockResolvedValue({
+      id: newConvId,
+      title: question,
+      type: 'research',
+      created_at: '',
+      updated_at: '',
+    });
+    mockGenerateResearchPlan.mockResolvedValue(planResponse);
+    mockExecuteResearchPlanStream.mockImplementation((_request, onEvent) => {
+      onEvent({
+        type: 'task_start',
+        data: { id: 1, question: 'Find evidence', task_type: 'rag', iteration: 0 },
+      });
+      onEvent({
+        type: 'task_phase_update',
+        data: { id: 1, iteration: 0, stage: 'retrieval', label: '正在檢索文件' },
+      });
+      onEvent({
+        type: 'task_done',
+        data: { id: 1, answer: 'Done', iteration: 0, contexts: ['ctx-1'] },
+      });
+      onEvent({
+        type: 'complete',
+        data: {
+          question,
+          summary: 'Summary',
+          detailed_answer: 'Detailed',
+          sub_tasks: [],
+          all_sources: [],
+          confidence: 0.9,
+          total_iterations: 0,
+        },
+      });
+      return Promise.resolve();
+    });
+
+    const { result } = renderHook(() => useDeepResearch());
+
+    await act(async () => {
+      await result.current.generatePlan(question);
+    });
+
+    await waitFor(() => {
+      expect(result.current.plan).toEqual(planResponse);
+    });
+
+    await act(async () => {
+      await result.current.executePlan();
+    });
+
+    expect(mockExecuteResearchPlanStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enable_reranking: true,
+      }),
+      expect.any(Function),
+      expect.any(AbortSignal)
+    );
+
+    await waitFor(() => {
+      expect(result.current.progress).toEqual([
+        {
+          id: 1,
+          question: 'Find evidence',
+          taskType: 'rag',
+          status: 'done',
+          stage: 'retrieval',
+          stageLabel: '正在檢索文件',
+          details: null,
+          answer: 'Done',
+          contexts: ['ctx-1'],
+          iteration: 0,
+        },
+      ]);
     });
   });
 });

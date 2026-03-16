@@ -26,6 +26,7 @@ import {
   IconButton,
   Flex,
   Divider,
+  SimpleGrid,
   useColorModeValue,
   Collapse,
   Tooltip,
@@ -45,7 +46,6 @@ import rehypeSanitize from 'rehype-sanitize';
 import { type UseDeepResearchReturn } from '../../hooks/useDeepResearch';
 import MetricsBadge from './MetricsBadge';
 import EvaluationRadarChart from '../charts/EvaluationRadarChart';
-import ResearchTree from './ResearchTree'; // Import Tree
 
 interface DeepResearchPanelProps {
   researchState: UseDeepResearchReturn;
@@ -78,6 +78,7 @@ export default function DeepResearchPanel({ researchState }: DeepResearchPanelPr
   const textColor = useColorModeValue('gray.700', 'white');
   const subTextColor = useColorModeValue('gray.500', 'gray.400');
   const detailPanelBg = useColorModeValue('gray.50', 'whiteAlpha.50');
+  const accentPanelBg = useColorModeValue('brand.50', 'whiteAlpha.100');
 
   /**
    * 開始編輯任務
@@ -140,6 +141,48 @@ export default function DeepResearchPanel({ researchState }: DeepResearchPanelPr
         return { icon: '⏳', text: '準備中...' };
     }
   };
+
+  const getStatusColor = (status: 'pending' | 'running' | 'done' | 'error') => {
+    switch (status) {
+      case 'running':
+        return 'blue';
+      case 'done':
+        return 'green';
+      case 'error':
+        return 'red';
+      default:
+        return 'gray';
+    }
+  };
+
+  const getTaskTypeColor = (taskType: 'rag' | 'graph_analysis') =>
+    taskType === 'graph_analysis' ? 'purple' : 'blue';
+
+  const getTaskTypeLabel = (taskType: 'rag' | 'graph_analysis') =>
+    taskType === 'graph_analysis' ? 'GRAPH' : 'RAG';
+
+  const getStatusLabel = (status: 'pending' | 'running' | 'done' | 'error') => {
+    switch (status) {
+      case 'running':
+        return '執行中';
+      case 'done':
+        return '完成';
+      case 'error':
+        return '錯誤';
+      default:
+        return '等待中';
+    }
+  };
+
+  const completedCount = progress.filter((task) => task.status === 'done').length;
+  const runningCount = progress.filter((task) => task.status === 'running').length;
+  const pendingCount = progress.filter((task) => task.status === 'pending').length;
+  const orderedProgress = [...progress].sort((left, right) => {
+    if (left.iteration !== right.iteration) {
+      return left.iteration - right.iteration;
+    }
+    return left.id - right.id;
+  });
 
   return (
     <VStack spacing={4} align="stretch" h="100%">
@@ -326,16 +369,83 @@ export default function DeepResearchPanel({ researchState }: DeepResearchPanelPr
               hasStripe
               isAnimated
             />
-            {/* Visual Tree for Progress */}
-            <ResearchTree plan={{
-                original_question: plan?.original_question || '',
-                sub_tasks: progress.map(p => ({
-                    id: p.id,
-                    question: p.question,
-                    status: p.status,
-                    task_type: 'rag' // Simplified for now
-                }))
-            }} />
+            <HStack mb={4} spacing={2} wrap="wrap">
+              <Badge colorScheme="green">完成 {completedCount}</Badge>
+              <Badge colorScheme="blue">執行中 {runningCount}</Badge>
+              <Badge colorScheme="gray">等待 {pendingCount}</Badge>
+            </HStack>
+
+            <SimpleGrid columns={{ base: 1, xl: 2 }} spacing={3}>
+              {orderedProgress.map((task) => (
+                <Box
+                  key={`${task.iteration}-${task.id}`}
+                  p={4}
+                  borderRadius="xl"
+                  border="1px solid"
+                  borderColor={borderColor}
+                  bg={detailPanelBg}
+                >
+                  <Flex justify="space-between" align="start" gap={3} mb={3}>
+                    <VStack align="start" spacing={2} flex={1} minW={0}>
+                      <HStack spacing={2} wrap="wrap">
+                        <Badge colorScheme={task.iteration > 0 ? 'orange' : 'gray'}>
+                          {task.iteration > 0 ? `Drill-down ${task.iteration}` : '主任務'}
+                        </Badge>
+                        <Badge colorScheme={getTaskTypeColor(task.taskType)}>
+                          {getTaskTypeLabel(task.taskType)}
+                        </Badge>
+                        <Badge colorScheme={getStatusColor(task.status)}>
+                          {getStatusLabel(task.status)}
+                        </Badge>
+                      </HStack>
+                      <Text fontWeight="semibold" color={textColor} noOfLines={3}>
+                        {task.question}
+                      </Text>
+                    </VStack>
+                    <Text fontSize="xs" color={subTextColor} flexShrink={0}>
+                      #{task.id}
+                    </Text>
+                  </Flex>
+
+                  <Box
+                    p={3}
+                    borderRadius="lg"
+                    bg={accentPanelBg}
+                    border="1px solid"
+                    borderColor={borderColor}
+                  >
+                    <Text fontSize="xs" textTransform="uppercase" color={subTextColor} mb={1}>
+                      目前子階段
+                    </Text>
+                    <Text fontSize="sm" fontWeight="medium" color={textColor}>
+                      {task.stageLabel ?? (task.status === 'done' ? '回答完成' : getStatusLabel(task.status))}
+                    </Text>
+                  </Box>
+
+                  {task.answer && (
+                    <Box mt={3} p={3} borderRadius="lg" bg={cardBg} border="1px solid" borderColor={borderColor}>
+                      <Text fontSize="xs" textTransform="uppercase" color={subTextColor} mb={1}>
+                        任務回答摘要
+                      </Text>
+                      <Text
+                        fontSize="sm"
+                        color={textColor}
+                        noOfLines={4}
+                        sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+                      >
+                        {task.answer}
+                      </Text>
+                    </Box>
+                  )}
+
+                  {task.contexts && task.contexts.length > 0 && (
+                    <Text mt={3} fontSize="xs" color={subTextColor}>
+                      已擷取 {task.contexts.length} 段原始內容供最終彙整使用
+                    </Text>
+                  )}
+                </Box>
+              ))}
+            </SimpleGrid>
           </CardBody>
         </Card>
       )}

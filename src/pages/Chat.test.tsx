@@ -127,4 +127,16 @@ describe('Chat Page Integration', () => {
     expect(mockSetCurrentChatId).toHaveBeenCalledWith('research-123');
     expect(useSettingsStore.getState().selectedChatModeId).toBe('agentic');
   });
+
+  it('renders the desktop right rail container for resources and settings', () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChakraProvider theme={theme}>
+          <Chat />
+        </ChakraProvider>
+      </QueryClientProvider>
+    );
+
+    expect(screen.getByTestId('chat-desktop-right-rail')).toBeInTheDocument();
+  });
 });
