@@ -10,6 +10,10 @@ vi.mock('../settings', () => ({
   SettingsPanel: () => <div>Settings</div>
 }));
 
+vi.mock('./AccountCard', () => ({
+  default: () => <div data-testid="account-card">Account Card</div>,
+}));
+
 describe('Sidebar', () => {
   it('renders with navigation items', () => {
     render(
@@ -22,6 +26,6 @@ describe('Sidebar', () => {
 
     expect(screen.getAllByText('3R 儀表板').length).toBeGreaterThan(0);
     expect(screen.getAllByText('儀表板').length).toBeGreaterThan(0);
-    expect(screen.getByText('設定')).toBeInTheDocument();
+    expect(screen.getAllByTestId('account-card').length).toBeGreaterThan(0);
   });
 });

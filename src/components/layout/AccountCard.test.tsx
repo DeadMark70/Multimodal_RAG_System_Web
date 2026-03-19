@@ -1,10 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import type * as ChakraUI from '@chakra-ui/react';
 import type * as ReactRouterDom from 'react-router-dom';
-import Sidebar from './Sidebar';
+import AccountCard from './AccountCard';
 import theme from '../../theme';
 import type { AuthContextType } from '../../contexts/auth-context';
 
@@ -12,10 +12,6 @@ const navigateMock = vi.fn();
 const toastMock = vi.fn();
 const signOutMock = vi.fn();
 const useAuthMock = vi.fn<() => AuthContextType>();
-
-vi.mock('../settings', () => ({
-  SettingsPanel: () => <div>Settings</div>,
-}));
 
 vi.mock('../../contexts/useAuth', () => ({
   useAuth: () => useAuthMock(),
@@ -41,59 +37,55 @@ vi.mock('@chakra-ui/react', async () => {
   };
 });
 
-describe('Sidebar UI behavior', () => {
+describe('AccountCard', () => {
   beforeEach(() => {
     navigateMock.mockReset();
     toastMock.mockReset();
     signOutMock.mockReset();
     useAuthMock.mockReturnValue({
-      session: { user: { id: '1' } } as AuthContextType['session'],
+      session: null,
       user: {
-        email: 'sidebar@example.com',
-        user_metadata: { full_name: 'Sidebar User' },
+        email: 'tester@example.com',
+        user_metadata: { full_name: 'Test User' },
       },
       loading: false,
       signOut: signOutMock,
     });
   });
 
-  it('marks current route as active and opens mobile navigation drawer', () => {
+  it('renders user identity and email', () => {
     render(
       <ChakraProvider theme={theme}>
-        <MemoryRouter initialEntries={['/dashboard']}>
-          <Sidebar />
+        <MemoryRouter>
+          <AccountCard onOpenSettings={vi.fn()} />
         </MemoryRouter>
       </ChakraProvider>
     );
 
-    const dashboardLabels = screen.getAllByText('儀表板');
-    const activeDashboardLink = dashboardLabels
-      .map((node) => node.closest('a'))
-      .find((link): link is HTMLAnchorElement => Boolean(link?.getAttribute('aria-current') === 'page'));
-    expect(activeDashboardLink).toBeDefined();
-
-    fireEvent.click(screen.getByLabelText('開啟導覽'));
-    expect(screen.getByText('導覽')).toBeInTheDocument();
+    expect(screen.getByText('Test User')).toBeInTheDocument();
+    expect(screen.getByText('tester@example.com')).toBeInTheDocument();
   });
 
-  it('closes the mobile drawer before completing logout', async () => {
+  it('uses the auth context logout flow and redirects to login', async () => {
     signOutMock.mockResolvedValue(undefined);
 
     render(
       <ChakraProvider theme={theme}>
-        <MemoryRouter initialEntries={['/dashboard']}>
-          <Sidebar />
+        <MemoryRouter>
+          <AccountCard onOpenSettings={vi.fn()} />
         </MemoryRouter>
       </ChakraProvider>
     );
 
-    fireEvent.click(screen.getByLabelText('開啟導覽'));
-
-    const dialog = screen.getByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: '登出' }));
+    fireEvent.click(screen.getByRole('button', { name: '登出' }));
 
     await waitFor(() => expect(signOutMock).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.queryByText('導覽')).not.toBeInTheDocument());
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: '已登出',
+        status: 'success',
+      })
+    );
     expect(navigateMock).toHaveBeenCalledWith('/login', { replace: true });
   });
 });

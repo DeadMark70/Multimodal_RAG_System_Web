@@ -22,7 +22,6 @@ import {
   FiDatabase,
   FiMessageSquare,
   FiTrendingUp,
-  FiSettings,
   FiShare2,
   FiBookOpen,
   FiSun,
@@ -30,6 +29,7 @@ import {
   FiMenu,
 } from 'react-icons/fi';
 import { SettingsPanel } from '../settings';
+import AccountCard from './AccountCard';
 
 interface NavItemProps {
   icon: React.ElementType;
@@ -45,7 +45,8 @@ const NavItem = ({ icon, children, to }: NavItemProps) => {
   const iconDefaultColor = useColorModeValue('surface.500', 'surface.300');
   const textColor = useColorModeValue('surface.600', 'surface.200');
   const borderColor = useColorModeValue('brand.200', 'brand.700');
-  const hoverBg = useColorModeValue('surface.100', 'surface.700');
+  const hoverBg = useColorModeValue('brand.50', 'surface.700');
+  const hoverBorderColor = useColorModeValue('brand.100', 'brand.700');
 
   return (
     <ChakraLink
@@ -71,6 +72,7 @@ const NavItem = ({ icon, children, to }: NavItemProps) => {
         _hover={{
           bg: hoverBg,
           color: activeColor,
+          borderColor: hoverBorderColor,
         }}
       >
         <Icon
@@ -91,7 +93,6 @@ export default function Sidebar() {
   const borderColor = useColorModeValue('surface.200', 'surface.700');
   const logoColor = useColorModeValue('brand.600', 'brand.200');
   const mutedText = useColorModeValue('surface.500', 'surface.300');
-  const settingsHoverBg = useColorModeValue('surface.100', 'surface.700');
   const shadow = useColorModeValue('0 8px 24px rgba(17, 24, 39, 0.08)', '0 8px 30px rgba(2, 6, 23, 0.35)');
   const settingsDrawer = useDisclosure();
   const mobileNavDrawer = useDisclosure();
@@ -165,9 +166,6 @@ export default function Sidebar() {
             onClick={toggleColorMode}
           />
         </Flex>
-        <Text px={6} pt={2} pb={2} fontSize="xs" color={mutedText} textTransform="uppercase" letterSpacing="0.08em">
-          Navigation
-        </Text>
         <VStack spacing={1} align="stretch">
           <NavItem icon={FiHome} to="/dashboard">儀表板</NavItem>
           <NavItem icon={FiDatabase} to="/knowledge">知識庫</NavItem>
@@ -177,22 +175,8 @@ export default function Sidebar() {
           <NavItem icon={FiShare2} to="/graph-demo">知識圖譜</NavItem>
         </VStack>
 
-        {/* Settings Button */}
-        <Box pos="absolute" bottom={8} left={0} right={0} px={3}>
-          <Flex
-            align="center"
-            p={3}
-            mx={3}
-            borderRadius="10px"
-            cursor="pointer"
-            transition=".2s ease"
-            color={mutedText}
-            _hover={{ bg: settingsHoverBg, color: logoColor }}
-            onClick={settingsDrawer.onOpen}
-          >
-            <Icon mr="4" fontSize="18" as={FiSettings} />
-            <Text fontSize="md" fontWeight="500">設定</Text>
-          </Flex>
+        <Box pos="absolute" bottom={8} left={0} right={0} px={6}>
+          <AccountCard onOpenSettings={settingsDrawer.onOpen} />
         </Box>
       </Box>
 
@@ -207,8 +191,8 @@ export default function Sidebar() {
         <DrawerContent>
           <DrawerCloseButton />
           <DrawerHeader borderBottomWidth="1px">導覽</DrawerHeader>
-          <DrawerBody p={2}>
-            <VStack spacing={1} align="stretch" mt={2}>
+          <DrawerBody p={2} display="flex" flexDirection="column">
+            <VStack spacing={1} align="stretch" mt={2} flex="1">
               <NavItem icon={FiHome} to="/dashboard">儀表板</NavItem>
               <NavItem icon={FiDatabase} to="/knowledge">知識庫</NavItem>
               <NavItem icon={FiMessageSquare} to="/chat">對話</NavItem>
@@ -216,15 +200,13 @@ export default function Sidebar() {
               <NavItem icon={FiBookOpen} to="/evaluation">評估中心</NavItem>
               <NavItem icon={FiShare2} to="/graph-demo">知識圖譜</NavItem>
             </VStack>
-            <Box px={2} mt={2}>
-              <IconButton
-                aria-label="開啟設定"
-                icon={<FiSettings />}
-                w="full"
-                onClick={() => {
+            <Box px={2} pb={2} pt={4} mt="auto">
+              <AccountCard
+                onOpenSettings={() => {
                   mobileNavDrawer.onClose();
                   settingsDrawer.onOpen();
                 }}
+                onBeforeSignOut={mobileNavDrawer.onClose}
               />
             </Box>
           </DrawerBody>
