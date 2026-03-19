@@ -51,6 +51,14 @@ VITE_MOCK_MODE=false
 
 並將 `VITE_API_BASE_URL` 指向你的後端服務。
 
+## Supabase 忘記密碼設定
+
+若要使用前端忘記密碼/重設密碼流程，請在 Supabase Dashboard 設定：
+
+- `Authentication > URL Configuration > Redirect URLs`
+- 至少加入：`http://localhost:5173/reset-password`
+- 正式環境請同步加入對應網域的 `/reset-password` URL
+
 ## 常用指令
 
 ```bash
