@@ -3,6 +3,7 @@ import { act } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { AuthProvider } from './AuthContext';
+import { useAuth } from './useAuth';
 
 let authStateChangeCallback: ((event: AuthChangeEvent, session: Session | null) => void) | null = null;
 
@@ -24,11 +25,26 @@ vi.mock('../services/supabase', () => ({
 }));
 
 describe('AuthProvider', () => {
+  const TriggerSignOut = () => {
+    const { signOut } = useAuth();
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          void signOut();
+        }}
+      >
+        sign-out
+      </button>
+    );
+  };
+
   beforeEach(() => {
     authStateChangeCallback = null;
     getSessionMock.mockReset();
     onAuthStateChangeMock.mockReset();
     unsubscribeMock.mockReset();
+    signOutMock.mockReset();
 
     getSessionMock.mockResolvedValue({
       data: { session: null },
@@ -78,5 +94,28 @@ describe('AuthProvider', () => {
     });
 
     expect(window.location.pathname).toBe('/');
+  });
+
+  it('falls back to local sign-out when global sign-out fails', async () => {
+    signOutMock
+      .mockResolvedValueOnce({ error: new Error('session missing') })
+      .mockResolvedValueOnce({ error: null });
+
+    const { getByRole } = render(
+      <AuthProvider>
+        <TriggerSignOut />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(authStateChangeCallback).not.toBeNull());
+
+    act(() => {
+      getByRole('button', { name: 'sign-out' }).click();
+    });
+
+    await waitFor(() => {
+      expect(signOutMock).toHaveBeenNthCalledWith(1, { scope: 'global' });
+      expect(signOutMock).toHaveBeenNthCalledWith(2, { scope: 'local' });
+    });
   });
 });

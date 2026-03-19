@@ -32,7 +32,16 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    const { error: globalError } = await supabase.auth.signOut({ scope: 'global' });
+    if (globalError) {
+      const { error: localError } = await supabase.auth.signOut({ scope: 'local' });
+      if (localError) {
+        throw localError;
+      }
+    }
+
+    setSession(null);
+    setUser(null);
   };
 
   return (
