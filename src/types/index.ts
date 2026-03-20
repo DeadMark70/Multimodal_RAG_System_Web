@@ -13,6 +13,7 @@ export type {
   AskResponse,
   ProcessingStatus,
   DocumentItem,
+  TranslatePdfResponse,
   DocumentStat,
   DashboardStats,
   ExperimentResult,

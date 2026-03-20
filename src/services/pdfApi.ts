@@ -3,15 +3,23 @@
  * 
  * 端點：
  * - GET /pdfmd/list - 取得文件列表
- * - POST /pdfmd/upload_pdf_md - 上傳並翻譯 PDF
+ * - POST /pdfmd/upload_pdf_md - 上傳 PDF 並執行 OCR
  * - GET /pdfmd/file/{doc_id}/status - 取得處理狀態
- * - GET /pdfmd/file/{doc_id} - 下載翻譯 PDF
+ * - GET /pdfmd/file/{doc_id} - 下載原始或翻譯 PDF
+ * - POST /pdfmd/file/{doc_id}/translate - 手動翻譯 PDF
  * - DELETE /pdfmd/file/{doc_id} - 刪除文件
  * - GET /pdfmd/file/{doc_id}/summary - 取得摘要
  */
 
 import api from './api';
-import type { DocumentItem, ProcessingStatus, UploadPdfResponse } from '../types/rag';
+import type {
+  DocumentItem,
+  ProcessingStatus,
+  TranslatePdfResponse,
+  UploadPdfResponse,
+} from '../types/rag';
+
+export type PdfFileType = 'original' | 'translated';
 
 /**
  * 文件列表回應
@@ -30,7 +38,7 @@ export async function listDocuments(): Promise<DocumentListResponse> {
 }
 
 /**
- * 上傳 PDF 並翻譯
+ * 上傳 PDF 並執行 OCR
  * @returns 上傳任務狀態（包含 doc_id 與背景處理資訊）
  */
 export async function uploadPdf(file: File): Promise<UploadPdfResponse> {
@@ -66,12 +74,24 @@ export async function getDocumentStatus(docId: string): Promise<StatusResponse> 
 }
 
 /**
- * 下載翻譯後的 PDF
+ * 下載原始或翻譯後的 PDF
  */
-export async function downloadPdf(docId: string): Promise<Blob> {
+export async function downloadPdf(
+  docId: string,
+  type?: PdfFileType
+): Promise<Blob> {
   const response = await api.get<Blob>(`/pdfmd/file/${docId}`, {
+    params: type ? { type } : undefined,
     responseType: 'blob',
   });
+  return response.data;
+}
+
+/**
+ * 手動觸發文件翻譯
+ */
+export async function translateDocument(docId: string): Promise<TranslatePdfResponse> {
+  const response = await api.post<TranslatePdfResponse>(`/pdfmd/file/${docId}/translate`);
   return response.data;
 }
 

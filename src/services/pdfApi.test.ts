@@ -22,7 +22,19 @@ describe('pdfApi', () => {
 
   it('lists documents via GET /pdfmd/list', async () => {
     mockedApi.get.mockResolvedValue({
-      data: { documents: [{ id: '1' }], total: 1 },
+      data: {
+        documents: [{
+          id: '1',
+          file_name: 'demo.pdf',
+          created_at: '2026-03-20T00:00:00Z',
+          status: 'ready',
+          processing_step: 'ocr_completed',
+          has_original_pdf: true,
+          has_translated_pdf: false,
+          can_translate: true,
+        }],
+        total: 1,
+      },
     });
 
     const result = await pdfApi.listDocuments();
@@ -34,10 +46,10 @@ describe('pdfApi', () => {
   it('uploads PDF and returns JSON status without real API call', async () => {
     const payload = {
       doc_id: 'doc-1',
-      status: 'completed',
-      message: 'Upload accepted. Background indexing started.',
+      status: 'ready',
+      message: 'OCR 已完成，背景索引進行中；如需翻譯請從歷史列表手動觸發。',
       pdf_available: true,
-      pdf_download_url: '/pdfmd/file/doc-1',
+      pdf_download_url: '/pdfmd/file/doc-1?type=original',
       pdf_error: null,
       rag_status: 'processing_background',
     };
@@ -57,6 +69,19 @@ describe('pdfApi', () => {
     expect(result.pdf_available).toBe(true);
   });
 
+  it('downloads a typed PDF blob', async () => {
+    const pdfBlob = new Blob(['pdf'], { type: 'application/pdf' });
+    mockedApi.get.mockResolvedValue({ data: pdfBlob });
+
+    const result = await pdfApi.downloadPdf('doc-1', 'translated');
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/pdfmd/file/doc-1', {
+      params: { type: 'translated' },
+      responseType: 'blob',
+    });
+    expect(result).toBe(pdfBlob);
+  });
+
   it('gets status by doc id', async () => {
     mockedApi.get.mockResolvedValue({
       data: {
@@ -71,5 +96,23 @@ describe('pdfApi', () => {
 
     expect(mockedApi.get).toHaveBeenCalledWith('/pdfmd/file/doc-1/status');
     expect(result.is_fully_complete).toBe(true);
+  });
+
+  it('translates a document via POST endpoint', async () => {
+    mockedApi.post.mockResolvedValue({
+      data: {
+        doc_id: 'doc-1',
+        status: 'completed',
+        message: 'Translation completed successfully.',
+        pdf_available: true,
+        pdf_download_url: '/pdfmd/file/doc-1?type=translated',
+        pdf_error: null,
+      },
+    });
+
+    const result = await pdfApi.translateDocument('doc-1');
+
+    expect(mockedApi.post).toHaveBeenCalledWith('/pdfmd/file/doc-1/translate');
+    expect(result.pdf_download_url).toBe('/pdfmd/file/doc-1?type=translated');
   });
 });

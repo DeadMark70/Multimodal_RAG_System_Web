@@ -1,24 +1,33 @@
 export const MOCK_DOCUMENTS = [
     {
         id: '1',
-        filename: 'Attention Is All You Need.pdf',
+        file_name: 'Attention Is All You Need.pdf',
         created_at: '2023-12-01T10:00:00Z',
         status: 'indexed',
-        processing_step: 'complete'
+        processing_step: 'indexed',
+        has_original_pdf: true,
+        has_translated_pdf: false,
+        can_translate: false,
     },
     {
         id: '2',
-        filename: 'BERT Pre-training of Deep Bidirectional Transformers.pdf',
+        file_name: 'BERT Pre-training of Deep Bidirectional Transformers.pdf',
         created_at: '2023-12-02T14:30:00Z',
         status: 'processing',
-        processing_step: 'generating_pdf'
+        processing_step: 'generating_pdf',
+        has_original_pdf: true,
+        has_translated_pdf: false,
+        can_translate: false,
     },
      {
         id: '3',
-        filename: 'GPT-4 Technical Report.pdf',
+        file_name: 'GPT-4 Technical Report.pdf',
         created_at: '2023-12-05T09:15:00Z',
         status: 'failed',
-        processing_step: 'ocr'
+        processing_step: 'ocr',
+        has_original_pdf: true,
+        has_translated_pdf: false,
+        can_translate: false,
     }
 ];
 

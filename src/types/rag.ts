@@ -93,10 +93,12 @@ export interface ChatStreamEvent {
 export type ProcessingStatus = 
   | 'uploading'
   | 'ocr'
+  | 'ocr_completed'
   | 'translating'
   | 'generating_pdf'
   | 'completed'
   | 'indexing'
+  | 'image_analysis'
   | 'indexed'
   | 'failed';
 
@@ -109,6 +111,9 @@ export interface DocumentItem {
   created_at: string;
   status: string | null;
   processing_step: ProcessingStatus | null;
+  has_original_pdf: boolean;
+  has_translated_pdf: boolean;
+  can_translate: boolean;
 }
 
 /**
@@ -116,12 +121,21 @@ export interface DocumentItem {
  */
 export interface UploadPdfResponse {
   doc_id: string;
-  status: 'completed' | 'completed_with_pdf_error' | 'processing' | 'failed';
+  status: 'ready' | 'completed' | 'completed_with_pdf_error' | 'processing' | 'failed';
   message: string;
   pdf_available: boolean;
   pdf_download_url: string | null;
   pdf_error: string | null;
   rag_status: 'processing_background' | 'not_started' | (string & {});
+}
+
+export interface TranslatePdfResponse {
+  doc_id: string;
+  status: 'completed' | 'completed_with_pdf_error';
+  message: string;
+  pdf_available: boolean;
+  pdf_download_url: string | null;
+  pdf_error: string | null;
 }
 
 // ========== 儀表板統計型別 ==========

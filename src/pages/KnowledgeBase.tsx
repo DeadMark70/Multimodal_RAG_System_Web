@@ -25,13 +25,21 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import UploadZone from '../components/rag/UploadZone';
 import DocumentTable from '../components/rag/DocumentTable';
-import { useDocumentList, useUploadDocument, useDeleteDocument, useDocumentStatus } from '../hooks/useDocuments';
+import {
+  useDeleteDocument,
+  useDocumentList,
+  useDocumentStatus,
+  useTranslateDocument,
+  useUploadDocument,
+} from '../hooks/useDocuments';
 import SurfaceCard from '../components/common/SurfaceCard';
+import { downloadPdf } from '../services/pdfApi';
 
 export default function KnowledgeBase() {
   const { data: documents, isLoading, error, refetch } = useDocumentList();
   const uploadMutation = useUploadDocument();
   const deleteMutation = useDeleteDocument();
+  const translateMutation = useTranslateDocument();
   const toast = useToast();
 
   // 刪除確認對話框
@@ -74,14 +82,34 @@ export default function KnowledgeBase() {
     }
   };
 
-  const handleView = () => {
-    // TODO: 開啟文件預覽
-    toast({
-      title: '功能開發中',
-      description: '文件預覽功能即將推出',
-      status: 'info',
-      duration: 2000,
-    });
+  const openPdfInNewTab = async (docId: string, type: 'original' | 'translated') => {
+    try {
+      const blob = await downloadPdf(docId, type);
+      const blobUrl = URL.createObjectURL(blob);
+      const opened = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+
+      if (!opened) {
+        URL.revokeObjectURL(blobUrl);
+        throw new Error('Browser blocked the new tab');
+      }
+
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+      }, 60_000);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '無法開啟 PDF';
+      toast({
+        title: '開啟 PDF 失敗',
+        description: message,
+        status: 'error',
+        duration: 4000,
+      });
+    }
+  };
+
+  const handleTranslate = async (id: string) => {
+    await translateMutation.mutateAsync(id);
+    await refetch();
   };
 
   return (
@@ -129,7 +157,9 @@ export default function KnowledgeBase() {
               <DocumentTable 
                 documents={documents || []}
                 onDelete={handleDeleteClick}
-                onView={handleView}
+                onOpenOriginal={(id) => void openPdfInNewTab(id, 'original')}
+                onOpenTranslated={(id) => void openPdfInNewTab(id, 'translated')}
+                onTranslate={(id) => void handleTranslate(id)}
               />
             )}
           </CardBody>
