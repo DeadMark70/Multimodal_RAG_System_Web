@@ -162,6 +162,7 @@ describe('KnowledgeBase', () => {
           docId: 'doc-good',
           status: 'indexed',
           errorMessage: null,
+          updatedAt: Date.now(),
         },
         {
           id: 'upload-2',
@@ -169,6 +170,7 @@ describe('KnowledgeBase', () => {
           docId: 'doc-failed',
           status: 'index_failed',
           errorMessage: 'Graph indexing failed: quota exceeded',
+          updatedAt: Date.now(),
         },
       ],
       uploadFiles: vi.fn(),
@@ -186,5 +188,32 @@ describe('KnowledgeBase', () => {
     expect(screen.getByText('failed.pdf')).toBeInTheDocument();
     expect(screen.getByText('Graph indexing failed: quota exceeded')).toBeInTheDocument();
     expect(screen.getByText('部分文件需要處理')).toBeInTheDocument();
+  });
+
+  it('shows the current pipeline location for active uploads in the existing progress panel', () => {
+    useBatchUploadDocumentsMock.mockReturnValue({
+      uploads: [
+        {
+          id: 'upload-1',
+          fileName: 'graph.pdf',
+          docId: 'doc-graph',
+          status: 'graph_indexing',
+          errorMessage: null,
+          updatedAt: Date.now(),
+        },
+      ],
+      uploadFiles: vi.fn(),
+      isUploading: true,
+    });
+
+    render(
+      <ChakraProvider theme={theme}>
+        <KnowledgeBase />
+      </ChakraProvider>
+    );
+
+    expect(screen.getByText('切換頁面後仍會保留進度，回到這裡可繼續查看目前位置。')).toBeInTheDocument();
+    expect(screen.getByText('目前位置：GraphRAG 建圖中')).toBeInTheDocument();
+    expect(screen.getAllByText('GraphRAG').length).toBeGreaterThan(0);
   });
 });

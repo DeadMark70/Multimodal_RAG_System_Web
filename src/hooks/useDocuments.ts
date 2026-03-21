@@ -4,10 +4,15 @@
  * 使用 React Query 管理文件 CRUD 操作與批次上傳流程
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@chakra-ui/react';
 
+import {
+  mapProcessingStepToBatchStatus,
+  type BatchUploadItem,
+  type BatchUploadStatus,
+} from '../features/uploads/uploadProgress';
 import {
   deleteDocument,
   getDocumentStatus,
@@ -15,34 +20,16 @@ import {
   translateDocument,
   uploadPdf,
 } from '../services/pdfApi';
-import type { ProcessingStatus } from '../types/rag';
+import {
+  useBatchUploads,
+  useIsBatchUploading,
+  useUploadProgressStore,
+} from '../stores/useUploadProgressStore';
+import type { QueryClient } from '@tanstack/react-query';
 
 const BATCH_UPLOAD_CONCURRENCY = 2;
 const POLL_INTERVAL_MS = 3000;
-
-export type BatchUploadStatus =
-  | 'queued'
-  | 'uploading'
-  | 'ocr_completed'
-  | 'indexing'
-  | 'indexed'
-  | 'failed'
-  | 'index_failed';
-
-export interface BatchUploadItem {
-  id: string;
-  fileName: string;
-  docId: string | null;
-  status: BatchUploadStatus;
-  errorMessage: string | null;
-}
-
-const ACTIVE_BATCH_UPLOAD_STATUSES = new Set<BatchUploadStatus>([
-  'queued',
-  'uploading',
-  'ocr_completed',
-  'indexing',
-]);
+const activePollers = new Map<string, Promise<void>>();
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -50,28 +37,64 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
-function mapProcessingStepToBatchStatus(step: ProcessingStatus): BatchUploadStatus {
-  if (step === 'indexed') {
-    return 'indexed';
+function createBatchItems(files: File[]): BatchUploadItem[] {
+  const now = Date.now();
+  return files.map((file, index) => ({
+    id: `${file.name}-${index}-${now}`,
+    fileName: file.name,
+    docId: null,
+    status: 'queued',
+    errorMessage: null,
+    updatedAt: now,
+  }));
+}
+
+function patchTrackedUpload(id: string, patch: Partial<BatchUploadItem>) {
+  useUploadProgressStore.getState().actions.updateUpload(id, {
+    ...patch,
+    updatedAt: Date.now(),
+  });
+}
+
+async function pollUntilSettled(
+  uploadId: string,
+  docId: string,
+  queryClient: QueryClient
+): Promise<void> {
+  const existingPoller = activePollers.get(uploadId);
+  if (existingPoller) {
+    await existingPoller;
+    return;
   }
 
-  if (step === 'index_failed') {
-    return 'index_failed';
-  }
+  const poller = (async () => {
+    while (true) {
+      const status = await getDocumentStatus(docId);
+      const nextStatus = mapProcessingStepToBatchStatus(status.step);
 
-  if (step === 'failed') {
-    return 'failed';
-  }
+      patchTrackedUpload(uploadId, {
+        status: nextStatus,
+        errorMessage: status.error_message,
+      });
 
-  if (step === 'indexing' || step === 'image_analysis' || step === 'graph_indexing') {
-    return 'indexing';
-  }
+      if (
+        nextStatus === 'indexed' ||
+        nextStatus === 'failed' ||
+        nextStatus === 'index_failed'
+      ) {
+        break;
+      }
 
-  if (step === 'ocr_completed' || step === 'completed') {
-    return 'ocr_completed';
-  }
+      await sleep(POLL_INTERVAL_MS);
+    }
+  })()
+    .finally(async () => {
+      activePollers.delete(uploadId);
+      await queryClient.invalidateQueries({ queryKey: ['documents'] });
+    });
 
-  return 'uploading';
+  activePollers.set(uploadId, poller);
+  await poller;
 }
 
 // 文件清單 Query
@@ -120,65 +143,16 @@ export function useUploadDocument() {
 export function useBatchUploadDocuments() {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [uploads, setUploads] = useState<BatchUploadItem[]>([]);
-  const uploadsRef = useRef<BatchUploadItem[]>([]);
-  const isMountedRef = useRef(true);
+  const uploads = useBatchUploads();
+  const isUploading = useIsBatchUploading();
 
-  useEffect(() => {
-    uploadsRef.current = uploads;
-  }, [uploads]);
-
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  const updateUpload = (id: string, patch: Partial<BatchUploadItem>) => {
-    if (!isMountedRef.current) {
-      return;
-    }
-
-    setUploads((current) => {
-      const next = current.map((upload) => (upload.id === id ? { ...upload, ...patch } : upload));
-      uploadsRef.current = next;
-      return next;
-    });
-  };
-
-  const pollUntilSettled = async (uploadId: string, docId: string) => {
-    while (isMountedRef.current) {
-      const status = await getDocumentStatus(docId);
-      const nextStatus = mapProcessingStepToBatchStatus(status.step);
-
-      updateUpload(uploadId, {
-        status: nextStatus,
-        errorMessage: status.error_message,
-      });
-
-      if (nextStatus === 'indexed' || nextStatus === 'failed' || nextStatus === 'index_failed') {
-        return;
-      }
-
-      await sleep(POLL_INTERVAL_MS);
-    }
-  };
-
-  const uploadFiles = async (files: File[]) => {
+  const uploadFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) {
       return;
     }
 
-    const batch = files.map((file, index) => ({
-      id: `${file.name}-${index}-${Date.now()}`,
-      fileName: file.name,
-      docId: null,
-      status: 'queued' as const,
-      errorMessage: null,
-    }));
-
-    uploadsRef.current = batch;
-    setUploads(batch);
+    const batch = createBatchItems(files);
+    useUploadProgressStore.getState().actions.setUploads(batch);
 
     let cursor = 0;
 
@@ -190,7 +164,7 @@ export function useBatchUploadDocuments() {
         const upload = batch[currentIndex];
         const file = files[currentIndex];
 
-        updateUpload(upload.id, {
+        patchTrackedUpload(upload.id, {
           status: 'uploading',
           errorMessage: null,
         });
@@ -199,7 +173,7 @@ export function useBatchUploadDocuments() {
           const result = await uploadPdf(file);
           const initialStatus = result.status === 'failed' ? 'failed' : 'ocr_completed';
 
-          updateUpload(upload.id, {
+          patchTrackedUpload(upload.id, {
             docId: result.doc_id,
             status: initialStatus,
             errorMessage: result.pdf_error ?? (result.status === 'failed' ? result.message : null),
@@ -209,9 +183,9 @@ export function useBatchUploadDocuments() {
             continue;
           }
 
-          await pollUntilSettled(upload.id, result.doc_id);
+          await pollUntilSettled(upload.id, result.doc_id, queryClient);
         } catch (error) {
-          updateUpload(upload.id, {
+          patchTrackedUpload(upload.id, {
             status: 'failed',
             errorMessage: error instanceof Error ? error.message : '上傳失敗',
           });
@@ -225,18 +199,14 @@ export function useBatchUploadDocuments() {
 
     await queryClient.invalidateQueries({ queryKey: ['documents'] });
 
-    if (!isMountedRef.current) {
-      return;
-    }
-
-    const completed = uploadsRef.current;
+    const completed = useUploadProgressStore.getState().uploads;
     const successCount = completed.filter((upload) => upload.status === 'indexed').length;
     const indexFailedCount = completed.filter((upload) => upload.status === 'index_failed').length;
     const failedCount = completed.filter((upload) => upload.status === 'failed').length;
 
     const summaryParts = [
       successCount > 0 ? `${successCount} 份完成索引` : null,
-      indexFailedCount > 0 ? `${indexFailedCount} 份索引失敗` : null,
+      indexFailedCount > 0 ? `${indexFailedCount} 份背景處理失敗` : null,
       failedCount > 0 ? `${failedCount} 份上傳失敗` : null,
     ].filter(Boolean);
 
@@ -253,12 +223,7 @@ export function useBatchUploadDocuments() {
           : 'success',
       duration: 5000,
     });
-  };
-
-  const isUploading = useMemo(
-    () => uploads.some((upload) => ACTIVE_BATCH_UPLOAD_STATUSES.has(upload.status)),
-    [uploads]
-  );
+  }, [queryClient, toast]);
 
   return {
     uploads,
@@ -347,3 +312,5 @@ export default {
   useTranslateDocument,
   useDocumentStatus,
 };
+
+export type { BatchUploadItem, BatchUploadStatus };

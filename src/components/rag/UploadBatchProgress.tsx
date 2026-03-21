@@ -10,24 +10,14 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react';
 
-import type { BatchUploadItem, BatchUploadStatus } from '../../hooks/useDocuments';
+import {
+  getUploadStatusMeta,
+  type BatchUploadItem,
+} from '../../features/uploads/uploadProgress';
 
 interface UploadBatchProgressProps {
   uploads: BatchUploadItem[];
 }
-
-const STATUS_META: Record<
-  BatchUploadStatus,
-  { label: string; colorScheme: string; progress: number }
-> = {
-  queued: { label: '等待中', colorScheme: 'gray', progress: 5 },
-  uploading: { label: '上傳中', colorScheme: 'blue', progress: 20 },
-  ocr_completed: { label: 'OCR 完成', colorScheme: 'cyan', progress: 45 },
-  indexing: { label: '索引中', colorScheme: 'purple', progress: 75 },
-  indexed: { label: '已完成', colorScheme: 'green', progress: 100 },
-  failed: { label: '上傳失敗', colorScheme: 'red', progress: 100 },
-  index_failed: { label: '索引失敗', colorScheme: 'orange', progress: 100 },
-};
 
 export default function UploadBatchProgress({ uploads }: UploadBatchProgressProps) {
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
@@ -39,21 +29,37 @@ export default function UploadBatchProgress({ uploads }: UploadBatchProgressProp
   }
 
   const completedCount = uploads.filter(
-    (upload) => upload.status === 'indexed' || upload.status === 'failed' || upload.status === 'index_failed'
+    (upload) =>
+      upload.status === 'indexed' ||
+      upload.status === 'failed' ||
+      upload.status === 'index_failed'
   ).length;
+  const activeCount = uploads.length - completedCount;
 
   return (
     <Box mt={4} borderWidth="1px" borderColor={borderColor} borderRadius="lg" p={4}>
       <Flex justify="space-between" align="center" mb={3} gap={3} wrap="wrap">
-        <Text fontWeight="bold">批次上傳進度</Text>
-        <Badge colorScheme="brand" borderRadius="full" px={3}>
-          {completedCount}/{uploads.length} 完成
-        </Badge>
+        <Box>
+          <Text fontWeight="bold">批次上傳進度</Text>
+          <Text fontSize="sm" color={mutedTextColor}>
+            切換頁面後仍會保留進度，回到這裡可繼續查看目前位置。
+          </Text>
+        </Box>
+        <HStack spacing={2}>
+          {activeCount > 0 && (
+            <Badge colorScheme="blue" borderRadius="full" px={3}>
+              {activeCount} 份進行中
+            </Badge>
+          )}
+          <Badge colorScheme="brand" borderRadius="full" px={3}>
+            {completedCount}/{uploads.length} 完成
+          </Badge>
+        </HStack>
       </Flex>
 
       <VStack align="stretch" spacing={3} divider={<Divider />}>
         {uploads.map((upload) => {
-          const meta = STATUS_META[upload.status];
+          const meta = getUploadStatusMeta(upload.status);
 
           return (
             <Box key={upload.id}>
@@ -76,6 +82,17 @@ export default function UploadBatchProgress({ uploads }: UploadBatchProgressProp
                     borderRadius="full"
                     mb={2}
                   />
+                  <HStack spacing={2} mb={1.5} wrap="wrap">
+                    <Badge variant="subtle" colorScheme={meta.colorScheme} borderRadius="full" px={2.5}>
+                      {meta.location}
+                    </Badge>
+                    <Text fontSize="sm" color={mutedTextColor}>
+                      目前位置：{meta.label}
+                    </Text>
+                  </HStack>
+                  <Text fontSize="sm" color={mutedTextColor} mb={upload.errorMessage ? 1.5 : 0}>
+                    {meta.description}
+                  </Text>
                   {upload.errorMessage && (
                     <Text fontSize="sm" color={errorTextColor}>
                       {upload.errorMessage}

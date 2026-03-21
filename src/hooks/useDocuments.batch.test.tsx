@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useBatchUploadDocuments } from './useDocuments';
+import { resetUploadProgressStore } from '../stores/useUploadProgressStore';
 
 const { toastMock, uploadPdfMock, getDocumentStatusMock } = vi.hoisted(() => ({
   toastMock: vi.fn(),
@@ -46,6 +47,7 @@ function deferred<T>() {
 describe('useBatchUploadDocuments', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetUploadProgressStore();
   });
 
   it('starts uploads with concurrency 2 instead of sending the whole batch at once', async () => {
@@ -233,5 +235,80 @@ describe('useBatchUploadDocuments', () => {
         errorMessage: 'Graph indexing failed: quota exceeded',
       }),
     ]);
+  });
+
+  it('preserves upload progress across hook unmount and remount while the batch is still running', async () => {
+    const queryClient = new QueryClient();
+    const deferredUpload = deferred<{
+      doc_id: string;
+      status: 'ready';
+      message: string;
+      pdf_available: boolean;
+      pdf_download_url: string;
+      pdf_error: null;
+      rag_status: 'processing_background';
+    }>();
+
+    uploadPdfMock.mockImplementationOnce(() => deferredUpload.promise);
+    getDocumentStatusMock.mockResolvedValue({
+      step: 'indexed',
+      step_label: '全部完成',
+      is_pdf_ready: true,
+      is_fully_complete: true,
+      error_message: null,
+    });
+
+    const wrapper = createWrapper(queryClient);
+    const firstHook = renderHook(() => useBatchUploadDocuments(), { wrapper });
+    const file = new File(['a'], 'persistent.pdf', { type: 'application/pdf' });
+
+    let batchPromise!: Promise<void>;
+    await act(async () => {
+      batchPromise = firstHook.result.current.uploadFiles([file]);
+      await Promise.resolve();
+    });
+
+    expect(firstHook.result.current.uploads).toEqual([
+      expect.objectContaining({
+        fileName: 'persistent.pdf',
+        status: 'uploading',
+      }),
+    ]);
+
+    firstHook.unmount();
+
+    const secondHook = renderHook(() => useBatchUploadDocuments(), { wrapper });
+
+    expect(secondHook.result.current.uploads).toEqual([
+      expect.objectContaining({
+        fileName: 'persistent.pdf',
+        status: 'uploading',
+      }),
+    ]);
+    expect(secondHook.result.current.isUploading).toBe(true);
+
+    await act(async () => {
+      deferredUpload.resolve({
+        doc_id: 'doc-persistent',
+        status: 'ready',
+        message: 'ok',
+        pdf_available: true,
+        pdf_download_url: '/pdfmd/file/doc-persistent?type=original',
+        pdf_error: null,
+        rag_status: 'processing_background',
+      });
+      await batchPromise;
+    });
+
+    await waitFor(() => {
+      expect(secondHook.result.current.uploads).toEqual([
+        expect.objectContaining({
+          fileName: 'persistent.pdf',
+          docId: 'doc-persistent',
+          status: 'indexed',
+        }),
+      ]);
+    });
+    expect(secondHook.result.current.isUploading).toBe(false);
   });
 });

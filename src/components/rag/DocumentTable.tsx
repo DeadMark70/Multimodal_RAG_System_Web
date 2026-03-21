@@ -37,6 +37,21 @@ interface DocumentTableProps {
   onTranslate: (id: string) => void;
 }
 
+const STEP_BADGE_META: Record<
+  string,
+  { colorScheme: string; label: string }
+> = {
+  uploading: { colorScheme: 'blue', label: '上傳中' },
+  ocr: { colorScheme: 'blue', label: 'OCR 辨識中' },
+  ocr_completed: { colorScheme: 'cyan', label: 'OCR 已完成' },
+  indexing: { colorScheme: 'purple', label: 'RAG 索引中' },
+  image_analysis: { colorScheme: 'pink', label: '圖片分析中' },
+  graph_indexing: { colorScheme: 'teal', label: 'GraphRAG 建圖中' },
+  indexed: { colorScheme: 'green', label: '已索引' },
+  failed: { colorScheme: 'red', label: '失敗' },
+  index_failed: { colorScheme: 'orange', label: '索引失敗' },
+};
+
 const StatusBadge = ({
   status,
   step,
@@ -55,18 +70,12 @@ const StatusBadge = ({
   } else if (hasTranslatedPdf) {
     colorScheme = 'green';
     label = step === 'indexed' ? '已索引 / 已翻譯' : '已翻譯';
-  } else if (step === 'ocr_completed') {
+  } else if (step && STEP_BADGE_META[step]) {
+    colorScheme = STEP_BADGE_META[step].colorScheme;
+    label = STEP_BADGE_META[step].label;
+  } else if (status === 'processing' || status === 'uploading') {
     colorScheme = 'blue';
-    label = 'OCR 已完成';
-  } else if (step === 'indexing' || step === 'image_analysis' || step === 'graph_indexing') {
-    colorScheme = 'cyan';
-    label = '索引中';
-  } else if (step === 'indexed') {
-    colorScheme = 'green';
-    label = '已索引';
-  } else if (status === 'processing' || status === 'uploading' || step === 'ocr') {
-    colorScheme = 'blue';
-    label = step ? `處理中: ${step}` : '處理中';
+    label = '處理中';
   } else if (status === 'failed') {
     colorScheme = 'red';
     label = '失敗';
