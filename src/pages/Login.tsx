@@ -172,6 +172,8 @@ export default function Login() {
 
               <Auth
                 supabaseClient={supabase}
+                view="sign_in"
+                showLinks={false}
                 appearance={{
                   theme: ThemeSupa,
                   variables: {
@@ -200,6 +202,12 @@ export default function Login() {
                 忘記密碼？{' '}
                 <Link as={RouterLink} to="/forgot-password" color="brand.600" fontWeight="700">
                   前往重設
+                </Link>
+              </Text>
+              <Text fontSize="sm" color={mutedText} textAlign="center">
+                還沒有帳號？{' '}
+                <Link as={RouterLink} to="/signup" color="brand.600" fontWeight="700">
+                  前往註冊
                 </Link>
               </Text>
             </Stack>

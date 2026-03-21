@@ -9,6 +9,7 @@ import type { AuthContextType } from '../contexts/auth-context';
 const navigateMock = vi.fn();
 const signOutMock = vi.fn();
 const useAuthMock = vi.fn<() => AuthContextType>();
+const authRenderMock = vi.fn();
 
 vi.mock('../contexts/useAuth', () => ({
   useAuth: () => useAuthMock(),
@@ -19,7 +20,10 @@ vi.mock('../services/supabase', () => ({
 }));
 
 vi.mock('@supabase/auth-ui-react', () => ({
-  Auth: () => <div data-testid="supabase-auth">Supabase Auth</div>,
+  Auth: (props: Record<string, unknown>) => {
+    authRenderMock(props);
+    return <div data-testid="supabase-auth">Supabase Auth</div>;
+  },
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -34,6 +38,7 @@ describe('Login', () => {
   beforeEach(() => {
     navigateMock.mockReset();
     signOutMock.mockReset();
+    authRenderMock.mockReset();
     useAuthMock.mockReturnValue({
       session: null,
       user: null,
@@ -55,7 +60,15 @@ describe('Login', () => {
     expect(screen.getByText('Responsible')).toBeInTheDocument();
     expect(screen.getByTestId('supabase-auth')).toBeInTheDocument();
     const forgotPasswordLink = screen.getByRole('link', { name: '前往重設' });
+    const signupLink = screen.getByRole('link', { name: '前往註冊' });
     expect(forgotPasswordLink).toHaveAttribute('href', '/forgot-password');
+    expect(signupLink).toHaveAttribute('href', '/signup');
+    expect(authRenderMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        view: 'sign_in',
+        showLinks: false,
+      })
+    );
   });
 
   it('redirects authenticated users to the dashboard', async () => {
