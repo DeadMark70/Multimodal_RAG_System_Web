@@ -237,6 +237,45 @@ describe('useBatchUploadDocuments', () => {
     ]);
   });
 
+  it('retries transient auth misses during status polling instead of marking the upload failed', async () => {
+    const queryClient = new QueryClient();
+    uploadPdfMock.mockResolvedValue({
+      doc_id: 'doc-1',
+      status: 'ready',
+      message: 'ok',
+      pdf_available: true,
+      pdf_download_url: '/pdfmd/file/doc-1?type=original',
+      pdf_error: null,
+      rag_status: 'processing_background',
+    });
+    getDocumentStatusMock
+      .mockRejectedValueOnce(new Error('Missing Authorization header'))
+      .mockResolvedValueOnce({
+        step: 'indexed',
+        step_label: '全部完成',
+        is_pdf_ready: true,
+        is_fully_complete: true,
+        error_message: null,
+      });
+
+    const { result } = renderHook(() => useBatchUploadDocuments(), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.uploadFiles([new File(['a'], 'paper.pdf', { type: 'application/pdf' })]);
+    });
+
+    expect(getDocumentStatusMock).toHaveBeenCalledTimes(2);
+    expect(result.current.uploads).toEqual([
+      expect.objectContaining({
+        fileName: 'paper.pdf',
+        status: 'indexed',
+        errorMessage: null,
+      }),
+    ]);
+  });
+
   it('preserves upload progress across hook unmount and remount while the batch is still running', async () => {
     const queryClient = new QueryClient();
     const deferredUpload = deferred<{

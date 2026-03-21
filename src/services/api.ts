@@ -12,6 +12,26 @@ import { supabase } from './supabase';
 import { assertAllowedApiTarget, resolveApiUrl } from './networkPolicy';
 
 const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+let inFlightTokenRefresh: Promise<string | null> | null = null;
+
+async function getRequestAccessToken(): Promise<string | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    return session.access_token;
+  }
+
+  if (!inFlightTokenRefresh) {
+    inFlightTokenRefresh = supabase.auth
+      .refreshSession()
+      .then(({ data }) => data.session?.access_token ?? null)
+      .catch(() => null)
+      .finally(() => {
+        inFlightTokenRefresh = null;
+      });
+  }
+
+  return await inFlightTokenRefresh;
+}
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -27,10 +47,10 @@ api.interceptors.request.use(
     const fullUrl = resolveApiUrl(config.baseURL ?? API_BASE_URL, config.url ?? '/');
     assertAllowedApiTarget(fullUrl);
 
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (session?.access_token) {
-      config.headers.set('Authorization', `Bearer ${session.access_token}`);
+    const accessToken = await getRequestAccessToken();
+
+    if (accessToken) {
+      config.headers.set('Authorization', `Bearer ${accessToken}`);
     }
     
     return config;

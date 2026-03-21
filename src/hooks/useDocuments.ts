@@ -30,6 +30,11 @@ import type { QueryClient } from '@tanstack/react-query';
 const BATCH_UPLOAD_CONCURRENCY = 2;
 const POLL_INTERVAL_MS = 3000;
 const activePollers = new Map<string, Promise<void>>();
+const TRANSIENT_STATUS_AUTH_ERRORS = [
+  'Missing Authorization header',
+  'Authentication failed',
+  '認證失敗',
+];
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -56,6 +61,13 @@ function patchTrackedUpload(id: string, patch: Partial<BatchUploadItem>) {
   });
 }
 
+function isTransientStatusAuthError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    TRANSIENT_STATUS_AUTH_ERRORS.some((message) => error.message.includes(message))
+  );
+}
+
 async function pollUntilSettled(
   uploadId: string,
   docId: string,
@@ -69,7 +81,18 @@ async function pollUntilSettled(
 
   const poller = (async () => {
     while (true) {
-      const status = await getDocumentStatus(docId);
+      let status;
+
+      try {
+        status = await getDocumentStatus(docId);
+      } catch (error) {
+        if (isTransientStatusAuthError(error)) {
+          await sleep(750);
+          continue;
+        }
+        throw error;
+      }
+
       const nextStatus = mapProcessingStepToBatchStatus(status.step);
 
       patchTrackedUpload(uploadId, {
