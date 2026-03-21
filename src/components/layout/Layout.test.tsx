@@ -11,6 +11,24 @@ vi.mock('./Sidebar', () => ({ default: () => <div data-testid="sidebar">Sidebar<
 
 const useAuthMock = vi.fn<() => AuthContextType>();
 
+function createAuthValue(overrides: Partial<AuthContextType> = {}): AuthContextType {
+  const user = {
+    id: '1',
+    app_metadata: {},
+    user_metadata: {},
+    aud: 'authenticated',
+    created_at: '2026-03-01T00:00:00.000Z',
+  } as AuthContextType['user'];
+
+  return {
+    session: { user } as AuthContextType['session'],
+    user,
+    loading: false,
+    signOut: vi.fn(),
+    ...overrides,
+  };
+}
+
 // Mock useAuth
 vi.mock('../../contexts/useAuth', () => ({
   useAuth: () => useAuthMock(),
@@ -18,10 +36,7 @@ vi.mock('../../contexts/useAuth', () => ({
 
 describe('Layout', () => {
   beforeEach(() => {
-    useAuthMock.mockReturnValue({
-      session: { user: { id: '1' } },
-      loading: false,
-    });
+    useAuthMock.mockReturnValue(createAuthValue());
   });
 
   it('renders children and sidebar when authenticated', () => {
@@ -49,8 +64,9 @@ describe('Layout', () => {
 
   it('redirects unauthenticated users to login', () => {
     useAuthMock.mockReturnValue({
+      ...createAuthValue(),
       session: null,
-      loading: false,
+      user: null,
     });
 
     render(

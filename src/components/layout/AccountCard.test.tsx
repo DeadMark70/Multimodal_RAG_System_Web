@@ -2,8 +2,6 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import type * as ChakraUI from '@chakra-ui/react';
-import type * as ReactRouterDom from 'react-router-dom';
 import AccountCard from './AccountCard';
 import theme from '../../theme';
 import type { AuthContextType } from '../../contexts/auth-context';
@@ -18,9 +16,7 @@ vi.mock('../../contexts/useAuth', () => ({
 }));
 
 vi.mock('react-router-dom', async () => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const actual = (await vi.importActual('react-router-dom')) as unknown as ReactRouterDom;
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  const actual = await vi.importActual<Record<string, unknown>>('react-router-dom');
   return {
     ...actual,
     useNavigate: () => navigateMock,
@@ -28,29 +24,36 @@ vi.mock('react-router-dom', async () => {
 });
 
 vi.mock('@chakra-ui/react', async () => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const actual = (await vi.importActual('@chakra-ui/react')) as unknown as ChakraUI;
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  const actual = await vi.importActual<Record<string, unknown>>('@chakra-ui/react');
   return {
     ...actual,
     useToast: () => toastMock,
   };
 });
 
+function createAuthValue(overrides: Partial<AuthContextType> = {}): AuthContextType {
+  return {
+    session: null,
+    user: {
+      id: 'user-1',
+      app_metadata: {},
+      user_metadata: { full_name: 'Test User' },
+      aud: 'authenticated',
+      created_at: '2026-03-01T00:00:00.000Z',
+      email: 'tester@example.com',
+    } as AuthContextType['user'],
+    loading: false,
+    signOut: signOutMock,
+    ...overrides,
+  };
+}
+
 describe('AccountCard', () => {
   beforeEach(() => {
     navigateMock.mockReset();
     toastMock.mockReset();
     signOutMock.mockReset();
-    useAuthMock.mockReturnValue({
-      session: null,
-      user: {
-        email: 'tester@example.com',
-        user_metadata: { full_name: 'Test User' },
-      },
-      loading: false,
-      signOut: signOutMock,
-    });
+    useAuthMock.mockReturnValue(createAuthValue());
   });
 
   it('renders user identity and email', () => {

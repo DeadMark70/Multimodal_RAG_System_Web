@@ -99,6 +99,7 @@ export type ProcessingStatus =
   | 'completed'
   | 'indexing'
   | 'image_analysis'
+  | 'graph_indexing'
   | 'indexed'
   | 'index_failed'
   | 'failed';

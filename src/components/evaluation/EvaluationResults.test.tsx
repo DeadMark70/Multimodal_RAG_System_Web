@@ -2,12 +2,12 @@ import { ChakraProvider } from '@chakra-ui/react';
 import { cloneElement, isValidElement, type ReactNode } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type * as Recharts from 'recharts';
 import type {
   evaluateCampaign as evaluateCampaignFn,
   getCampaignMetrics as getCampaignMetricsFn,
   listCampaigns as listCampaignsFn,
 } from '../../services/evaluationApi';
+import type { CampaignConfigInput, CampaignMetricsResponse, CampaignStatus } from '../../types/evaluation';
 import theme from '../../theme';
 import EvaluationResults from './EvaluationResults';
 
@@ -24,7 +24,7 @@ vi.mock('../../services/evaluationApi', () => ({
 }));
 
 vi.mock('recharts', async () => {
-  const actual = await vi.importActual<typeof Recharts>('recharts');
+  const actual = await vi.importActual<Record<string, unknown>>('recharts');
   return {
     ...actual,
     ResponsiveContainer: ({ children }: { children: ReactNode }) => {
@@ -47,30 +47,32 @@ beforeAll(() => {
   };
 });
 
-const completedCampaign = {
+const baseCampaignConfig: CampaignConfigInput = {
+  test_case_ids: ['Q1'],
+  modes: ['naive', 'advanced'],
+  model_config: {
+    id: 'cfg-1',
+    name: 'Balanced',
+    model_name: 'gemini-2.5-flash',
+    temperature: 0.7,
+    top_p: 0.95,
+    top_k: 40,
+    max_input_tokens: 8192,
+    max_output_tokens: 2048,
+    thinking_mode: false,
+    thinking_budget: 8192,
+  },
+  repeat_count: 1,
+  batch_size: 1,
+  rpm_limit: 60,
+};
+
+const completedCampaign: CampaignStatus = {
   id: 'cmp-1',
   name: 'Campaign 1',
   status: 'completed',
   phase: 'evaluation',
-  config: {
-    test_case_ids: ['Q1'],
-    modes: ['naive', 'advanced'],
-    model_config: {
-      id: 'cfg-1',
-      name: 'Balanced',
-      model_name: 'gemini-2.5-flash',
-      temperature: 0.7,
-      top_p: 0.95,
-      top_k: 40,
-      max_input_tokens: 8192,
-      max_output_tokens: 2048,
-      thinking_mode: false,
-      thinking_budget: 8192,
-    },
-    repeat_count: 1,
-    batch_size: 1,
-    rpm_limit: 60,
-  },
+  config: baseCampaignConfig,
   completed_units: 2,
   total_units: 2,
   evaluation_completed_units: 2,
@@ -80,14 +82,14 @@ const completedCampaign = {
   updated_at: '2026-03-08T00:00:00+00:00',
 };
 
-const evaluatingCampaign = {
+const evaluatingCampaign: CampaignStatus = {
   ...completedCampaign,
   status: 'evaluating',
   evaluation_completed_units: 0,
   evaluation_total_units: 2,
 };
 
-const populatedMetrics = {
+const populatedMetrics: CampaignMetricsResponse = {
   campaign: completedCampaign,
   evaluator_model: 'gemini-2.5-pro',
   summary_by_mode: {
@@ -138,7 +140,7 @@ const populatedMetrics = {
   ],
 };
 
-const emptyMetrics = {
+const emptyMetrics: CampaignMetricsResponse = {
   campaign: completedCampaign,
   evaluator_model: 'gemini-2.5-pro',
   summary_by_mode: {},
@@ -172,10 +174,7 @@ describe('EvaluationResults', () => {
 
     mockListCampaigns.mockResolvedValue([completedCampaign]);
     mockGetCampaignMetrics.mockResolvedValue(populatedMetrics);
-    mockEvaluateCampaign.mockResolvedValue({
-      ...evaluatingCampaign,
-      status: 'evaluating',
-    });
+    mockEvaluateCampaign.mockResolvedValue(evaluatingCampaign);
 
     renderResults();
 

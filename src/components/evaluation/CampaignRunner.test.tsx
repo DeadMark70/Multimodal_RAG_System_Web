@@ -10,6 +10,7 @@ import type {
   listTestCases as listTestCasesFn,
   streamCampaign as streamCampaignFn,
 } from '../../services/evaluationApi';
+import type { CampaignConfigInput, CampaignStatus } from '../../types/evaluation';
 import theme from '../../theme';
 import CampaignRunner from './CampaignRunner';
 
@@ -66,7 +67,7 @@ const baseConfig = {
   thinking_budget: 8192,
 };
 
-const baseCampaignConfig = {
+const baseCampaignConfig: CampaignConfigInput = {
   test_case_ids: ['Q1'],
   modes: ['naive'],
   model_config: baseConfig,
@@ -75,6 +76,24 @@ const baseCampaignConfig = {
   batch_size: 1,
   rpm_limit: 60,
 };
+
+function createCampaignStatus(overrides: Partial<CampaignStatus> = {}): CampaignStatus {
+  return {
+    id: 'cmp-1',
+    name: 'Smoke campaign',
+    status: 'pending',
+    phase: 'execution',
+    config: baseCampaignConfig,
+    completed_units: 0,
+    total_units: 1,
+    evaluation_completed_units: 0,
+    evaluation_total_units: 0,
+    cancel_requested: false,
+    created_at: '2026-03-07T00:00:00+00:00',
+    updated_at: '2026-03-07T00:00:00+00:00',
+    ...overrides,
+  };
+}
 
 function renderRunner() {
   render(
@@ -94,100 +113,59 @@ describe('CampaignRunner', () => {
     mockListModelConfigs.mockResolvedValue([baseConfig]);
     mockListCampaigns
       .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        {
-          id: 'cmp-1',
-          name: 'Smoke campaign',
-          status: 'pending',
-          phase: 'execution',
-          config: baseCampaignConfig,
-          completed_units: 0,
-          total_units: 1,
-          evaluation_completed_units: 0,
-          evaluation_total_units: 0,
-          cancel_requested: false,
-          created_at: '2026-03-07T00:00:00+00:00',
-          updated_at: '2026-03-07T00:00:00+00:00',
-        },
-      ])
+      .mockResolvedValueOnce([createCampaignStatus()])
       .mockResolvedValue([
-        {
-          id: 'cmp-1',
-          name: 'Smoke campaign',
+        createCampaignStatus({
           status: 'completed',
           phase: 'evaluation',
-          config: baseCampaignConfig,
           completed_units: 1,
           total_units: 1,
           evaluation_completed_units: 1,
           evaluation_total_units: 1,
           current_question_id: 'Q1',
           current_mode: 'naive',
-          cancel_requested: false,
-          created_at: '2026-03-07T00:00:00+00:00',
           completed_at: '2026-03-07T00:00:10+00:00',
           updated_at: '2026-03-07T00:00:10+00:00',
-        },
+        }),
       ]);
     mockCreateCampaign.mockResolvedValue({ campaign_id: 'cmp-1', status: 'pending' });
     mockStreamCampaign.mockImplementation((_campaignId, onEvent) => {
       onEvent({
         type: 'campaign_snapshot',
-        data: {
-          id: 'cmp-1',
-          name: 'Smoke campaign',
+        data: createCampaignStatus({
           status: 'running',
-          phase: 'execution',
-          config: baseCampaignConfig,
-          completed_units: 0,
-          total_units: 1,
-          evaluation_completed_units: 0,
-          evaluation_total_units: 0,
           current_question_id: 'Q1',
           current_mode: 'naive',
-          cancel_requested: false,
-          created_at: '2026-03-07T00:00:00+00:00',
-          updated_at: '2026-03-07T00:00:00+00:00',
-        },
+        }),
       });
       onEvent({
         type: 'campaign_completed',
-        data: {
-          id: 'cmp-1',
-          name: 'Smoke campaign',
+        data: createCampaignStatus({
           status: 'completed',
           phase: 'evaluation',
-          config: baseCampaignConfig,
           completed_units: 1,
           total_units: 1,
           evaluation_completed_units: 1,
           evaluation_total_units: 1,
           current_question_id: 'Q1',
           current_mode: 'naive',
-          cancel_requested: false,
-          created_at: '2026-03-07T00:00:00+00:00',
           completed_at: '2026-03-07T00:00:10+00:00',
           updated_at: '2026-03-07T00:00:10+00:00',
-        },
+        }),
       });
       return Promise.resolve();
     });
     mockGetCampaignResults.mockResolvedValue({
-      campaign: {
-        id: 'cmp-1',
-        name: 'Smoke campaign',
+      campaign: createCampaignStatus({
         status: 'completed',
         phase: 'evaluation',
-        config: baseCampaignConfig,
         completed_units: 1,
         total_units: 1,
         evaluation_completed_units: 1,
         evaluation_total_units: 1,
-        cancel_requested: false,
-        created_at: '2026-03-07T00:00:00+00:00',
         completed_at: '2026-03-07T00:00:10+00:00',
         updated_at: '2026-03-07T00:00:10+00:00',
-      },
+      }),
       results: [
         {
           id: 'result-1',
@@ -210,20 +188,18 @@ describe('CampaignRunner', () => {
         },
       ],
     });
-    mockCancelCampaign.mockResolvedValue({
-      id: 'cmp-1',
-      name: 'Smoke campaign',
-      status: 'cancelled',
-      phase: 'evaluation',
-      config: baseCampaignConfig,
-      completed_units: 1,
-      total_units: 1,
-      evaluation_completed_units: 1,
-      evaluation_total_units: 1,
-      cancel_requested: true,
-      created_at: '2026-03-07T00:00:00+00:00',
-      updated_at: '2026-03-07T00:00:10+00:00',
-    });
+    mockCancelCampaign.mockResolvedValue(
+      createCampaignStatus({
+        status: 'cancelled',
+        phase: 'evaluation',
+        completed_units: 1,
+        total_units: 1,
+        evaluation_completed_units: 1,
+        evaluation_total_units: 1,
+        cancel_requested: true,
+        updated_at: '2026-03-07T00:00:10+00:00',
+      })
+    );
 
     renderRunner();
 
@@ -254,43 +230,27 @@ describe('CampaignRunner', () => {
     mockListCampaigns
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
-        {
+        createCampaignStatus({
           id: 'cmp-fail-exec',
           name: 'Execution failure',
           status: 'failed',
-          phase: 'execution',
-          config: baseCampaignConfig,
-          completed_units: 0,
-          total_units: 1,
-          evaluation_completed_units: 0,
-          evaluation_total_units: 0,
-          cancel_requested: false,
           error_message: 'Execution step failed',
-          created_at: '2026-03-07T00:00:00+00:00',
           updated_at: '2026-03-07T00:00:10+00:00',
-        },
+        }),
       ]);
     mockCreateCampaign.mockResolvedValue({ campaign_id: 'cmp-fail-exec', status: 'pending' });
     mockStreamCampaign.mockImplementation((_campaignId, onEvent) => {
       onEvent({
         type: 'campaign_failed',
-        data: {
+        data: createCampaignStatus({
           id: 'cmp-fail-exec',
           name: 'Execution failure',
           status: 'failed',
-          phase: 'execution',
-          config: baseCampaignConfig,
-          completed_units: 0,
-          total_units: 1,
-          evaluation_completed_units: 0,
-          evaluation_total_units: 0,
           current_question_id: 'Q1',
           current_mode: 'naive',
-          cancel_requested: false,
           error_message: 'Execution step failed',
-          created_at: '2026-03-07T00:00:00+00:00',
           updated_at: '2026-03-07T00:00:10+00:00',
-        },
+        }),
       });
       return Promise.resolve();
     });
@@ -316,43 +276,37 @@ describe('CampaignRunner', () => {
     mockListCampaigns
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
-        {
+        createCampaignStatus({
           id: 'cmp-fail-eval',
           name: 'Evaluation failure',
           status: 'failed',
           phase: 'evaluation',
-          config: baseCampaignConfig,
           completed_units: 1,
           total_units: 1,
           evaluation_completed_units: 0,
           evaluation_total_units: 1,
-          cancel_requested: false,
           error_message: 'RAGAS evaluation failed',
-          created_at: '2026-03-07T00:00:00+00:00',
           updated_at: '2026-03-07T00:00:10+00:00',
-        },
+        }),
       ]);
     mockCreateCampaign.mockResolvedValue({ campaign_id: 'cmp-fail-eval', status: 'pending' });
     mockStreamCampaign.mockImplementation((_campaignId, onEvent) => {
       onEvent({
         type: 'campaign_failed',
-        data: {
+        data: createCampaignStatus({
           id: 'cmp-fail-eval',
           name: 'Evaluation failure',
           status: 'failed',
           phase: 'evaluation',
-          config: baseCampaignConfig,
           completed_units: 1,
           total_units: 1,
           evaluation_completed_units: 0,
           evaluation_total_units: 1,
           current_question_id: 'Q1',
           current_mode: 'naive',
-          cancel_requested: false,
           error_message: 'RAGAS evaluation failed',
-          created_at: '2026-03-07T00:00:00+00:00',
           updated_at: '2026-03-07T00:00:10+00:00',
-        },
+        }),
       });
       return Promise.resolve();
     });

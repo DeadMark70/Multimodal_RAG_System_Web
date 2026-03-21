@@ -5,20 +5,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useBatchUploadDocuments } from './useDocuments';
 
-const toastMock = vi.fn();
-const uploadPdfMock = vi.fn();
-const getDocumentStatusMock = vi.fn();
+const { toastMock, uploadPdfMock, getDocumentStatusMock } = vi.hoisted(() => ({
+  toastMock: vi.fn(),
+  uploadPdfMock: vi.fn(),
+  getDocumentStatusMock: vi.fn(),
+}));
 
 vi.mock('../services/pdfApi', () => ({
   listDocuments: vi.fn(),
-  uploadPdf: (...args: unknown[]) => uploadPdfMock(...args),
-  getDocumentStatus: (...args: unknown[]) => getDocumentStatusMock(...args),
+  uploadPdf: uploadPdfMock,
+  getDocumentStatus: getDocumentStatusMock,
   deleteDocument: vi.fn(),
   translateDocument: vi.fn(),
 }));
 
 vi.mock('@chakra-ui/react', async () => {
-  const actual = await vi.importActual<typeof import('@chakra-ui/react')>('@chakra-ui/react');
+  const actual = await vi.importActual<Record<string, unknown>>('@chakra-ui/react');
   return {
     ...actual,
     useToast: () => toastMock,

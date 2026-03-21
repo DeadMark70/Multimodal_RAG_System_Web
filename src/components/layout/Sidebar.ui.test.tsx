@@ -2,8 +2,6 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { ChakraProvider } from '@chakra-ui/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import type * as ChakraUI from '@chakra-ui/react';
-import type * as ReactRouterDom from 'react-router-dom';
 import Sidebar from './Sidebar';
 import theme from '../../theme';
 import type { AuthContextType } from '../../contexts/auth-context';
@@ -22,9 +20,7 @@ vi.mock('../../contexts/useAuth', () => ({
 }));
 
 vi.mock('react-router-dom', async () => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const actual = (await vi.importActual('react-router-dom')) as unknown as ReactRouterDom;
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  const actual = await vi.importActual<Record<string, unknown>>('react-router-dom');
   return {
     ...actual,
     useNavigate: () => navigateMock,
@@ -32,29 +28,38 @@ vi.mock('react-router-dom', async () => {
 });
 
 vi.mock('@chakra-ui/react', async () => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const actual = (await vi.importActual('@chakra-ui/react')) as unknown as ChakraUI;
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  const actual = await vi.importActual<Record<string, unknown>>('@chakra-ui/react');
   return {
     ...actual,
     useToast: () => toastMock,
   };
 });
 
+function createAuthValue(overrides: Partial<AuthContextType> = {}): AuthContextType {
+  const user = {
+    id: 'user-1',
+    app_metadata: {},
+    user_metadata: { full_name: 'Sidebar User' },
+    aud: 'authenticated',
+    created_at: '2026-03-01T00:00:00.000Z',
+    email: 'sidebar@example.com',
+  } as AuthContextType['user'];
+
+  return {
+    session: { user } as AuthContextType['session'],
+    user,
+    loading: false,
+    signOut: signOutMock,
+    ...overrides,
+  };
+}
+
 describe('Sidebar UI behavior', () => {
   beforeEach(() => {
     navigateMock.mockReset();
     toastMock.mockReset();
     signOutMock.mockReset();
-    useAuthMock.mockReturnValue({
-      session: { user: { id: '1' } } as AuthContextType['session'],
-      user: {
-        email: 'sidebar@example.com',
-        user_metadata: { full_name: 'Sidebar User' },
-      },
-      loading: false,
-      signOut: signOutMock,
-    });
+    useAuthMock.mockReturnValue(createAuthValue());
   });
 
   it('marks current route as active and opens mobile navigation drawer', () => {

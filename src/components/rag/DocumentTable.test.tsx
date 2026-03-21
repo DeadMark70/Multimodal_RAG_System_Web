@@ -22,7 +22,7 @@ describe('DocumentTable', () => {
     HTMLElement.prototype.scrollTo = vi.fn();
   });
 
-  it('shows translate and original PDF actions for OCR-complete documents', async () => {
+  it('shows translate and original PDF actions for OCR-complete documents', () => {
     const onDelete = vi.fn();
     const onOpenOriginal = vi.fn();
     const onOpenTranslated = vi.fn();
@@ -53,7 +53,7 @@ describe('DocumentTable', () => {
     expect(onOpenTranslated).not.toHaveBeenCalled();
   });
 
-  it('shows translated action when translated PDF exists', async () => {
+  it('shows translated action when translated PDF exists', () => {
     const onOpenTranslated = vi.fn();
 
     render(

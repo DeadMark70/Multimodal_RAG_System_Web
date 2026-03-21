@@ -2,7 +2,6 @@ import { ChakraProvider } from '@chakra-ui/react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import type * as ReactRouterDom from 'react-router-dom';
 import ResetPassword from './ResetPassword';
 import theme from '../theme';
 import type { AuthContextType } from '../contexts/auth-context';
@@ -28,9 +27,7 @@ vi.mock('../services/supabase', () => ({
 }));
 
 vi.mock('react-router-dom', async () => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const actual = (await vi.importActual('react-router-dom')) as unknown as ReactRouterDom;
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  const actual = await vi.importActual<Record<string, unknown>>('react-router-dom');
   return {
     ...actual,
     useNavigate: () => navigateMock,

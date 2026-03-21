@@ -4,8 +4,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import theme from '../../theme';
 import DocumentSelector from './DocumentSelector';
+import type { DocumentItem } from '../../types/rag';
 
-const useDocumentListMock = vi.fn();
+const useDocumentListMock = vi.fn<
+  () => {
+    data: DocumentItem[];
+    isLoading: boolean;
+    error: Error | null;
+    refetch: ReturnType<typeof vi.fn>;
+  }
+>();
 
 vi.mock('../../hooks/useDocuments', () => ({
   useDocumentList: () => useDocumentListMock(),
@@ -57,7 +65,7 @@ describe('DocumentSelector', () => {
     expect(screen.queryByText('ocr-only.pdf')).not.toBeInTheDocument();
   });
 
-  it('selects indexed documents when toggled', async () => {
+  it('selects indexed documents when toggled', () => {
     const onSelectionChange = vi.fn();
 
     useDocumentListMock.mockReturnValue({

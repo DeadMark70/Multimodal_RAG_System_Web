@@ -82,7 +82,7 @@ export default function ResetPassword() {
     }
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: FormEvent<HTMLElement>) => {
     event.preventDefault();
     void submitPasswordReset();
   };

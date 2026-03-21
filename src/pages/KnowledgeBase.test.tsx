@@ -4,15 +4,45 @@ import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import theme from '../theme';
+import type { BatchUploadItem } from '../hooks/useDocuments';
+import type { DocumentItem } from '../types/rag';
 import KnowledgeBase from './KnowledgeBase';
 
-const useDocumentListMock = vi.fn();
-const useUploadDocumentMock = vi.fn();
-const useBatchUploadDocumentsMock = vi.fn();
-const useDeleteDocumentMock = vi.fn();
-const useTranslateDocumentMock = vi.fn();
-const downloadPdfMock = vi.fn();
-const toastMock = vi.fn();
+type DocumentListHookResult = {
+  data: DocumentItem[];
+  isLoading: boolean;
+  error: Error | null;
+  refetch: ReturnType<typeof vi.fn>;
+};
+
+type MutationHookResult = {
+  mutateAsync: ReturnType<typeof vi.fn>;
+  isPending: boolean;
+};
+
+type BatchUploadHookResult = {
+  uploads: BatchUploadItem[];
+  uploadFiles: ReturnType<typeof vi.fn>;
+  isUploading: boolean;
+};
+
+const {
+  useDocumentListMock,
+  useUploadDocumentMock,
+  useBatchUploadDocumentsMock,
+  useDeleteDocumentMock,
+  useTranslateDocumentMock,
+  downloadPdfMock,
+  toastMock,
+} = vi.hoisted(() => ({
+  useDocumentListMock: vi.fn<() => DocumentListHookResult>(),
+  useUploadDocumentMock: vi.fn<() => MutationHookResult>(),
+  useBatchUploadDocumentsMock: vi.fn<() => BatchUploadHookResult>(),
+  useDeleteDocumentMock: vi.fn<() => MutationHookResult>(),
+  useTranslateDocumentMock: vi.fn<() => MutationHookResult>(),
+  downloadPdfMock: vi.fn<() => Promise<Blob>>(),
+  toastMock: vi.fn(),
+}));
 
 vi.mock('../components/layout/Layout', () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -39,11 +69,11 @@ vi.mock('../hooks/useDocuments', () => ({
 }));
 
 vi.mock('../services/pdfApi', () => ({
-  downloadPdf: (...args: unknown[]) => downloadPdfMock(...args),
+  downloadPdf: downloadPdfMock,
 }));
 
 vi.mock('@chakra-ui/react', async () => {
-  const actual = await vi.importActual<typeof import('@chakra-ui/react')>('@chakra-ui/react');
+  const actual = await vi.importActual<Record<string, unknown>>('@chakra-ui/react');
   return {
     ...actual,
     CardBody: ({ children }: { children: ReactNode }) => <div>{children}</div>,

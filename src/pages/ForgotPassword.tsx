@@ -72,7 +72,7 @@ export default function ForgotPassword() {
     }
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: FormEvent<HTMLElement>) => {
     event.preventDefault();
     void sendResetEmail();
   };
