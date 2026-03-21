@@ -33,11 +33,22 @@ function isCampaignStreamEventType(eventType: string): eventType is CampaignStre
 }
 
 function parseCampaignStreamEventData(raw: string): unknown {
-  return JSON.parse(raw) as unknown;
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
 }
 
 function toCampaignStreamEvent(eventType: string, rawData: string): CampaignStreamEvent | null {
   const data = parseCampaignStreamEventData(rawData);
+  if (data == null) {
+    return null;
+  }
 
   switch (eventType) {
     case 'campaign_snapshot':
@@ -188,6 +199,30 @@ export async function streamCampaign(
   let currentEvent: CampaignStreamEventType | '' = '';
   let currentData = '';
 
+  const processLine = (line: string) => {
+    if (line.startsWith('event:')) {
+      const nextEvent = line.slice(6).trim();
+      currentEvent = isCampaignStreamEventType(nextEvent) ? nextEvent : '';
+      return;
+    }
+
+    if (line.startsWith('data:')) {
+      currentData = line.slice(5).trim();
+      return;
+    }
+
+    if (line === '') {
+      if (currentEvent && currentData) {
+        const event = toCampaignStreamEvent(currentEvent, currentData);
+        if (event) {
+          onEvent(event);
+        }
+      }
+      currentEvent = '';
+      currentData = '';
+    }
+  };
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) {
@@ -199,21 +234,13 @@ export async function streamCampaign(
     buffer = lines.pop() || '';
 
     for (const line of lines) {
-      if (line.startsWith('event:')) {
-        const nextEvent = line.slice(6).trim();
-        currentEvent = isCampaignStreamEventType(nextEvent) ? nextEvent : '';
-      } else if (line.startsWith('data:')) {
-        currentData = line.slice(5).trim();
-      } else if (line === '') {
-        if (currentEvent && currentData) {
-          const event = toCampaignStreamEvent(currentEvent, currentData);
-          if (event) {
-            onEvent(event);
-          }
-        }
-        currentEvent = '';
-        currentData = '';
-      }
+      processLine(line);
+    }
+  }
+
+  if (buffer) {
+    for (const line of buffer.split('\n')) {
+      processLine(line);
     }
   }
 

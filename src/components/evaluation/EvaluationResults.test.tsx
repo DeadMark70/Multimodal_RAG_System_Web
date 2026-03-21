@@ -1,7 +1,7 @@
 import { ChakraProvider } from '@chakra-ui/react';
 import { cloneElement, isValidElement, type ReactNode } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as Recharts from 'recharts';
 import type {
   evaluateCampaign as evaluateCampaignFn,
@@ -47,7 +47,117 @@ beforeAll(() => {
   };
 });
 
+const completedCampaign = {
+  id: 'cmp-1',
+  name: 'Campaign 1',
+  status: 'completed',
+  phase: 'evaluation',
+  config: {
+    test_case_ids: ['Q1'],
+    modes: ['naive', 'advanced'],
+    model_config: {
+      id: 'cfg-1',
+      name: 'Balanced',
+      model_name: 'gemini-2.5-flash',
+      temperature: 0.7,
+      top_p: 0.95,
+      top_k: 40,
+      max_input_tokens: 8192,
+      max_output_tokens: 2048,
+      thinking_mode: false,
+      thinking_budget: 8192,
+    },
+    repeat_count: 1,
+    batch_size: 1,
+    rpm_limit: 60,
+  },
+  completed_units: 2,
+  total_units: 2,
+  evaluation_completed_units: 2,
+  evaluation_total_units: 2,
+  cancel_requested: false,
+  created_at: '2026-03-08T00:00:00+00:00',
+  updated_at: '2026-03-08T00:00:00+00:00',
+};
+
+const evaluatingCampaign = {
+  ...completedCampaign,
+  status: 'evaluating',
+  evaluation_completed_units: 0,
+  evaluation_total_units: 2,
+};
+
+const populatedMetrics = {
+  campaign: completedCampaign,
+  evaluator_model: 'gemini-2.5-pro',
+  summary_by_mode: {
+    naive: {
+      mode: 'naive',
+      sample_count: 1,
+      faithfulness: { mean: 0.4, max: 0.4, stddev: 0 },
+      answer_correctness: { mean: 0.5, max: 0.5, stddev: 0 },
+      total_tokens: { mean: 100, max: 100, stddev: 0 },
+      delta_answer_correctness: 0,
+      delta_total_tokens: 0,
+      ecr: 0,
+      ecr_note: null,
+    },
+    advanced: {
+      mode: 'advanced',
+      sample_count: 1,
+      faithfulness: { mean: 0.7, max: 0.7, stddev: 0 },
+      answer_correctness: { mean: 0.8, max: 0.8, stddev: 0 },
+      total_tokens: { mean: 150, max: 150, stddev: 0 },
+      delta_answer_correctness: 0.3,
+      delta_total_tokens: 50,
+      ecr: 6,
+      ecr_note: null,
+    },
+  },
+  rows: [
+    {
+      campaign_result_id: 'r1',
+      question_id: 'Q1',
+      question: 'Question 1',
+      mode: 'naive',
+      run_number: 1,
+      total_tokens: 100,
+      faithfulness: 0.4,
+      answer_correctness: 0.5,
+    },
+    {
+      campaign_result_id: 'r2',
+      question_id: 'Q1',
+      question: 'Question 1',
+      mode: 'advanced',
+      run_number: 1,
+      total_tokens: 150,
+      faithfulness: 0.7,
+      answer_correctness: 0.8,
+    },
+  ],
+};
+
+const emptyMetrics = {
+  campaign: completedCampaign,
+  evaluator_model: 'gemini-2.5-pro',
+  summary_by_mode: {},
+  rows: [],
+};
+
+function renderResults() {
+  render(
+    <ChakraProvider theme={theme}>
+      <EvaluationResults />
+    </ChakraProvider>
+  );
+}
+
 describe('EvaluationResults', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renders metrics summary and rerun action', async () => {
     const createObjectURL = vi.fn(() => 'blob:metrics');
     const revokeObjectURL = vi.fn();
@@ -60,159 +170,14 @@ describe('EvaluationResults', () => {
       revokeObjectURL,
     });
 
-    mockListCampaigns.mockResolvedValue([
-      {
-        id: 'cmp-1',
-        name: 'Campaign 1',
-        status: 'completed',
-        phase: 'evaluation',
-        config: {
-          test_case_ids: ['Q1'],
-          modes: ['naive', 'advanced'],
-          model_config: {
-            id: 'cfg-1',
-            name: 'Balanced',
-            model_name: 'gemini-2.5-flash',
-            temperature: 0.7,
-            top_p: 0.95,
-            top_k: 40,
-            max_input_tokens: 8192,
-            max_output_tokens: 2048,
-            thinking_mode: false,
-            thinking_budget: 8192,
-          },
-          repeat_count: 1,
-          batch_size: 1,
-          rpm_limit: 60,
-        },
-        completed_units: 2,
-        total_units: 2,
-        evaluation_completed_units: 2,
-        evaluation_total_units: 2,
-        cancel_requested: false,
-        created_at: '2026-03-08T00:00:00+00:00',
-        updated_at: '2026-03-08T00:00:00+00:00',
-      },
-    ]);
-    mockGetCampaignMetrics.mockResolvedValue({
-      campaign: {
-        id: 'cmp-1',
-        name: 'Campaign 1',
-        status: 'completed',
-        phase: 'evaluation',
-        config: {
-          test_case_ids: ['Q1'],
-          modes: ['naive', 'advanced'],
-          model_config: {
-            id: 'cfg-1',
-            name: 'Balanced',
-            model_name: 'gemini-2.5-flash',
-            temperature: 0.7,
-            top_p: 0.95,
-            top_k: 40,
-            max_input_tokens: 8192,
-            max_output_tokens: 2048,
-            thinking_mode: false,
-            thinking_budget: 8192,
-          },
-          repeat_count: 1,
-          batch_size: 1,
-          rpm_limit: 60,
-        },
-        completed_units: 2,
-        total_units: 2,
-        evaluation_completed_units: 2,
-        evaluation_total_units: 2,
-        cancel_requested: false,
-        created_at: '2026-03-08T00:00:00+00:00',
-        updated_at: '2026-03-08T00:00:00+00:00',
-      },
-      evaluator_model: 'gemini-2.5-pro',
-      summary_by_mode: {
-        naive: {
-          mode: 'naive',
-          sample_count: 1,
-          faithfulness: { mean: 0.4, max: 0.4, stddev: 0 },
-          answer_correctness: { mean: 0.5, max: 0.5, stddev: 0 },
-          total_tokens: { mean: 100, max: 100, stddev: 0 },
-          delta_answer_correctness: 0,
-          delta_total_tokens: 0,
-          ecr: 0,
-          ecr_note: null,
-        },
-        advanced: {
-          mode: 'advanced',
-          sample_count: 1,
-          faithfulness: { mean: 0.7, max: 0.7, stddev: 0 },
-          answer_correctness: { mean: 0.8, max: 0.8, stddev: 0 },
-          total_tokens: { mean: 150, max: 150, stddev: 0 },
-          delta_answer_correctness: 0.3,
-          delta_total_tokens: 50,
-          ecr: 6,
-          ecr_note: null,
-        },
-      },
-      rows: [
-        {
-          campaign_result_id: 'r1',
-          question_id: 'Q1',
-          question: 'Question 1',
-          mode: 'naive',
-          run_number: 1,
-          total_tokens: 100,
-          faithfulness: 0.4,
-          answer_correctness: 0.5,
-        },
-        {
-          campaign_result_id: 'r2',
-          question_id: 'Q1',
-          question: 'Question 1',
-          mode: 'advanced',
-          run_number: 1,
-          total_tokens: 150,
-          faithfulness: 0.7,
-          answer_correctness: 0.8,
-        },
-      ],
-    });
+    mockListCampaigns.mockResolvedValue([completedCampaign]);
+    mockGetCampaignMetrics.mockResolvedValue(populatedMetrics);
     mockEvaluateCampaign.mockResolvedValue({
-      id: 'cmp-1',
-      name: 'Campaign 1',
+      ...evaluatingCampaign,
       status: 'evaluating',
-      phase: 'evaluation',
-      config: {
-        test_case_ids: ['Q1'],
-        modes: ['naive', 'advanced'],
-        model_config: {
-          id: 'cfg-1',
-          name: 'Balanced',
-          model_name: 'gemini-2.5-flash',
-          temperature: 0.7,
-          top_p: 0.95,
-          top_k: 40,
-          max_input_tokens: 8192,
-          max_output_tokens: 2048,
-          thinking_mode: false,
-          thinking_budget: 8192,
-        },
-        repeat_count: 1,
-        batch_size: 1,
-        rpm_limit: 60,
-      },
-      completed_units: 2,
-      total_units: 2,
-      evaluation_completed_units: 0,
-      evaluation_total_units: 2,
-      cancel_requested: false,
-      created_at: '2026-03-08T00:00:00+00:00',
-      updated_at: '2026-03-08T00:00:00+00:00',
     });
 
-    render(
-      <ChakraProvider theme={theme}>
-        <EvaluationResults />
-      </ChakraProvider>
-    );
+    renderResults();
 
     await waitFor(() => {
       expect(screen.getByText('模式比較總表')).toBeInTheDocument();
@@ -237,5 +202,55 @@ describe('EvaluationResults', () => {
 
     clickSpy.mockRestore();
   }, 15000);
-});
 
+  it('shows empty metrics copy for completed campaigns without RAGAS rows', async () => {
+    mockListCampaigns.mockResolvedValue([completedCampaign]);
+    mockGetCampaignMetrics.mockResolvedValue(emptyMetrics);
+
+    renderResults();
+
+    await waitFor(() => {
+      expect(screen.getByText('此 campaign 目前尚無可視覺化的 RAGAS 指標。')).toBeInTheDocument();
+    });
+  });
+
+  it('shows evaluating copy while metrics are still being generated', async () => {
+    mockListCampaigns.mockResolvedValue([evaluatingCampaign]);
+    mockGetCampaignMetrics.mockResolvedValue({
+      ...emptyMetrics,
+      campaign: evaluatingCampaign,
+    });
+
+    renderResults();
+
+    await waitFor(() => {
+      expect(screen.getByText('RAGAS 評估進行中，結果會在完成後自動更新。')).toBeInTheDocument();
+    });
+  });
+
+  it('reloads metrics after rerun and renders refreshed summary', async () => {
+    mockListCampaigns
+      .mockResolvedValueOnce([completedCampaign])
+      .mockResolvedValueOnce([completedCampaign]);
+    mockGetCampaignMetrics
+      .mockResolvedValueOnce(emptyMetrics)
+      .mockResolvedValueOnce(populatedMetrics);
+    mockEvaluateCampaign.mockResolvedValue(evaluatingCampaign);
+
+    renderResults();
+
+    await waitFor(() => {
+      expect(screen.getByText('此 campaign 目前尚無可視覺化的 RAGAS 指標。')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '重新執行 RAGAS' }));
+
+    await waitFor(() => {
+      expect(mockEvaluateCampaign).toHaveBeenCalledWith('cmp-1');
+    });
+    await waitFor(() => {
+      expect(screen.getByText('模式比較總表')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Evaluator: gemini-2.5-pro')).toBeInTheDocument();
+  }, 15000);
+});

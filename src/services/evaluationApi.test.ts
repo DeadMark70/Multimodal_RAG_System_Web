@@ -263,4 +263,34 @@ describe('evaluationApi', () => {
     });
     expect(events).toEqual(['campaign_snapshot', 'campaign_completed']);
   });
+
+  it('ignores malformed and empty SSE payloads while still parsing failure events', async () => {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            'event: campaign_progress\n' +
+              'data:\n\n' +
+              'event: campaign_progress\n' +
+              'data: not-json\n\n' +
+              'event: unknown_event\n' +
+              'data: {"ignored":true}\n\n' +
+              'event: campaign_failed\n' +
+              'data: {"id":"cmp-1","status":"failed","phase":"evaluation","config":{"test_case_ids":["Q1"],"modes":["naive"],"model_config":{"id":"cfg-1","name":"Balanced","model_name":"gemini","temperature":0.7,"top_p":0.95,"top_k":40,"max_input_tokens":8192,"max_output_tokens":2048,"thinking_mode":false,"thinking_budget":8192},"repeat_count":1,"batch_size":1,"rpm_limit":60},"completed_units":1,"total_units":1,"evaluation_completed_units":0,"evaluation_total_units":1,"cancel_requested":false,"error_message":"RAGAS failed","created_at":"2026-03-07T00:00:00+00:00","updated_at":"2026-03-07T00:00:10+00:00"}'
+          )
+        );
+        controller.close();
+      },
+    });
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(body, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const events: string[] = [];
+    await streamCampaign('cmp-1', (event) => {
+      events.push(event.type);
+    });
+
+    expect(events).toEqual(['campaign_failed']);
+  });
 });
