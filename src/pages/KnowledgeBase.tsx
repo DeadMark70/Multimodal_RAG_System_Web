@@ -22,22 +22,22 @@ import {
   AlertTitle,
   AlertDescription,
 } from '@chakra-ui/react';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import UploadZone from '../components/rag/UploadZone';
 import DocumentTable from '../components/rag/DocumentTable';
+import UploadBatchProgress from '../components/rag/UploadBatchProgress';
 import {
+  useBatchUploadDocuments,
   useDeleteDocument,
   useDocumentList,
-  useDocumentStatus,
   useTranslateDocument,
-  useUploadDocument,
 } from '../hooks/useDocuments';
 import SurfaceCard from '../components/common/SurfaceCard';
 import { downloadPdf } from '../services/pdfApi';
 
 export default function KnowledgeBase() {
   const { data: documents, isLoading, error, refetch } = useDocumentList();
-  const uploadMutation = useUploadDocument();
+  const batchUpload = useBatchUploadDocuments();
   const deleteMutation = useDeleteDocument();
   const translateMutation = useTranslateDocument();
   const toast = useToast();
@@ -45,29 +45,15 @@ export default function KnowledgeBase() {
   // 刪除確認對話框
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [activeUploadDocId, setActiveUploadDocId] = useState<string | null>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const { data: processingStatus } = useDocumentStatus(activeUploadDocId, !!activeUploadDocId);
 
-  const handleUpload = async (file: File) => {
+  const handleUpload = async (files: File[]) => {
     try {
-      const result = await uploadMutation.mutateAsync(file);
-      setActiveUploadDocId(result.doc_id);
-      await refetch();
+      await batchUpload.uploadFiles(files);
     } catch {
       // 錯誤已在 hook 中處理
     }
   };
-
-  useEffect(() => {
-    if (!processingStatus) return;
-    if (processingStatus.is_fully_complete || processingStatus.step === 'failed') {
-      setTimeout(() => {
-        setActiveUploadDocId(null);
-      }, 0);
-      void refetch();
-    }
-  }, [processingStatus, refetch]);
 
   const handleDeleteClick = (id: string) => {
     setDeleteId(id);
@@ -119,19 +105,21 @@ export default function KnowledgeBase() {
       <VStack spacing={6} align="stretch">
         <SurfaceCard>
           <CardBody>
-            <UploadZone onUpload={handleUpload} />
-            {activeUploadDocId && processingStatus && (
-              <Alert
-                status={processingStatus.step === 'failed' ? 'error' : 'info'}
-                mt={4}
-                borderRadius="md"
-                variant="left-accent"
-              >
+            <UploadZone
+              onUpload={handleUpload}
+              isUploading={batchUpload.isUploading}
+              uploadCount={batchUpload.uploads.length}
+            />
+            {batchUpload.uploads.length > 0 && (
+              <UploadBatchProgress uploads={batchUpload.uploads} />
+            )}
+            {!batchUpload.isUploading && batchUpload.uploads.some((upload) => upload.status === 'index_failed' || upload.status === 'failed') && (
+              <Alert status="warning" mt={4} borderRadius="md" variant="left-accent">
                 <AlertIcon />
                 <Box>
-                  <AlertTitle fontSize="sm">文件處理中</AlertTitle>
+                  <AlertTitle fontSize="sm">部分文件需要處理</AlertTitle>
                   <AlertDescription fontSize="sm">
-                    {processingStatus.step_label}
+                    有些 PDF 已上傳成功，但在 OCR 或索引階段發生錯誤。請查看上方批次進度訊息。
                   </AlertDescription>
                 </Box>
               </Alert>

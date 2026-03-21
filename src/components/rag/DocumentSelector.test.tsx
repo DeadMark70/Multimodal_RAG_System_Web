@@ -28,6 +28,7 @@ describe('DocumentSelector', () => {
           has_original_pdf: true,
           has_translated_pdf: false,
           can_translate: true,
+          error_message: null,
         },
         {
           id: 'doc-indexed',
@@ -38,6 +39,7 @@ describe('DocumentSelector', () => {
           has_original_pdf: true,
           has_translated_pdf: false,
           can_translate: false,
+          error_message: null,
         },
       ],
       isLoading: false,
@@ -69,6 +71,7 @@ describe('DocumentSelector', () => {
           has_original_pdf: true,
           has_translated_pdf: true,
           can_translate: false,
+          error_message: null,
         },
       ],
       isLoading: false,

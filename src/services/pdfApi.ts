@@ -63,6 +63,7 @@ export interface StatusResponse {
   step_label: string;
   is_pdf_ready: boolean;
   is_fully_complete: boolean;
+  error_message: string | null;
 }
 
 /**

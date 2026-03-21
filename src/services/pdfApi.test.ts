@@ -32,6 +32,7 @@ describe('pdfApi', () => {
           has_original_pdf: true,
           has_translated_pdf: false,
           can_translate: true,
+          error_message: null,
         }],
         total: 1,
       },
@@ -85,17 +86,19 @@ describe('pdfApi', () => {
   it('gets status by doc id', async () => {
     mockedApi.get.mockResolvedValue({
       data: {
-        step: 'indexed',
-        step_label: 'completed',
+        step: 'index_failed',
+        step_label: '索引失敗',
         is_pdf_ready: true,
-        is_fully_complete: true,
+        is_fully_complete: false,
+        error_message: 'Graph indexing failed: quota exceeded',
       },
     });
 
     const result = await pdfApi.getDocumentStatus('doc-1');
 
     expect(mockedApi.get).toHaveBeenCalledWith('/pdfmd/file/doc-1/status');
-    expect(result.is_fully_complete).toBe(true);
+    expect(result.step).toBe('index_failed');
+    expect(result.error_message).toBe('Graph indexing failed: quota exceeded');
   });
 
   it('translates a document via POST endpoint', async () => {

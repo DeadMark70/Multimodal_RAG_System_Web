@@ -8,6 +8,7 @@ export const MOCK_DOCUMENTS = [
         has_original_pdf: true,
         has_translated_pdf: false,
         can_translate: false,
+        error_message: null,
     },
     {
         id: '2',
@@ -18,6 +19,7 @@ export const MOCK_DOCUMENTS = [
         has_original_pdf: true,
         has_translated_pdf: false,
         can_translate: false,
+        error_message: null,
     },
      {
         id: '3',
@@ -28,6 +30,7 @@ export const MOCK_DOCUMENTS = [
         has_original_pdf: true,
         has_translated_pdf: false,
         can_translate: false,
+        error_message: 'OCR failed on page 12',
     }
 ];
 

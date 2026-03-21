@@ -8,8 +8,8 @@ import KnowledgeBase from './KnowledgeBase';
 
 const useDocumentListMock = vi.fn();
 const useUploadDocumentMock = vi.fn();
+const useBatchUploadDocumentsMock = vi.fn();
 const useDeleteDocumentMock = vi.fn();
-const useDocumentStatusMock = vi.fn();
 const useTranslateDocumentMock = vi.fn();
 const downloadPdfMock = vi.fn();
 const toastMock = vi.fn();
@@ -33,8 +33,8 @@ vi.mock('../components/rag/UploadZone', () => ({
 vi.mock('../hooks/useDocuments', () => ({
   useDocumentList: () => useDocumentListMock(),
   useUploadDocument: () => useUploadDocumentMock(),
+  useBatchUploadDocuments: () => useBatchUploadDocumentsMock(),
   useDeleteDocument: () => useDeleteDocumentMock(),
-  useDocumentStatus: () => useDocumentStatusMock(),
   useTranslateDocument: () => useTranslateDocumentMock(),
 }));
 
@@ -56,8 +56,8 @@ describe('KnowledgeBase', () => {
     HTMLElement.prototype.scrollTo = vi.fn();
     useDocumentListMock.mockReset();
     useUploadDocumentMock.mockReset();
+    useBatchUploadDocumentsMock.mockReset();
     useDeleteDocumentMock.mockReset();
-    useDocumentStatusMock.mockReset();
     useTranslateDocumentMock.mockReset();
     downloadPdfMock.mockReset();
     toastMock.mockReset();
@@ -73,6 +73,7 @@ describe('KnowledgeBase', () => {
           has_original_pdf: true,
           has_translated_pdf: true,
           can_translate: false,
+          error_message: null,
         },
       ],
       isLoading: false,
@@ -80,8 +81,12 @@ describe('KnowledgeBase', () => {
       refetch: vi.fn(),
     });
     useUploadDocumentMock.mockReturnValue({ mutateAsync: vi.fn(), isPending: false });
+    useBatchUploadDocumentsMock.mockReturnValue({
+      uploads: [],
+      uploadFiles: vi.fn(),
+      isUploading: false,
+    });
     useDeleteDocumentMock.mockReturnValue({ mutateAsync: vi.fn(), isPending: false });
-    useDocumentStatusMock.mockReturnValue({ data: null });
     useTranslateDocumentMock.mockReturnValue({ mutateAsync: vi.fn(), isPending: false });
   });
 
@@ -116,5 +121,40 @@ describe('KnowledgeBase', () => {
       expect(createObjectUrlMock).toHaveBeenCalledWith(blob);
       expect(openMock).toHaveBeenCalledWith('blob:translated-pdf', '_blank', 'noopener,noreferrer');
     });
+  });
+
+  it('renders mixed batch upload results with visible error guidance', () => {
+    useBatchUploadDocumentsMock.mockReturnValue({
+      uploads: [
+        {
+          id: 'upload-1',
+          fileName: 'good.pdf',
+          docId: 'doc-good',
+          status: 'indexed',
+          errorMessage: null,
+        },
+        {
+          id: 'upload-2',
+          fileName: 'failed.pdf',
+          docId: 'doc-failed',
+          status: 'index_failed',
+          errorMessage: 'Graph indexing failed: quota exceeded',
+        },
+      ],
+      uploadFiles: vi.fn(),
+      isUploading: false,
+    });
+
+    render(
+      <ChakraProvider theme={theme}>
+        <KnowledgeBase />
+      </ChakraProvider>
+    );
+
+    expect(screen.getByText('批次上傳進度')).toBeInTheDocument();
+    expect(screen.getByText('good.pdf')).toBeInTheDocument();
+    expect(screen.getByText('failed.pdf')).toBeInTheDocument();
+    expect(screen.getByText('Graph indexing failed: quota exceeded')).toBeInTheDocument();
+    expect(screen.getByText('部分文件需要處理')).toBeInTheDocument();
   });
 });

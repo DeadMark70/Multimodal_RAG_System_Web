@@ -14,6 +14,7 @@ const baseDocument = {
   has_original_pdf: true,
   has_translated_pdf: false,
   can_translate: true,
+  error_message: null,
 };
 
 describe('DocumentTable', () => {
@@ -82,5 +83,29 @@ describe('DocumentTable', () => {
 
     expect(onOpenTranslated).toHaveBeenCalledWith('doc-1');
     expect(screen.queryByRole('menuitem', { name: '翻譯' })).not.toBeInTheDocument();
+  });
+
+  it('shows index failure badge and error message when background indexing fails', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <DocumentTable
+          documents={[
+            {
+              ...baseDocument,
+              status: 'ready',
+              processing_step: 'index_failed',
+              error_message: 'Graph indexing failed: quota exceeded',
+            },
+          ]}
+          onDelete={vi.fn()}
+          onOpenOriginal={vi.fn()}
+          onOpenTranslated={vi.fn()}
+          onTranslate={vi.fn()}
+        />
+      </ChakraProvider>
+    );
+
+    expect(screen.getByText('索引失敗')).toBeInTheDocument();
+    expect(screen.getByText('Graph indexing failed: quota exceeded')).toBeInTheDocument();
   });
 });

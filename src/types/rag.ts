@@ -100,6 +100,7 @@ export type ProcessingStatus =
   | 'indexing'
   | 'image_analysis'
   | 'indexed'
+  | 'index_failed'
   | 'failed';
 
 /**
@@ -114,6 +115,7 @@ export interface DocumentItem {
   has_original_pdf: boolean;
   has_translated_pdf: boolean;
   can_translate: boolean;
+  error_message: string | null;
 }
 
 /**

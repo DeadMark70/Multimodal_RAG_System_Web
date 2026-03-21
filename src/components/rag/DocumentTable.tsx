@@ -7,6 +7,7 @@ import {
   MenuItem,
   MenuList,
   Table,
+  Text,
   Tbody,
   Td,
   Th,
@@ -25,6 +26,7 @@ interface Document {
   has_original_pdf: boolean;
   has_translated_pdf: boolean;
   can_translate: boolean;
+  error_message?: string | null;
 }
 
 interface DocumentTableProps {
@@ -47,7 +49,10 @@ const StatusBadge = ({
   let colorScheme = 'gray';
   let label = status || '未知';
 
-  if (hasTranslatedPdf) {
+  if (step === 'index_failed') {
+    colorScheme = 'orange';
+    label = hasTranslatedPdf ? '已翻譯 / 索引失敗' : '索引失敗';
+  } else if (hasTranslatedPdf) {
     colorScheme = 'green';
     label = step === 'indexed' ? '已索引 / 已翻譯' : '已翻譯';
   } else if (step === 'ocr_completed') {
@@ -106,11 +111,23 @@ export default function DocumentTable({
             <Td fontWeight="medium">{doc.file_name}</Td>
             <Td fontSize="sm">{new Date(doc.created_at).toLocaleDateString()}</Td>
             <Td>
-              <StatusBadge
-                status={doc.status}
-                step={doc.processing_step ?? undefined}
-                hasTranslatedPdf={doc.has_translated_pdf}
-              />
+              <Box>
+                <StatusBadge
+                  status={doc.status}
+                  step={doc.processing_step ?? undefined}
+                  hasTranslatedPdf={doc.has_translated_pdf}
+                />
+                {doc.error_message && (
+                  <Text
+                    mt={1}
+                    fontSize="xs"
+                    color={doc.processing_step === 'index_failed' || doc.status === 'failed' ? 'red.500' : 'orange.500'}
+                    noOfLines={2}
+                  >
+                    {doc.error_message}
+                  </Text>
+                )}
+              </Box>
             </Td>
             <Td isNumeric>
               <Menu>
