@@ -7,6 +7,7 @@ vi.mock('./api', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),
+    delete: vi.fn(),
   },
 }));
 
@@ -14,6 +15,7 @@ describe('graphApi', () => {
   const mockedApi = api as unknown as {
     get: ReturnType<typeof vi.fn>;
     post: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
@@ -77,5 +79,19 @@ describe('graphApi', () => {
 
     expect(mockedApi.post).toHaveBeenCalledWith('/graph/documents/doc-123/retry');
     expect(result.message).toContain('重試');
+  });
+
+  it('purges a single graph document via DELETE /graph/documents/{doc_id}', async () => {
+    mockedApi.delete.mockResolvedValue({
+      data: {
+        status: 'started',
+        message: '文件圖譜殘留移除已開始',
+      },
+    });
+
+    const result = await graphApi.purgeGraphDocument('doc-123');
+
+    expect(mockedApi.delete).toHaveBeenCalledWith('/graph/documents/doc-123');
+    expect(result.message).toContain('移除');
   });
 });

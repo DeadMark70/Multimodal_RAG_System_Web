@@ -5,16 +5,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   useGraphDocuments,
+  usePurgeGraphDocument,
   useRebuildFullGraph,
   useRetryGraphDocument,
 } from './useGraphData';
 
 const {
   getGraphDocumentsMock,
+  purgeGraphDocumentMock,
   rebuildFullGraphMock,
   retryGraphDocumentMock,
 } = vi.hoisted(() => ({
   getGraphDocumentsMock: vi.fn(),
+  purgeGraphDocumentMock: vi.fn(),
   rebuildFullGraphMock: vi.fn(),
   retryGraphDocumentMock: vi.fn(),
 }));
@@ -24,6 +27,7 @@ vi.mock('../services/graphApi', () => ({
   getGraphStatus: vi.fn(),
   getGraphDocuments: getGraphDocumentsMock,
   optimizeGraph: vi.fn(),
+  purgeGraphDocument: purgeGraphDocumentMock,
   rebuildGraph: vi.fn(),
   rebuildFullGraph: rebuildFullGraphMock,
   retryGraphDocument: retryGraphDocumentMock,
@@ -103,5 +107,23 @@ describe('useGraphData hooks', () => {
     });
 
     expect(retryGraphDocumentMock).toHaveBeenCalledWith('doc-1');
+  });
+
+  it('purges a single orphan document mutation', async () => {
+    const queryClient = new QueryClient();
+    purgeGraphDocumentMock.mockResolvedValue({
+      status: 'started',
+      message: '文件圖譜殘留移除已開始',
+    });
+
+    const { result } = renderHook(() => usePurgeGraphDocument(), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync('doc-orphan');
+    });
+
+    expect(purgeGraphDocumentMock).toHaveBeenCalledWith('doc-orphan');
   });
 });

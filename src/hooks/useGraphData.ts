@@ -12,6 +12,7 @@ import {
   getGraphDocuments,
   getGraphStatus,
   optimizeGraph,
+  purgeGraphDocument,
   rebuildGraph,
   rebuildFullGraph,
   retryGraphDocument,
@@ -121,6 +122,20 @@ export function useRetryGraphDocument() {
 
   return useMutation<GraphRebuildResponse, Error, string>({
     mutationFn: (docId) => retryGraphDocument(docId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['graph'] });
+    },
+  });
+}
+
+/**
+ * 清除單一文件殘留的 GraphRAG 資料
+ */
+export function usePurgeGraphDocument() {
+  const queryClient = useQueryClient();
+
+  return useMutation<GraphRebuildResponse, Error, string>({
+    mutationFn: (docId) => purgeGraphDocument(docId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['graph'] });
     },

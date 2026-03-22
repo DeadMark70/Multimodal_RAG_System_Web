@@ -97,6 +97,14 @@ export async function translateDocument(docId: string): Promise<TranslatePdfResp
 }
 
 /**
+ * 重新執行 OCR 後的前段索引流程（不含 GraphRAG）
+ */
+export async function retryDocumentIndex(docId: string): Promise<{ status: string; message: string }> {
+  const response = await api.post<{ status: string; message: string }>(`/pdfmd/file/${docId}/retry-index`);
+  return response.data;
+}
+
+/**
  * 刪除文件
  */
 export async function deleteDocument(docId: string): Promise<{ status: string; message: string }> {

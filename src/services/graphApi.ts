@@ -8,6 +8,7 @@
  * - POST /graph/rebuild - 重置並重算圖譜狀態
  * - POST /graph/rebuild-full - 從所有 OCR 文件完整重構圖譜
  * - POST /graph/documents/{doc_id}/retry - 重試單一文件 GraphRAG
+ * - DELETE /graph/documents/{doc_id} - 移除單一文件 GraphRAG 殘留
  * - POST /graph/optimize - 優化圖譜
  */
 
@@ -69,6 +70,14 @@ export async function rebuildFullGraph(): Promise<GraphRebuildResponse> {
  */
 export async function retryGraphDocument(docId: string): Promise<GraphRebuildResponse> {
   const response = await api.post<GraphRebuildResponse>(`/graph/documents/${docId}/retry`);
+  return response.data;
+}
+
+/**
+ * 移除單一文件殘留的 GraphRAG 內容
+ */
+export async function purgeGraphDocument(docId: string): Promise<GraphRebuildResponse> {
+  const response = await api.delete<GraphRebuildResponse>(`/graph/documents/${docId}`);
   return response.data;
 }
 

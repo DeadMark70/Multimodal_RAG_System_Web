@@ -15,7 +15,7 @@ import {
   Tr,
   useColorModeValue,
 } from '@chakra-ui/react';
-import { FiFileText, FiGlobe, FiMoreVertical, FiTrash2, FiZap } from 'react-icons/fi';
+import { FiFileText, FiGlobe, FiMoreVertical, FiRefreshCw, FiTrash2, FiZap } from 'react-icons/fi';
 
 interface Document {
   id: string;
@@ -35,6 +35,7 @@ interface DocumentTableProps {
   onOpenOriginal: (id: string) => void;
   onOpenTranslated: (id: string) => void;
   onTranslate: (id: string) => void;
+  onRetryIndex: (id: string) => void;
 }
 
 const STEP_BADGE_META: Record<
@@ -97,6 +98,7 @@ export default function DocumentTable({
   onOpenOriginal,
   onOpenTranslated,
   onTranslate,
+  onRetryIndex,
 }: DocumentTableProps) {
   const hoverBg = useColorModeValue('gray.50', 'whiteAlpha.100');
 
@@ -161,6 +163,11 @@ export default function DocumentTable({
                   {doc.can_translate && (
                     <MenuItem icon={<FiZap />} onClick={() => onTranslate(doc.id)}>
                       翻譯
+                    </MenuItem>
+                  )}
+                  {doc.processing_step === 'index_failed' && (
+                    <MenuItem icon={<FiRefreshCw />} onClick={() => onRetryIndex(doc.id)}>
+                      重新嵌入
                     </MenuItem>
                   )}
                   <MenuItem icon={<FiTrash2 />} color="red.500" onClick={() => onDelete(doc.id)}>

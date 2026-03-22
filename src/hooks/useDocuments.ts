@@ -17,6 +17,7 @@ import {
   deleteDocument,
   getDocumentStatus,
   listDocuments,
+  retryDocumentIndex,
   translateDocument,
   uploadPdf,
 } from '../services/pdfApi';
@@ -30,6 +31,15 @@ import type { QueryClient } from '@tanstack/react-query';
 const BATCH_UPLOAD_CONCURRENCY = 2;
 const POLL_INTERVAL_MS = 3000;
 const activePollers = new Map<string, Promise<void>>();
+const ACTIVE_DOCUMENT_STEPS = new Set([
+  'uploading',
+  'ocr',
+  'indexing',
+  'image_analysis',
+  'graph_indexing',
+  'translating',
+  'generating_pdf',
+]);
 const TRANSIENT_STATUS_AUTH_ERRORS = [
   'Missing Authorization header',
   'Authentication failed',
@@ -129,6 +139,17 @@ export function useDocumentList() {
       return response.documents;
     },
     staleTime: 30000,
+    refetchInterval: (query) => {
+      const documents = query.state.data;
+      if (!documents) {
+        return false;
+      }
+      return documents.some((document) =>
+        document.processing_step ? ACTIVE_DOCUMENT_STEPS.has(document.processing_step) : false
+      )
+        ? POLL_INTERVAL_MS
+        : false;
+    },
   });
 }
 
@@ -314,6 +335,34 @@ export function useTranslateDocument() {
   });
 }
 
+export function useRetryDocumentIndex() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: async (docId: string) => {
+      return await retryDocumentIndex(docId);
+    },
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ['documents'] });
+      toast({
+        title: result.status === 'skipped' ? '未啟動重新嵌入' : '重新嵌入已啟動',
+        description: result.message,
+        status: result.status === 'skipped' ? 'warning' : 'info',
+        duration: 4000,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: '重新嵌入失敗',
+        description: error.message,
+        status: 'error',
+        duration: 4000,
+      });
+    },
+  });
+}
+
 // 查詢文件狀態
 export function useDocumentStatus(docId: string | null, enabled: boolean = true) {
   return useQuery({
@@ -333,6 +382,7 @@ export default {
   useBatchUploadDocuments,
   useDeleteDocument,
   useTranslateDocument,
+  useRetryDocumentIndex,
   useDocumentStatus,
 };
 

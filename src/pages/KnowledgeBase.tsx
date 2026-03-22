@@ -30,6 +30,7 @@ import {
   useBatchUploadDocuments,
   useDeleteDocument,
   useDocumentList,
+  useRetryDocumentIndex,
   useTranslateDocument,
 } from '../hooks/useDocuments';
 import SurfaceCard from '../components/common/SurfaceCard';
@@ -39,6 +40,7 @@ export default function KnowledgeBase() {
   const { data: documents, isLoading, error, refetch } = useDocumentList();
   const batchUpload = useBatchUploadDocuments();
   const deleteMutation = useDeleteDocument();
+  const retryIndexMutation = useRetryDocumentIndex();
   const translateMutation = useTranslateDocument();
   const toast = useToast();
 
@@ -98,6 +100,11 @@ export default function KnowledgeBase() {
     await refetch();
   };
 
+  const handleRetryIndex = async (id: string) => {
+    await retryIndexMutation.mutateAsync(id);
+    await refetch();
+  };
+
   return (
     <Layout>
       <PageHeader title="知識庫" subtitle="管理您的研究文件" />
@@ -148,6 +155,7 @@ export default function KnowledgeBase() {
                 onOpenOriginal={(id) => void openPdfInNewTab(id, 'original')}
                 onOpenTranslated={(id) => void openPdfInNewTab(id, 'translated')}
                 onTranslate={(id) => void handleTranslate(id)}
+                onRetryIndex={(id) => void handleRetryIndex(id)}
               />
             )}
           </CardBody>

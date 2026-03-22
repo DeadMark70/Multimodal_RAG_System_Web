@@ -27,6 +27,7 @@ describe('DocumentTable', () => {
     const onOpenOriginal = vi.fn();
     const onOpenTranslated = vi.fn();
     const onTranslate = vi.fn();
+    const onRetryIndex = vi.fn();
 
     render(
       <ChakraProvider theme={theme}>
@@ -36,6 +37,7 @@ describe('DocumentTable', () => {
           onOpenOriginal={onOpenOriginal}
           onOpenTranslated={onOpenTranslated}
           onTranslate={onTranslate}
+          onRetryIndex={onRetryIndex}
         />
       </ChakraProvider>
     );
@@ -51,6 +53,7 @@ describe('DocumentTable', () => {
     fireEvent.click(screen.getByText('翻譯'));
     expect(onTranslate).toHaveBeenCalledWith('doc-1');
     expect(onOpenTranslated).not.toHaveBeenCalled();
+    expect(onRetryIndex).not.toHaveBeenCalled();
   });
 
   it('shows translated action when translated PDF exists', () => {
@@ -72,6 +75,7 @@ describe('DocumentTable', () => {
           onOpenOriginal={vi.fn()}
           onOpenTranslated={onOpenTranslated}
           onTranslate={vi.fn()}
+          onRetryIndex={vi.fn()}
         />
       </ChakraProvider>
     );
@@ -101,11 +105,41 @@ describe('DocumentTable', () => {
           onOpenOriginal={vi.fn()}
           onOpenTranslated={vi.fn()}
           onTranslate={vi.fn()}
+          onRetryIndex={vi.fn()}
         />
       </ChakraProvider>
     );
 
     expect(screen.getByText('索引失敗')).toBeInTheDocument();
     expect(screen.getByText('Graph indexing failed: quota exceeded')).toBeInTheDocument();
+  });
+
+  it('shows retry-index action only for index_failed documents', () => {
+    const onRetryIndex = vi.fn();
+
+    render(
+      <ChakraProvider theme={theme}>
+        <DocumentTable
+          documents={[
+            {
+              ...baseDocument,
+              status: 'ready',
+              processing_step: 'index_failed',
+              error_message: 'Visual summary indexing failed: timeout',
+            },
+          ]}
+          onDelete={vi.fn()}
+          onOpenOriginal={vi.fn()}
+          onOpenTranslated={vi.fn()}
+          onTranslate={vi.fn()}
+          onRetryIndex={onRetryIndex}
+        />
+      </ChakraProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '文件操作 demo.pdf' }));
+    fireEvent.click(screen.getByText('重新嵌入'));
+
+    expect(onRetryIndex).toHaveBeenCalledWith('doc-1');
   });
 });

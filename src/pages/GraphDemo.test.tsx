@@ -10,11 +10,13 @@ const {
   rebuildMutateMock,
   rebuildFullMutateMock,
   optimizeMutateMock,
+  purgeMutateMock,
   retryMutateMock,
 } = vi.hoisted(() => ({
   rebuildMutateMock: vi.fn(),
   rebuildFullMutateMock: vi.fn(),
   optimizeMutateMock: vi.fn(),
+  purgeMutateMock: vi.fn(),
   retryMutateMock: vi.fn(),
 }));
 
@@ -92,8 +94,22 @@ vi.mock('../hooks/useGraphData', () => ({
           file_name: 'empty.pdf',
           is_eligible: true,
         },
+        {
+          doc_id: 'doc-orphan',
+          status: 'indexed',
+          chunk_count: 1,
+          chunks_succeeded: 1,
+          chunks_failed: 0,
+          entities_added: 2,
+          edges_added: 1,
+          last_error: null,
+          last_attempted_at: null,
+          last_succeeded_at: null,
+          file_name: null,
+          is_eligible: false,
+        },
       ],
-      total: 2,
+      total: 3,
     },
     isLoading: false,
     error: null,
@@ -115,6 +131,11 @@ vi.mock('../hooks/useGraphData', () => ({
     isPending: false,
     variables: undefined,
   }),
+  usePurgeGraphDocument: () => ({
+    mutate: purgeMutateMock,
+    isPending: false,
+    variables: undefined,
+  }),
 }));
 
 describe('GraphDemo', () => {
@@ -132,10 +153,11 @@ describe('GraphDemo', () => {
     expect(screen.getByText('完整重構')).toBeInTheDocument();
     expect(screen.getByText('failed.pdf')).toBeInTheDocument();
     expect(screen.getAllByText('重試此文件')).toHaveLength(2);
+    expect(screen.getByText('移除殘留圖譜')).toBeInTheDocument();
     expect(screen.getByText(/目前社群為 0/)).toBeInTheDocument();
   });
 
-  it('triggers full rebuild and per-document retry actions', () => {
+  it('triggers full rebuild, retry, and purge actions', () => {
     render(
       <ChakraProvider theme={theme}>
         <GraphDemo />
@@ -144,8 +166,10 @@ describe('GraphDemo', () => {
 
     fireEvent.click(screen.getByText('完整重構'));
     fireEvent.click(screen.getAllByText('重試此文件')[0]);
+    fireEvent.click(screen.getByText('移除殘留圖譜'));
 
     expect(rebuildFullMutateMock).toHaveBeenCalledOnce();
     expect(retryMutateMock).toHaveBeenCalledWith('doc-1', expect.any(Object));
+    expect(purgeMutateMock).toHaveBeenCalledWith('doc-orphan', expect.any(Object));
   });
 });

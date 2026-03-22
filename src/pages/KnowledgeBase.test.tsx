@@ -31,6 +31,7 @@ const {
   useUploadDocumentMock,
   useBatchUploadDocumentsMock,
   useDeleteDocumentMock,
+  useRetryDocumentIndexMock,
   useTranslateDocumentMock,
   downloadPdfMock,
   toastMock,
@@ -39,6 +40,7 @@ const {
   useUploadDocumentMock: vi.fn<() => MutationHookResult>(),
   useBatchUploadDocumentsMock: vi.fn<() => BatchUploadHookResult>(),
   useDeleteDocumentMock: vi.fn<() => MutationHookResult>(),
+  useRetryDocumentIndexMock: vi.fn<() => MutationHookResult>(),
   useTranslateDocumentMock: vi.fn<() => MutationHookResult>(),
   downloadPdfMock: vi.fn<() => Promise<Blob>>(),
   toastMock: vi.fn(),
@@ -65,6 +67,7 @@ vi.mock('../hooks/useDocuments', () => ({
   useUploadDocument: () => useUploadDocumentMock(),
   useBatchUploadDocuments: () => useBatchUploadDocumentsMock(),
   useDeleteDocument: () => useDeleteDocumentMock(),
+  useRetryDocumentIndex: () => useRetryDocumentIndexMock(),
   useTranslateDocument: () => useTranslateDocumentMock(),
 }));
 
@@ -88,6 +91,7 @@ describe('KnowledgeBase', () => {
     useUploadDocumentMock.mockReset();
     useBatchUploadDocumentsMock.mockReset();
     useDeleteDocumentMock.mockReset();
+    useRetryDocumentIndexMock.mockReset();
     useTranslateDocumentMock.mockReset();
     downloadPdfMock.mockReset();
     toastMock.mockReset();
@@ -117,6 +121,7 @@ describe('KnowledgeBase', () => {
       isUploading: false,
     });
     useDeleteDocumentMock.mockReturnValue({ mutateAsync: vi.fn(), isPending: false });
+    useRetryDocumentIndexMock.mockReturnValue({ mutateAsync: vi.fn(), isPending: false });
     useTranslateDocumentMock.mockReturnValue({ mutateAsync: vi.fn(), isPending: false });
   });
 
@@ -215,5 +220,47 @@ describe('KnowledgeBase', () => {
     expect(screen.getByText('切換頁面後仍會保留進度，回到這裡可繼續查看目前位置。')).toBeInTheDocument();
     expect(screen.getByText('目前位置：GraphRAG 建圖中')).toBeInTheDocument();
     expect(screen.getAllByText('GraphRAG').length).toBeGreaterThan(0);
+  });
+
+  it('triggers retry-index from the document action menu', async () => {
+    const retryMutateAsync = vi.fn().mockResolvedValue({
+      status: 'started',
+      message: '重新嵌入已開始',
+    });
+    const refetchMock = vi.fn().mockResolvedValue(undefined);
+
+    useDocumentListMock.mockReturnValue({
+      data: [
+        {
+          id: 'doc-1',
+          file_name: 'demo.pdf',
+          created_at: '2026-03-20T00:00:00Z',
+          status: 'ready',
+          processing_step: 'index_failed',
+          has_original_pdf: true,
+          has_translated_pdf: false,
+          can_translate: false,
+          error_message: 'Visual summary indexing failed: timeout',
+        },
+      ],
+      isLoading: false,
+      error: null,
+      refetch: refetchMock,
+    });
+    useRetryDocumentIndexMock.mockReturnValue({ mutateAsync: retryMutateAsync, isPending: false });
+
+    render(
+      <ChakraProvider theme={theme}>
+        <KnowledgeBase />
+      </ChakraProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '文件操作 demo.pdf' }));
+    fireEvent.click(screen.getByText('重新嵌入'));
+
+    await waitFor(() => {
+      expect(retryMutateAsync).toHaveBeenCalledWith('doc-1');
+      expect(refetchMock).toHaveBeenCalled();
+    });
   });
 });

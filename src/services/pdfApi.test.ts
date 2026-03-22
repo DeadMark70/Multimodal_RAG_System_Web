@@ -118,4 +118,18 @@ describe('pdfApi', () => {
     expect(mockedApi.post).toHaveBeenCalledWith('/pdfmd/file/doc-1/translate');
     expect(result.pdf_download_url).toBe('/pdfmd/file/doc-1?type=translated');
   });
+
+  it('starts retry-index for an index_failed document', async () => {
+    mockedApi.post.mockResolvedValue({
+      data: {
+        status: 'started',
+        message: '重新嵌入已開始',
+      },
+    });
+
+    const result = await pdfApi.retryDocumentIndex('doc-1');
+
+    expect(mockedApi.post).toHaveBeenCalledWith('/pdfmd/file/doc-1/retry-index');
+    expect(result.status).toBe('started');
+  });
 });

@@ -29,7 +29,7 @@ import {
   useBreakpointValue,
   Heading,
 } from '@chakra-ui/react';
-import { FiRefreshCw, FiRotateCcw, FiZap } from 'react-icons/fi';
+import { FiRefreshCw, FiRotateCcw, FiTrash2, FiZap } from 'react-icons/fi';
 import { KnowledgeGraph } from '../components/graph/KnowledgeGraph';
 import { ResearchFlow } from '../components/graph/ResearchFlow';
 import Layout from '../components/layout/Layout';
@@ -40,6 +40,7 @@ import {
   useGraphDocuments,
   useGraphStatus,
   useOptimizeGraph,
+  usePurgeGraphDocument,
   useRebuildFullGraph,
   useRebuildGraph,
   useRetryGraphDocument,
@@ -75,6 +76,7 @@ export function GraphDemo() {
   const rebuildMutation = useRebuildGraph();
   const rebuildFullMutation = useRebuildFullGraph();
   const retryMutation = useRetryGraphDocument();
+  const purgeMutation = usePurgeGraphDocument();
   const graphDocuments = graphDocumentsResponse?.documents ?? [];
   const actionableDocuments = graphDocuments.filter((doc) =>
     ['failed', 'partial', 'empty'].includes(doc.status)
@@ -159,6 +161,27 @@ export function GraphDemo() {
       onError: (error) => {
         toast({
           title: '文件重試失敗',
+          description: `${doc.file_name ?? doc.doc_id}：${error.message}`,
+          status: 'error',
+          duration: 5000,
+        });
+      },
+    });
+  };
+
+  const handlePurgeDocument = (doc: GraphDocumentStatusItem) => {
+    purgeMutation.mutate(doc.doc_id, {
+      onSuccess: (data) => {
+        toast({
+          title: data.status === 'skipped' ? '未移除殘留圖譜' : '殘留圖譜移除已啟動',
+          description: `${doc.file_name ?? doc.doc_id}：${data.message}`,
+          status: data.status === 'skipped' ? 'warning' : 'info',
+          duration: 5000,
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: '移除殘留圖譜失敗',
           description: `${doc.file_name ?? doc.doc_id}：${error.message}`,
           status: 'error',
           duration: 5000,
@@ -280,7 +303,7 @@ export function GraphDemo() {
                 文件級 GraphRAG 狀態
               </Heading>
               <Text mt={1} color={subTextColor} fontSize="sm">
-                可直接找出 failed / partial / empty 文件並單獨重試。
+                可直接找出 failed / partial / empty 文件重試，或清掉已刪文件殘留的 orphan graph。
               </Text>
             </Box>
             <Badge colorScheme="blue">{graphDocumentsResponse?.total ?? 0} 份文件</Badge>
@@ -330,17 +353,32 @@ export function GraphDemo() {
                       )}
                     </Box>
 
-                    <Button
-                      size="sm"
-                      colorScheme="orange"
-                      variant="outline"
-                      onClick={() => handleRetryDocument(doc)}
-                      isLoading={retryMutation.isPending && retryMutation.variables === doc.doc_id}
-                      loadingText="重試中..."
-                      isDisabled={!doc.is_eligible || graphJobActive}
-                    >
-                      重試此文件
-                    </Button>
+                    {doc.is_eligible ? (
+                      <Button
+                        size="sm"
+                        colorScheme="orange"
+                        variant="outline"
+                        onClick={() => handleRetryDocument(doc)}
+                        isLoading={retryMutation.isPending && retryMutation.variables === doc.doc_id}
+                        loadingText="重試中..."
+                        isDisabled={graphJobActive}
+                      >
+                        重試此文件
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        leftIcon={<FiTrash2 />}
+                        colorScheme="red"
+                        variant="outline"
+                        onClick={() => handlePurgeDocument(doc)}
+                        isLoading={purgeMutation.isPending && purgeMutation.variables === doc.doc_id}
+                        loadingText="移除中..."
+                        isDisabled={graphJobActive}
+                      >
+                        移除殘留圖譜
+                      </Button>
+                    )}
                   </Flex>
                 </Box>
               ))}
