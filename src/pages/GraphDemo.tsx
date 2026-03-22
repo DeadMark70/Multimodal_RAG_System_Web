@@ -11,6 +11,7 @@ import {
   Box,
   Flex,
   VStack,
+  Spinner,
   Tabs,
   TabList,
   TabPanels,
@@ -26,8 +27,9 @@ import {
   useToast,
   Tooltip,
   useBreakpointValue,
+  Heading,
 } from '@chakra-ui/react';
-import { FiRefreshCw, FiZap } from 'react-icons/fi';
+import { FiRefreshCw, FiRotateCcw, FiZap } from 'react-icons/fi';
 import { KnowledgeGraph } from '../components/graph/KnowledgeGraph';
 import { ResearchFlow } from '../components/graph/ResearchFlow';
 import Layout from '../components/layout/Layout';
@@ -35,10 +37,23 @@ import PageHeader from '../components/common/PageHeader';
 import SurfaceCard from '../components/common/SurfaceCard';
 import {
   useGraphData,
+  useGraphDocuments,
   useGraphStatus,
   useOptimizeGraph,
+  useRebuildFullGraph,
   useRebuildGraph,
+  useRetryGraphDocument,
 } from '../hooks/useGraphData';
+import type { GraphDocumentStatusItem } from '../types/graph';
+
+const STATUS_META: Record<GraphDocumentStatusItem['status'], { colorScheme: string; label: string }> = {
+  indexed: { colorScheme: 'green', label: '成功' },
+  partial: { colorScheme: 'orange', label: '部分成功' },
+  empty: { colorScheme: 'yellow', label: '0 實體' },
+  failed: { colorScheme: 'red', label: '失敗' },
+  running: { colorScheme: 'blue', label: '執行中' },
+  skipped: { colorScheme: 'gray', label: '未建圖' },
+};
 
 export function GraphDemo() {
   const textColor = useColorModeValue('surface.700', 'white');
@@ -49,10 +64,22 @@ export function GraphDemo() {
   // Queries
   const { data: graphData, isLoading: isGraphLoading, error: graphError } = useGraphData();
   const { data: graphStatus } = useGraphStatus();
+  const {
+    data: graphDocumentsResponse,
+    isLoading: isGraphDocumentsLoading,
+    error: graphDocumentsError,
+  } = useGraphDocuments();
 
   // Mutations
   const optimizeMutation = useOptimizeGraph();
   const rebuildMutation = useRebuildGraph();
+  const rebuildFullMutation = useRebuildFullGraph();
+  const retryMutation = useRetryGraphDocument();
+  const graphDocuments = graphDocumentsResponse?.documents ?? [];
+  const actionableDocuments = graphDocuments.filter((doc) =>
+    ['failed', 'partial', 'empty'].includes(doc.status)
+  );
+  const graphJobActive = Boolean(graphStatus?.active_job_state);
 
   // 優化圖譜處理
   const handleOptimize = () => {
@@ -98,6 +125,48 @@ export function GraphDemo() {
     });
   };
 
+  const handleFullRebuild = () => {
+    rebuildFullMutation.mutate(undefined, {
+      onSuccess: (data) => {
+        toast({
+          title: data.status === 'skipped' ? '未啟動完整重構' : '完整重構已啟動',
+          description: data.message,
+          status: data.status === 'skipped' ? 'warning' : 'info',
+          duration: 5000,
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: '完整重構失敗',
+          description: error.message,
+          status: 'error',
+          duration: 5000,
+        });
+      },
+    });
+  };
+
+  const handleRetryDocument = (doc: GraphDocumentStatusItem) => {
+    retryMutation.mutate(doc.doc_id, {
+      onSuccess: (data) => {
+        toast({
+          title: data.status === 'skipped' ? '未啟動重試' : '文件重試已啟動',
+          description: `${doc.file_name ?? doc.doc_id}：${data.message}`,
+          status: data.status === 'skipped' ? 'warning' : 'info',
+          duration: 5000,
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: '文件重試失敗',
+          description: `${doc.file_name ?? doc.doc_id}：${error.message}`,
+          status: 'error',
+          duration: 5000,
+        });
+      },
+    });
+  };
+
   return (
     <Layout>
       <PageHeader title="知識圖譜" subtitle="視覺化元件展示與圖譜控制" />
@@ -116,13 +185,35 @@ export function GraphDemo() {
                       <Badge colorScheme="blue">{graphStatus.node_count} 節點</Badge>
                       <Badge colorScheme="blue">{graphStatus.edge_count} 邊</Badge>
                       <Badge colorScheme="purple">{graphStatus.community_count} 社群</Badge>
+                      <Badge colorScheme="teal">{graphStatus.eligible_document_count} 可重構文件</Badge>
+                      <Badge colorScheme="green">{graphStatus.indexed_document_count} 已建圖</Badge>
+                      <Badge colorScheme="red">{graphStatus.failed_document_count} 失敗</Badge>
+                      <Badge colorScheme="orange">{graphStatus.partial_document_count} 部分成功</Badge>
+                      <Badge colorScheme="yellow">{graphStatus.empty_document_count} 0 實體</Badge>
                     </>
+                  )}
+                  {graphStatus.active_job_state && (
+                    <Badge colorScheme="orange">執行中: {graphStatus.active_job_state}</Badge>
                   )}
                 </>
               )}
             </HStack>
 
             <HStack spacing={3}>
+              <Tooltip label="從所有 OCR 文件重新抽取，建立一份新的完整圖譜" hasArrow>
+                <Button
+                  leftIcon={<FiRotateCcw />}
+                  colorScheme="orange"
+                  variant="solid"
+                  size="sm"
+                  onClick={handleFullRebuild}
+                  isLoading={rebuildFullMutation.isPending}
+                  loadingText="完整重構中..."
+                  isDisabled={graphJobActive || (graphStatus?.eligible_document_count ?? 0) === 0}
+                >
+                  完整重構
+                </Button>
+              </Tooltip>
               <Tooltip label="重置目前圖譜並重算融合/社群（不重新抽取文件）" hasArrow>
                 <Button
                   leftIcon={<FiRefreshCw />}
@@ -132,6 +223,7 @@ export function GraphDemo() {
                   onClick={handleRebuild}
                   isLoading={rebuildMutation.isPending}
                   loadingText="重算中..."
+                  isDisabled={graphJobActive}
                 >
                   重置並重算
                 </Button>
@@ -144,7 +236,7 @@ export function GraphDemo() {
                   onClick={handleOptimize}
                   isLoading={optimizeMutation.isPending}
                   loadingText="優化中..."
-                  isDisabled={!graphStatus?.has_graph}
+                  isDisabled={!graphStatus?.has_graph || graphJobActive}
                 >
                   優化社群
                 </Button>
@@ -167,10 +259,94 @@ export function GraphDemo() {
           <Alert status="info" borderRadius="md">
             <AlertIcon />
             <Text color={textColor}>
-              圖譜尚未進行社群偵測。點擊「優化社群」可啟用 Global Search 模式。
+              {actionableDocuments.length > 0
+                ? '目前社群為 0，且有文件建圖失敗/0 實體。可先完整重構，或對下方文件逐一重試。'
+                : '圖譜尚未進行社群偵測。點擊「優化社群」可啟用 Global Search 模式。'}
             </Text>
           </Alert>
         )}
+
+        {graphDocumentsError && (
+          <Alert status="warning" borderRadius="md">
+            <AlertIcon />
+            <Text>無法取得文件級 GraphRAG 狀態：{graphDocumentsError.message}</Text>
+          </Alert>
+        )}
+
+        <SurfaceCard p={4}>
+          <Flex justify="space-between" align="center" mb={4} gap={4} wrap="wrap">
+            <Box>
+              <Heading size="sm" color={textColor}>
+                文件級 GraphRAG 狀態
+              </Heading>
+              <Text mt={1} color={subTextColor} fontSize="sm">
+                可直接找出 failed / partial / empty 文件並單獨重試。
+              </Text>
+            </Box>
+            <Badge colorScheme="blue">{graphDocumentsResponse?.total ?? 0} 份文件</Badge>
+          </Flex>
+
+          {isGraphDocumentsLoading ? (
+            <HStack spacing={3} color={subTextColor}>
+              <Spinner size="sm" />
+              <Text fontSize="sm">讀取文件狀態中...</Text>
+            </HStack>
+          ) : graphDocuments.length === 0 ? (
+            <Text color={subTextColor} fontSize="sm">
+              尚未找到可用的 GraphRAG 文件狀態。
+            </Text>
+          ) : (
+            <VStack spacing={3} align="stretch">
+              {graphDocuments.map((doc) => (
+                <Box
+                  key={doc.doc_id}
+                  borderWidth="1px"
+                  borderRadius="lg"
+                  borderColor="surface.200"
+                  p={3}
+                >
+                  <Flex justify="space-between" align="start" gap={4} wrap="wrap">
+                    <Box flex="1" minW="260px">
+                      <HStack spacing={2} flexWrap="wrap" mb={2}>
+                        <Text fontWeight="semibold" color={textColor}>
+                          {doc.file_name ?? doc.doc_id}
+                        </Text>
+                        <Badge colorScheme={STATUS_META[doc.status].colorScheme}>
+                          {STATUS_META[doc.status].label}
+                        </Badge>
+                        {!doc.is_eligible && <Badge colorScheme="gray">無 OCR artifact</Badge>}
+                      </HStack>
+
+                      <HStack spacing={3} flexWrap="wrap" color={subTextColor} fontSize="sm">
+                        <Text>chunks {doc.chunks_succeeded}/{doc.chunk_count}</Text>
+                        <Text>{doc.entities_added} 節點</Text>
+                        <Text>{doc.edges_added} 邊</Text>
+                      </HStack>
+
+                      {doc.last_error && (
+                        <Text mt={2} color="red.500" fontSize="sm">
+                          {doc.last_error}
+                        </Text>
+                      )}
+                    </Box>
+
+                    <Button
+                      size="sm"
+                      colorScheme="orange"
+                      variant="outline"
+                      onClick={() => handleRetryDocument(doc)}
+                      isLoading={retryMutation.isPending && retryMutation.variables === doc.doc_id}
+                      loadingText="重試中..."
+                      isDisabled={!doc.is_eligible || graphJobActive}
+                    >
+                      重試此文件
+                    </Button>
+                  </Flex>
+                </Box>
+              ))}
+            </VStack>
+          )}
+        </SurfaceCard>
 
         <SurfaceCard p={4}>
           <Tabs colorScheme="brand" variant="enclosed">

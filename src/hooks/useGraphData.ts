@@ -9,12 +9,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getGraphData,
+  getGraphDocuments,
   getGraphStatus,
   optimizeGraph,
   rebuildGraph,
+  rebuildFullGraph,
+  retryGraphDocument,
 } from '../services/graphApi';
 import type {
   GraphData,
+  GraphDocumentStatusListResponse,
   GraphStatusResponse,
   GraphOptimizeResponse,
   GraphRebuildResponse,
@@ -42,6 +46,18 @@ export function useGraphStatus() {
     queryKey: ['graph', 'status'],
     queryFn: getGraphStatus,
     staleTime: 30 * 1000, // 30 秒
+    retry: 1,
+  });
+}
+
+/**
+ * 取得每份文件的 GraphRAG 狀態
+ */
+export function useGraphDocuments() {
+  return useQuery<GraphDocumentStatusListResponse, Error>({
+    queryKey: ['graph', 'documents'],
+    queryFn: getGraphDocuments,
+    staleTime: 30 * 1000,
     retry: 1,
   });
 }
@@ -78,6 +94,34 @@ export function useRebuildGraph() {
     mutationFn: (force = true) => rebuildGraph(force),
     onSuccess: async () => {
       // 成功後重新取得圖譜資料
+      await queryClient.invalidateQueries({ queryKey: ['graph'] });
+    },
+  });
+}
+
+/**
+ * 從所有 OCR 文件完整重構圖譜
+ */
+export function useRebuildFullGraph() {
+  const queryClient = useQueryClient();
+
+  return useMutation<GraphRebuildResponse, Error, void>({
+    mutationFn: () => rebuildFullGraph(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['graph'] });
+    },
+  });
+}
+
+/**
+ * 重試單一文件的 GraphRAG 抽取
+ */
+export function useRetryGraphDocument() {
+  const queryClient = useQueryClient();
+
+  return useMutation<GraphRebuildResponse, Error, string>({
+    mutationFn: (docId) => retryGraphDocument(docId),
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['graph'] });
     },
   });

@@ -3,14 +3,18 @@
  *
  * 端點：
  * - GET /graph/status - 圖譜狀態
+ * - GET /graph/documents - 每份文件的 GraphRAG 狀態
  * - GET /graph/data - 圖譜節點/邊資料 (視覺化用)
  * - POST /graph/rebuild - 重置並重算圖譜狀態
+ * - POST /graph/rebuild-full - 從所有 OCR 文件完整重構圖譜
+ * - POST /graph/documents/{doc_id}/retry - 重試單一文件 GraphRAG
  * - POST /graph/optimize - 優化圖譜
  */
 
 import api from './api';
 import type {
   GraphData,
+  GraphDocumentStatusListResponse,
   GraphStatusResponse,
   GraphRebuildResponse,
   GraphOptimizeResponse,
@@ -21,6 +25,14 @@ import type {
  */
 export async function getGraphStatus(): Promise<GraphStatusResponse> {
   const response = await api.get<GraphStatusResponse>('/graph/status');
+  return response.data;
+}
+
+/**
+ * 取得每份文件的 GraphRAG 狀態
+ */
+export async function getGraphDocuments(): Promise<GraphDocumentStatusListResponse> {
+  const response = await api.get<GraphDocumentStatusListResponse>('/graph/documents');
   return response.data;
 }
 
@@ -41,6 +53,22 @@ export async function getGraphData(): Promise<GraphData> {
  */
 export async function rebuildGraph(force = false): Promise<GraphRebuildResponse> {
   const response = await api.post<GraphRebuildResponse>('/graph/rebuild', { force });
+  return response.data;
+}
+
+/**
+ * 從所有 OCR 文件完整重構圖譜
+ */
+export async function rebuildFullGraph(): Promise<GraphRebuildResponse> {
+  const response = await api.post<GraphRebuildResponse>('/graph/rebuild-full');
+  return response.data;
+}
+
+/**
+ * 重試單一文件的 GraphRAG 抽取
+ */
+export async function retryGraphDocument(docId: string): Promise<GraphRebuildResponse> {
+  const response = await api.post<GraphRebuildResponse>(`/graph/documents/${docId}/retry`);
   return response.data;
 }
 

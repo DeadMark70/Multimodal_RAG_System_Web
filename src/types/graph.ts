@@ -106,6 +106,30 @@ export interface GraphStatusResponse {
 
   /** 最後更新時間 */
   last_updated: string | null;
+
+  /** 各層級社群數量 */
+  community_level_counts?: Record<string, number>;
+
+  /** 最後優化時間 */
+  last_optimized_at?: string | null;
+
+  /** 可供完整重構的文件數量 */
+  eligible_document_count: number;
+
+  /** GraphRAG 成功文件數量 */
+  indexed_document_count: number;
+
+  /** GraphRAG 失敗文件數量 */
+  failed_document_count: number;
+
+  /** GraphRAG 部分成功文件數量 */
+  partial_document_count: number;
+
+  /** 成功執行但 0 entities 的文件數量 */
+  empty_document_count: number;
+
+  /** 目前執行中的圖譜工作 */
+  active_job_state: string | null;
 }
 
 /**
@@ -114,8 +138,9 @@ export interface GraphStatusResponse {
  * @description 對應 POST /graph/rebuild
  */
 export interface GraphRebuildResponse {
-  status: 'started' | 'completed' | 'failed';
+  status: 'started' | 'completed' | 'failed' | 'skipped';
   message: string;
+  details?: Record<string, unknown>;
 }
 
 /**
@@ -124,7 +149,7 @@ export interface GraphRebuildResponse {
  * @description 對應 POST /graph/optimize
  */
 export interface GraphOptimizeResponse {
-  status: 'success' | 'failed';
+  status: 'success' | 'failed' | 'skipped';
   message: string;
   details?: {
     merges: number;
@@ -133,12 +158,40 @@ export interface GraphOptimizeResponse {
   };
 }
 
+export type GraphDocumentExtractionState =
+  | 'indexed'
+  | 'partial'
+  | 'empty'
+  | 'failed'
+  | 'running'
+  | 'skipped';
+
+export interface GraphDocumentStatusItem {
+  doc_id: string;
+  status: GraphDocumentExtractionState;
+  chunk_count: number;
+  chunks_succeeded: number;
+  chunks_failed: number;
+  entities_added: number;
+  edges_added: number;
+  last_error: string | null;
+  last_attempted_at: string | null;
+  last_succeeded_at: string | null;
+  file_name: string | null;
+  is_eligible: boolean;
+}
+
+export interface GraphDocumentStatusListResponse {
+  documents: GraphDocumentStatusItem[];
+  total: number;
+}
+
 // ========== 圖譜搜尋模式 ==========
 
 /**
  * GraphRAG 搜尋模式
  */
-export type GraphSearchMode = 'local' | 'global' | 'hybrid' | 'auto';
+export type GraphSearchMode = 'local' | 'global' | 'hybrid' | 'auto' | 'generic';
 
 // ========== React Force Graph 專用類型 ==========
 
