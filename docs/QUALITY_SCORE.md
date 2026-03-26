@@ -2,26 +2,29 @@
 
 ## Goal
 
-Track practical quality and reliability signals for frontend behavior.
+Track whether the frontend stays aligned with the current backend contracts and long-running UX expectations.
 
-## Suggested Scorecard
+## Active Scorecard
 
-| Dimension | Signal | Method |
+| Dimension | What we watch | Current evidence |
 |---|---|---|
-| Contract validity | frontend parse/shape failures | unit tests on service adapters |
-| Streaming reliability | incomplete/corrupt SSE event rate | targeted hook tests |
-| Session continuity | restored state after refresh | persistence integration tests |
-| UX responsiveness | long-task navigation lag | manual smoke + profiling |
-| Accessibility | keyboard and screen-reader parity | RTL checks + manual audit |
+| Contract validity | route/service/request-shape drift | service tests for PDF, RAG, graph, conversation, evaluation APIs |
+| Streaming reliability | malformed or dropped SSE handling | `useChat`, `useDeepResearch`, and evaluation API tests |
+| Session continuity | restore-after-refresh and auth recovery | persistence flow, auth page, and conversation hook tests |
+| Operational UX | document/graph/evaluation maintenance visibility | KnowledgeBase, GraphDemo, EvaluationCenter UI tests |
+| Accessibility safety | keyboard/menu/form behavior | RTL-based component and page coverage |
 
 ## Current State
 
-- Hook and service tests exist in `src/hooks` and `src/services`.
-- Deep research flow has explicit phases and cancel handling.
+- Auth, persistence, upload, graph, evaluation, and chat flows all have explicit test coverage.
+- The highest-risk UI seams are streamed progress parsing, auth recovery, and maintenance-state polling.
+- Full frontend acceptance remains:
+  - `npm run lint:ci`
+  - `npx tsc --noEmit`
+  - `npx vitest run`
 
-## Next Up
+## Next Quality Investments
 
-1. Add repeatable SSE fixture-based regression cases.
-2. Track error-class counts in CI test summaries.
-3. Add manual checklist for auth and chat recovery flows.
-
+1. Keep expanding SSE fixture coverage as new event types appear.
+2. Add a lightweight manual smoke checklist for dashboard, graph maintenance, and password recovery.
+3. Keep generated UI-surface docs synced so tests and docs drift together less often.

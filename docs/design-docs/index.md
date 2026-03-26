@@ -1,17 +1,10 @@
-# Design Docs Index
+# Frontend Design Docs Index
 
-Purpose: durable frontend design decisions and contracts.
+Purpose: durable subsystem decisions and boundaries.
 
-## Read Order
+## Docs
 
-1. `docs/DESIGN.md`
-2. `docs/FRONTEND.md`
-3. `conductor/tech-stack.md`
-4. `conductor/workflow.md`
-
-## Scope
-
-- UI architecture boundaries.
-- State ownership and data flow.
-- API integration contracts and streaming behavior.
-
+- `docs/design-docs/routing-and-session.md`: route ownership, auth shell, and session restore rules
+- `docs/design-docs/chat-and-research-streaming.md`: streamed ask and Deep Research orchestration
+- `docs/design-docs/upload-and-graph-workspace.md`: document operations, upload progress, and graph maintenance UI
+- `docs/design-docs/evaluation-center.md`: evaluation tabs, data flow, and persisted analysis/traces

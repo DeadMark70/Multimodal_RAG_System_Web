@@ -2,35 +2,36 @@
 
 ## Reliability Objectives
 
-1. Keep deep research runs cancellable and recoverable.
-2. Prevent UI freezes during SSE-driven updates.
-3. Keep state transitions explicit and testable.
+1. Keep streamed chat, Deep Research, and evaluation flows observable and recoverable.
+2. Prevent auth/session gaps from turning into false terminal failures.
+3. Keep document and graph maintenance state visible until the backend settles.
 
-## Main Reliability Mechanisms
+## Main Mechanisms
 
-- Abortable stream execution in `useDeepResearch`.
-- Event-to-state mapping for each SSE type.
-- Split persistent/transient state stores.
-- Axios auth interceptor with centralized error handling.
-- Selector hooks to reduce unnecessary re-renders.
+- Abortable streaming in `useDeepResearch` and streamed ask handling in `useChat`
+- Manual SSE parsing in chat and evaluation clients
+- Split state ownership across settings, session, and upload-progress stores
+- TanStack Query refetch/polling for documents, graph, and evaluation snapshots
+- Axios auth interceptor plus one-flight token refresh retry
+- `AuthProvider` redirect handling for `PASSWORD_RECOVERY`
 
-## Error Classes
+## Known Failure Classes
 
-1. Network/provider failures
-2. Contract or parse failures
-3. Session/auth failures
+1. Network and provider failures
+2. SSE parse / contract drift
+3. Session expiry or refresh gaps
 4. User cancellation
+5. Background maintenance jobs still running after an optimistic API response
 
-## Recovery Strategy
+## Recovery Rules
 
-- Surface explicit errors through toast + state.
-- Preserve stable state artifacts when possible.
-- Allow retry from planning/execution without full reload.
-- Keep cancellation non-destructive.
+- Show explicit toast + inline status instead of silent failure.
+- Preserve conversation metadata and mode snapshots so refresh restore remains possible.
+- Let users retry planning, execution, indexing, graph extraction, and evaluation from surfaced controls.
+- Treat cancellation as non-destructive and keep the last stable UI state visible.
 
 ## Operational Checks
 
-- `npm run lint`
-- `npm test`
-- `npm run build`
-
+- `npm run lint:ci`
+- `npx tsc --noEmit`
+- `npx vitest run`

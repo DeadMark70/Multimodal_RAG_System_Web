@@ -1,16 +1,10 @@
-# Product Specs Index
+# Frontend Product Specs Index
 
-Purpose: user-visible behavior contracts and acceptance criteria.
+Purpose: user-visible behavior contracts and acceptance expectations.
 
-## Primary Sources
+## Specs
 
-1. `conductor/product.md`
-2. `conductor/product-guidelines.md`
-3. `docs/PRODUCT_SENSE.md`
-
-## Reader Intent
-
-- PM/Designer: user path and outcomes.
-- QA: observable acceptance behavior.
-- Engineer: behavior contract before implementation.
-
+- `docs/product-specs/auth-and-account-flows.md`: login, signup, recovery, and logout expectations
+- `docs/product-specs/knowledge-base-lifecycle.md`: upload, open, translate, retry, and delete behavior
+- `docs/product-specs/chat-and-presets.md`: ordinary ask, Deep Research, presets, and conversation restore
+- `docs/product-specs/evaluation-results-and-traces.md`: campaign execution, result analysis, and trace inspection

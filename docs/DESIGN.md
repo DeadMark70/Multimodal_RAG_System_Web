@@ -2,18 +2,19 @@
 
 ## Intent
 
-Document frontend architecture decisions and module boundaries.
+Capture stable frontend architecture decisions, not release notes.
 
 ## Core Decisions
 
-1. Keep UI and API integration contract-first (`types/` + `services/`).
-2. Keep persistent and transient state separated (`useSettingsStore` vs `useSessionStore`).
-3. Use hook-driven orchestration (`hooks/useDeepResearch.ts`) instead of page-level logic blobs.
-4. Keep API access centralized in `src/services/`.
-5. Keep reliability guardrails explicit for streaming and high-frequency updates.
+1. Keep routes/pages thin; orchestration belongs in hooks and services.
+2. Keep browser-persisted settings separate from transient session state.
+3. Centralize API traffic through `src/services/` so auth, target allowlisting, and error mapping stay consistent.
+4. Treat streamed UX as first-class product behavior, not an optional enhancement.
+5. Prefer durable design docs for major subsystems over expanding one giant overview file.
 
-## Pointers
+## Deep Dives
 
-- Architecture details: `docs/design-docs/index.md`
-- Existing stack notes: `conductor/tech-stack.md`
-- Existing workflow rules: `conductor/workflow.md`
+- `docs/design-docs/routing-and-session.md`
+- `docs/design-docs/chat-and-research-streaming.md`
+- `docs/design-docs/upload-and-graph-workspace.md`
+- `docs/design-docs/evaluation-center.md`

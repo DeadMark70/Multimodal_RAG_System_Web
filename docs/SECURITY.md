@@ -1,25 +1,25 @@
 # SECURITY
 
-## Current Security Baseline
+## Security Baseline
 
-This frontend is a client application and depends on backend enforcement for authorization and data boundaries.
+The frontend is a trusted client for user intent, not a trusted authority for authorization or data isolation.
 
 ## Implemented Controls
 
-1. JWT token is attached through centralized request interceptor (`src/services/api.ts`).
-2. API base URL is environment-configurable (`VITE_API_BASE_URL`).
-3. Auth-aware pages and requests use Supabase session state.
+1. `src/services/api.ts` injects the Supabase JWT for protected backend requests.
+2. `src/services/networkPolicy.ts` rejects unexpected API targets instead of allowing arbitrary browser requests.
+3. `AuthProvider` keeps password-recovery routing explicit and clears local auth state after successful sign-out fallback.
+4. Protected file access and maintenance actions go through authenticated API clients rather than unauthenticated direct links.
 
-## Known Gaps
+## Important Limits
 
-1. Frontend cannot enforce tenant or RBAC boundaries by itself.
-2. Misconfigured CORS or API host can expose integration risks.
-3. Client-visible request metadata still requires backend validation.
+1. Tenant isolation and authorization live on the backend, not in React route guards.
+2. Environment misconfiguration can still point the client at the wrong API host unless the allowlist is kept current.
+3. Browser-visible request metadata is useful for operators but must still be validated server-side.
 
-## Required Upgrade Path For Public Deployment
+## Deployment Hardening Priorities
 
-1. Keep strict backend authz on every protected route.
-2. Add CSRF/origin review for cookie-based auth variants.
-3. Add stronger security telemetry for auth failures and abuse patterns.
-4. Add hardening checks in CI for env and dependency risk.
-
+1. Keep backend authz strict on every protected endpoint.
+2. Review origin/redirect settings for Supabase auth flows in each environment.
+3. Keep dependency and environment checks in CI.
+4. Expand auth-failure telemetry where product support needs stronger operator visibility.

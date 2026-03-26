@@ -1,5 +1,4 @@
 # Active Plans
 
-- No active plan files yet.
-- Add one file per plan using: `YYYY-MM-short-title.md`
-
+- No active frontend plan files at the moment.
+- New plan files should use `YYYY-MM-short-title.md`.

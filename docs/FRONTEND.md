@@ -2,65 +2,83 @@
 
 ## Stack
 
-- React 18 + TypeScript + Vite
-- Zustand + TanStack Query
+- React 18 + TypeScript + Vite 7
 - Chakra UI + Framer Motion
-- Axios + Supabase Auth session
+- TanStack Query 5 + Zustand 5
+- Supabase Auth + shared Axios client + authenticated fetch SSE
 - Vitest + Testing Library
 
-## Frontend Architecture
+## Runtime Shell
 
-- Routes and shell: `src/App.tsx`, `src/main.tsx`
-- Service layer: `src/services/`
-- Domain hooks: `src/hooks/`
-- Global state: `src/stores/`
-- Feature UI: `src/components/` and `src/pages/`
+- App shell and routes: `src/App.tsx`
+- Providers: Chakra, TanStack Query, `AuthProvider`
+- Pages:
+  - `/login`
+  - `/signup`
+  - `/forgot-password`
+  - `/reset-password`
+  - `/dashboard`
+  - `/knowledge`
+  - `/chat`
+  - `/experiment`
+  - `/evaluation`
+  - `/graph-demo`
 
-## Evaluation Frontend
+## Primary Product Areas
 
-### Phase 1 delivered
+- Auth and account recovery
+- Knowledge-base document management
+- Chat and Deep Research execution
+- GraphRAG workspace and maintenance
+- Evaluation campaigns, results analysis, and agent traces
+- Dashboard metrics and experiment comparison flows
 
-- `src/pages/EvaluationCenter.tsx`: evaluation route shell and tab layout
-- `src/components/evaluation/TestCaseManager.tsx`: CRUD, filtering, import/export UI
-- `src/components/evaluation/ModelConfigPanel.tsx`: model discovery, parameter editing, preset save flow
-- `src/services/evaluationApi.ts`: Phase 1 evaluation REST client
-- Focused UI and service coverage for evaluation setup flows
+## State Ownership
 
-### Phase 2 delivered
+- `useSettingsStore`
+  - persisted mode flags, official/custom presets, theme, and sidebar state
+- `useSessionStore`
+  - transient conversation UI, graph viewport state, selected PDF page, Deep Research task/session state
+- `useUploadProgressStore`
+  - batch upload progress, polling status, and per-document activity
+- TanStack Query
+  - server-state caching for documents, graph status, dashboard stats, conversations, and evaluation data
 
-- `src/components/evaluation/CampaignRunner.tsx`: mode selection, question selection, preset-driven execution, progress panel
-- `src/services/evaluationApi.ts`: authenticated SSE stream client for campaign progress and reconnect
-- `src/types/evaluation.ts`: campaign config, status, result, and SSE event typings
-- `src/pages/EvaluationCenter.tsx`: Phase 2 tab is enabled and integrated into the evaluation center
+## Service Boundaries
 
-### Runtime behavior
+- `src/services/api.ts`
+  - shared Axios client, JWT injection, one-flight refresh retry, error normalization
+- `src/services/networkPolicy.ts`
+  - allowed API target enforcement for browser/runtime safety
+- `src/services/pdfApi.ts`
+  - knowledge-base and PDF file actions
+- `src/services/ragApi.ts`
+  - ask, ask stream, planning, execution, and Deep Research requests
+- `src/services/conversationApi.ts`
+  - conversation list/detail/message persistence
+- `src/services/graphApi.ts`
+  - graph status, data, rebuild/optimize, document retry/purge
+- `src/services/evaluationApi.ts`
+  - test cases, model presets, campaigns, results, traces, metrics, authenticated SSE
+- `src/services/statsApi.ts`
+  - dashboard summary data
 
-- Campaign runner only starts from saved model presets
-- SSE uses authenticated `fetch` stream parsing instead of browser `EventSource`
-- Progress and history recover from backend snapshots after reconnect
+## Reliability-Critical Behaviors
 
-### Focused verification
+- Chat and evaluation streams use authenticated `fetch` + manual SSE parsing rather than browser `EventSource`.
+- Auth session fetch retries one refresh attempt before requests proceed without a token.
+- `PASSWORD_RECOVERY` auth events redirect to `/reset-password` if the incoming URL lands elsewhere.
+- Sign-out falls back from global revocation to local cleanup so stale tokens do not trap the UI in an authenticated state.
+- Upload and graph pages expose active job state and polling-driven recovery instead of optimistic silent success.
 
-- `src/services/evaluationApi.test.ts`
-- `src/components/evaluation/CampaignRunner.test.tsx`
-- `src/pages/EvaluationCenter.ui.test.tsx`
-- `npx tsc --noEmit`
+## Focused Verification Surface
 
-## State Model
-
-- Persistent settings: `useSettingsStore`
-- Session/transient interactions: `useSessionStore`
-- Async query cache: TanStack Query client in `App.tsx`
-
-## Performance Rules
-
-1. Use selector-based Zustand subscriptions.
-2. Avoid broad store reads in large render trees.
-3. Keep SSE loops cooperative and cheap.
-4. Avoid repeated large object writes during progress updates.
-
-## Accessibility Baseline
-
-1. Every icon-only control has `aria-label`.
-2. Dialogs include title and description.
-3. Keyboard navigation must work for table rows and menus.
+- Services: `src/services/*.test.ts`
+- Hooks: `src/hooks/*.test.tsx`
+- Auth/session recovery: page + context tests
+- Evaluation UI: `src/pages/EvaluationCenter.ui.test.tsx` and component tests
+- Persistence flow: `src/tests/PersistenceFlow.test.tsx`
+- CI-equivalent checks:
+  - `npm run lint:ci`
+  - `npx tsc --noEmit`
+  - `npx vitest run`

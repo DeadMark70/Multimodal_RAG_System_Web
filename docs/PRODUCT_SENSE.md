@@ -1,24 +1,19 @@
 # PRODUCT_SENSE
 
-## Product Positioning
+## Purpose
 
-A research assistant UI for multimodal RAG workflows with chat, deep research, and graph exploration.
+Describe what users can do from the frontend and where the UI intentionally draws boundaries.
 
-## Core User Jobs
+## User-Visible Capabilities
 
-1. Ask grounded questions over uploaded knowledge.
-2. Run deep research with visible progress and recoverable sessions.
-3. Inspect graph relationships and document context.
-4. Resume work from saved conversation history.
+1. Sign in, register, recover passwords, and return to a clean authenticated session.
+2. Upload PDFs, monitor processing, open original/translated files, retry indexing, and delete documents.
+3. Ask ordinary RAG questions or run multi-step Deep Research with streamed progress and saved conversation state.
+4. Inspect graph health, run graph maintenance, retry failed graph extraction, and purge orphan graph residues.
+5. Manage evaluation datasets, model presets, campaigns, result analysis, and persisted agent traces.
 
-## Value Drivers
+## Product Boundaries
 
-- Structured research plan and SSE progress feedback.
-- Unified chat + history + analytics views.
-- Local-first developer workflow with explicit API boundaries.
-
-## Product Risks
-
-1. Streaming-heavy flows can hurt navigation responsiveness.
-2. API contract drift can break UI silently.
-3. Auth/session failures can degrade user trust.
+- The frontend never treats itself as the authorization source of truth; backend authz remains authoritative.
+- Graph and evaluation are operational surfaces, not hidden admin-only tooling.
+- Official mode presets and stored snapshots matter more than exposing raw low-level flags everywhere.
