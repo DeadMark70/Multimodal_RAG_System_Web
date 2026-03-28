@@ -2,6 +2,9 @@ export interface TestCase {
   id: string;
   question: string;
   ground_truth: string;
+  ground_truth_short?: string | null;
+  key_points: string[];
+  ragas_focus: string[];
   category?: string | null;
   difficulty?: string | null;
   source_docs: string[];
@@ -54,6 +57,8 @@ export interface AvailableModel {
 
 export type CampaignMode = 'naive' | 'advanced' | 'graph' | 'agentic';
 export type CampaignEvaluationPhase = 'execution' | 'evaluation';
+export type CampaignMetricName = string;
+export type ReferenceSource = 'ground_truth_short' | 'ground_truth_fallback_long';
 
 export type CampaignLifecycleStatus =
   | 'pending'
@@ -110,6 +115,9 @@ export interface CampaignResult {
   question_id: string;
   question: string;
   ground_truth: string;
+  ground_truth_short?: string | null;
+  key_points: string[];
+  ragas_focus: string[];
   mode: CampaignMode;
   execution_profile?: string | null;
   run_number: number;
@@ -159,14 +167,25 @@ export interface CampaignMetricRow {
   run_number: number;
   category?: string | null;
   difficulty?: string | null;
+  ragas_focus: string[];
+  reference_source?: ReferenceSource | null;
   total_tokens: number;
+  metric_values: Record<string, number>;
   faithfulness: number;
   answer_correctness: number;
+}
+
+export interface GroupMetricsSummary {
+  group_key: string;
+  sample_count: number;
+  metric_summaries: Record<string, MetricAggregate>;
+  total_tokens: MetricAggregate;
 }
 
 export interface ModeMetricsSummary {
   mode: CampaignMode;
   sample_count: number;
+  metric_summaries: Record<string, MetricAggregate>;
   faithfulness: MetricAggregate;
   answer_correctness: MetricAggregate;
   total_tokens: MetricAggregate;
@@ -179,7 +198,10 @@ export interface ModeMetricsSummary {
 export interface CampaignMetricsResponse {
   campaign: CampaignStatus;
   evaluator_model: string;
+  available_metrics: CampaignMetricName[];
   summary_by_mode: Partial<Record<CampaignMode, ModeMetricsSummary>>;
+  summary_by_category: Record<string, GroupMetricsSummary>;
+  summary_by_focus: Record<string, GroupMetricsSummary>;
   rows: CampaignMetricRow[];
 }
 

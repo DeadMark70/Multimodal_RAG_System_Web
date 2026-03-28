@@ -19,7 +19,7 @@ describe('StabilityChart', () => {
     render(
       <ChakraProvider theme={theme}>
         <StabilityChart
-          metric="answer_correctness"
+          metric="answer_relevancy"
           rows={[
             {
               campaign_result_id: 'r1',
@@ -27,7 +27,16 @@ describe('StabilityChart', () => {
               question: 'Question 1',
               mode: 'naive',
               run_number: 1,
+              category: '綜合比較題',
+              difficulty: 'hard',
+              ragas_focus: ['answer_relevancy'],
+              reference_source: 'ground_truth_short',
               total_tokens: 100,
+              metric_values: {
+                faithfulness: 0.5,
+                answer_correctness: 0.4,
+                answer_relevancy: 0.45,
+              },
               faithfulness: 0.5,
               answer_correctness: 0.4,
             },
@@ -37,7 +46,16 @@ describe('StabilityChart', () => {
               question: 'Question 1',
               mode: 'naive',
               run_number: 2,
+              category: '綜合比較題',
+              difficulty: 'hard',
+              ragas_focus: ['answer_relevancy'],
+              reference_source: 'ground_truth_short',
               total_tokens: 110,
+              metric_values: {
+                faithfulness: 0.6,
+                answer_correctness: 0.7,
+                answer_relevancy: 0.75,
+              },
               faithfulness: 0.6,
               answer_correctness: 0.7,
             },
@@ -46,7 +64,7 @@ describe('StabilityChart', () => {
       </ChakraProvider>
     );
 
-    expect(screen.getByRole('img', { name: 'Answer Correctness box and violin plot' })).toBeInTheDocument();
-    expect(screen.getByText(/Naive: mean 0\.550 \/ max 0\.700 \/ σ 0\.212/)).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Answer Relevancy box and violin plot' })).toBeInTheDocument();
+    expect(screen.getByText(/Naive: mean 0\.600 \/ max 0\.750 \/ σ 0\.212/)).toBeInTheDocument();
   });
 });

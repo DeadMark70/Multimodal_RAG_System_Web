@@ -3,6 +3,8 @@ import {
   Badge,
   Box,
   Button,
+  FormControl,
+  FormLabel,
   Grid,
   GridItem,
   HStack,
@@ -21,29 +23,16 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import {
-  CartesianGrid,
-  PolarAngleAxis,
-  PolarGrid,
-  PolarRadiusAxis,
-  Radar,
-  RadarChart,
-  ResponsiveContainer,
-  Scatter,
-  ScatterChart,
-  Tooltip,
-  XAxis,
-  YAxis,
-  ZAxis,
-} from 'recharts';
-import {
   evaluateCampaign,
   getCampaignMetrics,
   listCampaigns,
 } from '../../services/evaluationApi';
 import type {
+  CampaignMetricName,
   CampaignMetricsResponse,
   CampaignMode,
   CampaignStatus,
+  GroupMetricsSummary,
   ModeMetricsSummary,
 } from '../../types/evaluation';
 import StabilityChart from '../charts/StabilityChart';
@@ -53,13 +42,6 @@ const MODE_LABELS: Record<CampaignMode, string> = {
   advanced: 'Advanced',
   graph: 'Graph',
   agentic: 'Agentic',
-};
-
-const MODE_COLORS: Record<CampaignMode, string> = {
-  naive: '#2B6CB0',
-  advanced: '#2F855A',
-  graph: '#DD6B20',
-  agentic: '#C53030',
 };
 
 function downloadTextFile(filename: string, content: string, mimeType: string): void {
@@ -83,36 +65,11 @@ function csvCell(value: string | number | null | undefined): string {
   return text;
 }
 
-function metricsToCsv(metrics: CampaignMetricsResponse): string {
-  const headers = [
-    'campaign_result_id',
-    'question_id',
-    'question',
-    'mode',
-    'run_number',
-    'category',
-    'difficulty',
-    'total_tokens',
-    'faithfulness',
-    'answer_correctness',
-  ];
-  const rows = metrics.rows.map((row) =>
-    [
-      row.campaign_result_id,
-      row.question_id,
-      row.question,
-      row.mode,
-      row.run_number,
-      row.category,
-      row.difficulty,
-      row.total_tokens,
-      row.faithfulness,
-      row.answer_correctness,
-    ]
-      .map(csvCell)
-      .join(',')
-  );
-  return [headers.join(','), ...rows].join('\n');
+function metricLabel(metric: string): string {
+  return metric
+    .split('_')
+    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+    .join(' ');
 }
 
 function ecrColor(ecr?: number | null): string {
@@ -135,18 +92,61 @@ function ecrLabel(ecr?: number | null): string {
   return `${ecr.toFixed(2)}%`;
 }
 
-function formatTooltipPercent(value: number | string | undefined): string {
-  return typeof value === 'number' ? `${value.toFixed(1)}%` : String(value ?? '');
+function metricsToCsv(metrics: CampaignMetricsResponse): string {
+  const metricHeaders = metrics.available_metrics;
+  const headers = [
+    'campaign_result_id',
+    'question_id',
+    'question',
+    'mode',
+    'run_number',
+    'category',
+    'difficulty',
+    'ragas_focus',
+    'reference_source',
+    'total_tokens',
+    ...metricHeaders,
+  ];
+  const rows = metrics.rows.map((row) =>
+    [
+      row.campaign_result_id,
+      row.question_id,
+      row.question,
+      row.mode,
+      row.run_number,
+      row.category,
+      row.difficulty,
+      row.ragas_focus.join('|'),
+      row.reference_source,
+      row.total_tokens,
+      ...metricHeaders.map((metric) => row.metric_values[metric] ?? 0),
+    ]
+      .map(csvCell)
+      .join(',')
+  );
+  return [headers.join(','), ...rows].join('\n');
 }
 
-function formatTooltipDecimal(value: number | string | undefined): string {
-  return typeof value === 'number' ? value.toFixed(3) : String(value ?? '');
+function metricMean(summary: GroupMetricsSummary | ModeMetricsSummary | undefined, metric: string): number {
+  return summary?.metric_summaries?.[metric]?.mean ?? 0;
 }
 
+function metricMax(summary: GroupMetricsSummary | ModeMetricsSummary | undefined, metric: string): number {
+  return summary?.metric_summaries?.[metric]?.max ?? 0;
+}
+
+function metricStd(summary: GroupMetricsSummary | ModeMetricsSummary | undefined, metric: string): number {
+  return summary?.metric_summaries?.[metric]?.stddev ?? 0;
+}
+
+function sortedGroupEntries(groups: Record<string, GroupMetricsSummary>): GroupMetricsSummary[] {
+  return Object.values(groups).sort((left, right) => left.group_key.localeCompare(right.group_key));
+}
 
 export default function EvaluationResults() {
   const [campaigns, setCampaigns] = useState<CampaignStatus[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
+  const [selectedMetric, setSelectedMetric] = useState<CampaignMetricName>('answer_correctness');
   const [metrics, setMetrics] = useState<CampaignMetricsResponse | null>(null);
   const [loadingCampaigns, setLoadingCampaigns] = useState(true);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
@@ -234,6 +234,16 @@ export default function EvaluationResults() {
     return () => window.clearInterval(timer);
   }, [loadMetrics, reloadCampaigns, selectedCampaign]);
 
+  useEffect(() => {
+    if (!metrics) {
+      return;
+    }
+    if (metrics.available_metrics.includes(selectedMetric)) {
+      return;
+    }
+    setSelectedMetric(metrics.available_metrics.includes('answer_correctness') ? 'answer_correctness' : metrics.available_metrics[0] ?? 'answer_correctness');
+  }, [metrics, selectedMetric]);
+
   const handleRerun = async () => {
     if (!selectedCampaignId) {
       return;
@@ -266,6 +276,16 @@ export default function EvaluationResults() {
     [metrics]
   );
 
+  const categoryEntries = useMemo(
+    () => sortedGroupEntries(metrics?.summary_by_category ?? {}),
+    [metrics]
+  );
+
+  const focusEntries = useMemo(
+    () => sortedGroupEntries(metrics?.summary_by_focus ?? {}),
+    [metrics]
+  );
+
   const handleExportJson = useCallback(() => {
     if (!metrics) {
       return;
@@ -287,32 +307,6 @@ export default function EvaluationResults() {
       'text/csv'
     );
   }, [metrics]);
-
-  const radarData = useMemo(() => {
-    if (summaryEntries.length === 0) {
-      return [];
-    }
-    const maxTokens = Math.max(...summaryEntries.map((entry) => entry.total_tokens.mean), 1);
-    return [
-      {
-        subject: 'Faithfulness',
-        ...Object.fromEntries(summaryEntries.map((entry) => [entry.mode, entry.faithfulness.mean * 100])),
-      },
-      {
-        subject: 'Correctness',
-        ...Object.fromEntries(summaryEntries.map((entry) => [entry.mode, entry.answer_correctness.mean * 100])),
-      },
-      {
-        subject: 'Token Efficiency',
-        ...Object.fromEntries(
-          summaryEntries.map((entry) => [
-            entry.mode,
-            ((maxTokens - entry.total_tokens.mean) / maxTokens) * 100,
-          ])
-        ),
-      },
-    ];
-  }, [summaryEntries]);
 
   if (loadingCampaigns) {
     return (
@@ -365,9 +359,24 @@ export default function EvaluationResults() {
           </HStack>
         </HStack>
         {metrics && (
-          <Text mt={3} color="gray.600">
-            Evaluator: {metrics.evaluator_model}
-          </Text>
+          <Grid templateColumns={{ base: '1fr', lg: '1fr 280px' }} gap={4} mt={4}>
+            <GridItem>
+              <Text color="gray.600">Evaluator: {metrics.evaluator_model}</Text>
+              <Text color="gray.600">Available metrics: {metrics.available_metrics.map(metricLabel).join(', ') || 'None'}</Text>
+            </GridItem>
+            <GridItem>
+              <FormControl>
+                <FormLabel mb={1}>目前指標</FormLabel>
+                <Select value={selectedMetric} onChange={(event) => setSelectedMetric(event.target.value)}>
+                  {metrics.available_metrics.map((metric) => (
+                    <option key={metric} value={metric}>
+                      {metricLabel(metric)}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+            </GridItem>
+          </Grid>
         )}
       </Box>
 
@@ -393,8 +402,9 @@ export default function EvaluationResults() {
                 <Tr>
                   <Th>Mode</Th>
                   <Th isNumeric>Samples</Th>
-                  <Th isNumeric>Faithfulness</Th>
-                  <Th isNumeric>Correctness</Th>
+                  <Th isNumeric>{metricLabel(selectedMetric)} Mean</Th>
+                  <Th isNumeric>{metricLabel(selectedMetric)} Max</Th>
+                  <Th isNumeric>Stddev</Th>
                   <Th isNumeric>Tokens</Th>
                   <Th isNumeric>Δ Correctness</Th>
                   <Th isNumeric>Δ Tokens</Th>
@@ -406,8 +416,9 @@ export default function EvaluationResults() {
                   <Tr key={entry.mode}>
                     <Td>{MODE_LABELS[entry.mode]}</Td>
                     <Td isNumeric>{entry.sample_count}</Td>
-                    <Td isNumeric>{entry.faithfulness.mean.toFixed(3)}</Td>
-                    <Td isNumeric>{entry.answer_correctness.mean.toFixed(3)}</Td>
+                    <Td isNumeric>{metricMean(entry, selectedMetric).toFixed(3)}</Td>
+                    <Td isNumeric>{metricMax(entry, selectedMetric).toFixed(3)}</Td>
+                    <Td isNumeric>{metricStd(entry, selectedMetric).toFixed(3)}</Td>
                     <Td isNumeric>{entry.total_tokens.mean.toFixed(1)}</Td>
                     <Td isNumeric>{entry.delta_answer_correctness.toFixed(3)}</Td>
                     <Td isNumeric>{entry.delta_total_tokens.toFixed(1)}</Td>
@@ -422,87 +433,124 @@ export default function EvaluationResults() {
 
           <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gap={6}>
             <GridItem>
-              <Box borderWidth="1px" borderRadius="lg" p={5} h="100%">
-                <Heading size="md" mb={4}>模式雷達圖</Heading>
-                <Box h="320px">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={radarData}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="subject" />
-                      <PolarRadiusAxis domain={[0, 100]} />
-                      {summaryEntries.map((entry) => (
-                        <Radar
-                          key={entry.mode}
-                          name={MODE_LABELS[entry.mode]}
-                          dataKey={entry.mode}
-                          stroke={MODE_COLORS[entry.mode]}
-                          fill={MODE_COLORS[entry.mode]}
-                          fillOpacity={0.15}
-                        />
-                      ))}
-                      <Tooltip formatter={formatTooltipPercent} />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Box>
+              <StabilityChart rows={metrics.rows} metric={selectedMetric} />
             </GridItem>
-
             <GridItem>
               <Box borderWidth="1px" borderRadius="lg" p={5} h="100%">
-                <Heading size="md" mb={4}>Token / Correctness 散佈圖</Heading>
-                <Box h="320px">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ScatterChart>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        type="number"
-                        dataKey="total_tokens"
-                        name="Tokens"
-                        tickFormatter={(value) => `${value}`}
-                      />
-                      <YAxis
-                        type="number"
-                        dataKey="answer_correctness"
-                        name="Correctness"
-                        domain={[0, 1]}
-                      />
-                      <ZAxis type="number" dataKey="faithfulness" range={[60, 280]} name="Faithfulness" />
-                      <Tooltip formatter={formatTooltipDecimal} cursor={{ strokeDasharray: '4 4' }} />
-                      {(['naive', 'advanced', 'graph', 'agentic'] as CampaignMode[]).map((mode) => (
-                        <Scatter
-                          key={mode}
-                          name={MODE_LABELS[mode]}
-                          data={metrics.rows.filter((row) => row.mode === mode)}
-                          fill={MODE_COLORS[mode]}
-                        />
-                      ))}
-                    </ScatterChart>
-                  </ResponsiveContainer>
-                </Box>
+                <Heading size="md" mb={4}>Reference Source</Heading>
+                <Stack spacing={3}>
+                  <Badge colorScheme="purple">
+                    short GT rows: {metrics.rows.filter((row) => row.reference_source === 'ground_truth_short').length}
+                  </Badge>
+                  <Badge colorScheme="yellow">
+                    long fallback rows: {metrics.rows.filter((row) => row.reference_source === 'ground_truth_fallback_long').length}
+                  </Badge>
+                  <Text color="gray.600" fontSize="sm">
+                    這個欄位用來檢查目前 correctness reference 是短版標準答案還是 fallback 到長版答案。
+                  </Text>
+                </Stack>
               </Box>
             </GridItem>
           </Grid>
 
           <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gap={6}>
             <GridItem>
-              <StabilityChart rows={metrics.rows} metric="answer_correctness" />
+              <Box borderWidth="1px" borderRadius="lg" p={5}>
+                <Heading size="md" mb={4}>依 Category 摘要</Heading>
+                <Table size="sm">
+                  <Thead>
+                    <Tr>
+                      <Th>Category</Th>
+                      <Th isNumeric>Samples</Th>
+                      <Th isNumeric>{metricLabel(selectedMetric)} Mean</Th>
+                      <Th isNumeric>Tokens</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {categoryEntries.map((entry) => (
+                      <Tr key={entry.group_key}>
+                        <Td>{entry.group_key}</Td>
+                        <Td isNumeric>{entry.sample_count}</Td>
+                        <Td isNumeric>{metricMean(entry, selectedMetric).toFixed(3)}</Td>
+                        <Td isNumeric>{entry.total_tokens.mean.toFixed(1)}</Td>
+                      </Tr>
+                    ))}
+                    {categoryEntries.length === 0 ? (
+                      <Tr>
+                        <Td colSpan={4}>
+                          <Text color="gray.500" py={2}>沒有 category 分組資料。</Text>
+                        </Td>
+                      </Tr>
+                    ) : null}
+                  </Tbody>
+                </Table>
+              </Box>
             </GridItem>
             <GridItem>
-              <Box borderWidth="1px" borderRadius="lg" p={5} h="100%">
-                <Heading size="md" mb={4}>ECR 決策表</Heading>
-                <Stack spacing={3}>
-                  {summaryEntries.map((entry) => (
-                    <HStack key={entry.mode} justify="space-between">
-                      <Text>{MODE_LABELS[entry.mode]}</Text>
-                      <Badge colorScheme={ecrColor(entry.ecr)}>
-                        {ecrLabel(entry.ecr)}
-                      </Badge>
-                    </HStack>
-                  ))}
-                </Stack>
+              <Box borderWidth="1px" borderRadius="lg" p={5}>
+                <Heading size="md" mb={4}>依 RAGAS Focus 摘要</Heading>
+                <Table size="sm">
+                  <Thead>
+                    <Tr>
+                      <Th>Focus</Th>
+                      <Th isNumeric>Samples</Th>
+                      <Th isNumeric>{metricLabel(selectedMetric)} Mean</Th>
+                      <Th isNumeric>Tokens</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {focusEntries.map((entry) => (
+                      <Tr key={entry.group_key}>
+                        <Td>{entry.group_key}</Td>
+                        <Td isNumeric>{entry.sample_count}</Td>
+                        <Td isNumeric>{metricMean(entry, selectedMetric).toFixed(3)}</Td>
+                        <Td isNumeric>{entry.total_tokens.mean.toFixed(1)}</Td>
+                      </Tr>
+                    ))}
+                    {focusEntries.length === 0 ? (
+                      <Tr>
+                        <Td colSpan={4}>
+                          <Text color="gray.500" py={2}>沒有 ragas_focus 分組資料。</Text>
+                        </Td>
+                      </Tr>
+                    ) : null}
+                  </Tbody>
+                </Table>
               </Box>
             </GridItem>
           </Grid>
+
+          <Box borderWidth="1px" borderRadius="lg" p={5}>
+            <Heading size="md" mb={4}>逐題明細</Heading>
+            <Table size="sm">
+              <Thead>
+                <Tr>
+                  <Th>Question</Th>
+                  <Th>Mode</Th>
+                  <Th>Category</Th>
+                  <Th>Reference</Th>
+                  <Th>Focus</Th>
+                  <Th isNumeric>{metricLabel(selectedMetric)}</Th>
+                  <Th isNumeric>Tokens</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {metrics.rows.map((row) => (
+                  <Tr key={row.campaign_result_id}>
+                    <Td maxW="520px">
+                      <Text noOfLines={2}>{row.question}</Text>
+                    </Td>
+                    <Td>{MODE_LABELS[row.mode]}</Td>
+                    <Td>{row.category ?? '-'}</Td>
+                    <Td>{row.reference_source ?? '-'}</Td>
+                    <Td>{row.ragas_focus.join(', ') || '-'}</Td>
+                    <Td isNumeric>{(row.metric_values[selectedMetric] ?? 0).toFixed(3)}</Td>
+                    <Td isNumeric>{row.total_tokens}</Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </Box>
         </>
       )}
     </VStack>

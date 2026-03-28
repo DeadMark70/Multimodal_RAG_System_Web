@@ -92,10 +92,16 @@ const evaluatingCampaign: CampaignStatus = {
 const populatedMetrics: CampaignMetricsResponse = {
   campaign: completedCampaign,
   evaluator_model: 'gemini-2.5-pro',
+  available_metrics: ['faithfulness', 'answer_correctness', 'answer_relevancy'],
   summary_by_mode: {
     naive: {
       mode: 'naive',
       sample_count: 1,
+      metric_summaries: {
+        faithfulness: { mean: 0.4, max: 0.4, stddev: 0 },
+        answer_correctness: { mean: 0.5, max: 0.5, stddev: 0 },
+        answer_relevancy: { mean: 0.45, max: 0.45, stddev: 0 },
+      },
       faithfulness: { mean: 0.4, max: 0.4, stddev: 0 },
       answer_correctness: { mean: 0.5, max: 0.5, stddev: 0 },
       total_tokens: { mean: 100, max: 100, stddev: 0 },
@@ -107,6 +113,11 @@ const populatedMetrics: CampaignMetricsResponse = {
     advanced: {
       mode: 'advanced',
       sample_count: 1,
+      metric_summaries: {
+        faithfulness: { mean: 0.7, max: 0.7, stddev: 0 },
+        answer_correctness: { mean: 0.8, max: 0.8, stddev: 0 },
+        answer_relevancy: { mean: 0.85, max: 0.85, stddev: 0 },
+      },
       faithfulness: { mean: 0.7, max: 0.7, stddev: 0 },
       answer_correctness: { mean: 0.8, max: 0.8, stddev: 0 },
       total_tokens: { mean: 150, max: 150, stddev: 0 },
@@ -116,6 +127,30 @@ const populatedMetrics: CampaignMetricsResponse = {
       ecr_note: null,
     },
   },
+  summary_by_category: {
+    '綜合比較題': {
+      group_key: '綜合比較題',
+      sample_count: 2,
+      metric_summaries: {
+        faithfulness: { mean: 0.55, max: 0.7, stddev: 0.2 },
+        answer_correctness: { mean: 0.65, max: 0.8, stddev: 0.2 },
+        answer_relevancy: { mean: 0.65, max: 0.85, stddev: 0.28 },
+      },
+      total_tokens: { mean: 125, max: 150, stddev: 35.3 },
+    },
+  },
+  summary_by_focus: {
+    answer_correctness: {
+      group_key: 'answer_correctness',
+      sample_count: 2,
+      metric_summaries: {
+        faithfulness: { mean: 0.55, max: 0.7, stddev: 0.2 },
+        answer_correctness: { mean: 0.65, max: 0.8, stddev: 0.2 },
+        answer_relevancy: { mean: 0.65, max: 0.85, stddev: 0.28 },
+      },
+      total_tokens: { mean: 125, max: 150, stddev: 35.3 },
+    },
+  },
   rows: [
     {
       campaign_result_id: 'r1',
@@ -123,7 +158,16 @@ const populatedMetrics: CampaignMetricsResponse = {
       question: 'Question 1',
       mode: 'naive',
       run_number: 1,
+      category: '綜合比較題',
+      difficulty: 'hard',
+      ragas_focus: ['answer_correctness'],
+      reference_source: 'ground_truth_short',
       total_tokens: 100,
+      metric_values: {
+        faithfulness: 0.4,
+        answer_correctness: 0.5,
+        answer_relevancy: 0.45,
+      },
       faithfulness: 0.4,
       answer_correctness: 0.5,
     },
@@ -133,7 +177,16 @@ const populatedMetrics: CampaignMetricsResponse = {
       question: 'Question 1',
       mode: 'advanced',
       run_number: 1,
+      category: '綜合比較題',
+      difficulty: 'hard',
+      ragas_focus: ['answer_correctness'],
+      reference_source: 'ground_truth_fallback_long',
       total_tokens: 150,
+      metric_values: {
+        faithfulness: 0.7,
+        answer_correctness: 0.8,
+        answer_relevancy: 0.85,
+      },
       faithfulness: 0.7,
       answer_correctness: 0.8,
     },
@@ -143,7 +196,10 @@ const populatedMetrics: CampaignMetricsResponse = {
 const emptyMetrics: CampaignMetricsResponse = {
   campaign: completedCampaign,
   evaluator_model: 'gemini-2.5-pro',
+  available_metrics: ['faithfulness', 'answer_correctness', 'answer_relevancy'],
   summary_by_mode: {},
+  summary_by_category: {},
+  summary_by_focus: {},
   rows: [],
 };
 
@@ -160,7 +216,7 @@ describe('EvaluationResults', () => {
     vi.clearAllMocks();
   });
 
-  it('renders metrics summary and rerun action', async () => {
+  it('renders metrics summary, selector, exports, and rerun action', async () => {
     const createObjectURL = vi.fn(() => 'blob:metrics');
     const revokeObjectURL = vi.fn();
     const clickSpy = vi
@@ -183,8 +239,15 @@ describe('EvaluationResults', () => {
     });
 
     expect(screen.getByText('Evaluator: gemini-2.5-pro')).toBeInTheDocument();
-    expect(screen.getAllByText('Advanced').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('6.00%').length).toBeGreaterThan(0);
+    expect(screen.getByText(/Available metrics:/)).toBeInTheDocument();
+    expect(screen.getByText('依 Category 摘要')).toBeInTheDocument();
+    expect(screen.getByText('依 RAGAS Focus 摘要')).toBeInTheDocument();
+    expect(screen.getByText('ground_truth_short')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('目前指標'), {
+      target: { value: 'answer_relevancy' },
+    });
+    expect(screen.getAllByText('Answer Relevancy Mean').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: '匯出 JSON' }));
     expect(createObjectURL).toHaveBeenCalledTimes(1);

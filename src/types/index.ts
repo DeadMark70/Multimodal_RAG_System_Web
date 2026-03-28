@@ -42,6 +42,8 @@ export type {
   ModelConfigInput,
   AvailableModel,
   CampaignMode,
+  CampaignMetricName,
+  ReferenceSource,
   CampaignEvaluationPhase,
   CampaignLifecycleStatus,
   CampaignResultStatus,
@@ -55,6 +57,7 @@ export type {
   CampaignStreamEvent,
   MetricAggregate,
   CampaignMetricRow,
+  GroupMetricsSummary,
   ModeMetricsSummary,
   CampaignMetricsResponse,
 } from './evaluation';

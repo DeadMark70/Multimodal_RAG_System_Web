@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { Box, Heading, Text, VStack } from '@chakra-ui/react';
-import type { CampaignMetricRow, CampaignMode } from '../../types/evaluation';
+import type { CampaignMetricName, CampaignMetricRow, CampaignMode } from '../../types/evaluation';
 
-type StabilityMetric = 'answer_correctness' | 'faithfulness' | 'total_tokens';
+type StabilityMetric = CampaignMetricName;
 
 interface StabilityChartProps {
   rows: CampaignMetricRow[];
@@ -118,24 +118,35 @@ function violinPath(
 }
 
 function metricLabel(metric: StabilityMetric): string {
-  switch (metric) {
-    case 'answer_correctness':
-      return 'Answer Correctness';
-    case 'faithfulness':
-      return 'Faithfulness';
-    case 'total_tokens':
-      return 'Total Tokens';
-    default:
-      return metric;
+  if (metric === 'total_tokens') {
+    return 'Total Tokens';
   }
+  return metric
+    .split('_')
+    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+    .join(' ');
+}
+
+function metricValue(row: CampaignMetricRow, metric: StabilityMetric): number {
+  if (metric === 'total_tokens') {
+    return row.total_tokens;
+  }
+  if (metric === 'faithfulness') {
+    return row.faithfulness;
+  }
+  if (metric === 'answer_correctness') {
+    return row.answer_correctness;
+  }
+  return row.metric_values[metric] ?? 0;
 }
 
 export default function StabilityChart({ rows, metric }: StabilityChartProps) {
   const stats = useMemo(() => {
     const grouped = new Map<CampaignMode, number[]>();
     rows.forEach((row) => {
+      const value = metricValue(row, metric);
       const current = grouped.get(row.mode) ?? [];
-      current.push(row[metric]);
+      current.push(value);
       grouped.set(row.mode, current);
     });
 
@@ -167,8 +178,7 @@ export default function StabilityChart({ rows, metric }: StabilityChartProps) {
   const innerWidth = chartWidth - leftPadding - rightPadding;
   const innerHeight = chartHeight - topPadding - bottomPadding;
 
-  const yFor = (value: number) =>
-    topPadding + ((maxValue - value) / range) * innerHeight;
+  const yFor = (value: number) => topPadding + ((maxValue - value) / range) * innerHeight;
 
   if (stats.length === 0) {
     return (
@@ -265,4 +275,4 @@ export default function StabilityChart({ rows, metric }: StabilityChartProps) {
   );
 }
 
-export type { StabilityChartProps };
+export type { StabilityChartProps, StabilityMetric };

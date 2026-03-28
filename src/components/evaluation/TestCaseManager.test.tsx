@@ -10,6 +10,9 @@ vi.mock('../../services/evaluationApi', () => ({
       id: `Q${index + 1}`,
       question: `Question ${index + 1}`,
       ground_truth: `Answer ${index + 1}`,
+      ground_truth_short: `Short ${index + 1}`,
+      key_points: ['point-1', 'point-2'],
+      ragas_focus: ['answer_correctness'],
       category: '分類',
       difficulty: 'medium',
       source_docs: [],
@@ -23,7 +26,7 @@ vi.mock('../../services/evaluationApi', () => ({
 }));
 
 describe('TestCaseManager', () => {
-  it('loads and shows 8 test cases', async () => {
+  it('loads and shows 8 test cases with short-answer metadata badges', async () => {
     render(
       <ChakraProvider theme={theme}>
         <TestCaseManager />
@@ -35,6 +38,6 @@ describe('TestCaseManager', () => {
     });
     expect(screen.getByText('Q1')).toBeInTheDocument();
     expect(screen.getByText('Q8')).toBeInTheDocument();
+    expect(screen.getAllByText('short GT').length).toBeGreaterThan(0);
   });
 });
-

@@ -43,6 +43,9 @@ interface TestCaseFormState {
   id: string;
   question: string;
   ground_truth: string;
+  ground_truth_short: string;
+  key_points_text: string;
+  ragas_focus_text: string;
   category: string;
   difficulty: string;
   source_docs_text: string;
@@ -50,10 +53,24 @@ interface TestCaseFormState {
   test_objective: string;
 }
 
+function listToText(values: string[]): string {
+  return values.join('\n');
+}
+
+function parseList(text: string): string[] {
+  return text
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 const emptyFormState = (): TestCaseFormState => ({
   id: '',
   question: '',
   ground_truth: '',
+  ground_truth_short: '',
+  key_points_text: '',
+  ragas_focus_text: '',
   category: '',
   difficulty: '',
   source_docs_text: '',
@@ -134,6 +151,9 @@ export default function TestCaseManager() {
       id: item.id,
       question: item.question,
       ground_truth: item.ground_truth,
+      ground_truth_short: item.ground_truth_short ?? '',
+      key_points_text: listToText(item.key_points),
+      ragas_focus_text: listToText(item.ragas_focus),
       category: item.category ?? '',
       difficulty: item.difficulty ?? '',
       source_docs_text: item.source_docs.join(', '),
@@ -152,7 +172,7 @@ export default function TestCaseManager() {
   const handleSave = async () => {
     if (!form.question.trim() || !form.ground_truth.trim()) {
       toast({
-        title: '請填寫問題與標準答案',
+        title: '請填寫問題與長版標準答案',
         status: 'warning',
       });
       return;
@@ -163,12 +183,12 @@ export default function TestCaseManager() {
       id: form.id.trim() || undefined,
       question: form.question.trim(),
       ground_truth: form.ground_truth.trim(),
+      ground_truth_short: form.ground_truth_short.trim() || undefined,
+      key_points: parseList(form.key_points_text),
+      ragas_focus: parseList(form.ragas_focus_text),
       category: form.category.trim() || undefined,
       difficulty: form.difficulty.trim() || undefined,
-      source_docs: form.source_docs_text
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean),
+      source_docs: parseList(form.source_docs_text),
       requires_multi_doc_reasoning: form.requires_multi_doc_reasoning,
       test_objective: form.test_objective.trim() || undefined,
     };
@@ -347,7 +367,8 @@ export default function TestCaseManager() {
                 <Th>問題</Th>
                 <Th>分類</Th>
                 <Th>難度</Th>
-                <Th>來源文件數</Th>
+                <Th isNumeric>來源文件數</Th>
+                <Th isNumeric>Key Points</Th>
                 <Th>操作</Th>
               </Tr>
             </Thead>
@@ -356,11 +377,18 @@ export default function TestCaseManager() {
                 <Tr key={item.id}>
                   <Td>{item.id}</Td>
                   <Td maxW="560px">
-                    <Text noOfLines={2}>{item.question}</Text>
+                    <VStack align="stretch" spacing={1}>
+                      <Text noOfLines={2}>{item.question}</Text>
+                      <HStack spacing={2}>
+                        {item.ground_truth_short ? <Badge colorScheme="purple">short GT</Badge> : null}
+                        {item.ragas_focus.length > 0 ? <Badge colorScheme="orange">focus {item.ragas_focus.length}</Badge> : null}
+                      </HStack>
+                    </VStack>
                   </Td>
                   <Td>{item.category ?? '-'}</Td>
                   <Td>{item.difficulty ?? '-'}</Td>
-                  <Td>{item.source_docs.length}</Td>
+                  <Td isNumeric>{item.source_docs.length}</Td>
+                  <Td isNumeric>{item.key_points.length}</Td>
                   <Td>
                     <HStack>
                       <Button size="xs" onClick={() => openEditModal(item)}>
@@ -375,7 +403,7 @@ export default function TestCaseManager() {
               ))}
               {filteredCases.length === 0 && (
                 <Tr>
-                  <Td colSpan={6}>
+                  <Td colSpan={7}>
                     <Text textAlign="center" py={4}>
                       目前沒有符合條件的題目
                     </Text>
@@ -387,7 +415,7 @@ export default function TestCaseManager() {
         )}
       </Box>
 
-      <Modal isOpen={isOpen} onClose={closeModal} size="2xl">
+      <Modal isOpen={isOpen} onClose={closeModal} size="4xl">
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>{editingId ? '編輯題目' : '新增題目'}</ModalHeader>
@@ -411,14 +439,45 @@ export default function TestCaseManager() {
                 />
               </FormControl>
               <FormControl isRequired>
-                <FormLabel>標準答案</FormLabel>
+                <FormLabel>長版標準答案（master）</FormLabel>
                 <Textarea
                   value={form.ground_truth}
                   onChange={(event) => setForm((prev) => ({ ...prev, ground_truth: event.target.value }))}
-                  rows={4}
+                  rows={5}
                 />
               </FormControl>
-              <Grid templateColumns="1fr 1fr" gap={3}>
+              <FormControl>
+                <FormLabel>短版標準答案（RAGAS-ready）</FormLabel>
+                <Textarea
+                  value={form.ground_truth_short}
+                  onChange={(event) => setForm((prev) => ({ ...prev, ground_truth_short: event.target.value }))}
+                  rows={3}
+                />
+              </FormControl>
+              <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gap={3}>
+                <GridItem>
+                  <FormControl>
+                    <FormLabel>Key Points（每行一點）</FormLabel>
+                    <Textarea
+                      value={form.key_points_text}
+                      onChange={(event) => setForm((prev) => ({ ...prev, key_points_text: event.target.value }))}
+                      rows={5}
+                    />
+                  </FormControl>
+                </GridItem>
+                <GridItem>
+                  <FormControl>
+                    <FormLabel>RAGAS Focus（每行或逗號分隔）</FormLabel>
+                    <Textarea
+                      value={form.ragas_focus_text}
+                      onChange={(event) => setForm((prev) => ({ ...prev, ragas_focus_text: event.target.value }))}
+                      rows={5}
+                      placeholder="answer_correctness\nfaithfulness"
+                    />
+                  </FormControl>
+                </GridItem>
+              </Grid>
+              <Grid templateColumns={{ base: '1fr', md: '1fr 1fr' }} gap={3}>
                 <GridItem>
                   <FormControl>
                     <FormLabel>分類</FormLabel>
@@ -439,10 +498,11 @@ export default function TestCaseManager() {
                 </GridItem>
               </Grid>
               <FormControl>
-                <FormLabel>來源文件（逗號分隔）</FormLabel>
-                <Input
+                <FormLabel>來源文件（逗號或換行分隔）</FormLabel>
+                <Textarea
                   value={form.source_docs_text}
                   onChange={(event) => setForm((prev) => ({ ...prev, source_docs_text: event.target.value }))}
+                  rows={3}
                   placeholder="docA.pdf, docB.pdf"
                 />
               </FormControl>

@@ -76,12 +76,21 @@ describe('evaluationApi', () => {
     mockedApi.post.mockResolvedValue({ data: { id: 'Q1' } });
     mockedApi.put.mockResolvedValue({ data: { id: 'Q1', question: 'updated' } });
 
-    await createTestCase({ question: 'q', ground_truth: 'a', source_docs: [], requires_multi_doc_reasoning: false });
+    await createTestCase({
+      question: 'q',
+      ground_truth: 'a',
+      key_points: [],
+      ragas_focus: [],
+      source_docs: [],
+      requires_multi_doc_reasoning: false,
+    });
     expect(mockedApi.post).toHaveBeenCalledWith('/api/evaluation/test-cases', expect.any(Object));
 
     await updateTestCase('Q1', {
       question: 'updated',
       ground_truth: 'a',
+      key_points: [],
+      ragas_focus: [],
       source_docs: [],
       requires_multi_doc_reasoning: false,
     });
