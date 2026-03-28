@@ -59,6 +59,12 @@ export type CampaignMode = 'naive' | 'advanced' | 'graph' | 'agentic';
 export type CampaignEvaluationPhase = 'execution' | 'evaluation';
 export type CampaignMetricName = string;
 export type ReferenceSource = 'ground_truth_short' | 'ground_truth_fallback_long';
+export type TokenUsage = Record<string, unknown> & {
+  total_tokens?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  reasoning_tokens?: number;
+};
 
 export type CampaignLifecycleStatus =
   | 'pending'
@@ -126,7 +132,7 @@ export interface CampaignResult {
   source_doc_ids: string[];
   expected_sources: string[];
   latency_ms: number;
-  token_usage: Record<string, number>;
+  token_usage: TokenUsage;
   category?: string | null;
   difficulty?: string | null;
   status: CampaignResultStatus;
@@ -228,7 +234,7 @@ export interface AgentTraceStep {
   output_preview?: string | null;
   raw_text?: string | null;
   tool_calls: AgentTraceToolCall[];
-  token_usage: Record<string, number>;
+  token_usage: TokenUsage;
   metadata: Record<string, unknown>;
 }
 
@@ -259,3 +265,4 @@ export type CampaignStreamEvent =
   | { type: 'campaign_completed'; data: CampaignStatus }
   | { type: 'campaign_failed'; data: CampaignStatus }
   | { type: 'campaign_cancelled'; data: CampaignStatus };
+
