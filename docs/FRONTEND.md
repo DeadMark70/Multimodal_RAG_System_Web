@@ -63,6 +63,23 @@
 - `src/services/statsApi.ts`
   - dashboard summary data
 
+## Evaluation UI Contract
+
+- `TestCase` now includes:
+  - `ground_truth_short`
+  - `key_points`
+  - `ragas_focus`
+- `CampaignResult` mirrors those fields for executed samples.
+- `CampaignMetricsResponse` now includes:
+  - `available_metrics`
+  - row-level `metric_values`
+  - row-level `reference_source`
+  - `summary_by_mode`
+  - `summary_by_category`
+  - `summary_by_focus`
+- `EvaluationResults.tsx` uses a runtime metric selector instead of assuming only two fixed metrics.
+- `TestCaseManager.tsx` now edits long-form answers, short-form answers, key points, and ragas focus metadata in one flow.
+
 ## Reliability-Critical Behaviors
 
 - Chat and evaluation streams use authenticated `fetch` + manual SSE parsing rather than browser `EventSource`.
@@ -70,6 +87,7 @@
 - `PASSWORD_RECOVERY` auth events redirect to `/reset-password` if the incoming URL lands elsewhere.
 - Sign-out falls back from global revocation to local cleanup so stale tokens do not trap the UI in an authenticated state.
 - Upload and graph pages expose active job state and polling-driven recovery instead of optimistic silent success.
+- Evaluation results surface `reference_source` so fallback-to-long-answer cases are visible during debug.
 
 ## Focused Verification Surface
 

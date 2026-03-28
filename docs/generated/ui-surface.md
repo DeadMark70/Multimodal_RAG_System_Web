@@ -33,3 +33,16 @@ Human-maintained inventory of the current frontend surface.
 - `pdfApi.ts`: documents and PDF file actions
 - `ragApi.ts`: ask, ask stream, research plan/execute
 - `statsApi.ts`: dashboard metrics
+
+## Evaluation Surface Snapshot
+
+- `TestCaseManager.tsx`
+  - imports/exports master datasets
+  - edits `ground_truth`, `ground_truth_short`, `key_points`, and `ragas_focus`
+- `EvaluationResults.tsx`
+  - reads `available_metrics`
+  - lets the user switch the active metric at runtime
+  - renders grouped summaries by mode, category, and ragas focus
+  - surfaces `reference_source` for correctness-debug workflows
+- `StabilityChart.tsx`
+  - now reads generic `metric_values` instead of only two hard-coded metrics
