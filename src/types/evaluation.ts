@@ -84,6 +84,9 @@ export interface CampaignConfigInput {
   repeat_count: number;
   batch_size: number;
   rpm_limit: number;
+  ragas_batch_size: number;
+  ragas_parallel_batches: number;
+  ragas_rpm_limit: number;
 }
 
 export interface CampaignCreateRequest extends CampaignConfigInput {
@@ -126,6 +129,7 @@ export interface CampaignResult {
   ragas_focus: string[];
   mode: CampaignMode;
   execution_profile?: string | null;
+  context_policy_version?: string | null;
   run_number: number;
   answer: string;
   contexts: string[];
@@ -175,6 +179,7 @@ export interface CampaignMetricRow {
   difficulty?: string | null;
   ragas_focus: string[];
   reference_source?: ReferenceSource | null;
+  context_policy_version?: string | null;
   total_tokens: number;
   metric_values: Record<string, number>;
   faithfulness: number;
@@ -201,6 +206,22 @@ export interface ModeMetricsSummary {
   ecr_note?: string | null;
 }
 
+export interface DeltaModeSummary {
+  mode: CampaignMode;
+  sample_count: number;
+  answer_correctness_mean: number;
+  total_tokens_mean: number;
+  delta_answer_correctness?: number | null;
+  delta_total_tokens?: number | null;
+  ecr?: number | null;
+  ecr_note?: string | null;
+}
+
+export interface DeltaGroupSummary {
+  group_key: string;
+  by_mode: Partial<Record<CampaignMode, DeltaModeSummary>>;
+}
+
 export interface CampaignMetricsResponse {
   campaign: CampaignStatus;
   evaluator_model: string;
@@ -208,6 +229,9 @@ export interface CampaignMetricsResponse {
   summary_by_mode: Partial<Record<CampaignMode, ModeMetricsSummary>>;
   summary_by_category: Record<string, GroupMetricsSummary>;
   summary_by_focus: Record<string, GroupMetricsSummary>;
+  delta_by_category: Record<string, DeltaGroupSummary>;
+  delta_by_difficulty: Record<string, DeltaGroupSummary>;
+  delta_by_question: Record<string, DeltaGroupSummary>;
   rows: CampaignMetricRow[];
 }
 
@@ -245,17 +269,24 @@ export interface AgentTraceSummary {
   question: string;
   mode: CampaignMode;
   execution_profile?: string | null;
+  question_intent?: string | null;
   run_number: number;
   trace_status: AgentTraceStatus;
   summary: string;
   step_count: number;
   tool_call_count: number;
+  visual_verification_attempted?: boolean;
+  visual_tool_call_count?: number;
+  visual_force_fallback_used?: boolean;
   total_tokens: number;
   created_at: string;
 }
 
 export interface AgentTraceDetail extends AgentTraceSummary {
   campaign_id: string;
+  required_coverage?: string[];
+  coverage_gaps?: string[];
+  subtask_coverage_status?: Record<string, boolean>;
   steps: AgentTraceStep[];
 }
 
@@ -265,4 +296,3 @@ export type CampaignStreamEvent =
   | { type: 'campaign_completed'; data: CampaignStatus }
   | { type: 'campaign_failed'; data: CampaignStatus }
   | { type: 'campaign_cancelled'; data: CampaignStatus };
-

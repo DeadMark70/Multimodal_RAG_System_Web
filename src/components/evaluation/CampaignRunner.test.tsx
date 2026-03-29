@@ -78,6 +78,9 @@ const baseCampaignConfig: CampaignConfigInput = {
   repeat_count: 1,
   batch_size: 1,
   rpm_limit: 60,
+  ragas_batch_size: 8,
+  ragas_parallel_batches: 8,
+  ragas_rpm_limit: 1000,
 };
 
 function createCampaignStatus(overrides: Partial<CampaignStatus> = {}): CampaignStatus {
@@ -218,6 +221,13 @@ describe('CampaignRunner', () => {
     await waitFor(() => {
       expect(mockCreateCampaign).toHaveBeenCalledTimes(1);
     });
+    expect(mockCreateCampaign).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ragas_batch_size: 8,
+        ragas_parallel_batches: 8,
+        ragas_rpm_limit: 1000,
+      })
+    );
     await waitFor(() => {
       expect(screen.getAllByText('1 / 1').length).toBeGreaterThan(0);
     });

@@ -32,6 +32,8 @@ import type {
   CampaignMetricsResponse,
   CampaignMode,
   CampaignStatus,
+  DeltaGroupSummary,
+  DeltaModeSummary,
   GroupMetricsSummary,
   ModeMetricsSummary,
 } from '../../types/evaluation';
@@ -92,6 +94,38 @@ function ecrLabel(ecr?: number | null): string {
   return `${ecr.toFixed(2)}%`;
 }
 
+function deltaLabel(delta?: number | null, digits = 3): string {
+  if (delta == null) {
+    return 'N/A';
+  }
+  return delta.toFixed(digits);
+}
+
+function normalizeEcrNote(note?: string | null): string {
+  if (!note) {
+    return '-';
+  }
+  if (note === 'baseline_missing') {
+    return 'baseline_missing';
+  }
+  if (note === 'non_positive_marginal_cost') {
+    return 'non_positive_marginal_cost';
+  }
+  return note;
+}
+
+function questionDelta(
+  metrics: CampaignMetricsResponse,
+  questionId: string,
+  mode: CampaignMode
+): DeltaModeSummary | null {
+  const group = metrics.delta_by_question?.[questionId];
+  if (!group) {
+    return null;
+  }
+  return group.by_mode?.[mode] ?? null;
+}
+
 function metricsToCsv(metrics: CampaignMetricsResponse): string {
   const metricHeaders = metrics.available_metrics;
   const headers = [
@@ -105,24 +139,35 @@ function metricsToCsv(metrics: CampaignMetricsResponse): string {
     'ragas_focus',
     'reference_source',
     'total_tokens',
+    'delta_answer_correctness',
+    'delta_total_tokens',
+    'ecr',
+    'ecr_note',
     ...metricHeaders,
   ];
   const rows = metrics.rows.map((row) =>
-    [
-      row.campaign_result_id,
-      row.question_id,
-      row.question,
-      row.mode,
-      row.run_number,
-      row.category,
-      row.difficulty,
-      row.ragas_focus.join('|'),
-      row.reference_source,
-      row.total_tokens,
-      ...metricHeaders.map((metric) => row.metric_values[metric] ?? 0),
-    ]
-      .map(csvCell)
-      .join(',')
+    {
+      const delta = questionDelta(metrics, row.question_id, row.mode);
+      return [
+        row.campaign_result_id,
+        row.question_id,
+        row.question,
+        row.mode,
+        row.run_number,
+        row.category,
+        row.difficulty,
+        row.ragas_focus.join('|'),
+        row.reference_source,
+        row.total_tokens,
+        delta?.delta_answer_correctness ?? '',
+        delta?.delta_total_tokens ?? '',
+        delta?.ecr ?? '',
+        delta?.ecr_note ?? '',
+        ...metricHeaders.map((metric) => row.metric_values[metric] ?? 0),
+      ]
+        .map(csvCell)
+        .join(',');
+    }
   );
   return [headers.join(','), ...rows].join('\n');
 }
@@ -141,6 +186,19 @@ function metricStd(summary: GroupMetricsSummary | ModeMetricsSummary | undefined
 
 function sortedGroupEntries(groups: Record<string, GroupMetricsSummary>): GroupMetricsSummary[] {
   return Object.values(groups).sort((left, right) => left.group_key.localeCompare(right.group_key));
+}
+
+function sortedDeltaGroupEntries(groups: Record<string, DeltaGroupSummary>): DeltaGroupSummary[] {
+  return Object.values(groups).sort((left, right) => left.group_key.localeCompare(right.group_key));
+}
+
+function flattenDeltaGroups(groups: DeltaGroupSummary[]): Array<{ groupKey: string; summary: DeltaModeSummary }> {
+  return groups.flatMap((group) =>
+    Object.values(group.by_mode)
+      .filter((summary): summary is DeltaModeSummary => summary !== undefined)
+      .sort((left, right) => left.mode.localeCompare(right.mode))
+      .map((summary) => ({ groupKey: group.group_key, summary }))
+  );
 }
 
 export default function EvaluationResults() {
@@ -284,6 +342,36 @@ export default function EvaluationResults() {
   const focusEntries = useMemo(
     () => sortedGroupEntries(metrics?.summary_by_focus ?? {}),
     [metrics]
+  );
+
+  const deltaCategoryEntries = useMemo(
+    () => sortedDeltaGroupEntries(metrics?.delta_by_category ?? {}),
+    [metrics]
+  );
+
+  const deltaDifficultyEntries = useMemo(
+    () => sortedDeltaGroupEntries(metrics?.delta_by_difficulty ?? {}),
+    [metrics]
+  );
+
+  const deltaQuestionEntries = useMemo(
+    () => sortedDeltaGroupEntries(metrics?.delta_by_question ?? {}),
+    [metrics]
+  );
+
+  const deltaCategoryRows = useMemo(
+    () => flattenDeltaGroups(deltaCategoryEntries),
+    [deltaCategoryEntries]
+  );
+
+  const deltaDifficultyRows = useMemo(
+    () => flattenDeltaGroups(deltaDifficultyEntries),
+    [deltaDifficultyEntries]
+  );
+
+  const deltaQuestionRows = useMemo(
+    () => flattenDeltaGroups(deltaQuestionEntries),
+    [deltaQuestionEntries]
   );
 
   const handleExportJson = useCallback(() => {
@@ -520,6 +608,128 @@ export default function EvaluationResults() {
             </GridItem>
           </Grid>
 
+          <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gap={6}>
+            <GridItem>
+              <Box borderWidth="1px" borderRadius="lg" p={5}>
+                <Heading size="md" mb={4}>Category Delta / ECR</Heading>
+                <Table size="sm">
+                  <Thead>
+                    <Tr>
+                      <Th>Category</Th>
+                      <Th>Mode</Th>
+                      <Th isNumeric>Samples</Th>
+                      <Th isNumeric>Δ Correctness</Th>
+                      <Th isNumeric>Δ Tokens</Th>
+                      <Th>ECR</Th>
+                      <Th>ECR Note</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {deltaCategoryRows.map(({ groupKey, summary }) => (
+                      <Tr key={`${groupKey}-${summary.mode}`}>
+                        <Td>{groupKey}</Td>
+                        <Td>{MODE_LABELS[summary.mode]}</Td>
+                        <Td isNumeric>{summary.sample_count}</Td>
+                        <Td isNumeric>{deltaLabel(summary.delta_answer_correctness)}</Td>
+                        <Td isNumeric>{deltaLabel(summary.delta_total_tokens, 1)}</Td>
+                        <Td>
+                          <Badge colorScheme={ecrColor(summary.ecr)}>{ecrLabel(summary.ecr)}</Badge>
+                        </Td>
+                        <Td>{normalizeEcrNote(summary.ecr_note)}</Td>
+                      </Tr>
+                    ))}
+                    {deltaCategoryRows.length === 0 ? (
+                      <Tr>
+                        <Td colSpan={7}>
+                          <Text color="gray.500" py={2}>沒有 category delta 資料。</Text>
+                        </Td>
+                      </Tr>
+                    ) : null}
+                  </Tbody>
+                </Table>
+              </Box>
+            </GridItem>
+            <GridItem>
+              <Box borderWidth="1px" borderRadius="lg" p={5}>
+                <Heading size="md" mb={4}>Difficulty Delta / ECR</Heading>
+                <Table size="sm">
+                  <Thead>
+                    <Tr>
+                      <Th>Difficulty</Th>
+                      <Th>Mode</Th>
+                      <Th isNumeric>Samples</Th>
+                      <Th isNumeric>Δ Correctness</Th>
+                      <Th isNumeric>Δ Tokens</Th>
+                      <Th>ECR</Th>
+                      <Th>ECR Note</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {deltaDifficultyRows.map(({ groupKey, summary }) => (
+                      <Tr key={`${groupKey}-${summary.mode}`}>
+                        <Td>{groupKey}</Td>
+                        <Td>{MODE_LABELS[summary.mode]}</Td>
+                        <Td isNumeric>{summary.sample_count}</Td>
+                        <Td isNumeric>{deltaLabel(summary.delta_answer_correctness)}</Td>
+                        <Td isNumeric>{deltaLabel(summary.delta_total_tokens, 1)}</Td>
+                        <Td>
+                          <Badge colorScheme={ecrColor(summary.ecr)}>{ecrLabel(summary.ecr)}</Badge>
+                        </Td>
+                        <Td>{normalizeEcrNote(summary.ecr_note)}</Td>
+                      </Tr>
+                    ))}
+                    {deltaDifficultyRows.length === 0 ? (
+                      <Tr>
+                        <Td colSpan={7}>
+                          <Text color="gray.500" py={2}>沒有 difficulty delta 資料。</Text>
+                        </Td>
+                      </Tr>
+                    ) : null}
+                  </Tbody>
+                </Table>
+              </Box>
+            </GridItem>
+          </Grid>
+
+          <Box borderWidth="1px" borderRadius="lg" p={5}>
+            <Heading size="md" mb={4}>Question Delta / ECR</Heading>
+            <Table size="sm">
+              <Thead>
+                <Tr>
+                  <Th>Question ID</Th>
+                  <Th>Mode</Th>
+                  <Th isNumeric>Samples</Th>
+                  <Th isNumeric>Δ Correctness</Th>
+                  <Th isNumeric>Δ Tokens</Th>
+                  <Th>ECR</Th>
+                  <Th>ECR Note</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {deltaQuestionRows.map(({ groupKey, summary }) => (
+                  <Tr key={`${groupKey}-${summary.mode}`}>
+                    <Td>{groupKey}</Td>
+                    <Td>{MODE_LABELS[summary.mode]}</Td>
+                    <Td isNumeric>{summary.sample_count}</Td>
+                    <Td isNumeric>{deltaLabel(summary.delta_answer_correctness)}</Td>
+                    <Td isNumeric>{deltaLabel(summary.delta_total_tokens, 1)}</Td>
+                    <Td>
+                      <Badge colorScheme={ecrColor(summary.ecr)}>{ecrLabel(summary.ecr)}</Badge>
+                    </Td>
+                    <Td>{normalizeEcrNote(summary.ecr_note)}</Td>
+                  </Tr>
+                ))}
+                {deltaQuestionRows.length === 0 ? (
+                  <Tr>
+                    <Td colSpan={7}>
+                      <Text color="gray.500" py={2}>沒有 question delta 資料。</Text>
+                    </Td>
+                  </Tr>
+                ) : null}
+              </Tbody>
+            </Table>
+          </Box>
+
           <Box borderWidth="1px" borderRadius="lg" p={5}>
             <Heading size="md" mb={4}>逐題明細</Heading>
             <Table size="sm">
@@ -532,22 +742,33 @@ export default function EvaluationResults() {
                   <Th>Focus</Th>
                   <Th isNumeric>{metricLabel(selectedMetric)}</Th>
                   <Th isNumeric>Tokens</Th>
+                  <Th isNumeric>Δ Correctness</Th>
+                  <Th isNumeric>Δ Tokens</Th>
+                  <Th>ECR</Th>
                 </Tr>
               </Thead>
               <Tbody>
-                {metrics.rows.map((row) => (
-                  <Tr key={row.campaign_result_id}>
-                    <Td maxW="520px">
-                      <Text noOfLines={2}>{row.question}</Text>
-                    </Td>
-                    <Td>{MODE_LABELS[row.mode]}</Td>
-                    <Td>{row.category ?? '-'}</Td>
-                    <Td>{row.reference_source ?? '-'}</Td>
-                    <Td>{row.ragas_focus.join(', ') || '-'}</Td>
-                    <Td isNumeric>{(row.metric_values[selectedMetric] ?? 0).toFixed(3)}</Td>
-                    <Td isNumeric>{row.total_tokens}</Td>
-                  </Tr>
-                ))}
+                {metrics.rows.map((row) => {
+                  const delta = questionDelta(metrics, row.question_id, row.mode);
+                  return (
+                    <Tr key={row.campaign_result_id}>
+                      <Td maxW="520px">
+                        <Text noOfLines={2}>{row.question}</Text>
+                      </Td>
+                      <Td>{MODE_LABELS[row.mode]}</Td>
+                      <Td>{row.category ?? '-'}</Td>
+                      <Td>{row.reference_source ?? '-'}</Td>
+                      <Td>{row.ragas_focus.join(', ') || '-'}</Td>
+                      <Td isNumeric>{(row.metric_values[selectedMetric] ?? 0).toFixed(3)}</Td>
+                      <Td isNumeric>{row.total_tokens}</Td>
+                      <Td isNumeric>{deltaLabel(delta?.delta_answer_correctness)}</Td>
+                      <Td isNumeric>{deltaLabel(delta?.delta_total_tokens, 1)}</Td>
+                      <Td>
+                        <Badge colorScheme={ecrColor(delta?.ecr)}>{ecrLabel(delta?.ecr)}</Badge>
+                      </Td>
+                    </Tr>
+                  );
+                })}
               </Tbody>
             </Table>
           </Box>

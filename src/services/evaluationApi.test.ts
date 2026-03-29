@@ -186,7 +186,13 @@ describe('evaluationApi', () => {
         data: {
           campaign: { id: 'cmp-1' },
           evaluator_model: 'gemini-2.5-pro',
+          available_metrics: [],
           summary_by_mode: {},
+          summary_by_category: {},
+          summary_by_focus: {},
+          delta_by_category: {},
+          delta_by_difficulty: {},
+          delta_by_question: {},
           rows: [],
         },
       });
@@ -211,6 +217,9 @@ describe('evaluationApi', () => {
       repeat_count: 1,
       batch_size: 1,
       rpm_limit: 60,
+      ragas_batch_size: 8,
+      ragas_parallel_batches: 8,
+      ragas_rpm_limit: 1000,
     });
     expect(mockedApi.post).toHaveBeenNthCalledWith(1, '/api/evaluation/campaigns', expect.any(Object));
 
@@ -243,9 +252,9 @@ describe('evaluationApi', () => {
         controller.enqueue(
           encoder.encode(
             'event: campaign_snapshot\n' +
-              'data: {"id":"cmp-1","status":"running","phase":"execution","config":{"test_case_ids":["Q1"],"modes":["naive"],"model_config":{"id":"cfg-1","name":"Balanced","model_name":"gemini","temperature":0.7,"top_p":0.95,"top_k":40,"max_input_tokens":8192,"max_output_tokens":2048,"thinking_mode":false,"thinking_budget":8192},"repeat_count":1,"batch_size":1,"rpm_limit":60},"completed_units":0,"total_units":1,"evaluation_completed_units":0,"evaluation_total_units":0,"cancel_requested":false,"created_at":"2026-03-07T00:00:00+00:00","updated_at":"2026-03-07T00:00:00+00:00"}\n\n' +
+              'data: {"id":"cmp-1","status":"running","phase":"execution","config":{"test_case_ids":["Q1"],"modes":["naive"],"model_config":{"id":"cfg-1","name":"Balanced","model_name":"gemini","temperature":0.7,"top_p":0.95,"top_k":40,"max_input_tokens":8192,"max_output_tokens":2048,"thinking_mode":false,"thinking_budget":8192},"repeat_count":1,"batch_size":1,"rpm_limit":60,"ragas_batch_size":8,"ragas_parallel_batches":8,"ragas_rpm_limit":1000},"completed_units":0,"total_units":1,"evaluation_completed_units":0,"evaluation_total_units":0,"cancel_requested":false,"created_at":"2026-03-07T00:00:00+00:00","updated_at":"2026-03-07T00:00:00+00:00"}\n\n' +
               'event: campaign_completed\n' +
-              'data: {"id":"cmp-1","status":"completed","phase":"evaluation","config":{"test_case_ids":["Q1"],"modes":["naive"],"model_config":{"id":"cfg-1","name":"Balanced","model_name":"gemini","temperature":0.7,"top_p":0.95,"top_k":40,"max_input_tokens":8192,"max_output_tokens":2048,"thinking_mode":false,"thinking_budget":8192},"repeat_count":1,"batch_size":1,"rpm_limit":60},"completed_units":1,"total_units":1,"evaluation_completed_units":1,"evaluation_total_units":1,"cancel_requested":false,"created_at":"2026-03-07T00:00:00+00:00","completed_at":"2026-03-07T00:00:10+00:00","updated_at":"2026-03-07T00:00:10+00:00"}\n\n'
+              'data: {"id":"cmp-1","status":"completed","phase":"evaluation","config":{"test_case_ids":["Q1"],"modes":["naive"],"model_config":{"id":"cfg-1","name":"Balanced","model_name":"gemini","temperature":0.7,"top_p":0.95,"top_k":40,"max_input_tokens":8192,"max_output_tokens":2048,"thinking_mode":false,"thinking_budget":8192},"repeat_count":1,"batch_size":1,"rpm_limit":60,"ragas_batch_size":8,"ragas_parallel_batches":8,"ragas_rpm_limit":1000},"completed_units":1,"total_units":1,"evaluation_completed_units":1,"evaluation_total_units":1,"cancel_requested":false,"created_at":"2026-03-07T00:00:00+00:00","completed_at":"2026-03-07T00:00:10+00:00","updated_at":"2026-03-07T00:00:10+00:00"}\n\n'
           )
         );
         controller.close();
@@ -286,7 +295,7 @@ describe('evaluationApi', () => {
               'event: unknown_event\n' +
               'data: {"ignored":true}\n\n' +
               'event: campaign_failed\n' +
-              'data: {"id":"cmp-1","status":"failed","phase":"evaluation","config":{"test_case_ids":["Q1"],"modes":["naive"],"model_config":{"id":"cfg-1","name":"Balanced","model_name":"gemini","temperature":0.7,"top_p":0.95,"top_k":40,"max_input_tokens":8192,"max_output_tokens":2048,"thinking_mode":false,"thinking_budget":8192},"repeat_count":1,"batch_size":1,"rpm_limit":60},"completed_units":1,"total_units":1,"evaluation_completed_units":0,"evaluation_total_units":1,"cancel_requested":false,"error_message":"RAGAS failed","created_at":"2026-03-07T00:00:00+00:00","updated_at":"2026-03-07T00:00:10+00:00"}'
+              'data: {"id":"cmp-1","status":"failed","phase":"evaluation","config":{"test_case_ids":["Q1"],"modes":["naive"],"model_config":{"id":"cfg-1","name":"Balanced","model_name":"gemini","temperature":0.7,"top_p":0.95,"top_k":40,"max_input_tokens":8192,"max_output_tokens":2048,"thinking_mode":false,"thinking_budget":8192},"repeat_count":1,"batch_size":1,"rpm_limit":60,"ragas_batch_size":8,"ragas_parallel_batches":8,"ragas_rpm_limit":1000},"completed_units":1,"total_units":1,"evaluation_completed_units":0,"evaluation_total_units":1,"cancel_requested":false,"error_message":"RAGAS failed","created_at":"2026-03-07T00:00:00+00:00","updated_at":"2026-03-07T00:00:10+00:00"}'
           )
         );
         controller.close();

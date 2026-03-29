@@ -65,6 +65,9 @@ const baseCampaignConfig: CampaignConfigInput = {
   repeat_count: 1,
   batch_size: 1,
   rpm_limit: 60,
+  ragas_batch_size: 8,
+  ragas_parallel_batches: 8,
+  ragas_rpm_limit: 1000,
 };
 
 const completedCampaign: CampaignStatus = {
@@ -151,6 +154,87 @@ const populatedMetrics: CampaignMetricsResponse = {
       total_tokens: { mean: 125, max: 150, stddev: 35.3 },
     },
   },
+  delta_by_category: {
+    '綜合比較題': {
+      group_key: '綜合比較題',
+      by_mode: {
+        naive: {
+          mode: 'naive',
+          sample_count: 1,
+          answer_correctness_mean: 0.5,
+          total_tokens_mean: 100,
+          delta_answer_correctness: 0,
+          delta_total_tokens: 0,
+          ecr: 0,
+          ecr_note: null,
+        },
+        advanced: {
+          mode: 'advanced',
+          sample_count: 1,
+          answer_correctness_mean: 0.8,
+          total_tokens_mean: 150,
+          delta_answer_correctness: 0.3,
+          delta_total_tokens: 50,
+          ecr: 6,
+          ecr_note: null,
+        },
+      },
+    },
+  },
+  delta_by_difficulty: {
+    hard: {
+      group_key: 'hard',
+      by_mode: {
+        naive: {
+          mode: 'naive',
+          sample_count: 1,
+          answer_correctness_mean: 0.5,
+          total_tokens_mean: 100,
+          delta_answer_correctness: 0,
+          delta_total_tokens: 0,
+          ecr: 0,
+          ecr_note: null,
+        },
+        advanced: {
+          mode: 'advanced',
+          sample_count: 1,
+          answer_correctness_mean: 0.8,
+          total_tokens_mean: 150,
+          delta_answer_correctness: 0.3,
+          delta_total_tokens: 50,
+          ecr: 6,
+          ecr_note: null,
+        },
+      },
+    },
+  },
+  delta_by_question: {
+    Q1: {
+      group_key: 'Q1',
+      by_mode: {
+        naive: {
+          mode: 'naive',
+          sample_count: 1,
+          answer_correctness_mean: 0.5,
+          total_tokens_mean: 100,
+          delta_answer_correctness: 0,
+          delta_total_tokens: 0,
+          ecr: 0,
+          ecr_note: null,
+        },
+        advanced: {
+          mode: 'advanced',
+          sample_count: 1,
+          answer_correctness_mean: 0.8,
+          total_tokens_mean: 150,
+          delta_answer_correctness: 0.3,
+          delta_total_tokens: 50,
+          ecr: 6,
+          ecr_note: null,
+        },
+      },
+    },
+  },
   rows: [
     {
       campaign_result_id: 'r1',
@@ -200,6 +284,9 @@ const emptyMetrics: CampaignMetricsResponse = {
   summary_by_mode: {},
   summary_by_category: {},
   summary_by_focus: {},
+  delta_by_category: {},
+  delta_by_difficulty: {},
+  delta_by_question: {},
   rows: [],
 };
 
@@ -242,6 +329,9 @@ describe('EvaluationResults', () => {
     expect(screen.getByText(/Available metrics:/)).toBeInTheDocument();
     expect(screen.getByText('依 Category 摘要')).toBeInTheDocument();
     expect(screen.getByText('依 RAGAS Focus 摘要')).toBeInTheDocument();
+    expect(screen.getByText('Category Delta / ECR')).toBeInTheDocument();
+    expect(screen.getByText('Difficulty Delta / ECR')).toBeInTheDocument();
+    expect(screen.getByText('Question Delta / ECR')).toBeInTheDocument();
     expect(screen.getByText('ground_truth_short')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('目前指標'), {

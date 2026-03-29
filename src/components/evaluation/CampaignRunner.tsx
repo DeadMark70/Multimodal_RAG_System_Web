@@ -142,6 +142,9 @@ export default function CampaignRunner() {
   const [repeatCount, setRepeatCount] = useState(1);
   const [batchSize, setBatchSize] = useState(1);
   const [rpmLimit, setRpmLimit] = useState(60);
+  const [ragasBatchSize, setRagasBatchSize] = useState(8);
+  const [ragasParallelBatches, setRagasParallelBatches] = useState(8);
+  const [ragasRpmLimit, setRagasRpmLimit] = useState(1000);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [activeCampaign, setActiveCampaign] = useState<ActiveCampaignState>({ snapshot: null, progress: null });
   const [resultsView, setResultsView] = useState<CampaignResultsResponse | null>(null);
@@ -341,6 +344,9 @@ export default function CampaignRunner() {
         repeat_count: repeatCount,
         batch_size: batchSize,
         rpm_limit: rpmLimit,
+        ragas_batch_size: ragasBatchSize,
+        ragas_parallel_batches: ragasParallelBatches,
+        ragas_rpm_limit: ragasRpmLimit,
       });
       const history = await reloadCampaigns();
       const created = history.find((campaign) => campaign.id === response.campaign_id) ?? null;
@@ -466,6 +472,41 @@ export default function CampaignRunner() {
                     <FormLabel>RPM 上限</FormLabel>
                     <Select value={rpmLimit} onChange={(event) => setRpmLimit(Number(event.target.value))}>
                       {[30, 60, 120, 240].map((value) => (
+                        <option key={value} value={value}>{value}</option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </GridItem>
+              </Grid>
+              <Grid templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={4}>
+                <GridItem>
+                  <FormControl>
+                    <FormLabel>RAGAS Batch</FormLabel>
+                    <Select value={ragasBatchSize} onChange={(event) => setRagasBatchSize(Number(event.target.value))}>
+                      {[1, 2, 4, 6, 8].map((size) => (
+                        <option key={size} value={size}>{size}</option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </GridItem>
+                <GridItem>
+                  <FormControl>
+                    <FormLabel>RAGAS 並行批次</FormLabel>
+                    <Select
+                      value={ragasParallelBatches}
+                      onChange={(event) => setRagasParallelBatches(Number(event.target.value))}
+                    >
+                      {[1, 2, 4, 6, 8].map((size) => (
+                        <option key={size} value={size}>{size}</option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </GridItem>
+                <GridItem>
+                  <FormControl>
+                    <FormLabel>RAGAS RPM 上限</FormLabel>
+                    <Select value={ragasRpmLimit} onChange={(event) => setRagasRpmLimit(Number(event.target.value))}>
+                      {[120, 240, 480, 720, 1000].map((value) => (
                         <option key={value} value={value}>{value}</option>
                       ))}
                     </Select>
