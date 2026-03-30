@@ -5,6 +5,7 @@ import type {
   AvailableModel,
   CampaignCreateRequest,
   CampaignCreateResponse,
+  CampaignEvaluateRequest,
   CampaignMetricsResponse,
   CampaignProgressEvent,
   CampaignResultsResponse,
@@ -153,8 +154,18 @@ export async function getCampaignMetrics(campaignId: string): Promise<CampaignMe
   return response.data;
 }
 
-export async function evaluateCampaign(campaignId: string): Promise<CampaignStatus> {
-  const response = await api.post<CampaignStatus>(`/api/evaluation/campaigns/${campaignId}/evaluate`);
+export async function evaluateCampaign(
+  campaignId: string,
+  payload?: CampaignEvaluateRequest
+): Promise<CampaignStatus> {
+  const normalizedPayload =
+    payload?.question_ids && payload.question_ids.length > 0
+      ? { question_ids: payload.question_ids }
+      : undefined;
+  const response = await api.post<CampaignStatus>(
+    `/api/evaluation/campaigns/${campaignId}/evaluate`,
+    normalizedPayload
+  );
   return response.data;
 }
 

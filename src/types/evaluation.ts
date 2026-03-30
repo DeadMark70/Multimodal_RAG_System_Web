@@ -98,6 +98,10 @@ export interface CampaignCreateResponse {
   status: CampaignLifecycleStatus;
 }
 
+export interface CampaignEvaluateRequest {
+  question_ids?: string[];
+}
+
 export interface CampaignStatus {
   id: string;
   name?: string | null;
@@ -182,6 +186,8 @@ export interface CampaignMetricRow {
   context_policy_version?: string | null;
   total_tokens: number;
   metric_values: Record<string, number>;
+  invalid_metrics?: Record<string, boolean>;
+  invalid_reasons?: Record<string, string>;
   faithfulness: number;
   answer_correctness: number;
 }
@@ -201,25 +207,43 @@ export interface ModeMetricsSummary {
   answer_correctness: MetricAggregate;
   total_tokens: MetricAggregate;
   delta_answer_correctness: number;
+  delta_faithfulness: number;
   delta_total_tokens: number;
   ecr?: number | null;
   ecr_note?: string | null;
+  ecr_faithfulness?: number | null;
+  ecr_faithfulness_note?: string | null;
+  ecr_direction_correctness?: 'positive' | 'neutral' | 'negative';
+  ecr_direction_faithfulness?: 'positive' | 'neutral' | 'negative';
 }
 
 export interface DeltaModeSummary {
   mode: CampaignMode;
   sample_count: number;
   answer_correctness_mean: number;
+  faithfulness_mean: number;
   total_tokens_mean: number;
   delta_answer_correctness?: number | null;
+  delta_faithfulness?: number | null;
   delta_total_tokens?: number | null;
   ecr?: number | null;
   ecr_note?: string | null;
+  ecr_faithfulness?: number | null;
+  ecr_faithfulness_note?: string | null;
+  ecr_direction_correctness?: 'positive' | 'neutral' | 'negative';
+  ecr_direction_faithfulness?: 'positive' | 'neutral' | 'negative';
 }
 
 export interface DeltaGroupSummary {
   group_key: string;
   by_mode: Partial<Record<CampaignMode, DeltaModeSummary>>;
+}
+
+export interface EvaluationWarnings {
+  total_metric_rows: number;
+  invalid_metric_rows: number;
+  invalid_ratio: number;
+  invalid_by_metric: Record<string, number>;
 }
 
 export interface CampaignMetricsResponse {
@@ -232,6 +256,7 @@ export interface CampaignMetricsResponse {
   delta_by_category: Record<string, DeltaGroupSummary>;
   delta_by_difficulty: Record<string, DeltaGroupSummary>;
   delta_by_question: Record<string, DeltaGroupSummary>;
+  evaluation_warnings?: EvaluationWarnings;
   rows: CampaignMetricRow[];
 }
 

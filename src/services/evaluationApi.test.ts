@@ -239,10 +239,27 @@ describe('evaluationApi', () => {
     expect(mockedApi.get).toHaveBeenNthCalledWith(5, '/api/evaluation/campaigns/cmp-1/metrics');
 
     await evaluateCampaign('cmp-1');
-    expect(mockedApi.post).toHaveBeenNthCalledWith(2, '/api/evaluation/campaigns/cmp-1/evaluate');
+    expect(mockedApi.post).toHaveBeenNthCalledWith(
+      2,
+      '/api/evaluation/campaigns/cmp-1/evaluate',
+      undefined
+    );
 
     await cancelCampaign('cmp-1');
     expect(mockedApi.post).toHaveBeenNthCalledWith(3, '/api/evaluation/campaigns/cmp-1/cancel');
+  });
+
+  it('passes question_ids payload when rerunning selected questions', async () => {
+    mockedApi.post.mockResolvedValue({
+      data: { id: 'cmp-1', status: 'evaluating' },
+    });
+
+    await evaluateCampaign('cmp-1', { question_ids: ['Q2', 'Q8'] });
+
+    expect(mockedApi.post).toHaveBeenCalledWith(
+      '/api/evaluation/campaigns/cmp-1/evaluate',
+      { question_ids: ['Q2', 'Q8'] }
+    );
   });
 
   it('streams campaign SSE events via fetch', async () => {
