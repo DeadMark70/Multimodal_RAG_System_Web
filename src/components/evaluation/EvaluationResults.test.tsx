@@ -109,9 +109,14 @@ const populatedMetrics: CampaignMetricsResponse = {
       answer_correctness: { mean: 0.5, max: 0.5, stddev: 0 },
       total_tokens: { mean: 100, max: 100, stddev: 0 },
       delta_answer_correctness: 0,
+      delta_faithfulness: 0,
       delta_total_tokens: 0,
       ecr: 0,
       ecr_note: null,
+      ecr_faithfulness: 0,
+      ecr_faithfulness_note: null,
+      ecr_direction_correctness: 'neutral',
+      ecr_direction_faithfulness: 'neutral',
     },
     advanced: {
       mode: 'advanced',
@@ -125,9 +130,14 @@ const populatedMetrics: CampaignMetricsResponse = {
       answer_correctness: { mean: 0.8, max: 0.8, stddev: 0 },
       total_tokens: { mean: 150, max: 150, stddev: 0 },
       delta_answer_correctness: 0.3,
+      delta_faithfulness: 0.3,
       delta_total_tokens: 50,
-      ecr: 6,
-      ecr_note: null,
+      ecr: null,
+      ecr_note: 'marginal_cost_too_small',
+      ecr_faithfulness: null,
+      ecr_faithfulness_note: 'marginal_cost_too_small',
+      ecr_direction_correctness: 'neutral',
+      ecr_direction_faithfulness: 'neutral',
     },
   },
   summary_by_category: {
@@ -162,21 +172,33 @@ const populatedMetrics: CampaignMetricsResponse = {
           mode: 'naive',
           sample_count: 1,
           answer_correctness_mean: 0.5,
+          faithfulness_mean: 0.4,
           total_tokens_mean: 100,
           delta_answer_correctness: 0,
+          delta_faithfulness: 0,
           delta_total_tokens: 0,
           ecr: 0,
           ecr_note: null,
+          ecr_faithfulness: 0,
+          ecr_faithfulness_note: null,
+          ecr_direction_correctness: 'neutral',
+          ecr_direction_faithfulness: 'neutral',
         },
         advanced: {
           mode: 'advanced',
           sample_count: 1,
           answer_correctness_mean: 0.8,
+          faithfulness_mean: 0.7,
           total_tokens_mean: 150,
           delta_answer_correctness: 0.3,
+          delta_faithfulness: 0.3,
           delta_total_tokens: 50,
-          ecr: 6,
-          ecr_note: null,
+          ecr: null,
+          ecr_note: 'marginal_cost_too_small',
+          ecr_faithfulness: null,
+          ecr_faithfulness_note: 'marginal_cost_too_small',
+          ecr_direction_correctness: 'neutral',
+          ecr_direction_faithfulness: 'neutral',
         },
       },
     },
@@ -189,21 +211,33 @@ const populatedMetrics: CampaignMetricsResponse = {
           mode: 'naive',
           sample_count: 1,
           answer_correctness_mean: 0.5,
+          faithfulness_mean: 0.4,
           total_tokens_mean: 100,
           delta_answer_correctness: 0,
+          delta_faithfulness: 0,
           delta_total_tokens: 0,
           ecr: 0,
           ecr_note: null,
+          ecr_faithfulness: 0,
+          ecr_faithfulness_note: null,
+          ecr_direction_correctness: 'neutral',
+          ecr_direction_faithfulness: 'neutral',
         },
         advanced: {
           mode: 'advanced',
           sample_count: 1,
           answer_correctness_mean: 0.8,
+          faithfulness_mean: 0.7,
           total_tokens_mean: 150,
           delta_answer_correctness: 0.3,
+          delta_faithfulness: 0.3,
           delta_total_tokens: 50,
-          ecr: 6,
-          ecr_note: null,
+          ecr: null,
+          ecr_note: 'marginal_cost_too_small',
+          ecr_faithfulness: null,
+          ecr_faithfulness_note: 'marginal_cost_too_small',
+          ecr_direction_correctness: 'neutral',
+          ecr_direction_faithfulness: 'neutral',
         },
       },
     },
@@ -216,23 +250,43 @@ const populatedMetrics: CampaignMetricsResponse = {
           mode: 'naive',
           sample_count: 1,
           answer_correctness_mean: 0.5,
+          faithfulness_mean: 0.4,
           total_tokens_mean: 100,
           delta_answer_correctness: 0,
+          delta_faithfulness: 0,
           delta_total_tokens: 0,
           ecr: 0,
           ecr_note: null,
+          ecr_faithfulness: 0,
+          ecr_faithfulness_note: null,
+          ecr_direction_correctness: 'neutral',
+          ecr_direction_faithfulness: 'neutral',
         },
         advanced: {
           mode: 'advanced',
           sample_count: 1,
           answer_correctness_mean: 0.8,
+          faithfulness_mean: 0.7,
           total_tokens_mean: 150,
           delta_answer_correctness: 0.3,
+          delta_faithfulness: 0.3,
           delta_total_tokens: 50,
-          ecr: 6,
-          ecr_note: null,
+          ecr: null,
+          ecr_note: 'marginal_cost_too_small',
+          ecr_faithfulness: null,
+          ecr_faithfulness_note: 'marginal_cost_too_small',
+          ecr_direction_correctness: 'neutral',
+          ecr_direction_faithfulness: 'neutral',
         },
       },
+    },
+  },
+  evaluation_warnings: {
+    total_metric_rows: 6,
+    invalid_metric_rows: 1,
+    invalid_ratio: 1 / 6,
+    invalid_by_metric: {
+      answer_correctness: 1,
     },
   },
   rows: [
@@ -252,6 +306,8 @@ const populatedMetrics: CampaignMetricsResponse = {
         answer_correctness: 0.5,
         answer_relevancy: 0.45,
       },
+      invalid_metrics: {},
+      invalid_reasons: {},
       faithfulness: 0.4,
       answer_correctness: 0.5,
     },
@@ -271,6 +327,12 @@ const populatedMetrics: CampaignMetricsResponse = {
         answer_correctness: 0.8,
         answer_relevancy: 0.85,
       },
+      invalid_metrics: {
+        answer_correctness: true,
+      },
+      invalid_reasons: {
+        answer_correctness: 'io_aborted',
+      },
       faithfulness: 0.7,
       answer_correctness: 0.8,
     },
@@ -287,6 +349,12 @@ const emptyMetrics: CampaignMetricsResponse = {
   delta_by_category: {},
   delta_by_difficulty: {},
   delta_by_question: {},
+  evaluation_warnings: {
+    total_metric_rows: 0,
+    invalid_metric_rows: 0,
+    invalid_ratio: 0,
+    invalid_by_metric: {},
+  },
   rows: [],
 };
 
@@ -333,6 +401,10 @@ describe('EvaluationResults', () => {
     expect(screen.getByText('Difficulty Delta / ECR')).toBeInTheDocument();
     expect(screen.getByText('Question Delta / ECR')).toBeInTheDocument();
     expect(screen.getByText('ground_truth_short')).toBeInTheDocument();
+    expect(screen.getAllByText('ECR(C)').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('ECR(F)').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('marginal_cost_too_small').length).toBeGreaterThan(0);
+    expect(screen.getByText('Invalid metrics: 1/6 (16.7%)')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('目前指標'), {
       target: { value: 'answer_relevancy' },
@@ -349,7 +421,7 @@ describe('EvaluationResults', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '重新執行 RAGAS' }));
     await waitFor(() => {
-      expect(mockEvaluateCampaign).toHaveBeenCalledWith('cmp-1');
+      expect(mockEvaluateCampaign).toHaveBeenCalledWith('cmp-1', undefined);
     });
 
     clickSpy.mockRestore();
@@ -398,11 +470,32 @@ describe('EvaluationResults', () => {
     fireEvent.click(screen.getByRole('button', { name: '重新執行 RAGAS' }));
 
     await waitFor(() => {
-      expect(mockEvaluateCampaign).toHaveBeenCalledWith('cmp-1');
+      expect(mockEvaluateCampaign).toHaveBeenCalledWith('cmp-1', undefined);
     });
     await waitFor(() => {
       expect(screen.getByText('模式比較總表')).toBeInTheDocument();
     });
     expect(screen.getByText('Evaluator: gemini-2.5-pro')).toBeInTheDocument();
   }, 15000);
+
+  it('submits selected question ids for partial rerun', async () => {
+    mockListCampaigns.mockResolvedValue([completedCampaign]);
+    mockGetCampaignMetrics.mockResolvedValue(populatedMetrics);
+    mockEvaluateCampaign.mockResolvedValue(evaluatingCampaign);
+
+    renderResults();
+
+    await waitFor(() => {
+      expect(screen.getByText('局部重跑選題（Question ID）')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Q1' }));
+    fireEvent.click(screen.getByRole('button', { name: '重新執行 RAGAS（已選題 1）' }));
+
+    await waitFor(() => {
+      expect(mockEvaluateCampaign).toHaveBeenCalledWith('cmp-1', {
+        question_ids: ['Q1'],
+      });
+    });
+  });
 });
