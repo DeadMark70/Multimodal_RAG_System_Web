@@ -43,6 +43,9 @@ Human-maintained inventory of the current frontend surface.
   - reads `available_metrics`
   - lets the user switch the active metric at runtime
   - renders grouped summaries by mode, category, and ragas focus
+  - wraps dense tables in horizontal scroll containers to preserve layout on typical desktop widths
+  - groups `Category / Difficulty / Question Delta` into a tabbed Delta / ECR explorer with sticky leading labels
+  - hides ECR note strings behind tooltip triggers instead of permanent note columns
   - surfaces `reference_source` for correctness-debug workflows
 - `StabilityChart.tsx`
   - now reads generic `metric_values` instead of only two hard-coded metrics

@@ -78,6 +78,8 @@
   - `summary_by_category`
   - `summary_by_focus`
 - `EvaluationResults.tsx` uses a runtime metric selector instead of assuming only two fixed metrics.
+- `EvaluationResults.tsx` renders wide results tables inside horizontal scroll containers instead of letting dense data overflow the page shell.
+- `EvaluationResults.tsx` consolidates `Category / Difficulty / Question Delta` into a tabbed Delta / ECR analysis card and keeps ECR notes behind tooltip triggers instead of always-visible note columns.
 - `TestCaseManager.tsx` now edits long-form answers, short-form answers, key points, and ragas focus metadata in one flow.
 
 ## Reliability-Critical Behaviors
