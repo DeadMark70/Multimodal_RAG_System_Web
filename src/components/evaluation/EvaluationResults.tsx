@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Badge,
   Box,
@@ -10,21 +10,29 @@ import {
   GridItem,
   HStack,
   Heading,
+  Icon,
   Select,
   Spinner,
   Stack,
+  Tab,
   Table,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tabs,
   Tbody,
   Td,
   Text,
   Th,
   Thead,
+  Tooltip,
   Tr,
   VStack,
   Wrap,
   WrapItem,
   useToast,
 } from '@chakra-ui/react';
+import { FiArrowDownRight, FiArrowUpRight, FiInfo, FiMinus } from 'react-icons/fi';
 import {
   evaluateCampaign,
   getCampaignMetrics,
@@ -49,6 +57,23 @@ const MODE_LABELS: Record<CampaignMode, string> = {
   graph: 'Graph',
   agentic: 'Agentic',
 };
+
+type EcrDirection = 'positive' | 'neutral' | 'negative';
+
+interface FlattenedDeltaRow {
+  groupKey: string;
+  summary: DeltaModeSummary;
+}
+
+interface DeltaViewConfig {
+  key: 'category' | 'difficulty' | 'question';
+  label: string;
+  description: string;
+  groupLabel: string;
+  emptyMessage: string;
+  rows: FlattenedDeltaRow[];
+  maxAbsDelta: number;
+}
 
 function downloadTextFile(filename: string, content: string, mimeType: string): void {
   const blob = new Blob([content], { type: `${mimeType};charset=utf-8` });
@@ -78,19 +103,6 @@ function metricLabel(metric: string): string {
     .join(' ');
 }
 
-function ecrColor(ecr?: number | null): string {
-  if (ecr == null) {
-    return 'gray';
-  }
-  if (ecr > 2) {
-    return 'green';
-  }
-  if (ecr >= 1) {
-    return 'yellow';
-  }
-  return 'red';
-}
-
 function ecrLabel(ecr?: number | null): string {
   if (ecr == null) {
     return 'N/A';
@@ -98,11 +110,14 @@ function ecrLabel(ecr?: number | null): string {
   return `${ecr.toFixed(2)}%`;
 }
 
-function deltaLabel(delta?: number | null, digits = 3): string {
+function signedDeltaLabel(delta?: number | null, digits = 3): string {
   if (delta == null) {
     return 'N/A';
   }
-  return delta.toFixed(digits);
+  if (Math.abs(delta) < Number.EPSILON) {
+    return '0';
+  }
+  return `${delta > 0 ? '+' : ''}${delta.toFixed(digits)}`;
 }
 
 function normalizeEcrNote(note?: string | null): string {
@@ -124,25 +139,76 @@ function normalizeEcrNote(note?: string | null): string {
   return note;
 }
 
-function ecrDirectionColor(
-  direction?: 'positive' | 'neutral' | 'negative'
-): string {
-  if (!direction || direction === 'neutral') {
-    return 'gray';
-  }
-  if (direction === 'positive') {
-    return 'green';
-  }
-  return 'red';
+function maxAbs(values: Array<number | null | undefined>): number {
+  return values.reduce((largest, value) => {
+    if (value == null) {
+      return largest;
+    }
+    return Math.max(largest, Math.abs(value));
+  }, 0);
 }
 
-function ecrDirectionLabel(
-  direction?: 'positive' | 'neutral' | 'negative'
-): string {
-  if (!direction) {
-    return 'neutral';
+function deltaTone(value?: number | null): string {
+  if (value == null) {
+    return 'text.secondary';
   }
-  return direction;
+  if (value > 0) {
+    return 'success.500';
+  }
+  if (value < 0) {
+    return 'error.500';
+  }
+  return 'surface.500';
+}
+
+function deltaTrackTone(value?: number | null): string {
+  if (value == null) {
+    return 'surface.300';
+  }
+  if (value > 0) {
+    return 'success.500';
+  }
+  if (value < 0) {
+    return 'error.500';
+  }
+  return 'surface.400';
+}
+
+function ecrTone(ecr?: number | null): string {
+  if (ecr == null) {
+    return 'text.secondary';
+  }
+  if (ecr > 2) {
+    return 'success.500';
+  }
+  if (ecr >= 1) {
+    return 'warning.500';
+  }
+  return 'error.500';
+}
+
+function directionTone(direction?: EcrDirection): string {
+  if (!direction || direction === 'neutral') {
+    return 'surface.500';
+  }
+  if (direction === 'positive') {
+    return 'success.500';
+  }
+  return 'error.500';
+}
+
+function directionLabel(direction?: EcrDirection): string {
+  if (!direction || direction === 'neutral') {
+    return 'Stable';
+  }
+  return direction === 'positive' ? 'Up' : 'Down';
+}
+
+function directionIcon(direction?: EcrDirection) {
+  if (!direction || direction === 'neutral') {
+    return FiMinus;
+  }
+  return direction === 'positive' ? FiArrowUpRight : FiArrowDownRight;
 }
 
 function questionDelta(
@@ -257,12 +323,245 @@ function sortedDeltaGroupEntries(groups: Record<string, DeltaGroupSummary>): Del
   return Object.values(groups).sort((left, right) => left.group_key.localeCompare(right.group_key));
 }
 
-function flattenDeltaGroups(groups: DeltaGroupSummary[]): Array<{ groupKey: string; summary: DeltaModeSummary }> {
+function flattenDeltaGroups(groups: DeltaGroupSummary[]): FlattenedDeltaRow[] {
   return groups.flatMap((group) =>
     Object.values(group.by_mode)
       .filter((summary): summary is DeltaModeSummary => summary !== undefined)
       .sort((left, right) => left.mode.localeCompare(right.mode))
       .map((summary) => ({ groupKey: group.group_key, summary }))
+  );
+}
+
+function ScrollableTable({ children }: { children: ReactNode }) {
+  return (
+    <Box overflowX="auto" pb={1} sx={{ '&::-webkit-scrollbar': { height: '10px' } }}>
+      {children}
+    </Box>
+  );
+}
+
+function SectionCard({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Box bg="bg.panel" borderWidth="1px" borderColor="border.subtle" borderRadius="xl" boxShadow="panel.base" p={5}>
+      <Box mb={4}>
+        <Heading size="md">{title}</Heading>
+        {description ? (
+          <Text mt={1} color="text.secondary" fontSize="sm">
+            {description}
+          </Text>
+        ) : null}
+      </Box>
+      {children}
+    </Box>
+  );
+}
+
+function DeltaMetricCell({
+  value,
+  digits = 3,
+  maxValue,
+}: {
+  value?: number | null;
+  digits?: number;
+  maxValue: number;
+}) {
+  if (value == null) {
+    return (
+      <Text color="text.secondary" fontSize="sm">
+        N/A
+      </Text>
+    );
+  }
+
+  const width = maxValue > 0 ? Math.max((Math.abs(value) / maxValue) * 100, value === 0 ? 0 : 8) : 0;
+
+  return (
+    <Stack spacing={1} align="flex-end" minW="96px">
+      <Text color={deltaTone(value)} fontWeight="700" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+        {signedDeltaLabel(value, digits)}
+      </Text>
+      <Box w="92px" h="1.5" bg="surface.100" borderRadius="full" overflow="hidden">
+        <Box h="100%" w={`${Math.min(width, 100)}%`} bg={deltaTrackTone(value)} borderRadius="full" />
+      </Box>
+    </Stack>
+  );
+}
+
+function EcrBadge({ value }: { value?: number | null }) {
+  return (
+    <Badge
+      px={2.5}
+      py={1}
+      borderRadius="full"
+      bg="surface.100"
+      borderWidth="1px"
+      borderColor="border.subtle"
+      color={ecrTone(value)}
+      fontWeight="700"
+    >
+      {ecrLabel(value)}
+    </Badge>
+  );
+}
+
+function DirectionPill({ direction }: { direction?: EcrDirection }) {
+  return (
+    <Badge
+      px={2.5}
+      py={1}
+      borderRadius="full"
+      bg="surface.100"
+      borderWidth="1px"
+      borderColor="border.subtle"
+      color={directionTone(direction)}
+      fontWeight="700"
+    >
+      <HStack spacing={1}>
+        <Icon as={directionIcon(direction)} boxSize={3.5} />
+        <Text as="span">{directionLabel(direction)}</Text>
+      </HStack>
+    </Badge>
+  );
+}
+
+function NoteTooltip({
+  note,
+  contextLabel,
+}: {
+  note?: string | null;
+  contextLabel: string;
+}) {
+  const normalizedNote = normalizeEcrNote(note);
+  if (normalizedNote === '-') {
+    return (
+      <Text color="text.secondary" fontSize="sm">
+        —
+      </Text>
+    );
+  }
+
+  return (
+    <Tooltip label={normalizedNote} hasArrow openDelay={150}>
+      <Badge
+        as="span"
+        px={2.5}
+        py={1}
+        borderRadius="full"
+        bg="surface.100"
+        borderWidth="1px"
+        borderColor="border.subtle"
+        color="text.secondary"
+        fontWeight="700"
+        cursor="help"
+        aria-label={`${contextLabel}: ${normalizedNote}`}
+      >
+        <HStack spacing={1}>
+          <Icon as={FiInfo} boxSize={3.5} />
+          <Text as="span">Note</Text>
+        </HStack>
+      </Badge>
+    </Tooltip>
+  );
+}
+
+function DeltaTable({
+  rows,
+  groupLabel,
+  emptyMessage,
+  maxAbsDelta,
+}: {
+  rows: FlattenedDeltaRow[];
+  groupLabel: string;
+  emptyMessage: string;
+  maxAbsDelta: number;
+}) {
+  const stickyCellProps = {
+    position: 'sticky' as const,
+    left: 0,
+    bg: 'bg.panel',
+    zIndex: 1,
+    borderRightWidth: '1px',
+    borderRightColor: 'border.subtle',
+  };
+
+  return (
+    <ScrollableTable>
+      <Table size="sm" variant="simple" minW="1160px">
+        <Thead>
+          <Tr>
+            <Th {...stickyCellProps} zIndex={2}>
+              {groupLabel}
+            </Th>
+            <Th>Mode</Th>
+            <Th isNumeric>Samples</Th>
+            <Th isNumeric>Δ Correctness</Th>
+            <Th isNumeric>Δ Faithfulness</Th>
+            <Th isNumeric>Δ Tokens</Th>
+            <Th>ECR(C)</Th>
+            <Th>Dir(C)</Th>
+            <Th>Why(C)</Th>
+            <Th>ECR(F)</Th>
+            <Th>Dir(F)</Th>
+            <Th>Why(F)</Th>
+          </Tr>
+        </Thead>
+        <Tbody>
+          {rows.map(({ groupKey, summary }) => (
+            <Tr key={`${groupKey}-${summary.mode}`}>
+              <Td {...stickyCellProps} fontWeight="600">
+                {groupKey}
+              </Td>
+              <Td>{MODE_LABELS[summary.mode]}</Td>
+              <Td isNumeric>{summary.sample_count}</Td>
+              <Td isNumeric>
+                <DeltaMetricCell value={summary.delta_answer_correctness} maxValue={maxAbsDelta} />
+              </Td>
+              <Td isNumeric>
+                <DeltaMetricCell value={summary.delta_faithfulness} maxValue={maxAbsDelta} />
+              </Td>
+              <Td isNumeric>
+                <DeltaMetricCell value={summary.delta_total_tokens} digits={1} maxValue={maxAbsDelta} />
+              </Td>
+              <Td>
+                <EcrBadge value={summary.ecr} />
+              </Td>
+              <Td>
+                <DirectionPill direction={summary.ecr_direction_correctness} />
+              </Td>
+              <Td>
+                <NoteTooltip note={summary.ecr_note} contextLabel={`${groupLabel} correctness note`} />
+              </Td>
+              <Td>
+                <EcrBadge value={summary.ecr_faithfulness} />
+              </Td>
+              <Td>
+                <DirectionPill direction={summary.ecr_direction_faithfulness} />
+              </Td>
+              <Td>
+                <NoteTooltip note={summary.ecr_faithfulness_note} contextLabel={`${groupLabel} faithfulness note`} />
+              </Td>
+            </Tr>
+          ))}
+          {rows.length === 0 ? (
+            <Tr>
+              <Td colSpan={12}>
+                <Text color="text.secondary" py={2}>
+                  {emptyMessage}
+                </Text>
+              </Td>
+            </Tr>
+          ) : null}
+        </Tbody>
+      </Table>
+    </ScrollableTable>
   );
 }
 
@@ -275,6 +574,7 @@ export default function EvaluationResults() {
   const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [rerunning, setRerunning] = useState(false);
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
+  const [deltaTabIndex, setDeltaTabIndex] = useState(0);
   const toast = useToast();
 
   const selectedCampaign = useMemo(
@@ -437,39 +737,102 @@ export default function EvaluationResults() {
     [metrics]
   );
 
-  const deltaCategoryEntries = useMemo(
-    () => sortedDeltaGroupEntries(metrics?.delta_by_category ?? {}),
-    [metrics]
-  );
-
-  const deltaDifficultyEntries = useMemo(
-    () => sortedDeltaGroupEntries(metrics?.delta_by_difficulty ?? {}),
-    [metrics]
-  );
-
-  const deltaQuestionEntries = useMemo(
-    () => sortedDeltaGroupEntries(metrics?.delta_by_question ?? {}),
-    [metrics]
-  );
-
   const availableQuestionIds = useMemo(
     () => [...new Set(metrics?.rows.map((row) => row.question_id) ?? [])].sort((left, right) => left.localeCompare(right)),
     [metrics]
   );
 
   const deltaCategoryRows = useMemo(
-    () => flattenDeltaGroups(deltaCategoryEntries),
-    [deltaCategoryEntries]
+    () => flattenDeltaGroups(sortedDeltaGroupEntries(metrics?.delta_by_category ?? {})),
+    [metrics]
   );
 
   const deltaDifficultyRows = useMemo(
-    () => flattenDeltaGroups(deltaDifficultyEntries),
-    [deltaDifficultyEntries]
+    () => flattenDeltaGroups(sortedDeltaGroupEntries(metrics?.delta_by_difficulty ?? {})),
+    [metrics]
   );
 
   const deltaQuestionRows = useMemo(
-    () => flattenDeltaGroups(deltaQuestionEntries),
-    [deltaQuestionEntries]
+    () => flattenDeltaGroups(sortedDeltaGroupEntries(metrics?.delta_by_question ?? {})),
+    [metrics]
+  );
+
+  const summaryDeltaMax = useMemo(
+    () =>
+      maxAbs(
+        summaryEntries.flatMap((entry) => [
+          entry.delta_answer_correctness,
+          entry.delta_faithfulness,
+          entry.delta_total_tokens,
+        ])
+      ),
+    [summaryEntries]
+  );
+
+  const detailDeltaMax = useMemo(
+    () =>
+      maxAbs(
+        (metrics?.rows ?? []).flatMap((row) => {
+          const delta = metrics ? questionDelta(metrics, row.question_id, row.mode) : null;
+          return [
+            delta?.delta_answer_correctness,
+            delta?.delta_faithfulness,
+            delta?.delta_total_tokens,
+          ];
+        })
+      ),
+    [metrics]
+  );
+
+  const deltaViews = useMemo<DeltaViewConfig[]>(
+    () => [
+      {
+        key: 'category',
+        label: 'Category Delta / ECR',
+        description: '依題目類型比較不同模式的品質變化、成本變化與 ECR 方向。',
+        groupLabel: 'Category',
+        emptyMessage: '沒有 category delta 資料。',
+        rows: deltaCategoryRows,
+        maxAbsDelta: maxAbs(
+          deltaCategoryRows.flatMap(({ summary }) => [
+            summary.delta_answer_correctness,
+            summary.delta_faithfulness,
+            summary.delta_total_tokens,
+          ])
+        ),
+      },
+      {
+        key: 'difficulty',
+        label: 'Difficulty Delta / ECR',
+        description: '對照不同難度層級下，各模式的進退幅度與成本效益。',
+        groupLabel: 'Difficulty',
+        emptyMessage: '沒有 difficulty delta 資料。',
+        rows: deltaDifficultyRows,
+        maxAbsDelta: maxAbs(
+          deltaDifficultyRows.flatMap(({ summary }) => [
+            summary.delta_answer_correctness,
+            summary.delta_faithfulness,
+            summary.delta_total_tokens,
+          ])
+        ),
+      },
+      {
+        key: 'question',
+        label: 'Question Delta / ECR',
+        description: '逐題查看模式差異，快速找出最需要 drill down 的樣本。',
+        groupLabel: 'Question ID',
+        emptyMessage: '沒有 question delta 資料。',
+        rows: deltaQuestionRows,
+        maxAbsDelta: maxAbs(
+          deltaQuestionRows.flatMap(({ summary }) => [
+            summary.delta_answer_correctness,
+            summary.delta_faithfulness,
+            summary.delta_total_tokens,
+          ])
+        ),
+      },
+    ],
+    [deltaCategoryRows, deltaDifficultyRows, deltaQuestionRows]
   );
 
   useEffect(() => {
@@ -510,15 +873,22 @@ export default function EvaluationResults() {
   }
 
   if (campaigns.length === 0) {
-    return <Text color="gray.500">尚未建立任何 campaign，因此目前沒有可分析的結果。</Text>;
+    return <Text color="text.secondary">尚未建立任何 campaign，因此目前沒有可分析的結果。</Text>;
   }
 
   return (
     <VStack align="stretch" spacing={6}>
-      <Box borderWidth="1px" borderRadius="lg" p={5}>
+      <Box
+        bg="bg.panel"
+        borderWidth="1px"
+        borderColor="border.subtle"
+        borderRadius="xl"
+        boxShadow="panel.base"
+        p={5}
+      >
         <HStack justify="space-between" align="flex-end" flexWrap="wrap" gap={4}>
           <Box minW={{ base: '100%', md: '320px' }}>
-            <Text fontWeight="medium" mb={2}>Campaign</Text>
+            <Text fontWeight="700" mb={2}>Campaign</Text>
             <Select value={selectedCampaignId} onChange={(event) => setSelectedCampaignId(event.target.value)}>
               {campaigns.map((campaign) => (
                 <option key={campaign.id} value={campaign.id}>
@@ -527,7 +897,7 @@ export default function EvaluationResults() {
               ))}
             </Select>
           </Box>
-          <HStack>
+          <HStack spacing={3} flexWrap="wrap">
             <Button variant="outline" onClick={handleExportJson} isDisabled={!metrics}>
               匯出 JSON
             </Button>
@@ -535,7 +905,21 @@ export default function EvaluationResults() {
               匯出 CSV
             </Button>
             {selectedCampaign && (
-              <Badge colorScheme={selectedCampaign.status === 'failed' ? 'red' : selectedCampaign.status === 'evaluating' ? 'blue' : 'green'}>
+              <Badge
+                px={2.5}
+                py={1}
+                borderRadius="full"
+                bg="surface.100"
+                borderWidth="1px"
+                borderColor="border.subtle"
+                color={
+                  selectedCampaign.status === 'failed'
+                    ? 'error.500'
+                    : selectedCampaign.status === 'evaluating'
+                      ? 'brand.500'
+                      : 'success.500'
+                }
+              >
                 {selectedCampaign.status}
               </Badge>
             )}
@@ -554,17 +938,17 @@ export default function EvaluationResults() {
         </HStack>
         {metrics && (
           <Stack spacing={3} mt={4}>
-            <Grid templateColumns={{ base: '1fr', lg: '1fr 280px' }} gap={4}>
+            <Grid templateColumns={{ base: '1fr', lg: 'minmax(0, 1.4fr) minmax(260px, 0.6fr)' }} gap={4}>
               <GridItem>
-                <Text color="gray.600">Evaluator: {metrics.evaluator_model}</Text>
-                <Text color="gray.600">Available metrics: {metrics.available_metrics.map(metricLabel).join(', ') || 'None'}</Text>
-                <Text color="gray.600">
+                <Text color="text.secondary">Evaluator: {metrics.evaluator_model}</Text>
+                <Text color="text.secondary">Available metrics: {metrics.available_metrics.map(metricLabel).join(', ') || 'None'}</Text>
+                <Text color="text.secondary">
                   Invalid metrics: {metrics.evaluation_warnings?.invalid_metric_rows ?? 0}/
                   {metrics.evaluation_warnings?.total_metric_rows ?? 0} (
                   {((metrics.evaluation_warnings?.invalid_ratio ?? 0) * 100).toFixed(1)}%)
                 </Text>
                 {(metrics.evaluation_warnings?.invalid_metric_rows ?? 0) > 0 && (
-                  <Text color="orange.600" fontSize="sm">
+                  <Text color="warning.500" fontSize="sm">
                     Invalid by metric:{' '}
                     {Object.entries(metrics.evaluation_warnings?.invalid_by_metric ?? {})
                       .map(([metricName, count]) => `${metricName}:${count}`)
@@ -586,9 +970,9 @@ export default function EvaluationResults() {
               </GridItem>
             </Grid>
 
-            <Box borderWidth="1px" borderRadius="md" p={3}>
+            <Box borderWidth="1px" borderColor="border.subtle" borderRadius="lg" bg="surface.50" p={3}>
               <HStack justify="space-between" mb={2} flexWrap="wrap" gap={2}>
-                <Text fontWeight="medium">局部重跑選題（Question ID）</Text>
+                <Text fontWeight="700">局部重跑選題（Question ID）</Text>
                 <HStack>
                   <Button size="xs" variant="outline" onClick={selectAllQuestions}>
                     全選
@@ -621,8 +1005,15 @@ export default function EvaluationResults() {
           <Text>載入分析指標...</Text>
         </HStack>
       ) : !metrics || metrics.rows.length === 0 ? (
-        <Box borderWidth="1px" borderRadius="lg" p={5}>
-          <Text color="gray.500">
+        <Box
+          bg="bg.panel"
+          borderWidth="1px"
+          borderColor="border.subtle"
+          borderRadius="xl"
+          boxShadow="panel.base"
+          p={5}
+        >
+          <Text color="text.secondary">
             {selectedCampaign?.status === 'evaluating'
               ? 'RAGAS 評估進行中，結果會在完成後自動更新。'
               : '此 campaign 目前尚無可視覺化的 RAGAS 指標。'}
@@ -630,89 +1021,115 @@ export default function EvaluationResults() {
         </Box>
       ) : (
         <>
-          <Box borderWidth="1px" borderRadius="lg" p={5}>
-            <Heading size="md" mb={4}>模式比較總表</Heading>
-            <Table size="sm">
-              <Thead>
-                <Tr>
-                  <Th>Mode</Th>
-                  <Th isNumeric>Samples</Th>
-                  <Th isNumeric>{metricLabel(selectedMetric)} Mean</Th>
-                  <Th isNumeric>{metricLabel(selectedMetric)} Max</Th>
-                  <Th isNumeric>Stddev</Th>
-                  <Th isNumeric>Tokens</Th>
-                  <Th isNumeric>Δ Correctness</Th>
-                  <Th isNumeric>Δ Faithfulness</Th>
-                  <Th isNumeric>Δ Tokens</Th>
-                  <Th>ECR(C)</Th>
-                  <Th>Dir(C)</Th>
-                  <Th>ECR(F)</Th>
-                  <Th>Dir(F)</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {summaryEntries.map((entry) => (
-                  <Tr key={entry.mode}>
-                    <Td>{MODE_LABELS[entry.mode]}</Td>
-                    <Td isNumeric>{entry.sample_count}</Td>
-                    <Td isNumeric>{metricMean(entry, selectedMetric).toFixed(3)}</Td>
-                    <Td isNumeric>{metricMax(entry, selectedMetric).toFixed(3)}</Td>
-                    <Td isNumeric>{metricStd(entry, selectedMetric).toFixed(3)}</Td>
-                    <Td isNumeric>{entry.total_tokens.mean.toFixed(1)}</Td>
-                    <Td isNumeric>{entry.delta_answer_correctness.toFixed(3)}</Td>
-                    <Td isNumeric>{entry.delta_faithfulness.toFixed(3)}</Td>
-                    <Td isNumeric>{entry.delta_total_tokens.toFixed(1)}</Td>
-                    <Td>
-                      <Badge colorScheme={ecrColor(entry.ecr)}>{ecrLabel(entry.ecr)}</Badge>
-                    </Td>
-                    <Td>
-                      <Badge colorScheme={ecrDirectionColor(entry.ecr_direction_correctness)}>
-                        {ecrDirectionLabel(entry.ecr_direction_correctness)}
-                      </Badge>
-                    </Td>
-                    <Td>
-                      <Badge colorScheme={ecrColor(entry.ecr_faithfulness)}>
-                        {ecrLabel(entry.ecr_faithfulness)}
-                      </Badge>
-                    </Td>
-                    <Td>
-                      <Badge colorScheme={ecrDirectionColor(entry.ecr_direction_faithfulness)}>
-                        {ecrDirectionLabel(entry.ecr_direction_faithfulness)}
-                      </Badge>
-                    </Td>
+          <SectionCard
+            title="模式比較總表"
+            description="比較各模式在目前指標、成本與效益變化上的整體表現。"
+          >
+            <ScrollableTable>
+              <Table size="sm" variant="simple" minW="1040px">
+                <Thead>
+                  <Tr>
+                    <Th>Mode</Th>
+                    <Th isNumeric>Samples</Th>
+                    <Th isNumeric>{metricLabel(selectedMetric)} Mean</Th>
+                    <Th isNumeric>{metricLabel(selectedMetric)} Max</Th>
+                    <Th isNumeric>Stddev</Th>
+                    <Th isNumeric>Tokens</Th>
+                    <Th isNumeric>Δ Correctness</Th>
+                    <Th isNumeric>Δ Faithfulness</Th>
+                    <Th isNumeric>Δ Tokens</Th>
+                    <Th>ECR(C)</Th>
+                    <Th>Dir(C)</Th>
+                    <Th>ECR(F)</Th>
+                    <Th>Dir(F)</Th>
                   </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          </Box>
+                </Thead>
+                <Tbody>
+                  {summaryEntries.map((entry) => (
+                    <Tr key={entry.mode}>
+                      <Td fontWeight="600">{MODE_LABELS[entry.mode]}</Td>
+                      <Td isNumeric>{entry.sample_count}</Td>
+                      <Td isNumeric>{metricMean(entry, selectedMetric).toFixed(3)}</Td>
+                      <Td isNumeric>{metricMax(entry, selectedMetric).toFixed(3)}</Td>
+                      <Td isNumeric>{metricStd(entry, selectedMetric).toFixed(3)}</Td>
+                      <Td isNumeric>{entry.total_tokens.mean.toFixed(1)}</Td>
+                      <Td isNumeric>
+                        <DeltaMetricCell value={entry.delta_answer_correctness} maxValue={summaryDeltaMax} />
+                      </Td>
+                      <Td isNumeric>
+                        <DeltaMetricCell value={entry.delta_faithfulness} maxValue={summaryDeltaMax} />
+                      </Td>
+                      <Td isNumeric>
+                        <DeltaMetricCell value={entry.delta_total_tokens} digits={1} maxValue={summaryDeltaMax} />
+                      </Td>
+                      <Td>
+                        <EcrBadge value={entry.ecr} />
+                      </Td>
+                      <Td>
+                        <DirectionPill direction={entry.ecr_direction_correctness} />
+                      </Td>
+                      <Td>
+                        <EcrBadge value={entry.ecr_faithfulness} />
+                      </Td>
+                      <Td>
+                        <DirectionPill direction={entry.ecr_direction_faithfulness} />
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </ScrollableTable>
+          </SectionCard>
 
-          <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gap={6}>
+          <Grid templateColumns={{ base: '1fr', '2xl': 'minmax(0, 1.5fr) minmax(280px, 0.5fr)' }} gap={6}>
             <GridItem>
               <StabilityChart rows={metrics.rows} metric={selectedMetric} />
             </GridItem>
             <GridItem>
-              <Box borderWidth="1px" borderRadius="lg" p={5} h="100%">
-                <Heading size="md" mb={4}>Reference Source</Heading>
+              <SectionCard
+                title="Reference Source"
+                description="檢查 correctness reference 使用短版標準答案或 fallback 長版答案的比例。"
+              >
                 <Stack spacing={3}>
-                  <Badge colorScheme="purple">
+                  <Badge
+                    px={2.5}
+                    py={1.5}
+                    borderRadius="full"
+                    bg="surface.100"
+                    borderWidth="1px"
+                    borderColor="border.subtle"
+                    color="brand.500"
+                    alignSelf="flex-start"
+                  >
                     short GT rows: {metrics.rows.filter((row) => row.reference_source === 'ground_truth_short').length}
                   </Badge>
-                  <Badge colorScheme="yellow">
+                  <Badge
+                    px={2.5}
+                    py={1.5}
+                    borderRadius="full"
+                    bg="surface.100"
+                    borderWidth="1px"
+                    borderColor="border.subtle"
+                    color="warning.500"
+                    alignSelf="flex-start"
+                  >
                     long fallback rows: {metrics.rows.filter((row) => row.reference_source === 'ground_truth_fallback_long').length}
                   </Badge>
-                  <Text color="gray.600" fontSize="sm">
+                  <Text color="text.secondary" fontSize="sm">
                     這個欄位用來檢查目前 correctness reference 是短版標準答案還是 fallback 到長版答案。
                   </Text>
                 </Stack>
-              </Box>
+              </SectionCard>
             </GridItem>
           </Grid>
 
-          <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gap={6}>
-            <GridItem>
-              <Box borderWidth="1px" borderRadius="lg" p={5}>
-                <Heading size="md" mb={4}>依 Category 摘要</Heading>
-                <Table size="sm">
+          <Stack spacing={6}>
+            <SectionCard
+              title="依 Category 摘要"
+              description="聚合每個類別在目前指標與 token 使用量上的平均表現。"
+            >
+              <ScrollableTable>
+                <Table size="sm" variant="simple" minW="640px">
                   <Thead>
                     <Tr>
                       <Th>Category</Th>
@@ -724,7 +1141,7 @@ export default function EvaluationResults() {
                   <Tbody>
                     {categoryEntries.map((entry) => (
                       <Tr key={entry.group_key}>
-                        <Td>{entry.group_key}</Td>
+                        <Td fontWeight="600">{entry.group_key}</Td>
                         <Td isNumeric>{entry.sample_count}</Td>
                         <Td isNumeric>{metricMean(entry, selectedMetric).toFixed(3)}</Td>
                         <Td isNumeric>{entry.total_tokens.mean.toFixed(1)}</Td>
@@ -733,18 +1150,21 @@ export default function EvaluationResults() {
                     {categoryEntries.length === 0 ? (
                       <Tr>
                         <Td colSpan={4}>
-                          <Text color="gray.500" py={2}>沒有 category 分組資料。</Text>
+                          <Text color="text.secondary" py={2}>沒有 category 分組資料。</Text>
                         </Td>
                       </Tr>
                     ) : null}
                   </Tbody>
                 </Table>
-              </Box>
-            </GridItem>
-            <GridItem>
-              <Box borderWidth="1px" borderRadius="lg" p={5}>
-                <Heading size="md" mb={4}>依 RAGAS Focus 摘要</Heading>
-                <Table size="sm">
+              </ScrollableTable>
+            </SectionCard>
+
+            <SectionCard
+              title="依 RAGAS Focus 摘要"
+              description="聚合不同評估 focus 的整體平均表現，幫助切換觀察維度。"
+            >
+              <ScrollableTable>
+                <Table size="sm" variant="simple" minW="640px">
                   <Thead>
                     <Tr>
                       <Th>Focus</Th>
@@ -756,7 +1176,7 @@ export default function EvaluationResults() {
                   <Tbody>
                     {focusEntries.map((entry) => (
                       <Tr key={entry.group_key}>
-                        <Td>{entry.group_key}</Td>
+                        <Td fontWeight="600">{entry.group_key}</Td>
                         <Td isNumeric>{entry.sample_count}</Td>
                         <Td isNumeric>{metricMean(entry, selectedMetric).toFixed(3)}</Td>
                         <Td isNumeric>{entry.total_tokens.mean.toFixed(1)}</Td>
@@ -765,266 +1185,112 @@ export default function EvaluationResults() {
                     {focusEntries.length === 0 ? (
                       <Tr>
                         <Td colSpan={4}>
-                          <Text color="gray.500" py={2}>沒有 ragas_focus 分組資料。</Text>
+                          <Text color="text.secondary" py={2}>沒有 ragas_focus 分組資料。</Text>
                         </Td>
                       </Tr>
                     ) : null}
                   </Tbody>
                 </Table>
-              </Box>
-            </GridItem>
-          </Grid>
+              </ScrollableTable>
+            </SectionCard>
+          </Stack>
 
-          <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gap={6}>
-            <GridItem>
-              <Box borderWidth="1px" borderRadius="lg" p={5}>
-                <Heading size="md" mb={4}>Category Delta / ECR</Heading>
-                <Table size="sm">
-                  <Thead>
-                    <Tr>
-                      <Th>Category</Th>
-                      <Th>Mode</Th>
-                      <Th isNumeric>Samples</Th>
-                      <Th isNumeric>Δ Correctness</Th>
-                      <Th isNumeric>Δ Faithfulness</Th>
-                      <Th isNumeric>Δ Tokens</Th>
-                      <Th>ECR(C)</Th>
-                      <Th>Dir(C)</Th>
-                      <Th>ECR(C) Note</Th>
-                      <Th>ECR(F)</Th>
-                      <Th>Dir(F)</Th>
-                      <Th>ECR(F) Note</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {deltaCategoryRows.map(({ groupKey, summary }) => (
-                      <Tr key={`${groupKey}-${summary.mode}`}>
-                        <Td>{groupKey}</Td>
-                        <Td>{MODE_LABELS[summary.mode]}</Td>
-                        <Td isNumeric>{summary.sample_count}</Td>
-                        <Td isNumeric>{deltaLabel(summary.delta_answer_correctness)}</Td>
-                        <Td isNumeric>{deltaLabel(summary.delta_faithfulness)}</Td>
-                        <Td isNumeric>{deltaLabel(summary.delta_total_tokens, 1)}</Td>
-                        <Td>
-                          <Badge colorScheme={ecrColor(summary.ecr)}>{ecrLabel(summary.ecr)}</Badge>
-                        </Td>
-                        <Td>
-                          <Badge colorScheme={ecrDirectionColor(summary.ecr_direction_correctness)}>
-                            {ecrDirectionLabel(summary.ecr_direction_correctness)}
-                          </Badge>
-                        </Td>
-                        <Td>{normalizeEcrNote(summary.ecr_note)}</Td>
-                        <Td>
-                          <Badge colorScheme={ecrColor(summary.ecr_faithfulness)}>
-                            {ecrLabel(summary.ecr_faithfulness)}
-                          </Badge>
-                        </Td>
-                        <Td>
-                          <Badge colorScheme={ecrDirectionColor(summary.ecr_direction_faithfulness)}>
-                            {ecrDirectionLabel(summary.ecr_direction_faithfulness)}
-                          </Badge>
-                        </Td>
-                        <Td>{normalizeEcrNote(summary.ecr_faithfulness_note)}</Td>
-                      </Tr>
-                    ))}
-                    {deltaCategoryRows.length === 0 ? (
-                      <Tr>
-                        <Td colSpan={12}>
-                          <Text color="gray.500" py={2}>沒有 category delta 資料。</Text>
-                        </Td>
-                      </Tr>
-                    ) : null}
-                  </Tbody>
-                </Table>
-              </Box>
-            </GridItem>
-            <GridItem>
-              <Box borderWidth="1px" borderRadius="lg" p={5}>
-                <Heading size="md" mb={4}>Difficulty Delta / ECR</Heading>
-                <Table size="sm">
-                  <Thead>
-                    <Tr>
-                      <Th>Difficulty</Th>
-                      <Th>Mode</Th>
-                      <Th isNumeric>Samples</Th>
-                      <Th isNumeric>Δ Correctness</Th>
-                      <Th isNumeric>Δ Faithfulness</Th>
-                      <Th isNumeric>Δ Tokens</Th>
-                      <Th>ECR(C)</Th>
-                      <Th>Dir(C)</Th>
-                      <Th>ECR(C) Note</Th>
-                      <Th>ECR(F)</Th>
-                      <Th>Dir(F)</Th>
-                      <Th>ECR(F) Note</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {deltaDifficultyRows.map(({ groupKey, summary }) => (
-                      <Tr key={`${groupKey}-${summary.mode}`}>
-                        <Td>{groupKey}</Td>
-                        <Td>{MODE_LABELS[summary.mode]}</Td>
-                        <Td isNumeric>{summary.sample_count}</Td>
-                        <Td isNumeric>{deltaLabel(summary.delta_answer_correctness)}</Td>
-                        <Td isNumeric>{deltaLabel(summary.delta_faithfulness)}</Td>
-                        <Td isNumeric>{deltaLabel(summary.delta_total_tokens, 1)}</Td>
-                        <Td>
-                          <Badge colorScheme={ecrColor(summary.ecr)}>{ecrLabel(summary.ecr)}</Badge>
-                        </Td>
-                        <Td>
-                          <Badge colorScheme={ecrDirectionColor(summary.ecr_direction_correctness)}>
-                            {ecrDirectionLabel(summary.ecr_direction_correctness)}
-                          </Badge>
-                        </Td>
-                        <Td>{normalizeEcrNote(summary.ecr_note)}</Td>
-                        <Td>
-                          <Badge colorScheme={ecrColor(summary.ecr_faithfulness)}>
-                            {ecrLabel(summary.ecr_faithfulness)}
-                          </Badge>
-                        </Td>
-                        <Td>
-                          <Badge colorScheme={ecrDirectionColor(summary.ecr_direction_faithfulness)}>
-                            {ecrDirectionLabel(summary.ecr_direction_faithfulness)}
-                          </Badge>
-                        </Td>
-                        <Td>{normalizeEcrNote(summary.ecr_faithfulness_note)}</Td>
-                      </Tr>
-                    ))}
-                    {deltaDifficultyRows.length === 0 ? (
-                      <Tr>
-                        <Td colSpan={12}>
-                          <Text color="gray.500" py={2}>沒有 difficulty delta 資料。</Text>
-                        </Td>
-                      </Tr>
-                    ) : null}
-                  </Tbody>
-                </Table>
-              </Box>
-            </GridItem>
-          </Grid>
-
-          <Box borderWidth="1px" borderRadius="lg" p={5}>
-            <Heading size="md" mb={4}>Question Delta / ECR</Heading>
-            <Table size="sm">
-              <Thead>
-                <Tr>
-                  <Th>Question ID</Th>
-                  <Th>Mode</Th>
-                  <Th isNumeric>Samples</Th>
-                  <Th isNumeric>Δ Correctness</Th>
-                  <Th isNumeric>Δ Faithfulness</Th>
-                  <Th isNumeric>Δ Tokens</Th>
-                  <Th>ECR(C)</Th>
-                  <Th>Dir(C)</Th>
-                  <Th>ECR(C) Note</Th>
-                  <Th>ECR(F)</Th>
-                  <Th>Dir(F)</Th>
-                  <Th>ECR(F) Note</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {deltaQuestionRows.map(({ groupKey, summary }) => (
-                  <Tr key={`${groupKey}-${summary.mode}`}>
-                    <Td>{groupKey}</Td>
-                    <Td>{MODE_LABELS[summary.mode]}</Td>
-                    <Td isNumeric>{summary.sample_count}</Td>
-                    <Td isNumeric>{deltaLabel(summary.delta_answer_correctness)}</Td>
-                    <Td isNumeric>{deltaLabel(summary.delta_faithfulness)}</Td>
-                    <Td isNumeric>{deltaLabel(summary.delta_total_tokens, 1)}</Td>
-                    <Td>
-                      <Badge colorScheme={ecrColor(summary.ecr)}>{ecrLabel(summary.ecr)}</Badge>
-                    </Td>
-                    <Td>
-                      <Badge colorScheme={ecrDirectionColor(summary.ecr_direction_correctness)}>
-                        {ecrDirectionLabel(summary.ecr_direction_correctness)}
-                      </Badge>
-                    </Td>
-                    <Td>{normalizeEcrNote(summary.ecr_note)}</Td>
-                    <Td>
-                      <Badge colorScheme={ecrColor(summary.ecr_faithfulness)}>
-                        {ecrLabel(summary.ecr_faithfulness)}
-                      </Badge>
-                    </Td>
-                    <Td>
-                      <Badge colorScheme={ecrDirectionColor(summary.ecr_direction_faithfulness)}>
-                        {ecrDirectionLabel(summary.ecr_direction_faithfulness)}
-                      </Badge>
-                    </Td>
-                    <Td>{normalizeEcrNote(summary.ecr_faithfulness_note)}</Td>
-                  </Tr>
+          <SectionCard
+            title="Delta / ECR 深入分析"
+            description="用分頁切換不同觀察維度，保留完整資料欄位，同時避免桌面寬度被壓縮。"
+          >
+            <Tabs index={deltaTabIndex} onChange={setDeltaTabIndex} variant="enclosed" isLazy colorScheme="brand">
+              <TabList overflowX="auto" overflowY="hidden" pb={1}>
+                {deltaViews.map((view) => (
+                  <Tab key={view.key} fontWeight="700" whiteSpace="nowrap">
+                    {view.label}
+                  </Tab>
                 ))}
-                {deltaQuestionRows.length === 0 ? (
-                  <Tr>
-                    <Td colSpan={12}>
-                      <Text color="gray.500" py={2}>沒有 question delta 資料。</Text>
-                    </Td>
-                  </Tr>
-                ) : null}
-              </Tbody>
-            </Table>
-          </Box>
+              </TabList>
+              <TabPanels>
+                {deltaViews.map((view) => (
+                  <TabPanel key={view.key} px={0} pt={5}>
+                    <Text color="text.secondary" fontSize="sm" mb={4}>
+                      {view.description}
+                    </Text>
+                    <DeltaTable
+                      rows={view.rows}
+                      groupLabel={view.groupLabel}
+                      emptyMessage={view.emptyMessage}
+                      maxAbsDelta={view.maxAbsDelta}
+                    />
+                  </TabPanel>
+                ))}
+              </TabPanels>
+            </Tabs>
+          </SectionCard>
 
-          <Box borderWidth="1px" borderRadius="lg" p={5}>
-            <Heading size="md" mb={4}>逐題明細</Heading>
-            <Table size="sm">
-              <Thead>
-                <Tr>
-                  <Th>Question</Th>
-                  <Th>Mode</Th>
-                  <Th>Category</Th>
-                  <Th>Reference</Th>
-                  <Th>Focus</Th>
-                  <Th isNumeric>{metricLabel(selectedMetric)}</Th>
-                  <Th isNumeric>Tokens</Th>
-                  <Th isNumeric>Δ Correctness</Th>
-                  <Th isNumeric>Δ Faithfulness</Th>
-                  <Th isNumeric>Δ Tokens</Th>
-                  <Th>ECR(C)</Th>
-                  <Th>Dir(C)</Th>
-                  <Th>ECR(F)</Th>
-                  <Th>Dir(F)</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {metrics.rows.map((row) => {
-                  const delta = questionDelta(metrics, row.question_id, row.mode);
-                  return (
-                    <Tr key={row.campaign_result_id}>
-                      <Td maxW="520px">
-                        <Text noOfLines={2}>{row.question}</Text>
-                      </Td>
-                      <Td>{MODE_LABELS[row.mode]}</Td>
-                      <Td>{row.category ?? '-'}</Td>
-                      <Td>{row.reference_source ?? '-'}</Td>
-                      <Td>{row.ragas_focus.join(', ') || '-'}</Td>
-                      <Td isNumeric>{metricValueLabel(row, selectedMetric)}</Td>
-                      <Td isNumeric>{row.total_tokens}</Td>
-                      <Td isNumeric>{deltaLabel(delta?.delta_answer_correctness)}</Td>
-                      <Td isNumeric>{deltaLabel(delta?.delta_faithfulness)}</Td>
-                      <Td isNumeric>{deltaLabel(delta?.delta_total_tokens, 1)}</Td>
-                      <Td>
-                        <Badge colorScheme={ecrColor(delta?.ecr)}>{ecrLabel(delta?.ecr)}</Badge>
-                      </Td>
-                      <Td>
-                        <Badge colorScheme={ecrDirectionColor(delta?.ecr_direction_correctness)}>
-                          {ecrDirectionLabel(delta?.ecr_direction_correctness)}
-                        </Badge>
-                      </Td>
-                      <Td>
-                        <Badge colorScheme={ecrColor(delta?.ecr_faithfulness)}>
-                          {ecrLabel(delta?.ecr_faithfulness)}
-                        </Badge>
-                      </Td>
-                      <Td>
-                        <Badge colorScheme={ecrDirectionColor(delta?.ecr_direction_faithfulness)}>
-                          {ecrDirectionLabel(delta?.ecr_direction_faithfulness)}
-                        </Badge>
-                      </Td>
-                    </Tr>
-                  );
-                })}
-              </Tbody>
-            </Table>
-          </Box>
+          <SectionCard
+            title="逐題明細"
+            description="逐列查看實驗輸出，並對照 question-level delta / ECR 判斷異常樣本。"
+          >
+            <ScrollableTable>
+              <Table size="sm" variant="simple" minW="1240px">
+                <Thead>
+                  <Tr>
+                    <Th>Question</Th>
+                    <Th>Mode</Th>
+                    <Th>Category</Th>
+                    <Th>Reference</Th>
+                    <Th>Focus</Th>
+                    <Th isNumeric>{metricLabel(selectedMetric)}</Th>
+                    <Th isNumeric>Tokens</Th>
+                    <Th isNumeric>Δ Correctness</Th>
+                    <Th isNumeric>Δ Faithfulness</Th>
+                    <Th isNumeric>Δ Tokens</Th>
+                    <Th>ECR(C)</Th>
+                    <Th>Dir(C)</Th>
+                    <Th>ECR(F)</Th>
+                    <Th>Dir(F)</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {metrics.rows.map((row) => {
+                    const delta = questionDelta(metrics, row.question_id, row.mode);
+                    return (
+                      <Tr key={row.campaign_result_id}>
+                        <Td maxW="520px">
+                          <Text noOfLines={2}>{row.question}</Text>
+                        </Td>
+                        <Td>{MODE_LABELS[row.mode]}</Td>
+                        <Td>{row.category ?? '-'}</Td>
+                        <Td>{row.reference_source ?? '-'}</Td>
+                        <Td>{row.ragas_focus.join(', ') || '-'}</Td>
+                        <Td isNumeric>{metricValueLabel(row, selectedMetric)}</Td>
+                        <Td isNumeric>{row.total_tokens}</Td>
+                        <Td isNumeric>
+                          <DeltaMetricCell value={delta?.delta_answer_correctness} maxValue={detailDeltaMax} />
+                        </Td>
+                        <Td isNumeric>
+                          <DeltaMetricCell value={delta?.delta_faithfulness} maxValue={detailDeltaMax} />
+                        </Td>
+                        <Td isNumeric>
+                          <DeltaMetricCell value={delta?.delta_total_tokens} digits={1} maxValue={detailDeltaMax} />
+                        </Td>
+                        <Td>
+                          <EcrBadge value={delta?.ecr} />
+                        </Td>
+                        <Td>
+                          <DirectionPill direction={delta?.ecr_direction_correctness} />
+                        </Td>
+                        <Td>
+                          <EcrBadge value={delta?.ecr_faithfulness} />
+                        </Td>
+                        <Td>
+                          <DirectionPill direction={delta?.ecr_direction_faithfulness} />
+                        </Td>
+                      </Tr>
+                    );
+                  })}
+                </Tbody>
+              </Table>
+            </ScrollableTable>
+          </SectionCard>
         </>
       )}
     </VStack>

@@ -397,14 +397,17 @@ describe('EvaluationResults', () => {
     expect(screen.getByText(/Available metrics:/)).toBeInTheDocument();
     expect(screen.getByText('依 Category 摘要')).toBeInTheDocument();
     expect(screen.getByText('依 RAGAS Focus 摘要')).toBeInTheDocument();
+    expect(screen.getByText('Delta / ECR 深入分析')).toBeInTheDocument();
     expect(screen.getByText('Category Delta / ECR')).toBeInTheDocument();
     expect(screen.getByText('Difficulty Delta / ECR')).toBeInTheDocument();
     expect(screen.getByText('Question Delta / ECR')).toBeInTheDocument();
     expect(screen.getByText('ground_truth_short')).toBeInTheDocument();
     expect(screen.getAllByText('ECR(C)').length).toBeGreaterThan(0);
     expect(screen.getAllByText('ECR(F)').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('marginal_cost_too_small').length).toBeGreaterThan(0);
     expect(screen.getByText('Invalid metrics: 1/6 (16.7%)')).toBeInTheDocument();
+    expect(screen.getAllByText('+0.300').length).toBeGreaterThan(0);
+    expect(screen.queryByText('marginal_cost_too_small')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Category correctness note: marginal_cost_too_small')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('目前指標'), {
       target: { value: 'answer_relevancy' },
@@ -426,6 +429,23 @@ describe('EvaluationResults', () => {
 
     clickSpy.mockRestore();
   }, 15000);
+
+  it('switches delta tabs and keeps notes behind tooltip triggers', async () => {
+    mockListCampaigns.mockResolvedValue([completedCampaign]);
+    mockGetCampaignMetrics.mockResolvedValue(populatedMetrics);
+
+    renderResults();
+
+    await waitFor(() => {
+      expect(screen.getByText('Delta / ECR 深入分析')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Difficulty Delta / ECR' }));
+    expect(screen.getByLabelText('Difficulty correctness note: marginal_cost_too_small')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Question Delta / ECR' }));
+    expect(screen.getByLabelText('Question ID correctness note: marginal_cost_too_small')).toBeInTheDocument();
+  });
 
   it('shows empty metrics copy for completed campaigns without RAGAS rows', async () => {
     mockListCampaigns.mockResolvedValue([completedCampaign]);
