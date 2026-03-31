@@ -33,7 +33,7 @@ export const ResearchStepsAccordion: React.FC<ResearchStepsAccordionProps> = ({ 
             <AccordionButton _expanded={{ bg: 'blue.50', color: 'blue.600' }}>
               <Box flex="1" textAlign="left" fontWeight="medium">
                 <HStack>
-                   <Badge colorScheme="purple">Step {task.id}</Badge>
+                   <Badge colorScheme="purple">步驟 {task.id}</Badge>
                    <Text noOfLines={1}>{task.question}</Text>
                 </HStack>
               </Box>
@@ -43,7 +43,7 @@ export const ResearchStepsAccordion: React.FC<ResearchStepsAccordionProps> = ({ 
           <AccordionPanel pb={4} bg="white">
             <VStack align="start" spacing={3}>
               <Box w="full">
-                 <Text fontWeight="bold" mb={1} color="gray.700">Answer:</Text>
+                 <Text fontWeight="bold" mb={1} color="gray.700">回答</Text>
                  <Box bg="gray.50" p={3} borderRadius="md" fontSize="sm">
                    <ReactMarkdown>{task.answer}</ReactMarkdown>
                  </Box>
@@ -52,8 +52,8 @@ export const ResearchStepsAccordion: React.FC<ResearchStepsAccordionProps> = ({ 
               {task.thought_process && (
                 <Box w="full">
                   <HStack mb={1}>
-                    <Icon as={FaBrain} color="orange.400" />
-                    <Text fontWeight="bold" color="gray.700" fontSize="sm">Thinking Process:</Text>
+                     <Icon as={FaBrain} color="orange.400" />
+                     <Text fontWeight="bold" color="gray.700" fontSize="sm">思考過程</Text>
                   </HStack>
                   <Text fontSize="xs" color="gray.600" fontStyle="italic" bg="orange.50" p={2} borderRadius="md">
                     {task.thought_process}
@@ -63,7 +63,7 @@ export const ResearchStepsAccordion: React.FC<ResearchStepsAccordionProps> = ({ 
 
               {task.sources && task.sources.length > 0 && (
                 <Box w="full">
-                  <Text fontWeight="bold" mb={1} fontSize="sm" color="gray.700">Sources:</Text>
+                  <Text fontWeight="bold" mb={1} fontSize="sm" color="gray.700">來源</Text>
                   <VStack align="start" pl={2}>
                     {task.sources.map((source, idx) => (
                       <HStack key={idx} fontSize="xs">

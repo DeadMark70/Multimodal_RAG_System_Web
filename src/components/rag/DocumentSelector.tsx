@@ -24,18 +24,28 @@ interface DocumentSelectorProps {
   selectedIds: string[];
   onSelectionChange: (ids: string[]) => void;
   maxSelection?: number;
+  compact?: boolean;
+  listMaxH?: string | number;
 }
 
 export default function DocumentSelector({ 
   selectedIds, 
   onSelectionChange, 
-  maxSelection = 10 
+  maxSelection = 10,
+  compact = false,
+  listMaxH = compact ? '240px' : '200px',
 }: DocumentSelectorProps) {
   const { data: documents, isLoading, error, refetch } = useDocumentList();
   
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const hoverBg = useColorModeValue('gray.50', 'whiteAlpha.100');
   const textColor = useColorModeValue('gray.700', 'white');
+  const headerBg = useColorModeValue('white', 'gray.800');
+  const mutedColor = useColorModeValue('gray.500', 'gray.400');
+  const rowPadding = compact ? 1.5 : 2;
+  const rowRadius = compact ? 'lg' : 'md';
+  const iconSize = compact ? 12 : 14;
+  const fontSize = compact ? 'xs' : 'sm';
 
   const handleToggle = (docId: string) => {
     if (selectedIds.includes(docId)) {
@@ -97,73 +107,94 @@ export default function DocumentSelector({
 
   return (
     <Box>
-      <Flex justify="space-between" align="center" mb={3}>
-        <Text fontWeight="bold" fontSize="sm" color={textColor}>
-          選擇文件 ({selectedIds.length}/{maxSelection})
-        </Text>
-        <Flex gap={2}>
-          <Button
-            size="xs"
-            variant="link"
-            colorScheme="purple"
-            onClick={handleSelectAll}
-          >
-            全選
-          </Button>
-          <Button
-            size="xs"
-            variant="link"
-            colorScheme="gray"
-            onClick={handleClearAll}
-          >
-            清除
-          </Button>
-        </Flex>
-      </Flex>
-
-      <VStack 
-        align="stretch" 
-        spacing={1} 
-        maxH="200px" 
-        overflowY="auto"
+      <Box
         borderWidth="1px"
         borderColor={borderColor}
-        borderRadius="md"
-        p={2}
+        borderRadius="xl"
+        overflow="hidden"
+        bg={headerBg}
       >
-        {readyDocs.map((doc) => (
+        <Box maxH={listMaxH} overflowY="auto">
           <Flex
-            key={doc.id}
+            position="sticky"
+            top={0}
+            zIndex={1}
+            justify="space-between"
             align="center"
-            gap={2}
-            p={2}
-            borderRadius="md"
-            _hover={{ bg: hoverBg }}
+            px={compact ? 3 : 4}
+            py={compact ? 3 : 3}
+            bg={headerBg}
+            borderBottom="1px solid"
+            borderColor={borderColor}
           >
-            <Checkbox
-              aria-label={`選擇文件 ${doc.file_name}`}
-              isChecked={selectedIds.includes(doc.id)}
-              onChange={() => handleToggle(doc.id)}
-              colorScheme="brand"
-              size="sm"
-            />
-            <FiFile size={14} color="gray" />
-            <Tooltip label={doc.file_name} placement="top">
-              <Text 
-                fontSize="sm" 
-                noOfLines={1} 
-                flex={1}
-                color={textColor}
-              >
-                {doc.file_name}
+            <Box minW={0}>
+              <Text fontWeight="bold" fontSize={compact ? 'xs' : 'sm'} color={textColor}>
+                選擇文件 ({selectedIds.length}/{maxSelection})
               </Text>
-            </Tooltip>
-            {selectedIds.includes(doc.id) && (
-              <Badge colorScheme="brand" size="sm">已選</Badge>
-            )}
+              <Text fontSize="xs" color={mutedColor}>
+                未選擇時將搜尋整個知識庫
+              </Text>
+            </Box>
+            <Flex gap={2} flexShrink={0}>
+              <Button
+                size="xs"
+                variant="ghost"
+                colorScheme="purple"
+                onClick={handleSelectAll}
+              >
+                全選
+              </Button>
+              <Button
+                size="xs"
+                variant="ghost"
+                colorScheme="gray"
+                onClick={handleClearAll}
+              >
+                清除
+              </Button>
+            </Flex>
           </Flex>
-        ))}
-      </VStack>
+
+          <VStack align="stretch" spacing={1} p={compact ? 2 : 2}>
+            {readyDocs.map((doc) => (
+              <Flex
+                key={doc.id}
+                align="center"
+                gap={2}
+                px={compact ? 2 : 2}
+                py={rowPadding}
+                borderRadius={rowRadius}
+                _hover={{ bg: hoverBg }}
+              >
+                <Checkbox
+                  aria-label={`選擇文件 ${doc.file_name}`}
+                  isChecked={selectedIds.includes(doc.id)}
+                  onChange={() => handleToggle(doc.id)}
+                  colorScheme="brand"
+                  size="sm"
+                />
+                <FiFile size={iconSize} color="gray" />
+                <Tooltip label={doc.file_name} placement="top">
+                  <Text
+                    fontSize={fontSize}
+                    noOfLines={1}
+                    flex={1}
+                    color={textColor}
+                    minW={0}
+                  >
+                    {doc.file_name}
+                  </Text>
+                </Tooltip>
+                {selectedIds.includes(doc.id) && (
+                  <Badge colorScheme="brand" size="sm">
+                    已選
+                  </Badge>
+                )}
+              </Flex>
+            ))}
+          </VStack>
+        </Box>
+      </Box>
 
       {selectedIds.length === 0 && (
         <Text fontSize="xs" color="gray.400" mt={2} textAlign="center">

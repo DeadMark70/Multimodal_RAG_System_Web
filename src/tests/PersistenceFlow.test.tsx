@@ -177,7 +177,7 @@ describe('End-to-End Persistence Flow', () => {
     });
 
     // 3. User types and sends message
-    const input = screen.getByPlaceholderText('輸入您的問題...');
+    const input = screen.getByPlaceholderText('輸入您的問題…');
 
     fireEvent.change(input, { target: { value: 'Hello Persistence' } });
     

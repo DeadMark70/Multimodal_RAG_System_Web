@@ -63,6 +63,22 @@
 - `src/services/statsApi.ts`
   - dashboard summary data
 
+## Chat UI Contract
+
+- `Chat.tsx` now relies on the `Layout` content shell plus a local flex chain for height control; the page no longer uses a hard-coded viewport subtraction to size the desktop workspace.
+- Desktop `/chat` now has three stable regions:
+  - conversation history column
+  - main message / Deep Research workspace
+  - compact right rail with document scope, preset summary, and optional evaluation summary
+- Full `SettingsPanel` no longer renders inline on the desktop right rail; it opens from a dedicated right-side drawer instead.
+- `DocumentSelector.tsx` now supports a compact/sticky-header presentation for the desktop right rail while preserving the existing drawer/mobile usage.
+- `DeepResearchPanel.tsx` now separates `Plan`, `Run`, and `Report` views:
+  - plan editing remains inline
+  - run view keeps progress in a single scroll region and auto-expands active tasks
+  - report view shows a compact summary in-page and moves the full markdown report into a drawer
+- `MessageBubble.tsx` now treats sources as collapsible secondary content and renders assistant/image content with explicit frame/border affordances.
+- `ConversationSidebar.tsx` now renders button-like selectable rows with explicit keyboard support and a sticky search/new header.
+
 ## Evaluation UI Contract
 
 - `TestCase` now includes:

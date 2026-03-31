@@ -7,7 +7,7 @@
  * - 搜尋對話
  */
 
-import { useState } from 'react';
+import { useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
   Box,
   VStack,
@@ -69,6 +69,17 @@ export default function ConversationSidebar({
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
   const textColor = useColorModeValue('gray.700', 'white');
   const subTextColor = useColorModeValue('gray.500', 'gray.400');
+  const headerBg = useColorModeValue('white', 'navy.800');
+  const searchBg = useColorModeValue('gray.50', 'whiteAlpha.50');
+
+  const timeFormatter = new Intl.DateTimeFormat('zh-TW', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const dateFormatter = new Intl.DateTimeFormat('zh-TW', {
+    month: 'short',
+    day: 'numeric',
+  });
 
   // 過濾對話
   const filteredConversations = conversations.filter(conv =>
@@ -83,13 +94,13 @@ export default function ConversationSidebar({
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
     if (diffDays === 0) {
-      return date.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+      return timeFormatter.format(date);
     } else if (diffDays === 1) {
       return '昨天';
     } else if (diffDays < 7) {
       return `${diffDays} 天前`;
     } else {
-      return date.toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' });
+      return dateFormatter.format(date);
     }
   };
 
@@ -145,9 +156,24 @@ export default function ConversationSidebar({
 
   return (
     <>
-      <VStack h="100%" spacing={0} align="stretch" bg={bg} borderRadius="xl" overflow="hidden">
+      <VStack
+        flex={1}
+        h="100%"
+        minH={0}
+        spacing={0}
+        align="stretch"
+        bg={bg}
+        borderRadius="xl"
+        overflow="hidden"
+      >
         {/* Header */}
-        <Box p={4} borderBottom="1px solid" borderColor={borderColor}>
+        <Box
+          p={4}
+          flexShrink={0}
+          borderBottom="1px solid"
+          borderColor={borderColor}
+          bg={headerBg}
+        >
           <Flex justify="space-between" align="center" mb={3}>
             <Text fontWeight="bold" fontSize="lg" color={textColor}>
               對話紀錄
@@ -176,16 +202,17 @@ export default function ConversationSidebar({
             </InputLeftElement>
             <Input
               aria-label="搜尋對話"
-              placeholder="搜尋對話..."
+              placeholder="搜尋對話…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              borderRadius="md"
+              borderRadius="full"
+              bg={searchBg}
             />
           </InputGroup>
         </Box>
 
         {/* Conversation List */}
-        <Box flex={1} overflowY="auto" p={2}>
+        <Box flex={1} minH={0} overflowY="auto" p={2}>
           {isLoading ? (
             <VStack spacing={2}>
               {[1, 2, 3].map(i => (
@@ -222,35 +249,97 @@ export default function ConversationSidebar({
                 const isActive = conv.id === currentId;
 
                 return (
-                  <HStack
+                  <Flex
                     key={conv.id}
-                    p={3}
-                    borderRadius="md"
-                    cursor="pointer"
+                    p={2}
+                    borderRadius="lg"
                     bg={isActive ? activeBg : 'transparent'}
                     _hover={{ bg: isActive ? activeBg : hoverBg }}
-                    onClick={() => onSelect(conv)}
                     transition="background 0.2s"
                     role="group"
+                    align="stretch"
+                    gap={2}
                   >
-                    <Box color={`${typeInfo.color}.500`}>
-                      <typeInfo.icon size={18} />
+                    <Box
+                      as="button"
+                      type="button"
+                      onClick={() => onSelect(conv)}
+                      onKeyDown={(event: ReactKeyboardEvent<HTMLButtonElement>) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          onSelect(conv);
+                        }
+                      }}
+                      flex={1}
+                      minW={0}
+                      textAlign="left"
+                      px={3}
+                      py={2}
+                      borderRadius="md"
+                      _focusVisible={{
+                        outline: '2px solid',
+                        outlineColor: 'brand.400',
+                        outlineOffset: '2px',
+                      }}
+                    >
+                      <VStack align="stretch" spacing={1}>
+                        <HStack justify="space-between" align="start" spacing={2}>
+                          <HStack spacing={2} minW={0}>
+                            <Box color={`${typeInfo.color}.500`} flexShrink={0}>
+                              <typeInfo.icon size={16} />
+                            </Box>
+                            <Text
+                              fontSize="sm"
+                              fontWeight={isActive ? 'semibold' : 'medium'}
+                              color={textColor}
+                              noOfLines={1}
+                              minW={0}
+                            >
+                              {conv.title}
+                            </Text>
+                          </HStack>
+                          <Text fontSize="xs" color={subTextColor} flexShrink={0}>
+                            {formatTime(conv.updated_at)}
+                          </Text>
+                        </HStack>
+                        <HStack spacing={2} wrap="wrap">
+                          <Box
+                            as="span"
+                            px={2}
+                            py={0.5}
+                            borderRadius="full"
+                            bg={isActive ? `${typeInfo.color}.100` : 'transparent'}
+                            color={`${typeInfo.color}.500`}
+                            fontSize="xs"
+                            fontWeight="semibold"
+                          >
+                            {typeInfo.label}
+                          </Box>
+                          {isActive && (
+                            <Box
+                              as="span"
+                              px={2}
+                              py={0.5}
+                              borderRadius="full"
+                              bg="green.100"
+                              color="green.700"
+                              fontSize="xs"
+                              fontWeight="semibold"
+                            >
+                              目前對話
+                            </Box>
+                          )}
+                        </HStack>
+                      </VStack>
                     </Box>
-                    <Box flex={1} minW={0}>
-                      <Text
-                        fontSize="sm"
-                        fontWeight={isActive ? 'medium' : 'normal'}
-                        color={textColor}
-                        noOfLines={1}
-                      >
-                        {conv.title}
-                      </Text>
-                      <Text fontSize="xs" color={subTextColor}>
-                        {formatTime(conv.updated_at)}
-                      </Text>
-                    </Box>
-                    
-                    <HStack spacing={1} opacity={0} _groupHover={{ opacity: 1 }} transition="opacity 0.2s">
+
+                    <HStack
+                      spacing={1}
+                      opacity={isActive ? 1 : 0}
+                      _groupHover={{ opacity: 1 }}
+                      transition="opacity 0.2s"
+                      alignSelf="center"
+                    >
                       {conv.type === 'research' && (
                         <Tooltip label="查看研究詳情" placement="top">
                           <IconButton
@@ -282,7 +371,7 @@ export default function ConversationSidebar({
                         />
                       </Tooltip>
                     </HStack>
-                  </HStack>
+                  </Flex>
                 );
               })}
             </VStack>

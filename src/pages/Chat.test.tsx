@@ -9,10 +9,19 @@ import theme from '../theme';
 import { useSettingsStore } from '../stores';
 
 const mockSetCurrentChatId = vi.fn();
+const scrollToMock = vi.fn();
+const scrollIntoViewMock = vi.fn();
 
 vi.mock('../components/layout/Layout', () => ({
   default: ({ children }: { children: React.ReactNode }) => <div data-testid="layout">{children}</div>,
 }));
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useLocation: () => ({ pathname: '/chat' }),
+  };
+});
 vi.mock('../components/rag/ConversationSidebar', () => ({
   default: ({
     onSelect,
@@ -94,6 +103,20 @@ const queryClient = new QueryClient({
 describe('Chat Page Integration', () => {
   beforeEach(() => {
     localStorage.clear();
+    scrollToMock.mockReset();
+    scrollIntoViewMock.mockReset();
+    Object.defineProperty(window, 'scrollTo', {
+      configurable: true,
+      value: scrollToMock,
+    });
+    Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+      configurable: true,
+      value: scrollToMock,
+    });
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoViewMock,
+    });
     useSettingsStore.setState({
       ...useSettingsStore.getState(),
       ragSettings: {
@@ -137,6 +160,36 @@ describe('Chat Page Integration', () => {
       </QueryClientProvider>
     );
 
+    expect(screen.getByTestId('chat-shell')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-main-layout')).toBeInTheDocument();
     expect(screen.getByTestId('chat-desktop-right-rail')).toBeInTheDocument();
+    expect(screen.queryByText('SettingsPanel')).not.toBeInTheDocument();
+  });
+
+  it('opens settings drawer from the desktop rail trigger', () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChakraProvider theme={theme}>
+          <Chat />
+        </ChakraProvider>
+      </QueryClientProvider>
+    );
+
+    fireEvent.click(screen.getByTestId('chat-settings-trigger'));
+
+    expect(screen.getByText('SettingsPanel')).toBeInTheDocument();
+  });
+
+  it('scrolls the message region without scrolling the outer layout sentinel into view', () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChakraProvider theme={theme}>
+          <Chat />
+        </ChakraProvider>
+      </QueryClientProvider>
+    );
+
+    expect(scrollToMock).toHaveBeenCalled();
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
   });
 });

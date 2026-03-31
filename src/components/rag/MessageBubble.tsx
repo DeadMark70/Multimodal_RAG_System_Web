@@ -20,8 +20,11 @@ import {
   useColorModeValue,
   useDisclosure,
   Link,
+  Button,
+  HStack,
+  Collapse,
 } from '@chakra-ui/react';
-import { FiUser, FiCpu } from 'react-icons/fi';
+import { FiUser, FiCpu, FiChevronDown, FiChevronUp, FiSearch } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import type { Components } from 'react-markdown';
@@ -88,6 +91,7 @@ export default function MessageBubble({
 }: MessageBubbleProps) {
   const isUser = role === 'user';
   const align = isUser ? 'flex-end' : 'flex-start';
+  const [showSources, setShowSources] = useState(false);
   
   // 圖片預覽狀態
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -100,7 +104,7 @@ export default function MessageBubble({
   }, [onOpen]);
   
   // Modern Gradient for User, Clean White/Dark for AI
-  const aiBg = useColorModeValue('white', '#1B254B');
+  const aiBg = useColorModeValue('gray.50', '#1E293B');
   const bg = isUser 
     ? 'linear-gradient(135deg, #4318FF 0%, #774FFF 100%)' 
     : aiBg;
@@ -109,11 +113,16 @@ export default function MessageBubble({
   const textColor = isUser ? 'white' : aiTextColor;
   const linkColor = useColorModeValue('brand.500', 'brand.300');
   const codeBg = useColorModeValue('gray.100', 'gray.700');
+  const aiBorderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
+  const imageFrameBg = useColorModeValue('white', 'whiteAlpha.100');
+  const imageBorderColor = useColorModeValue('blackAlpha.100', 'whiteAlpha.200');
+  const chipBg = useColorModeValue('brand.50', 'whiteAlpha.100');
+  const chipBorderColor = useColorModeValue('brand.100', 'whiteAlpha.200');
   
   // Soft shadow for depth
   const boxShadow = isUser 
     ? '0px 4px 12px rgba(67, 24, 255, 0.3)' 
-    : '0px 2px 8px rgba(0, 0, 0, 0.05)';
+    : '0px 8px 24px rgba(15, 23, 42, 0.08)';
 
   // Markdown 自定義元件
   const markdownComponents: Components = useMemo(() => ({
@@ -121,20 +130,56 @@ export default function MessageBubble({
     img: ({ src, alt, ...props }) => {
       const transformedSrc = transformImageUrl(src);
       return (
-        <Image
-          src={transformedSrc}
-          alt={alt || '圖片'}
-          borderRadius="md"
-          maxH="300px"
-          my={2}
-          cursor="zoom-in"
-          transition="transform 0.2s"
-          _hover={{ transform: 'scale(1.02)' }}
+        <Box
+          as="button"
+          type="button"
           onClick={() => handleImageClick(transformedSrc, alt || '圖片')}
-          loading="lazy"
-          fallbackSrc="https://via.placeholder.com/300x200?text=Loading..."
-          {...props}
-        />
+          position="relative"
+          display="block"
+          w="full"
+          maxW="420px"
+          my={3}
+          cursor="zoom-in"
+          overflow="hidden"
+          borderRadius="xl"
+          border="1px solid"
+          borderColor={imageBorderColor}
+          bg={imageFrameBg}
+          textAlign="left"
+          transition="transform 0.2s ease, box-shadow 0.2s ease"
+          _hover={{ transform: 'translateY(-1px)', boxShadow: 'md' }}
+        >
+          <Image
+            src={transformedSrc}
+            alt={alt || '圖片'}
+            htmlWidth={400}
+            htmlHeight={300}
+            w="100%"
+            maxH="320px"
+            objectFit="cover"
+            display="block"
+            loading="lazy"
+            fallbackSrc="https://via.placeholder.com/400x300?text=Loading..."
+            {...props}
+          />
+          <HStack
+            position="absolute"
+            right={3}
+            bottom={3}
+            spacing={1}
+            px={2}
+            py={1}
+            borderRadius="full"
+            bg="blackAlpha.700"
+            color="white"
+            fontSize="xs"
+          >
+            <FiSearch />
+            <Text fontSize="xs" color="white">
+              放大
+            </Text>
+          </HStack>
+        </Box>
       );
     },
     // 連結元件
@@ -222,7 +267,7 @@ export default function MessageBubble({
         {children}
       </Box>
     ),
-  }), [linkColor, codeBg, handleImageClick]);
+  }), [linkColor, codeBg, handleImageClick, imageBorderColor, imageFrameBg]);
 
   return (
     <>
@@ -248,18 +293,20 @@ export default function MessageBubble({
           
           <Box
             bg={bg}
-            color={textColor}
-            px={6}
-            py={5}
-            maxW="100%"
-            minW={0}
-            borderRadius="20px"
-            borderTopRightRadius={isUser ? '4px' : '20px'}
-            borderTopLeftRadius={!isUser ? '4px' : '20px'}
-            boxShadow={boxShadow}
-            position="relative"
-            sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
-          >
+          color={textColor}
+          px={6}
+          py={5}
+          maxW="100%"
+          minW={0}
+          borderRadius="24px"
+          borderTopRightRadius={isUser ? '8px' : '24px'}
+          borderTopLeftRadius={!isUser ? '8px' : '24px'}
+          boxShadow={boxShadow}
+          border={isUser ? 'none' : '1px solid'}
+          borderColor={isUser ? 'transparent' : aiBorderColor}
+          position="relative"
+          sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+        >
             {/* Message Content - Markdown 渲染 (僅 AI 回覆) */}
             {isUser ? (
               <Text
@@ -298,33 +345,52 @@ export default function MessageBubble({
               </Box>
             )}
 
-            {/* Citations (Glassmorphism Tags) */}
-            {sources && sources.length > 0 && (
-              <Flex wrap="wrap" gap={2} mt={3}>
-                {sources.map((source, idx) => (
-                  <Box 
-                    key={idx}
-                    as="button"
-                    onClick={() => onCitationClick?.(source)}
-                    fontSize="xs"
-                    fontWeight="bold"
-                    bg={isUser ? 'whiteAlpha.300' : 'brand.50'}
-                    color={isUser ? 'white' : 'brand.600'}
-                    border="1px solid"
-                    borderColor={isUser ? 'transparent' : 'brand.100'}
-                    px={3} py={1.5}
-                    borderRadius="lg"
-                    maxW="100%"
-                    whiteSpace="normal"
-                    textAlign="left"
-                    sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
-                    _hover={{ opacity: 0.8, transform: 'translateY(-1px)', boxShadow: 'sm' }}
-                    transition="all 0.2s"
-                  >
-                    📄 {source.filename ?? source.doc_id}
-                  </Box>
-                ))}
-              </Flex>
+            {/* Citations */}
+            {!isUser && sources && sources.length > 0 && (
+              <Box mt={4} pt={3} borderTop="1px solid" borderColor={aiBorderColor}>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  px={0}
+                  h="auto"
+                  fontWeight="semibold"
+                  color={linkColor}
+                  rightIcon={showSources ? <FiChevronUp /> : <FiChevronDown />}
+                  onClick={() => setShowSources((value) => !value)}
+                  aria-label="切換來源顯示"
+                >
+                  來源 {sources.length}
+                </Button>
+                <Collapse in={showSources} animateOpacity>
+                  <Flex wrap="wrap" gap={2} mt={3}>
+                    {sources.map((source, idx) => (
+                      <Box
+                        key={`${source.doc_id}-${idx}`}
+                        as="button"
+                        type="button"
+                        onClick={() => onCitationClick?.(source)}
+                        fontSize="xs"
+                        fontWeight="bold"
+                        bg={chipBg}
+                        color={isUser ? 'white' : 'brand.600'}
+                        border="1px solid"
+                        borderColor={isUser ? 'transparent' : chipBorderColor}
+                        px={3}
+                        py={1.5}
+                        borderRadius="full"
+                        maxW="100%"
+                        whiteSpace="normal"
+                        textAlign="left"
+                        sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+                        _hover={{ opacity: 0.85, transform: 'translateY(-1px)', boxShadow: 'sm' }}
+                        transition="transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease"
+                      >
+                        📄 {source.filename ?? source.doc_id}
+                      </Box>
+                    ))}
+                  </Flex>
+                </Collapse>
+              </Box>
             )}
           </Box>
         </Flex>

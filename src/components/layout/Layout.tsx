@@ -23,7 +23,7 @@ export default function Layout({ children, requireAuth = true }: LayoutProps) {
   }
 
   return (
-    <Box minH="100vh" bg="bg.canvas">
+    <Box h="100dvh" minH="100vh" bg="bg.canvas" overflow="hidden">
       <Sidebar />
       <Box
         ml={{ base: 0, md: 64 }}
@@ -32,6 +32,12 @@ export default function Layout({ children, requireAuth = true }: LayoutProps) {
         bg={contentBg}
         borderTop="1px solid"
         borderColor={{ base: divider, md: 'transparent' }}
+        display="flex"
+        flexDirection="column"
+        h="100%"
+        minH={0}
+        minW={0}
+        overflow="hidden"
       >
         {children}
       </Box>

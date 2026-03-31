@@ -59,8 +59,21 @@ describe('ConversationSidebar Component', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Chat 1'));
+    fireEvent.click(screen.getByRole('button', { name: /Chat 1/i }));
     expect(mockOnSelect).toHaveBeenCalledWith(expect.objectContaining({ id: '1', type: 'chat' }));
+  });
+
+  it('supports keyboard selection on a conversation item', () => {
+    render(
+      <ConversationSidebar
+        currentId={null}
+        onSelect={mockOnSelect}
+        onNew={mockOnNew}
+      />
+    );
+
+    fireEvent.keyDown(screen.getByRole('button', { name: /Research 1/i }), { key: 'Enter' });
+    expect(mockOnSelect).toHaveBeenCalledWith(expect.objectContaining({ id: '2', type: 'research' }));
   });
 
   it('calls onNew when add button is clicked', () => {
@@ -100,7 +113,7 @@ describe('ConversationSidebar Component', () => {
       />
     );
 
-    const searchInput = screen.getByPlaceholderText('搜尋對話...');
+    const searchInput = screen.getByPlaceholderText('搜尋對話…');
     fireEvent.change(searchInput, { target: { value: 'Research' } });
 
     expect(screen.queryByText('Chat 1')).not.toBeInTheDocument();

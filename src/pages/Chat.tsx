@@ -48,6 +48,7 @@ import { useChat } from '../hooks/useChat';
 import { useDeepResearch } from '../hooks/useDeepResearch';
 import { useConversationMutations } from '../hooks/useConversations';
 import { useSessionStore } from '../stores/useSessionStore';
+import { useLocation } from 'react-router-dom';
 import {
   getConversationTypeForMode,
   useActiveChatPreset,
@@ -109,6 +110,7 @@ function getResearchPhaseLabel(
 }
 
 export default function Chat() {
+  const location = useLocation();
   const { currentChatId, actions: { setCurrentChatId } } = useSessionStore();
   const { ragSettings, selectedChatModeId } = useSettingsStore();
   const settingsActions = useSettingsActions();
@@ -116,7 +118,7 @@ export default function Chat() {
   const presetList = useChatPresetList();
   const { create } = useConversationMutations();
   const conversationDrawer = useDisclosure();
-  const resourcesDrawer = useDisclosure();
+  const settingsDrawer = useDisclosure();
 
   const isAgenticMode = activePreset.baseMode === 'agentic';
   const activeConversationType = getConversationTypeForMode(activePreset.baseMode);
@@ -164,7 +166,8 @@ export default function Chat() {
   const { isPlanning, isExecuting } = deepResearch;
 
   const [input, setInput] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const mainLayoutRef = useRef<HTMLDivElement>(null);
+  const messageScrollRegionRef = useRef<HTMLDivElement>(null);
 
   const panelBg = useColorModeValue('white', 'surface.800');
   const inputBg = useColorModeValue('white', 'surface.800');
@@ -177,9 +180,31 @@ export default function Chat() {
 
   useEffect(() => {
     if (!isAgenticMode) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      const messageScrollRegion = messageScrollRegionRef.current;
+      if (messageScrollRegion) {
+        messageScrollRegion.scrollTo({
+          top: messageScrollRegion.scrollHeight,
+          behavior: 'smooth',
+        });
+      }
     }
   }, [isAgenticMode, messages]);
+
+  useEffect(() => {
+    const mainLayout = mainLayoutRef.current;
+    if (mainLayout) {
+      mainLayout.scrollTop = 0;
+    }
+    window.scrollTo(0, 0);
+
+    const frame = window.requestAnimationFrame(() => {
+      if (mainLayoutRef.current) {
+        mainLayoutRef.current.scrollTop = 0;
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.pathname]);
 
   const isLoading = isChatLoading || isPlanning || isExecuting;
   const ordinaryChatStatus = getChatStageLabel(currentStage);
@@ -266,222 +291,239 @@ export default function Chat() {
 
   return (
     <Layout>
-      <PageHeader title="對話" subtitle="Preset-driven RAG 問答與 Agentic 研究" />
-
-      <Flex gap={6} h={{ base: 'auto', lg: 'calc(100vh - 140px)' }} minH={0} align="stretch">
-        <Box w="280px" display={{ base: 'none', xl: 'block' }}>
-          <ConversationSidebar
-            currentId={currentChatId}
-            onSelect={handleSelectConversation}
-            onNew={(type) => void handleNewConversation(type)}
-            defaultNewType={activeConversationType}
-          />
+      <Flex direction="column" flex={1} h="100%" minH={0} overflow="hidden" data-testid="chat-shell">
+        <Box flexShrink={0}>
+          <PageHeader title="對話" subtitle="Preset-driven RAG 問答與 Agentic 研究" />
         </Box>
 
-        <Flex direction="column" flex={1} minW={0}>
-          <HStack spacing={2} mb={3} display={{ base: 'flex', xl: 'none' }}>
-            <Button
-              leftIcon={<FiMenu />}
-              size="sm"
-              variant="outline"
-              onClick={conversationDrawer.onOpen}
-            >
-              對話
-            </Button>
-            <Button
-              leftIcon={<FiSettings />}
-              size="sm"
-              variant="outline"
-              onClick={resourcesDrawer.onOpen}
-            >
-              資源與設定
-            </Button>
-          </HStack>
-
-          <Box
-            flex={1}
+        <Flex
+          ref={mainLayoutRef}
+          gap={6}
+          flex={1}
+          minH={0}
+          align="stretch"
+          overflow="hidden"
+          data-testid="chat-main-layout"
+        >
+          <Flex
+            w="280px"
+            display={{ base: 'none', xl: 'flex' }}
+            direction="column"
+            h="100%"
             minH={0}
-            minW={0}
-            overflowY={isAgenticMode ? 'auto' : 'hidden'}
-            mb={4}
-            pr={isAgenticMode ? 2 : 0}
+            flexShrink={0}
+            overflow="hidden"
+            alignSelf="stretch"
           >
-            {isAgenticMode ? (
-              <DeepResearchPanel researchState={deepResearch} />
-            ) : (
-              <Flex
-                direction="column"
-                h="100%"
-                bg={panelBg}
-                borderRadius="xl"
-                boxShadow="sm"
-                overflow="hidden"
-              >
-                <Box flex={1} overflowY="auto" p={6}>
-                  {isLoadingHistory ? (
-                    <Stack spacing={4} data-testid="chat-history-skeleton">
-                      <Skeleton height="40px" width="40%" alignSelf="flex-start" borderRadius="lg" />
-                      <Skeleton height="60px" width="70%" alignSelf="flex-end" borderRadius="lg" />
-                      <Skeleton height="40px" width="50%" alignSelf="flex-start" borderRadius="lg" />
-                      <Skeleton height="80px" width="80%" alignSelf="flex-end" borderRadius="lg" />
-                    </Stack>
-                  ) : (
-                    <>
-                      {messages.map((message) => (
-                        <MessageBubble
-                          key={message.id}
-                          role={message.role}
-                          content={message.content}
-                          sources={message.sources}
-                          metrics={ragSettings.enable_evaluation ? message.metrics : undefined}
-                        />
-                      ))}
-                      {isChatLoading && !activeStatusLabel && (
-                        <Box p={4}>
-                          <Text fontSize="sm" color="gray.500" fontStyle="italic">
-                            AI 思考中...
-                          </Text>
-                        </Box>
-                      )}
-                      <div ref={messagesEndRef} />
-                    </>
-                  )}
-                </Box>
-              </Flex>
-            )}
-          </Box>
+            <ConversationSidebar
+              currentId={currentChatId}
+              onSelect={handleSelectConversation}
+              onNew={(type) => void handleNewConversation(type)}
+              defaultNewType={activeConversationType}
+            />
+          </Flex>
 
-          <Box p={0} position="relative" zIndex={2}>
-            <VStack spacing={2} align="stretch">
-              {activeStatusLabel && (
-                <HStack
-                  spacing={2}
-                  px={4}
-                  py={2}
+          <Flex direction="column" flex={1} minW={0} minH={0}>
+            <HStack spacing={2} mb={3} display={{ base: 'flex', xl: 'none' }}>
+              <Button
+                leftIcon={<FiMenu />}
+                size="sm"
+                variant="outline"
+                onClick={conversationDrawer.onOpen}
+              >
+                對話
+              </Button>
+              <Button
+                leftIcon={<FiSettings />}
+                size="sm"
+                variant="outline"
+                onClick={settingsDrawer.onOpen}
+              >
+                資源與設定
+              </Button>
+            </HStack>
+
+            <Box flex={1} minH={0} minW={0} overflow="hidden" mb={4}>
+              {isAgenticMode ? (
+                <Box h="100%" minH={0} overflow="hidden">
+                  <DeepResearchPanel researchState={deepResearch} />
+                </Box>
+              ) : (
+                <Flex
+                  direction="column"
+                  h="100%"
                   bg={panelBg}
-                  borderRadius="full"
+                  borderRadius="xl"
                   boxShadow="sm"
+                  overflow="hidden"
+                >
+                  <Box
+                    ref={messageScrollRegionRef}
+                    flex={1}
+                    minH={0}
+                    overflowY="auto"
+                    p={{ base: 4, md: 6 }}
+                    data-testid="chat-message-scroll-region"
+                  >
+                    {isLoadingHistory ? (
+                      <Stack spacing={4} data-testid="chat-history-skeleton">
+                        <Skeleton height="40px" width="40%" alignSelf="flex-start" borderRadius="lg" />
+                        <Skeleton height="60px" width="70%" alignSelf="flex-end" borderRadius="lg" />
+                        <Skeleton height="40px" width="50%" alignSelf="flex-start" borderRadius="lg" />
+                        <Skeleton height="80px" width="80%" alignSelf="flex-end" borderRadius="lg" />
+                      </Stack>
+                    ) : (
+                      <>
+                        {messages.map((message) => (
+                          <MessageBubble
+                            key={message.id}
+                            role={message.role}
+                            content={message.content}
+                            sources={message.sources}
+                            metrics={ragSettings.enable_evaluation ? message.metrics : undefined}
+                          />
+                        ))}
+                        {isChatLoading && !activeStatusLabel && (
+                          <Box p={4}>
+                            <Text fontSize="sm" color="gray.500" fontStyle="italic">
+                              AI 思考中…
+                            </Text>
+                          </Box>
+                        )}
+                      </>
+                    )}
+                  </Box>
+                </Flex>
+              )}
+            </Box>
+
+            <Box p={0} position="relative" zIndex={2}>
+              <VStack spacing={2} align="stretch">
+                {activeStatusLabel && (
+                  <HStack
+                    spacing={2}
+                    px={4}
+                    py={2}
+                    bg={panelBg}
+                    borderRadius="full"
+                    boxShadow="sm"
+                    border="1px solid"
+                    borderColor={inputBorderColor}
+                    w="fit-content"
+                  >
+                    <FiCpu />
+                    <Text fontSize="sm" fontWeight="medium">
+                      {activeStatusLabel}
+                    </Text>
+                  </HStack>
+                )}
+
+                <Flex
+                  gap={2}
+                  bg={inputBg}
+                  p={2}
+                  minW={0}
+                  flexWrap={{ base: 'wrap', md: 'nowrap' }}
+                  borderRadius="full"
+                  boxShadow={inputShadow}
                   border="1px solid"
                   borderColor={inputBorderColor}
-                  w="fit-content"
+                  align="center"
                 >
-                  <FiCpu />
-                  <Text fontSize="sm" fontWeight="medium">
-                    {activeStatusLabel}
-                  </Text>
-                </HStack>
-              )}
+                  <Menu>
+                    <MenuButton
+                      as={Button}
+                      leftIcon={isAgenticMode ? <FiLayers /> : <FiMessageSquare />}
+                      rightIcon={<FiChevronDown />}
+                      variant="ghost"
+                      borderRadius="full"
+                      px={4}
+                      flexShrink={0}
+                      aria-label="Select Mode"
+                    >
+                      {activePreset.name}
+                    </MenuButton>
+                    <MenuList>
+                      {presetList.map((preset) => (
+                        <MenuItem
+                          key={preset.id}
+                          icon={preset.baseMode === 'agentic' ? <FiLayers /> : <FiMessageSquare />}
+                          onClick={() => handlePresetChange(preset.id)}
+                        >
+                          <HStack justify="space-between" w="full">
+                            <Text>{preset.name}</Text>
+                            {!preset.isOfficial && <Badge colorScheme="orange">Custom</Badge>}
+                          </HStack>
+                        </MenuItem>
+                      ))}
+                    </MenuList>
+                  </Menu>
 
-              <Flex
-                gap={2}
-                bg={inputBg}
-                p={2}
-                minW={0}
-                flexWrap={{ base: 'wrap', md: 'nowrap' }}
-                borderRadius="full"
-                boxShadow={inputShadow}
-                border="1px solid"
-                borderColor={inputBorderColor}
-                align="center"
-              >
-                <Menu>
-                  <MenuButton
-                    as={Button}
-                    leftIcon={isAgenticMode ? <FiLayers /> : <FiMessageSquare />}
-                    rightIcon={<FiChevronDown />}
-                    variant="ghost"
-                    borderRadius="full"
+                  <Input
+                    aria-label={isAgenticMode ? '研究問題輸入框' : '聊天輸入框'}
+                    variant="unstyled"
+                    placeholder={isAgenticMode ? '輸入研究問題，先生成可編輯計畫…' : '輸入您的問題…'}
+                    value={input}
+                    onChange={(event) => setInput(event.target.value)}
+                    onKeyDown={handleKeyPress}
                     px={4}
-                    flexShrink={0}
-                    aria-label="Select Mode"
+                    h="50px"
+                    fontSize="md"
+                    minW={0}
+                    flex={1}
+                    disabled={isLoading}
+                  />
+
+                  <Button
+                    colorScheme="brand"
+                    borderRadius="full"
+                    w="50px"
+                    h="50px"
+                    p={0}
+                    isLoading={isLoading}
+                    onClick={() => void handleSend()}
+                    bg="brand.500"
+                    _hover={{ transform: 'scale(1.05)', boxShadow: 'lg', bg: 'brand.600' }}
                   >
-                    {activePreset.name}
-                  </MenuButton>
-                  <MenuList>
-                    {presetList.map((preset) => (
-                      <MenuItem
-                        key={preset.id}
-                        icon={preset.baseMode === 'agentic' ? <FiLayers /> : <FiMessageSquare />}
-                        onClick={() => handlePresetChange(preset.id)}
-                      >
-                        <HStack justify="space-between" w="full">
-                          <Text>{preset.name}</Text>
-                          {!preset.isOfficial && <Badge colorScheme="orange">Custom</Badge>}
-                        </HStack>
-                      </MenuItem>
-                    ))}
-                  </MenuList>
-                </Menu>
+                    <FiSend size={20} />
+                  </Button>
+                </Flex>
+              </VStack>
+            </Box>
+          </Flex>
 
-                <Input
-                  aria-label={isAgenticMode ? '研究問題輸入框' : '聊天輸入框'}
-                  variant="unstyled"
-                  placeholder={isAgenticMode ? '輸入研究問題，先生成可編輯計畫...' : '輸入您的問題...'}
-                  value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  onKeyDown={handleKeyPress}
-                  px={4}
-                  h="50px"
-                  fontSize="md"
-                  minW={0}
-                  flex={1}
-                  disabled={isLoading}
-                />
-
-                <Button
-                  colorScheme="brand"
-                  borderRadius="full"
-                  w="50px"
-                  h="50px"
-                  p={0}
-                  isLoading={isLoading}
-                  onClick={() => void handleSend()}
-                  bg="brand.500"
-                  _hover={{ transform: 'scale(1.05)', boxShadow: 'lg', bg: 'brand.600' }}
-                >
-                  <FiSend size={20} />
-                </Button>
-              </Flex>
-            </VStack>
-          </Box>
-        </Flex>
-
-        <Box
-          w="320px"
-          display={{ base: 'none', lg: 'block' }}
-          flexShrink={0}
-          position="sticky"
-          top={0}
-          alignSelf="flex-start"
-          h="100%"
-          data-testid="chat-desktop-right-rail"
-        >
-          <VStack
-            spacing={6}
-            align="stretch"
+          <Flex
+            w="320px"
+            display={{ base: 'none', lg: 'flex' }}
+            flexShrink={0}
+            direction="column"
+            gap={4}
             h="100%"
-            maxH="calc(100vh - 140px)"
-            overflowY="auto"
-            pr={1}
+            minH={0}
+            overflow="hidden"
+            alignSelf="stretch"
+            data-testid="chat-desktop-right-rail"
           >
-            <SurfaceCard variant="unstyled" bg={panelBg} p={5}>
+            <SurfaceCard variant="unstyled" bg={panelBg} p={4}>
               <CardBody p={0}>
                 <DocumentSelector
                   selectedIds={selectedDocIds}
                   onSelectionChange={setSelectedDocIds}
+                  compact
+                  listMaxH="280px"
                 />
               </CardBody>
             </SurfaceCard>
 
-            <SurfaceCard variant="unstyled" bg={panelBg} p={5}>
+            <SurfaceCard variant="unstyled" bg={panelBg} p={4}>
               <CardBody p={0}>
                 <VStack spacing={4} align="stretch">
                   <HStack justify="space-between" align="start">
                     <Box minW={0}>
-                      <Text fontWeight="bold" fontSize="lg" color={textHeaderColor}>
-                        問答模式
+                      <Text fontWeight="bold" fontSize="md" color={textHeaderColor}>
+                        {activePreset.name}
                       </Text>
-                      <Text fontSize="sm" color="gray.500">
+                      <Text fontSize="sm" color="gray.500" noOfLines={3}>
                         {activePreset.description}
                       </Text>
                     </Box>
@@ -490,71 +532,80 @@ export default function Chat() {
                     </Badge>
                   </HStack>
 
-                  <HStack wrap="wrap" spacing={2}>
+                  <HStack justify="space-between" spacing={3} align="center">
+                    <Text fontSize="xs" color={presetIsDirty ? 'orange.500' : 'gray.500'}>
+                      {presetIsDirty ? '設定已偏離目前 preset' : '使用目前 preset 設定'}
+                    </Text>
+                    <Button
+                      size="sm"
+                      leftIcon={<FiSettings />}
+                      variant="outline"
+                      onClick={settingsDrawer.onOpen}
+                      data-testid="chat-settings-trigger"
+                    >
+                      設定
+                    </Button>
+                  </HStack>
+
+                  <HStack spacing={2}>
                     <Button size="sm" leftIcon={<FiSave />} onClick={handleSaveCustomPreset}>
                       另存 Custom
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => settingsActions.resetCurrentModeToPreset()}
-                      isDisabled={!presetIsDirty}
-                    >
-                      還原此模式
-                    </Button>
-                    {!activePreset.isOfficial && (
+                    {presetIsDirty && (
                       <Button
                         size="sm"
                         variant="ghost"
-                        colorScheme="red"
-                        leftIcon={<FiTrash2 />}
-                        onClick={handleDeleteCustomPreset}
+                        onClick={() => settingsActions.resetCurrentModeToPreset()}
                       >
-                        刪除 Custom
+                        還原
                       </Button>
                     )}
                   </HStack>
-
-                  {presetIsDirty && (
-                    <Text fontSize="xs" color="orange.500">
-                      目前設定已偏離所選 preset，可直接使用，也可另存成 custom。
-                    </Text>
-                  )}
                 </VStack>
               </CardBody>
             </SurfaceCard>
 
-            <SettingsPanel />
-
             {ragSettings.enable_evaluation && !isAgenticMode && (
-              <SurfaceCard variant="unstyled" bg={panelBg} p={5}>
+              <SurfaceCard variant="unstyled" bg={panelBg} p={4}>
                 <CardBody p={0}>
-                  <HStack mb={4}>
-                    <FiCpu />
-                    <Text fontWeight="bold" fontSize="lg" color={textHeaderColor}>
-                      即時分析
-                    </Text>
-                  </HStack>
+                  <VStack spacing={3} align="stretch">
+                    <HStack>
+                      <FiCpu />
+                      <Text fontWeight="bold" fontSize="md" color={textHeaderColor}>
+                        即時分析
+                      </Text>
+                    </HStack>
 
-                  {lastAssistantMessage?.metrics ? (
-                    <VStack spacing={3} align="stretch">
-                      <Text fontSize="sm">
-                        忠實度：{lastAssistantMessage.metrics.faithfulness}
+                    {lastAssistantMessage?.metrics ? (
+                      <>
+                        <HStack justify="space-between">
+                          <Text fontSize="sm" color="gray.500">
+                            忠實度
+                          </Text>
+                          <Badge colorScheme={lastAssistantMessage.metrics.faithfulness === 'grounded' ? 'green' : lastAssistantMessage.metrics.faithfulness === 'hallucinated' ? 'red' : 'yellow'}>
+                            {lastAssistantMessage.metrics.faithfulness}
+                          </Badge>
+                        </HStack>
+                        <HStack justify="space-between">
+                          <Text fontSize="sm" color="gray.500">
+                            信心分數
+                          </Text>
+                          <Text fontSize="sm" fontWeight="semibold">
+                            {(lastAssistantMessage.metrics.confidence_score * 100).toFixed(0)}%
+                          </Text>
+                        </HStack>
+                      </>
+                    ) : (
+                      <Text fontSize="sm" color="gray.500">
+                        發送問題後即可查看摘要分析。
                       </Text>
-                      <Text fontSize="sm">
-                        信心分數：{(lastAssistantMessage.metrics.confidence_score * 100).toFixed(0)}%
-                      </Text>
-                    </VStack>
-                  ) : (
-                    <Text fontSize="sm" color="gray.500">
-                      發送問題後即可查看評估結果。
-                    </Text>
-                  )}
+                    )}
+                  </VStack>
                 </CardBody>
               </SurfaceCard>
             )}
-          </VStack>
-        </Box>
+          </Flex>
+        </Flex>
       </Flex>
 
       <Drawer isOpen={conversationDrawer.isOpen} placement="left" onClose={conversationDrawer.onClose} size="xs">
@@ -573,14 +624,16 @@ export default function Chat() {
         </DrawerContent>
       </Drawer>
 
-      <Drawer isOpen={resourcesDrawer.isOpen} placement="right" onClose={resourcesDrawer.onClose} size="sm">
+      <Drawer isOpen={settingsDrawer.isOpen} placement="right" onClose={settingsDrawer.onClose} size="md">
         <DrawerOverlay />
         <DrawerContent>
           <DrawerCloseButton />
-          <DrawerHeader>資源與設定</DrawerHeader>
+          <DrawerHeader>模式設定</DrawerHeader>
           <DrawerBody>
             <VStack spacing={4} align="stretch">
-              <DocumentSelector selectedIds={selectedDocIds} onSelectionChange={setSelectedDocIds} />
+              <Box display={{ base: 'block', lg: 'none' }}>
+                <DocumentSelector selectedIds={selectedDocIds} onSelectionChange={setSelectedDocIds} />
+              </Box>
               <SurfaceCard variant="unstyled" bg={panelBg} p={4}>
                 <CardBody p={0}>
                   <VStack spacing={4} align="stretch">
@@ -603,6 +656,17 @@ export default function Chat() {
                       >
                         還原此模式
                       </Button>
+                      {!activePreset.isOfficial && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          colorScheme="red"
+                          leftIcon={<FiTrash2 />}
+                          onClick={handleDeleteCustomPreset}
+                        >
+                          刪除 Custom
+                        </Button>
+                      )}
                     </HStack>
                   </VStack>
                 </CardBody>

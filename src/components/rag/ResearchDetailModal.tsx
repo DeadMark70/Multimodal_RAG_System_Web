@@ -41,6 +41,13 @@ export const ResearchDetailModal: React.FC<ResearchDetailModalProps> = ({
 }) => {
   const bgColor = useColorModeValue('white', 'gray.800');
   const textColor = useColorModeValue('gray.800', 'white');
+  const timestampFormatter = new Intl.DateTimeFormat('zh-TW', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   if (!data) return null;
 
@@ -56,14 +63,14 @@ export const ResearchDetailModal: React.FC<ResearchDetailModalProps> = ({
             <HStack spacing={4} fontSize="sm" fontWeight="normal">
               {timestamp && (
                 <Text color="gray.500">
-                  {new Date(timestamp).toLocaleString()}
+                  {timestampFormatter.format(new Date(timestamp))}
                 </Text>
               )}
               <Badge colorScheme={data.confidence > 0.8 ? 'green' : data.confidence > 0.5 ? 'yellow' : 'red'}>
-                Confidence: {(data.confidence * 100).toFixed(0)}%
+                可信度 {(data.confidence * 100).toFixed(0)}%
               </Badge>
               <Badge colorScheme="blue">
-                Iterations: {data.total_iterations}
+                迭代 {data.total_iterations}
               </Badge>
             </HStack>
           </VStack>
@@ -73,29 +80,29 @@ export const ResearchDetailModal: React.FC<ResearchDetailModalProps> = ({
         <ModalBody>
           <Tabs variant="enclosed" colorScheme="blue" isLazy>
             <TabList>
-              <Tab>Executive Summary</Tab>
-              <Tab>Full Report</Tab>
-              <Tab>Research Process</Tab>
+              <Tab>摘要</Tab>
+              <Tab>完整報告</Tab>
+              <Tab>研究過程</Tab>
             </TabList>
 
             <TabPanels>
               <TabPanel>
                 <Box p={2}>
                   <Text fontSize="md" lineHeight="tall">
-                    {data.summary || "No summary available."}
+                    {data.summary || '目前沒有摘要內容。'}
                   </Text>
                 </Box>
               </TabPanel>
               
               <TabPanel>
                  <Box className="markdown-body" p={2} sx={{ 
-                    'h1, h2, h3': { mt: 4, mb: 2, fontWeight: 'bold' }, 
-                    'p': { mb: 3 },
-                    'ul, ol': { pl: 5, mb: 3 },
-                    'code': { bg: 'gray.100', p: 1, borderRadius: 'sm' }
-                 }}>
+                     'h1, h2, h3': { mt: 4, mb: 2, fontWeight: 'bold' }, 
+                     'p': { mb: 3 },
+                     'ul, ol': { pl: 5, mb: 3 },
+                     'code': { bg: 'gray.100', p: 1, borderRadius: 'sm' }
+                  }}>
                    <ReactMarkdown>
-                     {data.detailed_answer || "No details available."}
+                     {data.detailed_answer || '目前沒有詳細報告。'}
                    </ReactMarkdown>
                  </Box>
               </TabPanel>
@@ -109,7 +116,7 @@ export const ResearchDetailModal: React.FC<ResearchDetailModalProps> = ({
 
         <ModalFooter>
           <Button colorScheme="blue" mr={3} onClick={onClose}>
-            Close
+            關閉
           </Button>
         </ModalFooter>
       </ModalContent>

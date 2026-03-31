@@ -34,6 +34,27 @@ Human-maintained inventory of the current frontend surface.
 - `ragApi.ts`: ask, ask stream, research plan/execute
 - `statsApi.ts`: dashboard metrics
 
+## Chat Surface Snapshot
+
+- `Chat.tsx`
+  - uses a fixed-height flex workspace inside the shared `Layout` shell instead of viewport subtraction math
+  - keeps the main chat history as the primary scroll owner in ordinary chat mode
+  - keeps the desktop right rail compact and opens `SettingsPanel` from a right drawer
+- `DocumentSelector.tsx`
+  - supports compact right-rail rendering with sticky header + bounded document list
+- `DeepResearchPanel.tsx`
+  - exposes `Plan`, `Run`, and `Report` view switching without changing `useDeepResearch` contracts
+  - keeps completed tasks collapsed by default in run view while active tasks stay expanded
+  - opens the full research report in a drawer instead of stretching the main page
+- `MessageBubble.tsx`
+  - renders assistant replies with a bordered surface
+  - keeps citations behind a collapsible `來源` section
+  - wraps markdown images in a framed zoomable preview affordance
+- `ConversationSidebar.tsx`
+  - uses focusable button-like conversation rows
+  - keeps search and create controls in a sticky header
+  - keeps research-detail and delete actions as secondary inline controls
+
 ## Evaluation Surface Snapshot
 
 - `TestCaseManager.tsx`
