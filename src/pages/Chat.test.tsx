@@ -15,13 +15,9 @@ const scrollIntoViewMock = vi.fn();
 vi.mock('../components/layout/Layout', () => ({
   default: ({ children }: { children: React.ReactNode }) => <div data-testid="layout">{children}</div>,
 }));
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
-  return {
-    ...actual,
-    useLocation: () => ({ pathname: '/chat' }),
-  };
-});
+vi.mock('react-router-dom', () => ({
+  useLocation: () => ({ pathname: '/chat' }),
+}));
 vi.mock('../components/rag/ConversationSidebar', () => ({
   default: ({
     onSelect,
