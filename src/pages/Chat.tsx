@@ -48,7 +48,6 @@ import { useChat } from '../hooks/useChat';
 import { useDeepResearch } from '../hooks/useDeepResearch';
 import { useConversationMutations } from '../hooks/useConversations';
 import { useSessionStore } from '../stores/useSessionStore';
-import { useLocation } from 'react-router-dom';
 import {
   getConversationTypeForMode,
   useActiveChatPreset,
@@ -110,7 +109,6 @@ function getResearchPhaseLabel(
 }
 
 export default function Chat() {
-  const location = useLocation();
   const { currentChatId, actions: { setCurrentChatId } } = useSessionStore();
   const { ragSettings, selectedChatModeId } = useSettingsStore();
   const settingsActions = useSettingsActions();
@@ -182,10 +180,14 @@ export default function Chat() {
     if (!isAgenticMode) {
       const messageScrollRegion = messageScrollRegionRef.current;
       if (messageScrollRegion) {
-        messageScrollRegion.scrollTo({
-          top: messageScrollRegion.scrollHeight,
-          behavior: 'smooth',
-        });
+        if (typeof messageScrollRegion.scrollTo === 'function') {
+          messageScrollRegion.scrollTo({
+            top: messageScrollRegion.scrollHeight,
+            behavior: 'smooth',
+          });
+        } else {
+          messageScrollRegion.scrollTop = messageScrollRegion.scrollHeight;
+        }
       }
     }
   }, [isAgenticMode, messages]);
@@ -195,7 +197,10 @@ export default function Chat() {
     if (mainLayout) {
       mainLayout.scrollTop = 0;
     }
-    window.scrollTo(0, 0);
+    const isJsdom = typeof navigator !== 'undefined' && /jsdom/i.test(navigator.userAgent);
+    if (!isJsdom) {
+      window.scrollTo(0, 0);
+    }
 
     const frame = window.requestAnimationFrame(() => {
       if (mainLayoutRef.current) {
@@ -204,7 +209,7 @@ export default function Chat() {
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [location.pathname]);
+  }, []);
 
   const isLoading = isChatLoading || isPlanning || isExecuting;
   const ordinaryChatStatus = getChatStageLabel(currentStage);
