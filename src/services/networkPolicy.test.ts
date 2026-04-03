@@ -22,6 +22,12 @@ describe('networkPolicy', () => {
     );
   });
 
+  it('resolves root-relative base url to current origin', () => {
+    expect(resolveApiUrl('/', '/rag/execute/stream')).toBe(
+      `${window.location.origin}/rag/execute/stream`
+    );
+  });
+
   it('blocks external target in test-like mode', () => {
     expect(isTestLikeMode()).toBe(true);
     expect(() => assertAllowedApiTarget('https://api.example.com/v1')).toThrow(

@@ -36,10 +36,28 @@ export function isAllowedLocalTarget(targetUrl: string): boolean {
 }
 
 export function resolveApiUrl(baseUrl: string | undefined, path: string): string {
+  const fallbackOrigin =
+    typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : 'http://127.0.0.1:8000';
+  const trimmedBase = (baseUrl ?? '').trim();
+
+  const normalizedBase = (() => {
+    if (!trimmedBase) {
+      return fallbackOrigin;
+    }
+    if (/^https?:\/\//i.test(trimmedBase)) {
+      return trimmedBase;
+    }
+    const origin = fallbackOrigin.replace(/\/+$/, '');
+    const suffix = trimmedBase.replace(/^\/+/, '');
+    return suffix ? `${origin}/${suffix}` : `${origin}/`;
+  })();
+
   try {
-    return new URL(path, baseUrl || 'http://127.0.0.1:8000').toString();
+    return new URL(path, normalizedBase).toString();
   } catch {
-    return `${baseUrl ?? ''}${path}`;
+    return path;
   }
 }
 
