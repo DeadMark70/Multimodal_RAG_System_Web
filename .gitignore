@@ -20,7 +20,7 @@ lint_final_verify.txt
 task_plan.md
 findings.md
 progress.md
-.zip
+*.zip
 
 # Editor directories and files
 .vscode/*
