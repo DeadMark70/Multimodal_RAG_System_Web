@@ -85,7 +85,7 @@ function downloadTextFile(filename: string, content: string, mimeType: string): 
   URL.revokeObjectURL(url);
 }
 
-function csvCell(value: string | number | null | undefined): string {
+function csvCell(value: string | number | boolean | null | undefined): string {
   if (value == null) {
     return '';
   }
@@ -140,8 +140,8 @@ function normalizeEcrNote(note?: string | null): string {
 }
 
 function maxAbs(values: Array<number | null | undefined>): number {
-  return values.reduce((largest, value) => {
-    if (value == null) {
+  return values.reduce<number>((largest, value) => {
+    if (typeof value !== 'number') {
       return largest;
     }
     return Math.max(largest, Math.abs(value));
