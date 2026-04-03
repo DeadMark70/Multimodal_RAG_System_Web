@@ -79,6 +79,13 @@
 - `MessageBubble.tsx` now treats sources as collapsible secondary content and renders assistant/image content with explicit frame/border affordances.
 - `ConversationSidebar.tsx` now renders button-like selectable rows with explicit keyboard support and a sticky search/new header.
 
+## Page Scroll Ownership
+
+- `Layout.tsx` keeps the app shell fixed with `overflow="hidden"` on the content frame.
+- Page-level routes that need long vertical content must provide their own scroll container (`flex={1} minH={0} overflowY="auto"`).
+- `/knowledge`, `/evaluation`, and `/graph-demo` now keep `PageHeader` outside the scroll area and use page-owned scroll regions for the main content body.
+- Regression coverage: `KnowledgeBase.test.tsx`, `EvaluationCenter.ui.test.tsx`, and `GraphDemo.test.tsx` assert these scroll-region containers exist.
+
 ## Evaluation UI Contract
 
 - `TestCase` now includes:

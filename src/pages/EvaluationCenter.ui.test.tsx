@@ -38,6 +38,7 @@ describe('EvaluationCenter UI', () => {
     );
 
     expect(screen.getByTestId('layout')).toBeInTheDocument();
+    expect(screen.getByTestId('evaluation-scroll-region')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '題庫管理' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '模型設定' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '評估活動' })).toBeInTheDocument();

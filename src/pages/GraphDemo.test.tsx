@@ -150,6 +150,7 @@ describe('GraphDemo', () => {
       </ChakraProvider>
     );
 
+    expect(screen.getByTestId('graph-demo-scroll-region')).toBeInTheDocument();
     expect(screen.getByText('完整重構')).toBeInTheDocument();
     expect(screen.getByText('failed.pdf')).toBeInTheDocument();
     expect(screen.getAllByText('重試此文件')).toHaveLength(2);

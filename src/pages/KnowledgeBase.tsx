@@ -107,60 +107,73 @@ export default function KnowledgeBase() {
 
   return (
     <Layout>
-      <PageHeader title="知識庫" subtitle="管理您的研究文件" />
-      
-      <VStack spacing={6} align="stretch">
-        <SurfaceCard>
-          <CardBody>
-            <UploadZone
-              onUpload={handleUpload}
-              isUploading={batchUpload.isUploading}
-              uploadCount={batchUpload.uploads.length}
-            />
-            {batchUpload.uploads.length > 0 && (
-              <UploadBatchProgress uploads={batchUpload.uploads} />
-            )}
-            {!batchUpload.isUploading && batchUpload.uploads.some((upload) => upload.status === 'index_failed' || upload.status === 'failed') && (
-              <Alert status="warning" mt={4} borderRadius="md" variant="left-accent">
-                <AlertIcon />
-                <Box>
-                  <AlertTitle fontSize="sm">部分文件需要處理</AlertTitle>
-                  <AlertDescription fontSize="sm">
-                    有些 PDF 已上傳成功，但在 OCR 或索引階段發生錯誤。請查看上方批次進度訊息。
-                  </AlertDescription>
-                </Box>
-              </Alert>
-            )}
-          </CardBody>
-        </SurfaceCard>
+      <Flex direction="column" flex={1} minH={0} overflow="hidden">
+        <Box flexShrink={0}>
+          <PageHeader title="知識庫" subtitle="管理您的研究文件" />
+        </Box>
 
-        <SurfaceCard>
-          <CardBody>
-            {isLoading ? (
-              <Flex justify="center" align="center" py={8}>
-                <Spinner size="lg" color="brand.500" />
-                <Text ml={3} color="gray.500">載入中...</Text>
-              </Flex>
-            ) : error ? (
-              <Box textAlign="center" py={8}>
-                <Text color="red.500">載入失敗：{error.message}</Text>
-                <Button mt={4} size="sm" onClick={() => void refetch()}>
-                  重試
-                </Button>
-              </Box>
-            ) : (
-              <DocumentTable 
-                documents={documents || []}
-                onDelete={handleDeleteClick}
-                onOpenOriginal={(id) => void openPdfInNewTab(id, 'original')}
-                onOpenTranslated={(id) => void openPdfInNewTab(id, 'translated')}
-                onTranslate={(id) => void handleTranslate(id)}
-                onRetryIndex={(id) => void handleRetryIndex(id)}
-              />
-            )}
-          </CardBody>
-        </SurfaceCard>
-      </VStack>
+        <Box
+          flex={1}
+          minH={0}
+          overflowY="auto"
+          pr={{ base: 1, md: 2 }}
+          pb={2}
+          data-testid="knowledge-base-scroll-region"
+        >
+          <VStack spacing={6} align="stretch">
+            <SurfaceCard>
+              <CardBody>
+                <UploadZone
+                  onUpload={handleUpload}
+                  isUploading={batchUpload.isUploading}
+                  uploadCount={batchUpload.uploads.length}
+                />
+                {batchUpload.uploads.length > 0 && (
+                  <UploadBatchProgress uploads={batchUpload.uploads} />
+                )}
+                {!batchUpload.isUploading && batchUpload.uploads.some((upload) => upload.status === 'index_failed' || upload.status === 'failed') && (
+                  <Alert status="warning" mt={4} borderRadius="md" variant="left-accent">
+                    <AlertIcon />
+                    <Box>
+                      <AlertTitle fontSize="sm">部分文件需要處理</AlertTitle>
+                      <AlertDescription fontSize="sm">
+                        有些 PDF 已上傳成功，但在 OCR 或索引階段發生錯誤。請查看上方批次進度訊息。
+                      </AlertDescription>
+                    </Box>
+                  </Alert>
+                )}
+              </CardBody>
+            </SurfaceCard>
+
+            <SurfaceCard>
+              <CardBody>
+                {isLoading ? (
+                  <Flex justify="center" align="center" py={8}>
+                    <Spinner size="lg" color="brand.500" />
+                    <Text ml={3} color="gray.500">載入中...</Text>
+                  </Flex>
+                ) : error ? (
+                  <Box textAlign="center" py={8}>
+                    <Text color="red.500">載入失敗：{error.message}</Text>
+                    <Button mt={4} size="sm" onClick={() => void refetch()}>
+                      重試
+                    </Button>
+                  </Box>
+                ) : (
+                  <DocumentTable
+                    documents={documents || []}
+                    onDelete={handleDeleteClick}
+                    onOpenOriginal={(id) => void openPdfInNewTab(id, 'original')}
+                    onOpenTranslated={(id) => void openPdfInNewTab(id, 'translated')}
+                    onTranslate={(id) => void handleTranslate(id)}
+                    onRetryIndex={(id) => void handleRetryIndex(id)}
+                  />
+                )}
+              </CardBody>
+            </SurfaceCard>
+          </VStack>
+        </Box>
+      </Flex>
 
       {/* 刪除確認對話框 */}
       <AlertDialog

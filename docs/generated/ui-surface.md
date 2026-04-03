@@ -55,6 +55,19 @@ Human-maintained inventory of the current frontend surface.
   - keeps search and create controls in a sticky header
   - keeps research-detail and delete actions as secondary inline controls
 
+## Shell Scroll Surface
+
+- `Layout.tsx` provides a fixed shell (`overflow="hidden"`); route pages own vertical scrolling.
+- `KnowledgeBase.tsx`
+  - keeps `PageHeader` fixed in-page
+  - uses `knowledge-base-scroll-region` as the page body scroll owner
+- `EvaluationCenter.tsx`
+  - keeps `PageHeader` fixed in-page
+  - uses `evaluation-scroll-region` as the page body scroll owner
+- `GraphDemo.tsx`
+  - keeps `PageHeader` fixed in-page
+  - uses `graph-demo-scroll-region` as the page body scroll owner
+
 ## Evaluation Surface Snapshot
 
 - `TestCaseManager.tsx`

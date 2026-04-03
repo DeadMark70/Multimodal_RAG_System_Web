@@ -147,6 +147,7 @@ describe('KnowledgeBase', () => {
         <KnowledgeBase />
       </ChakraProvider>
     );
+    expect(screen.getByTestId('knowledge-base-scroll-region')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '文件操作 demo.pdf' }));
     fireEvent.click(screen.getByText('開啟翻譯 PDF'));

@@ -192,10 +192,21 @@ export function GraphDemo() {
 
   return (
     <Layout>
-      <PageHeader title="知識圖譜" subtitle="視覺化元件展示與圖譜控制" />
+      <Flex direction="column" flex={1} minH={0} overflow="hidden">
+        <Box flexShrink={0}>
+          <PageHeader title="知識圖譜" subtitle="視覺化元件展示與圖譜控制" />
+        </Box>
 
-      <VStack spacing={4} align="stretch">
-        <SurfaceCard p={4}>
+        <Box
+          flex={1}
+          minH={0}
+          overflowY="auto"
+          pr={{ base: 1, md: 2 }}
+          pb={2}
+          data-testid="graph-demo-scroll-region"
+        >
+          <VStack spacing={4} align="stretch">
+            <SurfaceCard p={4}>
           <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
             <HStack spacing={2} flexWrap="wrap">
               {graphStatus && (
@@ -269,34 +280,34 @@ export function GraphDemo() {
           <Text mt={3} color={subTextColor} fontSize="sm">
             圖譜控制與流程視覺化均使用同一份 API 狀態，便於觀察重算效果。
           </Text>
-        </SurfaceCard>
+            </SurfaceCard>
 
-        {graphError && (
-          <Alert status="warning" borderRadius="md">
-            <AlertIcon />
-            <Text>無法連接後端 API，顯示 Mock Data</Text>
-          </Alert>
-        )}
+            {graphError && (
+              <Alert status="warning" borderRadius="md">
+                <AlertIcon />
+                <Text>無法連接後端 API，顯示 Mock Data</Text>
+              </Alert>
+            )}
 
-        {graphStatus?.has_graph && graphStatus.community_count === 0 && (
-          <Alert status="info" borderRadius="md">
-            <AlertIcon />
-            <Text color={textColor}>
-              {actionableDocuments.length > 0
-                ? '目前社群為 0，且有文件建圖失敗/0 實體。可先完整重構，或對下方文件逐一重試。'
-                : '圖譜尚未進行社群偵測。點擊「優化社群」可啟用 Global Search 模式。'}
-            </Text>
-          </Alert>
-        )}
+            {graphStatus?.has_graph && graphStatus.community_count === 0 && (
+              <Alert status="info" borderRadius="md">
+                <AlertIcon />
+                <Text color={textColor}>
+                  {actionableDocuments.length > 0
+                    ? '目前社群為 0，且有文件建圖失敗/0 實體。可先完整重構，或對下方文件逐一重試。'
+                    : '圖譜尚未進行社群偵測。點擊「優化社群」可啟用 Global Search 模式。'}
+                </Text>
+              </Alert>
+            )}
 
-        {graphDocumentsError && (
-          <Alert status="warning" borderRadius="md">
-            <AlertIcon />
-            <Text>無法取得文件級 GraphRAG 狀態：{graphDocumentsError.message}</Text>
-          </Alert>
-        )}
+            {graphDocumentsError && (
+              <Alert status="warning" borderRadius="md">
+                <AlertIcon />
+                <Text>無法取得文件級 GraphRAG 狀態：{graphDocumentsError.message}</Text>
+              </Alert>
+            )}
 
-        <SurfaceCard p={4}>
+            <SurfaceCard p={4}>
           <Flex justify="space-between" align="center" mb={4} gap={4} wrap="wrap">
             <Box>
               <Heading size="sm" color={textColor}>
@@ -384,39 +395,41 @@ export function GraphDemo() {
               ))}
             </VStack>
           )}
-        </SurfaceCard>
+            </SurfaceCard>
 
-        <SurfaceCard p={4}>
-          <Tabs colorScheme="brand" variant="enclosed">
-            <TabList>
-              <Tab>知識圖譜</Tab>
-              <Tab>研究流程</Tab>
-            </TabList>
+            <SurfaceCard p={4}>
+              <Tabs colorScheme="brand" variant="enclosed">
+                <TabList>
+                  <Tab>知識圖譜</Tab>
+                  <Tab>研究流程</Tab>
+                </TabList>
 
-            <TabPanels>
-              <TabPanel p={0} pt={4}>
-                <Box borderRadius="12px" overflow="hidden">
-                  <KnowledgeGraph
-                    data={graphData}
-                    width={graphWidth}
-                    height={600}
-                    isLoading={isGraphLoading}
-                    onNodeClick={(node) => {
-                      console.log('Node clicked:', node);
-                    }}
-                  />
-                </Box>
-              </TabPanel>
+                <TabPanels>
+                  <TabPanel p={0} pt={4}>
+                    <Box borderRadius="12px" overflow="hidden">
+                      <KnowledgeGraph
+                        data={graphData}
+                        width={graphWidth}
+                        height={600}
+                        isLoading={isGraphLoading}
+                        onNodeClick={(node) => {
+                          console.log('Node clicked:', node);
+                        }}
+                      />
+                    </Box>
+                  </TabPanel>
 
-              <TabPanel p={0} pt={4}>
-                <Box borderRadius="12px" overflow="hidden">
-                  <ResearchFlow width={graphWidth} height={500} />
-                </Box>
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
-        </SurfaceCard>
-      </VStack>
+                  <TabPanel p={0} pt={4}>
+                    <Box borderRadius="12px" overflow="hidden">
+                      <ResearchFlow width={graphWidth} height={500} />
+                    </Box>
+                  </TabPanel>
+                </TabPanels>
+              </Tabs>
+            </SurfaceCard>
+          </VStack>
+        </Box>
+      </Flex>
     </Layout>
   );
 }
