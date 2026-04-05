@@ -97,8 +97,15 @@ export default function AgenticBenchmarkPanel({ researchState }: AgenticBenchmar
   const progressPercent = progress.length > 0 ? Math.round((completedCount / progress.length) * 100) : 0;
 
   return (
-    <Card bg={cardBg} borderRadius="xl" flex={1} minH={0} overflow="hidden">
-      <CardBody display="flex" flexDirection="column" minH={0} p={{ base: 4, md: 5 }}>
+    <Card bg={cardBg} borderRadius="xl" h="100%" flex={1} minH={0} overflow="hidden">
+      <CardBody
+        display="flex"
+        flexDirection="column"
+        minH={0}
+        p={{ base: 4, md: 5 }}
+        overflowY="auto"
+        data-testid="agentic-benchmark-scroll-region"
+      >
         <VStack spacing={4} align="stretch" h="100%" minH={0} overflow="hidden">
           <Box p={4} borderRadius="xl" bg={summaryBg} border="1px solid" borderColor={borderColor}>
             <HStack justify="space-between" align="start" wrap="wrap" spacing={3}>
@@ -138,9 +145,7 @@ export default function AgenticBenchmarkPanel({ researchState }: AgenticBenchmar
             defaultIndex={[0]}
             flex={1}
             minH={0}
-            overflowY="auto"
             pr={1}
-            data-testid="agentic-benchmark-scroll-region"
           >
             <AccordionItem borderWidth="1px" borderColor={borderColor} borderRadius="lg" mb={3}>
               <AccordionButton>

@@ -397,7 +397,7 @@ export default function Chat() {
                   <DeepResearchPanel researchState={deepResearch} />
                 </Box>
               ) : isAgenticBenchmarkMode ? (
-                <Box h="100%" minH={0} overflow="hidden">
+                <Box h="100%" minH={0} overflow="hidden" display="flex">
                   <AgenticBenchmarkPanel researchState={agenticBenchmark} />
                 </Box>
               ) : (
