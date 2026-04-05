@@ -180,7 +180,7 @@ export default function ConversationSidebar({
             </Text>
             <HStack>
               <Tooltip
-                label={defaultNewType === 'research' ? '新增 Agentic 對話' : '新增對話'}
+                label={defaultNewType === 'research' ? '新增研究對話' : '新增對話'}
                 placement="top"
               >
                 <IconButton
@@ -239,7 +239,7 @@ export default function ConversationSidebar({
                 leftIcon={<FiPlus />}
                 onClick={() => onNew(defaultNewType)}
               >
-                {defaultNewType === 'research' ? '開始新 Agentic 對話' : '開始新對話'}
+                {defaultNewType === 'research' ? '開始新研究對話' : '開始新對話'}
               </Button>
             </Flex>
           ) : (

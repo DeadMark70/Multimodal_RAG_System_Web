@@ -42,7 +42,7 @@ export interface RagSettings {
   max_subtasks: number;
 }
 
-export type OfficialChatMode = 'native' | 'advanced' | 'graph' | 'agentic';
+export type OfficialChatMode = 'native' | 'advanced' | 'graph' | 'agentic' | 'agentic_benchmark';
 export type ChatModeBase = OfficialChatMode;
 
 export interface CustomChatPreset {
@@ -96,7 +96,7 @@ interface SettingsState {
   };
 }
 
-const OFFICIAL_PRESET_ORDER: OfficialChatMode[] = ['native', 'advanced', 'graph', 'agentic'];
+const OFFICIAL_PRESET_ORDER: OfficialChatMode[] = ['native', 'advanced', 'graph', 'agentic', 'agentic_benchmark'];
 const DEFAULT_CHAT_MODE_ID: OfficialChatMode = 'graph';
 
 function clampMaxSubtasks(value: number): number {
@@ -213,6 +213,22 @@ function createPresetConfig(baseMode: OfficialChatMode): RagSettings {
         undefined,
         'multi_query'
       );
+    case 'agentic_benchmark':
+      return normalizeRagSettings(
+        {
+          enable_hyde: false,
+          enable_multi_query: true,
+          enable_reranking: true,
+          enable_evaluation: false,
+          enable_graph_rag: true,
+          graph_search_mode: 'generic',
+          enable_graph_planning: false,
+          enable_deep_image_analysis: true,
+          max_subtasks: 5,
+        },
+        undefined,
+        'multi_query'
+      );
   }
 }
 
@@ -243,10 +259,18 @@ export const OFFICIAL_CHAT_PRESETS: Record<OfficialChatMode, ChatModePreset> = {
   },
   agentic: {
     id: 'agentic',
-    name: 'Agentic RAG',
+    name: 'Deep Research',
     baseMode: 'agentic',
-    description: '包含 Graph RAG，再加上計畫、drill-down 與視覺查證。',
+    description: '可編輯任務計畫、drill-down 與視覺查證的深度研究模式。',
     config: createPresetConfig('agentic'),
+    isOfficial: true,
+  },
+  agentic_benchmark: {
+    id: 'agentic_benchmark',
+    name: 'Agentic RAG (Benchmark)',
+    baseMode: 'agentic_benchmark',
+    description: '評估基準 agentic 流程，含任務追蹤、工具調用與 trace。',
+    config: createPresetConfig('agentic_benchmark'),
     isOfficial: true,
   },
 };
@@ -348,6 +372,31 @@ function extractConversationSnapshot(
   return { modeId, snapshot };
 }
 
+function resolveResearchModeFromMetadata(
+  metadata?: Record<string, unknown>
+): OfficialChatMode | undefined {
+  if (!metadata) {
+    return undefined;
+  }
+
+  const engine =
+    typeof metadata.research_engine === 'string'
+      ? metadata.research_engine
+      : typeof metadata.engine === 'string'
+        ? metadata.engine
+        : undefined;
+
+  if (engine === 'agentic_benchmark') {
+    return 'agentic_benchmark';
+  }
+
+  if (engine === 'deep_research' || engine === 'agentic') {
+    return 'agentic';
+  }
+
+  return undefined;
+}
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set, get) => ({
@@ -413,7 +462,9 @@ export const useSettingsStore = create<SettingsState>()(
         restoreConversationMode: (metadata, conversationType) =>
           set((state) => {
             const { modeId, snapshot } = extractConversationSnapshot(metadata);
-            const fallbackMode: OfficialChatMode = conversationType === 'research' ? 'agentic' : 'graph';
+            const researchMode = resolveResearchModeFromMetadata(metadata);
+            const fallbackMode: OfficialChatMode =
+              conversationType === 'research' ? researchMode ?? 'agentic' : 'graph';
             const resolvedModeId =
               modeId && isKnownPresetId(modeId, state.customChatPresets)
                 ? modeId
@@ -569,7 +620,7 @@ export const useActiveChatPreset = () => {
 };
 
 export function getConversationTypeForMode(baseMode: ChatModeBase): ConversationType {
-  return baseMode === 'agentic' ? 'research' : 'chat';
+  return baseMode === 'agentic' || baseMode === 'agentic_benchmark' ? 'research' : 'chat';
 }
 
 export default useSettingsStore;

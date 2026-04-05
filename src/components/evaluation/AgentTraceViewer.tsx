@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Accordion,
-  AccordionButton,
-  AccordionIcon,
-  AccordionItem,
-  AccordionPanel,
   Badge,
   Box,
   FormControl,
@@ -25,143 +20,22 @@ import {
   listCampaignTraces,
   listCampaigns,
 } from '../../services/evaluationApi';
+import TraceStepCard from '../trace/TraceStepCard';
+import { PHASE_LABELS, phaseColor, profileLabel, statusColor } from '../trace/traceUi';
 import type {
   AgentTraceDetail,
   AgentTracePhase,
-  AgentTraceStatus,
   AgentTraceStep,
   AgentTraceSummary,
   CampaignStatus,
 } from '../../types/evaluation';
 
-const PHASE_LABELS: Record<AgentTracePhase, string> = {
-  planning: 'Planning',
-  execution: 'Execution',
-  drilldown: 'Drill-down',
-  evaluation: 'Evaluation',
-  synthesis: 'Synthesis',
-};
-
-function statusColor(status: AgentTraceStatus): string {
-  switch (status) {
-    case 'completed':
-      return 'green';
-    case 'partial':
-      return 'yellow';
-    case 'failed':
-      return 'red';
-    default:
-      return 'gray';
-  }
-}
-
-function phaseColor(phase: AgentTracePhase): string {
-  switch (phase) {
-    case 'planning':
-      return 'blue';
-    case 'execution':
-      return 'teal';
-    case 'drilldown':
-      return 'orange';
-    case 'evaluation':
-      return 'purple';
-    case 'synthesis':
-      return 'pink';
-    default:
-      return 'gray';
-  }
-}
-
 function formatModeCampaign(campaign: CampaignStatus): string {
   return `${campaign.name || campaign.id} (${campaign.config.modes.join(', ')})`;
 }
 
-function profileLabel(profile?: string | null): string | null {
-  return profile ? `profile ${profile}` : null;
-}
-
-function TraceStepCard({ step }: { step: AgentTraceStep }) {
-  const toolTokenCount = step.token_usage.total_tokens ?? 0;
-
-  return (
-    <Box borderWidth="1px" borderRadius="lg" p={4} bg="white">
-      <HStack justify="space-between" align="start" mb={3}>
-        <VStack align="start" spacing={1}>
-          <Text fontWeight="semibold">{step.title}</Text>
-          <HStack>
-            <Badge colorScheme={phaseColor(step.phase)}>{PHASE_LABELS[step.phase]}</Badge>
-            <Badge colorScheme={statusColor(step.status)}>{step.status}</Badge>
-            {toolTokenCount > 0 && <Badge colorScheme="gray">{toolTokenCount} tokens</Badge>}
-            {step.tool_calls.length > 0 && <Badge colorScheme="cyan">{step.tool_calls.length} tools</Badge>}
-          </HStack>
-        </VStack>
-      </HStack>
-
-      <Stack spacing={3}>
-        {step.input_preview && (
-          <Box>
-            <Text fontSize="sm" fontWeight="medium" color="gray.600">
-              Input
-            </Text>
-            <Text fontSize="sm">{step.input_preview}</Text>
-          </Box>
-        )}
-        {step.output_preview && (
-          <Box>
-            <Text fontSize="sm" fontWeight="medium" color="gray.600">
-              Output
-            </Text>
-            <Text fontSize="sm">{step.output_preview}</Text>
-          </Box>
-        )}
-        {step.tool_calls.length > 0 && (
-          <Box>
-            <Text fontSize="sm" fontWeight="medium" color="gray.600" mb={2}>
-              Tool Calls
-            </Text>
-            <Stack spacing={2}>
-              {step.tool_calls.map((toolCall) => (
-                <Box key={`${step.step_id}-${toolCall.index}`} borderWidth="1px" borderRadius="md" p={2} bg="gray.50">
-                  <HStack justify="space-between" mb={1}>
-                    <Text fontSize="sm" fontWeight="medium">
-                      {toolCall.action}
-                    </Text>
-                    <Badge colorScheme={statusColor(toolCall.status)}>{toolCall.status}</Badge>
-                  </HStack>
-                  {toolCall.result_preview && (
-                    <Text fontSize="xs" color="gray.600">
-                      {toolCall.result_preview}
-                    </Text>
-                  )}
-                </Box>
-              ))}
-            </Stack>
-          </Box>
-        )}
-        {step.raw_text && (
-          <Accordion allowToggle>
-            <AccordionItem borderWidth="1px" borderRadius="md">
-              <AccordionButton>
-                <Box flex="1" textAlign="left" fontSize="sm" fontWeight="medium">
-                  Raw Thought
-                </Box>
-                <AccordionIcon />
-              </AccordionButton>
-              <AccordionPanel pt={0}>
-                <Text whiteSpace="pre-wrap" fontSize="xs" color="gray.700">
-                  {step.raw_text}
-                </Text>
-              </AccordionPanel>
-            </AccordionItem>
-          </Accordion>
-        )}
-      </Stack>
-    </Box>
-  );
-}
-
 function TraceColumn({ detail }: { detail: AgentTraceDetail }) {
-  const groupedSteps = useMemo(() => {
+  const groupedSteps = useMemo<Array<[AgentTracePhase, AgentTraceStep[]]>>(() => {
     const groups = new Map<AgentTracePhase, AgentTraceStep[]>();
     for (const step of detail.steps) {
       const current = groups.get(step.phase) ?? [];

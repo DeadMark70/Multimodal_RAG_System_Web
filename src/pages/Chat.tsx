@@ -42,10 +42,12 @@ import SurfaceCard from '../components/common/SurfaceCard';
 import MessageBubble from '../components/rag/MessageBubble';
 import DocumentSelector from '../components/rag/DocumentSelector';
 import DeepResearchPanel from '../components/rag/DeepResearchPanel';
+import AgenticBenchmarkPanel from '../components/rag/AgenticBenchmarkPanel';
 import ConversationSidebar from '../components/rag/ConversationSidebar';
 import SettingsPanel from '../components/settings/SettingsPanel';
 import { useChat } from '../hooks/useChat';
 import { useDeepResearch } from '../hooks/useDeepResearch';
+import { useAgenticBenchmarkResearch } from '../hooks/useAgenticBenchmarkResearch';
 import { useConversationMutations } from '../hooks/useConversations';
 import { useSessionStore } from '../stores/useSessionStore';
 import {
@@ -108,6 +110,32 @@ function getResearchPhaseLabel(
   }
 }
 
+function getBenchmarkPhaseLabel(
+  phase: ReturnType<typeof useAgenticBenchmarkResearch>['currentPhase'],
+  isRunning: boolean
+): string | null {
+  if (!isRunning && phase !== 'complete') {
+    return null;
+  }
+
+  switch (phase) {
+    case 'planning':
+      return '正在建立 benchmark 任務計畫';
+    case 'executing':
+      return '正在執行 benchmark 主任務';
+    case 'drilldown':
+      return '正在執行 drill-down 任務';
+    case 'evaluation':
+      return '正在進行覆蓋評估';
+    case 'synthesis':
+      return '正在生成 benchmark 綜合報告';
+    case 'complete':
+      return 'Agentic Benchmark 完成';
+    default:
+      return '正在處理';
+  }
+}
+
 export default function Chat() {
   const { currentChatId, actions: { setCurrentChatId } } = useSessionStore();
   const { ragSettings, selectedChatModeId } = useSettingsStore();
@@ -118,7 +146,9 @@ export default function Chat() {
   const conversationDrawer = useDisclosure();
   const settingsDrawer = useDisclosure();
 
-  const isAgenticMode = activePreset.baseMode === 'agentic';
+  const isDeepResearchMode = activePreset.baseMode === 'agentic';
+  const isAgenticBenchmarkMode = activePreset.baseMode === 'agentic_benchmark';
+  const isResearchMode = isDeepResearchMode || isAgenticBenchmarkMode;
   const activeConversationType = getConversationTypeForMode(activePreset.baseMode);
   const presetIsDirty = !areSettingsEqual(activePreset.config, ragSettings);
 
@@ -137,7 +167,7 @@ export default function Chat() {
     enableReranking: ragSettings.enable_reranking,
     enableGraphRag: ragSettings.enable_graph_rag,
     graphSearchMode: ragSettings.graph_search_mode,
-    conversationId: isAgenticMode ? null : currentChatId,
+    conversationId: isResearchMode ? null : currentChatId,
     ensureConversation: async () => {
       try {
         const newConversation = await create({
@@ -161,6 +191,7 @@ export default function Chat() {
     docIds: selectedDocIds,
     enableGraphPlanning: ragSettings.enable_graph_planning,
   });
+  const agenticBenchmark = useAgenticBenchmarkResearch(selectedDocIds);
   const { isPlanning, isExecuting } = deepResearch;
 
   const [input, setInput] = useState('');
@@ -177,7 +208,7 @@ export default function Chat() {
   );
 
   useEffect(() => {
-    if (!isAgenticMode) {
+    if (!isResearchMode) {
       const messageScrollRegion = messageScrollRegionRef.current;
       if (messageScrollRegion) {
         if (typeof messageScrollRegion.scrollTo === 'function') {
@@ -190,7 +221,7 @@ export default function Chat() {
         }
       }
     }
-  }, [isAgenticMode, messages]);
+  }, [isResearchMode, messages]);
 
   useEffect(() => {
     const mainLayout = mainLayoutRef.current;
@@ -211,14 +242,22 @@ export default function Chat() {
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
-  const isLoading = isChatLoading || isPlanning || isExecuting;
+  const isLoading = isChatLoading || isPlanning || isExecuting || agenticBenchmark.isRunning;
   const ordinaryChatStatus = getChatStageLabel(currentStage);
-  const agenticStatus = getResearchPhaseLabel(
+  const deepResearchStatus = getResearchPhaseLabel(
     deepResearch.currentPhase,
     isPlanning,
     isExecuting
   );
-  const activeStatusLabel = isAgenticMode ? agenticStatus : ordinaryChatStatus;
+  const benchmarkStatus = getBenchmarkPhaseLabel(
+    agenticBenchmark.currentPhase,
+    agenticBenchmark.isRunning
+  );
+  const activeStatusLabel = isDeepResearchMode
+    ? deepResearchStatus
+    : isAgenticBenchmarkMode
+      ? benchmarkStatus
+      : ordinaryChatStatus;
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) {
@@ -228,8 +267,12 @@ export default function Chat() {
     const message = input.trim();
     setInput('');
 
-    if (isAgenticMode) {
+    if (isDeepResearchMode) {
       await deepResearch.generatePlan(message);
+      return;
+    }
+    if (isAgenticBenchmarkMode) {
+      await agenticBenchmark.runBenchmark(message);
       return;
     }
 
@@ -252,7 +295,7 @@ export default function Chat() {
   const handleNewConversation = async (type: ConversationType) => {
     try {
       const newConversation = await create({
-        title: type === 'research' ? '新 Agentic 對話' : '新對話',
+        title: type === 'research' ? '新研究對話' : '新對話',
         type,
         metadata: {
           mode_preset: selectedChatModeId,
@@ -298,7 +341,7 @@ export default function Chat() {
     <Layout>
       <Flex direction="column" flex={1} h="100%" minH={0} overflow="hidden" data-testid="chat-shell">
         <Box flexShrink={0}>
-          <PageHeader title="對話" subtitle="Preset-driven RAG 問答與 Agentic 研究" />
+          <PageHeader title="對話" subtitle="Preset-driven RAG 問答與雙研究模式" />
         </Box>
 
         <Flex
@@ -349,9 +392,13 @@ export default function Chat() {
             </HStack>
 
             <Box flex={1} minH={0} minW={0} overflow="hidden" mb={4}>
-              {isAgenticMode ? (
+              {isDeepResearchMode ? (
                 <Box h="100%" minH={0} overflow="hidden">
                   <DeepResearchPanel researchState={deepResearch} />
+                </Box>
+              ) : isAgenticBenchmarkMode ? (
+                <Box h="100%" minH={0} overflow="hidden">
+                  <AgenticBenchmarkPanel researchState={agenticBenchmark} />
                 </Box>
               ) : (
                 <Flex
@@ -438,7 +485,7 @@ export default function Chat() {
                   <Menu>
                     <MenuButton
                       as={Button}
-                      leftIcon={isAgenticMode ? <FiLayers /> : <FiMessageSquare />}
+                      leftIcon={isResearchMode ? <FiLayers /> : <FiMessageSquare />}
                       rightIcon={<FiChevronDown />}
                       variant="ghost"
                       borderRadius="full"
@@ -452,7 +499,11 @@ export default function Chat() {
                       {presetList.map((preset) => (
                         <MenuItem
                           key={preset.id}
-                          icon={preset.baseMode === 'agentic' ? <FiLayers /> : <FiMessageSquare />}
+                          icon={
+                            preset.baseMode === 'agentic' || preset.baseMode === 'agentic_benchmark'
+                              ? <FiLayers />
+                              : <FiMessageSquare />
+                          }
                           onClick={() => handlePresetChange(preset.id)}
                         >
                           <HStack justify="space-between" w="full">
@@ -465,9 +516,15 @@ export default function Chat() {
                   </Menu>
 
                   <Input
-                    aria-label={isAgenticMode ? '研究問題輸入框' : '聊天輸入框'}
+                    aria-label={isResearchMode ? '研究問題輸入框' : '聊天輸入框'}
                     variant="unstyled"
-                    placeholder={isAgenticMode ? '輸入研究問題，先生成可編輯計畫…' : '輸入您的問題…'}
+                    placeholder={
+                      isDeepResearchMode
+                        ? '輸入研究問題，先生成可編輯計畫…'
+                        : isAgenticBenchmarkMode
+                          ? '輸入研究問題，直接啟動 benchmark agentic 流程…'
+                          : '輸入您的問題…'
+                    }
                     value={input}
                     onChange={(event) => setInput(event.target.value)}
                     onKeyDown={handleKeyPress}
@@ -570,7 +627,7 @@ export default function Chat() {
               </CardBody>
             </SurfaceCard>
 
-            {ragSettings.enable_evaluation && !isAgenticMode && (
+            {ragSettings.enable_evaluation && !isResearchMode && (
               <SurfaceCard variant="unstyled" bg={panelBg} p={4}>
                 <CardBody p={0}>
                   <VStack spacing={3} align="stretch">

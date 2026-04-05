@@ -1,3 +1,5 @@
+import type { AgentTraceStep } from './evaluation';
+
 export interface Citation {
   doc_id: string;
   filename: string | null;
@@ -298,5 +300,62 @@ export interface TaskProgress {
   answer?: string;
   contexts?: string[]; // 🆕 Phase 13: 原始文本片段
   iteration: number;
+}
+
+// ========== Agentic Benchmark Chat 型別 ==========
+
+export interface AgenticBenchmarkRequest {
+  question: string;
+  doc_ids?: string[];
+  conversation_id?: string;
+  enable_reranking?: boolean;
+  enable_deep_image_analysis?: boolean;
+}
+
+export interface AgenticBenchmarkPlanReadyData {
+  original_question: string;
+  estimated_complexity: 'simple' | 'medium' | 'complex';
+  task_count: number;
+  enabled_count: number;
+  question_intent: string;
+  strategy_tier: string;
+  max_iterations: number;
+  sub_tasks: EditableSubTask[];
+}
+
+export interface AgenticBenchmarkEvaluationUpdate {
+  iteration: number;
+  stage: string;
+  gate_pass?: boolean;
+  coverage_gaps?: string[];
+  details?: Record<string, unknown>;
+}
+
+export interface AgenticBenchmarkCompleteData {
+  result: ExecutePlanResponse;
+  agent_trace: {
+    summary?: string;
+    steps?: AgentTraceStep[];
+    [key: string]: unknown;
+  };
+}
+
+export type AgenticBenchmarkSSEEventType =
+  | 'plan_ready'
+  | 'task_start'
+  | 'task_phase_update'
+  | 'task_done'
+  | 'drilldown_start'
+  | 'drilldown_task_start'
+  | 'drilldown_task_done'
+  | 'evaluation_update'
+  | 'trace_step'
+  | 'synthesis_start'
+  | 'complete'
+  | 'error';
+
+export interface AgenticBenchmarkSSEEvent {
+  type: AgenticBenchmarkSSEEventType;
+  data: unknown;
 }
 

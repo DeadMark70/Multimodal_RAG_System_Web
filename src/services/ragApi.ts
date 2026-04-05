@@ -13,6 +13,8 @@ import api from './api';
 import type { 
   AskRequest, 
   AskResponse,
+  AgenticBenchmarkRequest,
+  AgenticBenchmarkSSEEvent,
   ChatStreamEvent,
   ResearchPlanResponse,
   ExecutePlanRequest,
@@ -210,5 +212,16 @@ export async function executeResearchPlanStream(
   signal?: AbortSignal
 ): Promise<void> {
   await streamSse<SSEEvent>('/rag/execute/stream', request, onEvent, signal);
+}
+
+/**
+ * Agentic Benchmark 研究 (聊天專用, 自動 plan+execute, SSE 串流)
+ */
+export async function executeAgenticBenchmarkStream(
+  request: AgenticBenchmarkRequest,
+  onEvent: (event: AgenticBenchmarkSSEEvent) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  await streamSse<AgenticBenchmarkSSEEvent>('/rag/agentic/stream', request, onEvent, signal);
 }
 

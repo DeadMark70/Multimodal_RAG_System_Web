@@ -34,6 +34,7 @@ interface UseDeepResearchOptions {
 }
 
 interface ResearchConversationMetadata extends Record<string, unknown> {
+  research_engine?: string;
   original_question?: string;
   plan?: ResearchPlanResponse;
   result?: ExecutePlanResponse;
@@ -121,7 +122,7 @@ function defaultStageLabel(stage: ChatPipelineStage): string {
 
 export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepResearchReturn {
   const { docIds, enableGraphPlanning } = options;
-  const { ragSettings } = useSettingsStore();
+  const { ragSettings, selectedChatModeId } = useSettingsStore();
   
   const [plan, setPlan] = useState<ResearchPlanResponse | null>(null);
   const [isPlanning, setIsPlanning] = useState(false);
@@ -148,6 +149,9 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
         const conversation = await getConversation(currentChatId);
         if (conversation.type === 'research') {
           const metadata = (conversation.metadata ?? {}) as ResearchConversationMetadata;
+          if (metadata.research_engine === 'agentic_benchmark') {
+            return;
+          }
           if (metadata.plan) {
             setPlan(metadata.plan);
           }
@@ -189,8 +193,11 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
         title: question,
         type: 'research',
         metadata: {
-            // 初始 metadata
-            original_question: question,
+          mode_preset: selectedChatModeId,
+          mode_config_snapshot: ragSettings,
+          research_engine: 'deep_research',
+          engine: 'agentic',
+          original_question: question,
         }
       });
       setCurrentChatId(conversation.id);
@@ -202,6 +209,10 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
       // 3. 儲存 canonical research metadata
       await updateConversation(conversation.id, {
         metadata: {
+          mode_preset: selectedChatModeId,
+          mode_config_snapshot: ragSettings,
+          research_engine: 'deep_research',
+          engine: 'agentic',
           original_question: question,
           plan: planResponse,
         },
@@ -225,7 +236,15 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     } finally {
       setIsPlanning(false);
     }
-  }, [docIds, enableGraphPlanning, toast, createConversation, setCurrentChatId]);
+  }, [
+    docIds,
+    enableGraphPlanning,
+    ragSettings,
+    selectedChatModeId,
+    toast,
+    createConversation,
+    setCurrentChatId,
+  ]);
 
   /**
    * 更新子任務
@@ -416,6 +435,10 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
       if (currentChatId) {
         await updateConversation(currentChatId, {
           metadata: {
+            mode_preset: selectedChatModeId,
+            mode_config_snapshot: ragSettings,
+            research_engine: 'deep_research',
+            engine: 'agentic',
             original_question: plan.original_question,
             plan,
           },
@@ -463,8 +486,8 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     plan,
     toast,
     handleSSEEvent,
-    ragSettings.enable_deep_image_analysis,
-    ragSettings.enable_reranking,
+    ragSettings,
+    selectedChatModeId,
     currentChatId,
   ]);
 
