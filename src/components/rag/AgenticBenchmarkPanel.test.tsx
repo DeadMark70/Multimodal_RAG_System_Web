@@ -39,8 +39,17 @@ function buildState(
       question: 'question',
       summary: 'summary',
       detailed_answer: 'detail',
-      sub_tasks: [],
-      all_sources: [],
+      sub_tasks: [
+        {
+          id: 1,
+          question: 'task',
+          answer: 'task-answer',
+          sources: ['doc-1'],
+          is_drilldown: false,
+          iteration: 0,
+        },
+      ],
+      all_sources: ['doc-1'],
       confidence: 0.9,
       total_iterations: 0,
     },
@@ -68,5 +77,9 @@ describe('AgenticBenchmarkPanel', () => {
     expect(screen.getByText('Trace Steps')).toBeInTheDocument();
     expect(screen.getByText('最終報告')).toBeInTheDocument();
     expect(screen.getByText('summary')).toBeInTheDocument();
+    expect(screen.getByText('detail')).toBeInTheDocument();
+    expect(screen.getByText('子任務結果')).toBeInTheDocument();
+    expect(screen.getByText('引用來源')).toBeInTheDocument();
+    expect(screen.getByTestId('agentic-benchmark-scroll-region')).toBeInTheDocument();
   });
 });

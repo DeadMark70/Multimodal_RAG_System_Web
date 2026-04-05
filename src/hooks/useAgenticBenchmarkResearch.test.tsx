@@ -196,4 +196,54 @@ describe('useAgenticBenchmarkResearch', () => {
       expect(result.current.currentPhase).toBe('complete');
     });
   });
+
+  it('reconstructs plan and timeline from stored result when progress metadata is absent', async () => {
+    mockUseSessionStore.mockReturnValue({
+      currentChatId: 'bench-rebuild',
+      actions: { setCurrentChatId: mockSetCurrentChatId },
+    } as ReturnType<typeof useSessionStore>);
+    mockGetConversation.mockResolvedValue({
+      id: 'bench-rebuild',
+      title: 'q',
+      type: 'research',
+      created_at: '',
+      updated_at: '',
+      metadata: {
+        research_engine: 'agentic_benchmark',
+        original_question: 'q',
+        result: {
+          question: 'q',
+          summary: 'restored summary',
+          detailed_answer: 'restored detail',
+          sub_tasks: [
+            {
+              id: 1,
+              question: 'task-1',
+              answer: 'answer-1',
+              sources: ['doc-1'],
+              contexts: ['ctx-1'],
+              is_drilldown: false,
+              iteration: 0,
+            },
+          ],
+          all_sources: ['doc-1'],
+          confidence: 0.8,
+          total_iterations: 1,
+        },
+        agent_trace: {
+          coverage_gaps: [],
+          steps: [],
+        },
+      },
+      messages: [],
+    });
+
+    const { result } = renderHook(() => useAgenticBenchmarkResearch([]));
+
+    await waitFor(() => {
+      expect(result.current.plan?.task_count).toBe(1);
+      expect(result.current.progress).toHaveLength(1);
+      expect(result.current.evaluationUpdates).toHaveLength(1);
+    });
+  });
 });

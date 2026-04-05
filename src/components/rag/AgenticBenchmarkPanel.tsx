@@ -99,7 +99,7 @@ export default function AgenticBenchmarkPanel({ researchState }: AgenticBenchmar
   return (
     <Card bg={cardBg} borderRadius="xl" flex={1} minH={0} overflow="hidden">
       <CardBody display="flex" flexDirection="column" minH={0} p={{ base: 4, md: 5 }}>
-        <VStack spacing={4} align="stretch" h="100%" minH={0}>
+        <VStack spacing={4} align="stretch" h="100%" minH={0} overflow="hidden">
           <Box p={4} borderRadius="xl" bg={summaryBg} border="1px solid" borderColor={borderColor}>
             <HStack justify="space-between" align="start" wrap="wrap" spacing={3}>
               <VStack align="start" spacing={1}>
@@ -133,7 +133,15 @@ export default function AgenticBenchmarkPanel({ researchState }: AgenticBenchmar
             </HStack>
           </Box>
 
-          <Accordion allowMultiple defaultIndex={[0]} overflowY="auto" pr={1}>
+          <Accordion
+            allowMultiple
+            defaultIndex={[0]}
+            flex={1}
+            minH={0}
+            overflowY="auto"
+            pr={1}
+            data-testid="agentic-benchmark-scroll-region"
+          >
             <AccordionItem borderWidth="1px" borderColor={borderColor} borderRadius="lg" mb={3}>
               <AccordionButton>
                 <HStack flex="1" textAlign="left">
@@ -252,12 +260,48 @@ export default function AgenticBenchmarkPanel({ researchState }: AgenticBenchmar
                 {result ? (
                   <Stack spacing={3}>
                     <Text fontWeight="semibold">摘要</Text>
-                    <Text fontSize="sm">{result.summary}</Text>
+                    <Text fontSize="sm" whiteSpace="pre-wrap">
+                      {result.summary}
+                    </Text>
                     <Divider />
                     <Text fontWeight="semibold">詳細回答</Text>
                     <Text fontSize="sm" whiteSpace="pre-wrap">
                       {result.detailed_answer}
                     </Text>
+                    {result.sub_tasks.length > 0 && (
+                      <>
+                        <Divider />
+                        <Text fontWeight="semibold">子任務結果</Text>
+                        <Stack spacing={2}>
+                          {result.sub_tasks.map((task) => (
+                            <Box key={`${task.iteration}-${task.id}`} p={3} borderWidth="1px" borderRadius="lg" bg={summaryBg}>
+                              <Text fontSize="xs" color={subTextColor} mb={1}>
+                                任務 #{task.id} · Iteration {task.iteration}
+                              </Text>
+                              <Text fontSize="sm" fontWeight="medium" mb={1}>
+                                {task.question}
+                              </Text>
+                              <Text fontSize="sm" whiteSpace="pre-wrap">
+                                {task.answer}
+                              </Text>
+                            </Box>
+                          ))}
+                        </Stack>
+                      </>
+                    )}
+                    {result.all_sources.length > 0 && (
+                      <>
+                        <Divider />
+                        <Text fontWeight="semibold">引用來源</Text>
+                        <Stack spacing={1}>
+                          {result.all_sources.map((source, index) => (
+                            <Text key={`${source}-${index}`} fontSize="sm" color={subTextColor}>
+                              {index + 1}. {source}
+                            </Text>
+                          ))}
+                        </Stack>
+                      </>
+                    )}
                   </Stack>
                 ) : (
                   <Text color={subTextColor}>尚未完成最終報告。</Text>

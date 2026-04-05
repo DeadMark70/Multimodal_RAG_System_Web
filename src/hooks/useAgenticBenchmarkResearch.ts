@@ -28,8 +28,12 @@ type AgenticBenchmarkPhase =
 interface ResearchConversationMetadata extends Record<string, unknown> {
   research_engine?: string;
   original_question?: string;
+  plan?: AgenticBenchmarkPlanReadyData;
+  progress?: AgenticBenchmarkTaskProgress[];
+  evaluation_updates?: AgenticBenchmarkEvaluationUpdate[];
   result?: ExecutePlanResponse;
   agent_trace?: {
+    coverage_gaps?: string[];
     steps?: AgentTraceStep[];
     [key: string]: unknown;
   };
@@ -122,12 +126,66 @@ export function useAgenticBenchmarkResearch(
         if (metadata.research_engine !== 'agentic_benchmark') {
           return;
         }
+        if (metadata.plan) {
+          setPlan(metadata.plan);
+        }
+        if (Array.isArray(metadata.progress) && metadata.progress.length > 0) {
+          setProgress(metadata.progress);
+        }
+        if (Array.isArray(metadata.evaluation_updates) && metadata.evaluation_updates.length > 0) {
+          setEvaluationUpdates(metadata.evaluation_updates);
+        }
         if (metadata.result) {
           setResult(metadata.result);
+          if (!metadata.progress && metadata.result.sub_tasks.length > 0) {
+            setProgress(
+              metadata.result.sub_tasks.map((task) => ({
+                id: task.id,
+                question: task.question,
+                taskType: 'rag',
+                status: 'done',
+                details: null,
+                stageLabel: '回答完成',
+                answer: task.answer,
+                contexts: task.contexts,
+                iteration: task.iteration,
+              }))
+            );
+          }
+          if (!metadata.plan && metadata.result.sub_tasks.length > 0) {
+            const mainTasks = metadata.result.sub_tasks
+              .filter((task) => task.iteration === 0)
+              .map((task) => ({
+                id: task.id,
+                question: task.question,
+                task_type: 'rag' as const,
+                enabled: true,
+              }));
+            setPlan({
+              original_question: metadata.result.question || metadata.original_question || '',
+              estimated_complexity: 'medium',
+              task_count: mainTasks.length,
+              enabled_count: mainTasks.length,
+              question_intent: 'restored',
+              strategy_tier: 'restored',
+              max_iterations: metadata.result.total_iterations,
+              sub_tasks: mainTasks,
+            });
+          }
         }
         if (metadata.agent_trace) {
           setAgentTrace(metadata.agent_trace);
           setTraceSteps(Array.isArray(metadata.agent_trace.steps) ? metadata.agent_trace.steps : []);
+          if (!metadata.evaluation_updates && Array.isArray(metadata.agent_trace.coverage_gaps)) {
+            setEvaluationUpdates([
+              {
+                iteration: metadata.result?.total_iterations ?? 0,
+                stage: 'restored_coverage',
+                gate_pass: metadata.agent_trace.coverage_gaps.length === 0,
+                coverage_gaps: metadata.agent_trace.coverage_gaps,
+              },
+            ]);
+          }
         }
         if (metadata.result || metadata.agent_trace) {
           setCurrentPhase('complete');
@@ -255,9 +313,15 @@ export function useAgenticBenchmarkResearch(
         });
         setCurrentPhase('complete');
         if (currentChatId) {
+          const finalReportContent = [
+            completeData.result.summary,
+            completeData.result.detailed_answer,
+          ]
+            .filter((section) => Boolean(section && section.trim()))
+            .join('\n\n');
           void addMessage(currentChatId, {
             role: 'assistant',
-            content: completeData.result.summary || '研究完成',
+            content: finalReportContent || '研究完成',
             metadata: {
               confidence: completeData.result.confidence,
               sources: completeData.result.all_sources,

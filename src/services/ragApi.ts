@@ -89,7 +89,28 @@ async function streamSse<TEvent extends { type: string; data: unknown }>(
   const decoder = new TextDecoder();
   let buffer = '';
   let currentEvent = '';
-  let currentData = '';
+  const currentDataLines: string[] = [];
+
+  const flushEvent = () => {
+    if (!currentEvent) {
+      currentDataLines.length = 0;
+      return;
+    }
+    const dataPayload = currentDataLines.join('\n');
+    if (!dataPayload) {
+      currentEvent = '';
+      currentDataLines.length = 0;
+      return;
+    }
+
+    onEvent({
+      type: currentEvent,
+      data: JSON.parse(dataPayload),
+    } as TEvent);
+
+    currentEvent = '';
+    currentDataLines.length = 0;
+  };
 
   while (true) {
     const { done, value } = await reader.read();
@@ -101,30 +122,19 @@ async function streamSse<TEvent extends { type: string; data: unknown }>(
     const lines = buffer.split('\n');
     buffer = lines.pop() || '';
 
-    for (const line of lines) {
+    for (const rawLine of lines) {
+      const line = rawLine.replace(/\r$/, '');
       if (line.startsWith('event:')) {
         currentEvent = line.slice(6).trim();
       } else if (line.startsWith('data:')) {
-        currentData = line.slice(5).trim();
+        currentDataLines.push(line.slice(5).trimStart());
       } else if (line === '') {
-        if (currentEvent && currentData) {
-          onEvent({
-            type: currentEvent,
-            data: JSON.parse(currentData),
-          } as TEvent);
-        }
-        currentEvent = '';
-        currentData = '';
+        flushEvent();
       }
     }
   }
 
-  if (currentEvent && currentData) {
-    onEvent({
-      type: currentEvent,
-      data: JSON.parse(currentData),
-    } as TEvent);
-  }
+  flushEvent();
 }
 
 export async function askQuestionStream(

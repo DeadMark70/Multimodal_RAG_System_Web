@@ -71,8 +71,8 @@ describe('ragApi', () => {
 
     const encoder = new TextEncoder();
     const chunks: Uint8Array[] = [
-      encoder.encode('event: phase_update\ndata: {"stage":"retrieval"}\n\n'),
-      encoder.encode('event: complete\ndata: {"question":"q","answer":"ok","sources":[],"metrics":null}\n\n'),
+      encoder.encode('event: phase_update\r\ndata: {"stage":"retrieval"}\r\n\r\n'),
+      encoder.encode('event: complete\r\ndata: {"question":"q","answer":"ok","sources":[],"metrics":null}\r\n\r\n'),
     ];
 
     let index = 0;
@@ -131,8 +131,8 @@ describe('ragApi', () => {
 
     const encoder = new TextEncoder();
     const chunks: Uint8Array[] = [
-      encoder.encode('event: task_start\ndata: {"id":1}\n\n'),
-      encoder.encode('event: complete\ndata: {"summary":"ok"}\n\n'),
+      encoder.encode('event: task_start\r\ndata: {"id":1}\r\n\r\n'),
+      encoder.encode('event: complete\r\ndata: {"summary":"ok"}\r\n\r\n'),
     ];
 
     let index = 0;
@@ -184,8 +184,12 @@ describe('ragApi', () => {
 
     const encoder = new TextEncoder();
     const chunks: Uint8Array[] = [
-      encoder.encode('event: plan_ready\ndata: {"task_count":2}\n\n'),
-      encoder.encode('event: complete\ndata: {"result":{"summary":"ok"},"agent_trace":{"steps":[]}}\n\n'),
+      encoder.encode('event: plan_ready\r\ndata: {"task_count":2}\r\n\r\n'),
+      encoder.encode('event: trace_step\r\n'),
+      encoder.encode('data: {"step_id":"s1","title":"step"}\r\n\r\n'),
+      encoder.encode(
+        'event: complete\r\ndata: {"result":{"summary":"ok","detailed_answer":"details","question":"q","sub_tasks":[],"all_sources":[],"confidence":1,"total_iterations":0},"agent_trace":{"steps":[]}}\r\n\r\n'
+      ),
     ];
 
     let index = 0;
@@ -225,10 +229,14 @@ describe('ragApi', () => {
       'http://127.0.0.1:8000/rag/agentic/stream',
       expect.any(Object)
     );
-    expect(onEvent).toHaveBeenCalledTimes(2);
+    expect(onEvent).toHaveBeenCalledTimes(3);
     expect(onEvent).toHaveBeenNthCalledWith(1, {
       type: 'plan_ready',
       data: { task_count: 2 },
+    });
+    expect(onEvent).toHaveBeenNthCalledWith(2, {
+      type: 'trace_step',
+      data: { step_id: 's1', title: 'step' },
     });
   });
 
