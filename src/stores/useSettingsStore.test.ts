@@ -96,4 +96,15 @@ describe('useSettingsStore', () => {
     expect(state.ragSettings.enable_graph_rag).toBe(true);
     expect(state.ragSettings.enable_deep_image_analysis).toBe(true);
   });
+
+  it('restores benchmark research conversations as agentic_benchmark mode', () => {
+    const { actions } = useSettingsStore.getState();
+
+    actions.restoreConversationMode({ research_engine: 'agentic_benchmark' }, 'research');
+
+    const state = useSettingsStore.getState();
+    expect(state.selectedChatModeId).toBe('agentic_benchmark');
+    expect(state.ragSettings.enable_graph_rag).toBe(true);
+    expect(state.ragSettings.enable_graph_planning).toBe(false);
+  });
 });

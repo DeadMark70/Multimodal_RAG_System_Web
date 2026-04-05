@@ -13,6 +13,7 @@ vi.mock('../components/rag/ConversationSidebar', () => ({ default: () => <div>Si
 vi.mock('../components/rag/DocumentSelector', () => ({ default: () => <div>DocSelector</div> }));
 vi.mock('../components/rag/MessageBubble', () => ({ default: () => <div>MessageBubble</div> }));
 vi.mock('../components/rag/DeepResearchPanel', () => ({ default: () => <div>DeepResearch</div> }));
+vi.mock('../components/rag/AgenticBenchmarkPanel', () => ({ default: () => <div>AgenticBenchmark</div> }));
 vi.mock('../components/settings/SettingsPanel', () => ({ default: () => <div>SettingsPanel</div> }));
 vi.mock('../stores/useSessionStore', () => ({
   useSessionStore: vi.fn(() => ({ currentChatId: '123', actions: { setCurrentChatId: vi.fn() } })),
@@ -46,6 +47,22 @@ vi.mock('../hooks/useDeepResearch', () => ({
     toggleTask: vi.fn(),
     deleteTask: vi.fn(),
     executePlan: vi.fn(),
+    cancelExecution: vi.fn(),
+    reset: vi.fn(),
+  })),
+}));
+vi.mock('../hooks/useAgenticBenchmarkResearch', () => ({
+  useAgenticBenchmarkResearch: vi.fn(() => ({
+    plan: null,
+    isRunning: false,
+    progress: [],
+    evaluationUpdates: [],
+    traceSteps: [],
+    result: null,
+    agentTrace: null,
+    error: null,
+    currentPhase: 'idle',
+    runBenchmark: vi.fn(),
     cancelExecution: vi.fn(),
     reset: vi.fn(),
   })),

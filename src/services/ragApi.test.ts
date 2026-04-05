@@ -176,6 +176,62 @@ describe('ragApi', () => {
     expect(onEvent).toHaveBeenCalledTimes(2);
   });
 
+  it('parses agentic benchmark SSE stream without calling real backend', async () => {
+    mockedAuth.getSession.mockResolvedValue({
+      data: { session: { access_token: 'mock-token' } },
+      error: null,
+    } as never);
+
+    const encoder = new TextEncoder();
+    const chunks: Uint8Array[] = [
+      encoder.encode('event: plan_ready\ndata: {"task_count":2}\n\n'),
+      encoder.encode('event: complete\ndata: {"result":{"summary":"ok"},"agent_trace":{"steps":[]}}\n\n'),
+    ];
+
+    let index = 0;
+    const reader = {
+      read: vi.fn(() => {
+        if (index >= chunks.length) {
+          return Promise.resolve({ done: true, value: undefined });
+        }
+
+        const value = chunks[index];
+        index += 1;
+        return Promise.resolve({ done: false, value });
+      }),
+    };
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        body: {
+          getReader: () => reader,
+        },
+      })
+    );
+
+    const onEvent = vi.fn();
+    await ragApi.executeAgenticBenchmarkStream(
+      {
+        question: 'q',
+      },
+      onEvent
+    );
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/rag/agentic/stream',
+      expect.any(Object)
+    );
+    expect(onEvent).toHaveBeenCalledTimes(2);
+    expect(onEvent).toHaveBeenNthCalledWith(1, {
+      type: 'plan_ready',
+      data: { task_count: 2 },
+    });
+  });
+
   it('blocks ordinary ask SSE stream when target is non-local in test mode', async () => {
     mockedApi.defaults.baseURL = 'https://api.example.com';
     mockedAuth.getSession.mockResolvedValue({

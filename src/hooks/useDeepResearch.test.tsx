@@ -107,8 +107,12 @@ describe('useDeepResearch Hook - Persistence', () => {
     }));
     
     expect(mockSetCurrentChatId).toHaveBeenCalledWith(newConvId);
-    expect(mockUpdateConversation).toHaveBeenCalledWith(newConvId, {
+    const [, updatePayload] = mockUpdateConversation.mock.calls[0] ?? [];
+    expect(mockUpdateConversation).toHaveBeenCalledWith(newConvId, expect.any(Object));
+    expect(updatePayload).toMatchObject({
       metadata: {
+        research_engine: 'deep_research',
+        engine: 'agentic',
         original_question: question,
         plan: planResponse,
       },
