@@ -8,7 +8,7 @@
  */
 
 import { useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import {
+import { 
   Box,
   VStack,
   HStack,
@@ -71,6 +71,21 @@ export default function ConversationSidebar({
   const subTextColor = useColorModeValue('gray.500', 'gray.400');
   const headerBg = useColorModeValue('white', 'navy.800');
   const searchBg = useColorModeValue('gray.50', 'whiteAlpha.50');
+  const subtleScrollbarSx = {
+    '&::-webkit-scrollbar': {
+      width: '8px',
+    },
+    '&::-webkit-scrollbar-track': {
+      background: 'transparent',
+    },
+    '&::-webkit-scrollbar-thumb': {
+      background: 'transparent',
+      borderRadius: '999px',
+    },
+    '&:hover::-webkit-scrollbar-thumb': {
+      background: 'rgba(148, 163, 184, 0.55)',
+    },
+  };
 
   const timeFormatter = new Intl.DateTimeFormat('zh-TW', {
     hour: '2-digit',
@@ -212,7 +227,7 @@ export default function ConversationSidebar({
         </Box>
 
         {/* Conversation List */}
-        <Box flex={1} minH={0} overflowY="auto" p={2}>
+        <Box flex={1} minH={0} overflowY="auto" p={2} sx={subtleScrollbarSx}>
           {isLoading ? (
             <VStack spacing={2}>
               {[1, 2, 3].map(i => (
@@ -251,7 +266,7 @@ export default function ConversationSidebar({
                 return (
                   <Flex
                     key={conv.id}
-                    p={2}
+                    p={1.5}
                     borderRadius="lg"
                     bg={isActive ? activeBg : 'transparent'}
                     _hover={{ bg: isActive ? activeBg : hoverBg }}
@@ -274,7 +289,7 @@ export default function ConversationSidebar({
                       minW={0}
                       textAlign="left"
                       px={3}
-                      py={2}
+                      py={1.5}
                       borderRadius="md"
                       _focusVisible={{
                         outline: '2px solid',
@@ -302,27 +317,26 @@ export default function ConversationSidebar({
                             {formatTime(conv.updated_at)}
                           </Text>
                         </HStack>
-                        <HStack spacing={2} wrap="wrap">
+                        <HStack spacing={2} wrap="wrap" align="center">
                           <Box
                             as="span"
-                            px={2}
-                            py={0.5}
+                            w="8px"
+                            h="8px"
                             borderRadius="full"
-                            bg={isActive ? `${typeInfo.color}.100` : 'transparent'}
-                            color={`${typeInfo.color}.500`}
-                            fontSize="xs"
-                            fontWeight="semibold"
-                          >
+                            bg={`${typeInfo.color}.400`}
+                            flexShrink={0}
+                          />
+                          <Text fontSize="xs" color={subTextColor}>
                             {typeInfo.label}
-                          </Box>
+                          </Text>
                           {isActive && (
                             <Box
                               as="span"
-                              px={2}
+                              px={1.5}
                               py={0.5}
                               borderRadius="full"
-                              bg="green.100"
-                              color="green.700"
+                              bg="green.50"
+                              color="green.600"
                               fontSize="xs"
                               fontWeight="semibold"
                             >

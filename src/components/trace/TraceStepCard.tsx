@@ -9,6 +9,7 @@ import {
   HStack,
   Stack,
   Text,
+  useColorModeValue,
 } from '@chakra-ui/react';
 
 import type { AgentTraceStep } from '../../types/evaluation';
@@ -21,9 +22,18 @@ interface TraceStepCardProps {
 
 export default function TraceStepCard({ step, background = 'white' }: TraceStepCardProps) {
   const totalTokens = step.token_usage.total_tokens ?? 0;
+  const borderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
+  const subTextColor = useColorModeValue('gray.600', 'gray.400');
+  const mutedBg = useColorModeValue('gray.50', 'whiteAlpha.50');
 
   return (
-    <Box borderWidth="1px" borderRadius="lg" p={4} bg={background}>
+    <Box
+      borderBottom="1px solid"
+      borderColor={borderColor}
+      borderRadius="0"
+      p={4}
+      bg={background}
+    >
       <HStack justify="space-between" align="start" mb={3}>
         <Stack spacing={1}>
           <Text fontWeight="semibold">{step.title}</Text>
@@ -39,7 +49,7 @@ export default function TraceStepCard({ step, background = 'white' }: TraceStepC
       <Stack spacing={3}>
         {step.input_preview && (
           <Box>
-            <Text fontSize="sm" fontWeight="medium" color="gray.600">
+            <Text fontSize="sm" fontWeight="medium" color={subTextColor}>
               Input
             </Text>
             <Text fontSize="sm">{step.input_preview}</Text>
@@ -47,7 +57,7 @@ export default function TraceStepCard({ step, background = 'white' }: TraceStepC
         )}
         {step.output_preview && (
           <Box>
-            <Text fontSize="sm" fontWeight="medium" color="gray.600">
+            <Text fontSize="sm" fontWeight="medium" color={subTextColor}>
               Output
             </Text>
             <Text fontSize="sm">{step.output_preview}</Text>
@@ -55,12 +65,12 @@ export default function TraceStepCard({ step, background = 'white' }: TraceStepC
         )}
         {step.tool_calls.length > 0 && (
           <Box>
-            <Text fontSize="sm" fontWeight="medium" color="gray.600" mb={2}>
+            <Text fontSize="sm" fontWeight="medium" color={subTextColor} mb={2}>
               Tool Calls
             </Text>
             <Stack spacing={2}>
               {step.tool_calls.map((toolCall) => (
-                <Box key={`${step.step_id}-${toolCall.index}`} borderWidth="1px" borderRadius="md" p={2} bg="gray.50">
+                <Box key={`${step.step_id}-${toolCall.index}`} borderRadius="lg" p={3} bg={mutedBg}>
                   <HStack justify="space-between" mb={1}>
                     <Text fontSize="sm" fontWeight="medium">
                       {toolCall.action}
@@ -68,7 +78,7 @@ export default function TraceStepCard({ step, background = 'white' }: TraceStepC
                     <Badge colorScheme={statusColor(toolCall.status)}>{toolCall.status}</Badge>
                   </HStack>
                   {toolCall.result_preview && (
-                    <Text fontSize="xs" color="gray.600">
+                    <Text fontSize="xs" color={subTextColor}>
                       {toolCall.result_preview}
                     </Text>
                   )}
@@ -79,7 +89,7 @@ export default function TraceStepCard({ step, background = 'white' }: TraceStepC
         )}
         {step.raw_text && (
           <Accordion allowToggle>
-            <AccordionItem borderWidth="1px" borderRadius="md">
+            <AccordionItem border="none">
               <AccordionButton>
                 <Box flex="1" textAlign="left" fontSize="sm" fontWeight="medium">
                   Raw Thought
@@ -87,9 +97,11 @@ export default function TraceStepCard({ step, background = 'white' }: TraceStepC
                 <AccordionIcon />
               </AccordionButton>
               <AccordionPanel pt={0}>
-                <Text whiteSpace="pre-wrap" fontSize="xs" color="gray.700">
+                <Box borderRadius="lg" bg={mutedBg} p={3}>
+                  <Text whiteSpace="pre-wrap" fontSize="xs" color={subTextColor}>
                   {step.raw_text}
-                </Text>
+                  </Text>
+                </Box>
               </AccordionPanel>
             </AccordionItem>
           </Accordion>

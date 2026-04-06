@@ -46,6 +46,21 @@ export default function DocumentSelector({
   const rowRadius = compact ? 'lg' : 'md';
   const iconSize = compact ? 12 : 14;
   const fontSize = compact ? 'xs' : 'sm';
+  const subtleScrollbarSx = {
+    '&::-webkit-scrollbar': {
+      width: '8px',
+    },
+    '&::-webkit-scrollbar-track': {
+      background: 'transparent',
+    },
+    '&::-webkit-scrollbar-thumb': {
+      background: 'transparent',
+      borderRadius: '999px',
+    },
+    '&:hover::-webkit-scrollbar-thumb': {
+      background: 'rgba(148, 163, 184, 0.55)',
+    },
+  };
 
   const handleToggle = (docId: string) => {
     if (selectedIds.includes(docId)) {
@@ -108,13 +123,13 @@ export default function DocumentSelector({
   return (
     <Box>
       <Box
-        borderWidth="1px"
+        borderBottom="1px solid"
         borderColor={borderColor}
         borderRadius="xl"
         overflow="hidden"
         bg={headerBg}
       >
-        <Box maxH={listMaxH} overflowY="auto">
+        <Box maxH={listMaxH} overflowY="auto" sx={subtleScrollbarSx}>
           <Flex
             position="sticky"
             top={0}
@@ -139,7 +154,8 @@ export default function DocumentSelector({
               <Button
                 size="xs"
                 variant="ghost"
-                colorScheme="purple"
+                colorScheme="gray"
+                fontWeight="normal"
                 onClick={handleSelectAll}
               >
                 全選
@@ -148,6 +164,7 @@ export default function DocumentSelector({
                 size="xs"
                 variant="ghost"
                 colorScheme="gray"
+                fontWeight="normal"
                 onClick={handleClearAll}
               >
                 清除
@@ -186,7 +203,7 @@ export default function DocumentSelector({
                   </Text>
                 </Tooltip>
                 {selectedIds.includes(doc.id) && (
-                  <Badge colorScheme="brand" size="sm">
+                  <Badge colorScheme="brand" variant="subtle" size="sm">
                     已選
                   </Badge>
                 )}
