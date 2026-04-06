@@ -34,7 +34,7 @@ export default function BenchmarkResultTab({ result }: BenchmarkResultTabProps) 
 
       <Stack spacing={3}>
         <Text fontWeight="semibold">摘要</Text>
-        <Text fontSize="sm" whiteSpace="pre-wrap" lineHeight="tall">
+        <Text fontSize={{ base: 'md', lg: 'lg' }} whiteSpace="pre-wrap" lineHeight="1.9">
           {result.summary}
         </Text>
       </Stack>
@@ -43,7 +43,7 @@ export default function BenchmarkResultTab({ result }: BenchmarkResultTabProps) 
 
       <Stack spacing={3}>
         <Text fontWeight="semibold">詳細回答</Text>
-        <Text fontSize="sm" whiteSpace="pre-wrap" lineHeight="tall">
+        <Text fontSize={{ base: 'md', lg: 'lg' }} whiteSpace="pre-wrap" lineHeight="1.9">
           {result.detailed_answer}
         </Text>
       </Stack>
@@ -62,7 +62,7 @@ export default function BenchmarkResultTab({ result }: BenchmarkResultTabProps) 
                   <Text fontSize="sm" fontWeight="semibold" mb={2}>
                     {task.question}
                   </Text>
-                  <Text fontSize="sm" whiteSpace="pre-wrap" lineHeight="tall">
+                  <Text fontSize={{ base: 'md', lg: 'lg' }} whiteSpace="pre-wrap" lineHeight="1.9">
                     {task.answer}
                   </Text>
                 </Box>
@@ -79,7 +79,7 @@ export default function BenchmarkResultTab({ result }: BenchmarkResultTabProps) 
             <Text fontWeight="semibold">引用來源</Text>
             <Stack spacing={1}>
               {result.all_sources.map((source, index) => (
-                <Text key={`${source}-${index}`} fontSize="sm" color={subTextColor}>
+                <Text key={`${source}-${index}`} fontSize={{ base: 'md', lg: 'lg' }} color={subTextColor} lineHeight="1.8">
                   {index + 1}. {source}
                 </Text>
               ))}
