@@ -45,6 +45,7 @@ import DeepResearchPanel from '../components/rag/DeepResearchPanel';
 import AgenticBenchmarkPanel from '../components/rag/AgenticBenchmarkPanel';
 import ConversationSidebar from '../components/rag/ConversationSidebar';
 import SettingsPanel from '../components/settings/SettingsPanel';
+import { useChatRailPreference } from '../hooks/useChatRailPreference';
 import { useChat } from '../hooks/useChat';
 import { useDeepResearch } from '../hooks/useDeepResearch';
 import { useAgenticBenchmarkResearch } from '../hooks/useAgenticBenchmarkResearch';
@@ -136,6 +137,9 @@ function getBenchmarkPhaseLabel(
   }
 }
 
+const LEFT_RAIL_STORAGE_KEY = 'chat.leftRailCollapsed';
+const RIGHT_RAIL_STORAGE_KEY = 'chat.rightRailCollapsed';
+
 export default function Chat() {
   const { currentChatId, actions: { setCurrentChatId } } = useSessionStore();
   const { ragSettings, selectedChatModeId } = useSettingsStore();
@@ -197,15 +201,19 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const mainLayoutRef = useRef<HTMLDivElement>(null);
   const messageScrollRegionRef = useRef<HTMLDivElement>(null);
+  const leftRailPreference = useChatRailPreference(LEFT_RAIL_STORAGE_KEY);
+  const rightRailPreference = useChatRailPreference(RIGHT_RAIL_STORAGE_KEY);
 
   const panelBg = useColorModeValue('white', 'surface.800');
   const inputBg = useColorModeValue('white', 'surface.800');
   const inputBorderColor = useColorModeValue('surface.200', 'surface.700');
   const textHeaderColor = useColorModeValue('surface.700', 'white');
+  const utilityBg = useColorModeValue('gray.50', 'whiteAlpha.100');
   const inputShadow = useColorModeValue(
     '0px 10px 24px rgba(17, 24, 39, 0.1)',
     '0px 8px 30px rgba(2, 6, 23, 0.35)'
   );
+  const railTransition = 'width 0.24s ease, flex-basis 0.24s ease, opacity 0.18s ease';
 
   useEffect(() => {
     if (!isResearchMode) {
@@ -346,7 +354,7 @@ export default function Chat() {
 
         <Flex
           ref={mainLayoutRef}
-          gap={6}
+          gap={{ base: 4, lg: 6, xl: 8 }}
           flex={1}
           minH={0}
           align="stretch"
@@ -354,7 +362,8 @@ export default function Chat() {
           data-testid="chat-main-layout"
         >
           <Flex
-            w="280px"
+            w={{ base: '0px', xl: leftRailPreference.isExpanded ? '272px' : '0px' }}
+            flexBasis={{ base: '0px', xl: leftRailPreference.isExpanded ? '272px' : '0px' }}
             display={{ base: 'none', xl: 'flex' }}
             direction="column"
             h="100%"
@@ -362,6 +371,11 @@ export default function Chat() {
             flexShrink={0}
             overflow="hidden"
             alignSelf="stretch"
+            opacity={{ base: 0, xl: leftRailPreference.isExpanded ? 1 : 0 }}
+            pointerEvents={{ base: 'none', xl: leftRailPreference.isExpanded ? 'auto' : 'none' }}
+            transition={railTransition}
+            data-testid="chat-desktop-left-rail"
+            data-collapsed={!leftRailPreference.isExpanded}
           >
             <ConversationSidebar
               currentId={currentChatId}
@@ -372,7 +386,7 @@ export default function Chat() {
           </Flex>
 
           <Flex direction="column" flex={1} minW={0} minH={0}>
-            <HStack spacing={2} mb={3} display={{ base: 'flex', xl: 'none' }}>
+            <HStack spacing={2} mb={3} display={{ base: 'flex', lg: 'none' }}>
               <Button
                 leftIcon={<FiMenu />}
                 size="sm"
@@ -389,6 +403,44 @@ export default function Chat() {
               >
                 資源與設定
               </Button>
+            </HStack>
+
+            <HStack
+              spacing={2}
+              mb={3}
+              display={{ base: 'none', lg: 'flex' }}
+              flexWrap="wrap"
+            >
+              <Button
+                size="sm"
+                variant="ghost"
+                leftIcon={<FiMessageSquare />}
+                onClick={leftRailPreference.toggle}
+                display={{ base: 'none', xl: 'inline-flex' }}
+                data-testid="chat-left-rail-toggle"
+              >
+                {leftRailPreference.isExpanded ? '隱藏對話紀錄' : '顯示對話紀錄'}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                leftIcon={<FiLayers />}
+                onClick={rightRailPreference.toggle}
+                data-testid="chat-right-rail-toggle"
+              >
+                {rightRailPreference.isExpanded ? '隱藏資源欄' : '顯示資源欄'}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                leftIcon={<FiSettings />}
+                onClick={settingsDrawer.onOpen}
+              >
+                設定
+              </Button>
+              <Text fontSize="xs" color="gray.500">
+                版面偏好會保留在目前瀏覽器。
+              </Text>
             </HStack>
 
             <Box flex={1} minH={0} minW={0} overflow="hidden" mb={4}>
@@ -473,7 +525,7 @@ export default function Chat() {
                 <Flex
                   gap={2}
                   bg={inputBg}
-                  p={2}
+                  p={2.5}
                   minW={0}
                   flexWrap={{ base: 'wrap', md: 'nowrap' }}
                   borderRadius="full"
@@ -528,8 +580,8 @@ export default function Chat() {
                     value={input}
                     onChange={(event) => setInput(event.target.value)}
                     onKeyDown={handleKeyPress}
-                    px={4}
-                    h="50px"
+                    px={5}
+                    h="54px"
                     fontSize="md"
                     minW={0}
                     flex={1}
@@ -539,8 +591,8 @@ export default function Chat() {
                   <Button
                     colorScheme="brand"
                     borderRadius="full"
-                    w="50px"
-                    h="50px"
+                    w="54px"
+                    h="54px"
                     p={0}
                     isLoading={isLoading}
                     onClick={() => void handleSend()}
@@ -555,7 +607,8 @@ export default function Chat() {
           </Flex>
 
           <Flex
-            w="320px"
+            w={{ base: '0px', lg: rightRailPreference.isExpanded ? '304px' : '0px' }}
+            flexBasis={{ base: '0px', lg: rightRailPreference.isExpanded ? '304px' : '0px' }}
             display={{ base: 'none', lg: 'flex' }}
             flexShrink={0}
             direction="column"
@@ -564,9 +617,13 @@ export default function Chat() {
             minH={0}
             overflow="hidden"
             alignSelf="stretch"
+            opacity={{ base: 0, lg: rightRailPreference.isExpanded ? 1 : 0 }}
+            pointerEvents={{ base: 'none', lg: rightRailPreference.isExpanded ? 'auto' : 'none' }}
+            transition={railTransition}
             data-testid="chat-desktop-right-rail"
+            data-collapsed={!rightRailPreference.isExpanded}
           >
-            <SurfaceCard variant="unstyled" bg={panelBg} p={4}>
+            <SurfaceCard variant="unstyled" bg="transparent" border="none" boxShadow="none" p={0}>
               <CardBody p={0}>
                 <DocumentSelector
                   selectedIds={selectedDocIds}
@@ -577,7 +634,7 @@ export default function Chat() {
               </CardBody>
             </SurfaceCard>
 
-            <SurfaceCard variant="unstyled" bg={panelBg} p={4}>
+            <SurfaceCard variant="unstyled" bg={utilityBg} borderColor="transparent" boxShadow="none" p={4}>
               <CardBody p={0}>
                 <VStack spacing={4} align="stretch">
                   <HStack justify="space-between" align="start">
@@ -609,7 +666,7 @@ export default function Chat() {
                     </Button>
                   </HStack>
 
-                  <HStack spacing={2}>
+                  <HStack spacing={2} flexWrap="wrap">
                     <Button size="sm" leftIcon={<FiSave />} onClick={handleSaveCustomPreset}>
                       另存 Custom
                     </Button>
@@ -628,7 +685,7 @@ export default function Chat() {
             </SurfaceCard>
 
             {ragSettings.enable_evaluation && !isResearchMode && (
-              <SurfaceCard variant="unstyled" bg={panelBg} p={4}>
+              <SurfaceCard variant="unstyled" bg={utilityBg} borderColor="transparent" boxShadow="none" p={4}>
                 <CardBody p={0}>
                   <VStack spacing={3} align="stretch">
                     <HStack>

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { describe, expect, it } from 'vitest';
 
@@ -64,22 +64,55 @@ function buildState(
 }
 
 describe('AgenticBenchmarkPanel', () => {
-  it('renders benchmark sections and stats', () => {
+  it('renders benchmark tabs and stats', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <AgenticBenchmarkPanel researchState={buildState({ currentPhase: 'executing' })} />
+      </ChakraProvider>
+    );
+
+    expect(screen.getByText('Agentic RAG (Benchmark)')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '執行狀態' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Trace 追蹤' })).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('tab', { name: '最終結果' })).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByText('任務時間軸')).toBeInTheDocument();
+    expect(screen.getByText('覆蓋與質量檢查')).toBeInTheDocument();
+    expect(screen.getByTestId('agentic-benchmark-scroll-region')).toBeInTheDocument();
+  });
+
+  it('switches tabs and shows the selected panel content', () => {
     render(
       <ChakraProvider theme={theme}>
         <AgenticBenchmarkPanel researchState={buildState()} />
       </ChakraProvider>
     );
 
-    expect(screen.getByText('Agentic RAG (Benchmark)')).toBeInTheDocument();
-    expect(screen.getByText('任務時間軸')).toBeInTheDocument();
-    expect(screen.getByText('Evaluation 更新')).toBeInTheDocument();
-    expect(screen.getByText('Trace Steps')).toBeInTheDocument();
-    expect(screen.getByText('最終報告')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Trace 追蹤' }));
+    expect(screen.getByRole('tab', { name: 'Trace 追蹤' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('推理與工具調用')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: '最終結果' }));
+    expect(screen.getByRole('tab', { name: '最終結果' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText('summary')).toBeInTheDocument();
     expect(screen.getByText('detail')).toBeInTheDocument();
     expect(screen.getByText('子任務結果')).toBeInTheDocument();
     expect(screen.getByText('引用來源')).toBeInTheDocument();
-    expect(screen.getByTestId('agentic-benchmark-scroll-region')).toBeInTheDocument();
+  });
+
+  it('auto-navigates to the result tab when benchmark completes', () => {
+    const { rerender } = render(
+      <ChakraProvider theme={theme}>
+        <AgenticBenchmarkPanel researchState={buildState({ currentPhase: 'executing' })} />
+      </ChakraProvider>
+    );
+
+    rerender(
+      <ChakraProvider theme={theme}>
+        <AgenticBenchmarkPanel researchState={buildState({ currentPhase: 'complete' })} />
+      </ChakraProvider>
+    );
+
+    expect(screen.getByRole('tab', { name: '最終結果' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('summary')).toBeInTheDocument();
   });
 });

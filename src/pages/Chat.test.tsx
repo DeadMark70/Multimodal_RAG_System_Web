@@ -175,8 +175,31 @@ describe('Chat Page Integration', () => {
 
     expect(screen.getByTestId('chat-shell')).toBeInTheDocument();
     expect(screen.getByTestId('chat-main-layout')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-left-rail-toggle')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-right-rail-toggle')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-desktop-left-rail')).toHaveAttribute('data-collapsed', 'false');
     expect(screen.getByTestId('chat-desktop-right-rail')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-desktop-right-rail')).toHaveAttribute('data-collapsed', 'false');
     expect(screen.queryByText('SettingsPanel')).not.toBeInTheDocument();
+  });
+
+  it('collapses desktop rails without removing the chat shell', () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChakraProvider theme={theme}>
+          <Chat />
+        </ChakraProvider>
+      </QueryClientProvider>
+    );
+
+    fireEvent.click(screen.getByTestId('chat-left-rail-toggle'));
+    fireEvent.click(screen.getByTestId('chat-right-rail-toggle'));
+
+    expect(screen.getByTestId('chat-shell')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-desktop-left-rail')).toHaveAttribute('data-collapsed', 'true');
+    expect(screen.getByTestId('chat-desktop-right-rail')).toHaveAttribute('data-collapsed', 'true');
+    expect(window.localStorage.getItem('chat.leftRailCollapsed')).toBe('true');
+    expect(window.localStorage.getItem('chat.rightRailCollapsed')).toBe('true');
   });
 
   it('opens settings drawer from the desktop rail trigger', () => {
@@ -191,6 +214,22 @@ describe('Chat Page Integration', () => {
     fireEvent.click(screen.getByTestId('chat-settings-trigger'));
 
     expect(screen.getByText('SettingsPanel')).toBeInTheDocument();
+  });
+
+  it('restores desktop rail preferences from localStorage', () => {
+    window.localStorage.setItem('chat.leftRailCollapsed', 'true');
+    window.localStorage.setItem('chat.rightRailCollapsed', 'true');
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChakraProvider theme={theme}>
+          <Chat />
+        </ChakraProvider>
+      </QueryClientProvider>
+    );
+
+    expect(screen.getByTestId('chat-desktop-left-rail')).toHaveAttribute('data-collapsed', 'true');
+    expect(screen.getByTestId('chat-desktop-right-rail')).toHaveAttribute('data-collapsed', 'true');
   });
 
   it('scrolls the message region without scrolling the outer layout sentinel into view', () => {
