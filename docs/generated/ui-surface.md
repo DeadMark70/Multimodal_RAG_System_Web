@@ -39,9 +39,21 @@ Human-maintained inventory of the current frontend surface.
 - `Chat.tsx`
   - uses a fixed-height flex workspace inside the shared `Layout` shell instead of viewport subtraction math
   - keeps the main chat history as the primary scroll owner in ordinary chat mode
+  - keeps desktop conversation/resource rails collapsible with page-local `localStorage` preferences (`chat.leftRailCollapsed`, `chat.rightRailCollapsed`)
+  - animates rail collapse with width/flex-basis transitions instead of unmounting desktop rails
   - keeps the desktop right rail compact and opens `SettingsPanel` from a right drawer
 - `DocumentSelector.tsx`
   - supports compact right-rail rendering with sticky header + bounded document list
+  - uses lighter text-link controls and thin hover scrollbars in the desktop rail
+- `AgenticBenchmarkPanel.tsx`
+  - replaces stacked accordions with `執行狀態 / Trace 追蹤 / 最終結果` tabs
+  - auto-selects `最終結果` when benchmark execution reaches `complete`
+- `BenchmarkStatusTab.tsx`
+  - renders benchmark task progress as a timeline and merges evaluation updates into the same status workspace
+- `BenchmarkTraceTab.tsx`
+  - isolates trace inspection from the rest of the benchmark UI
+- `BenchmarkResultTab.tsx`
+  - gives the final report a dedicated reading layout
 - `DeepResearchPanel.tsx`
   - exposes `Plan`, `Run`, and `Report` view switching without changing `useDeepResearch` contracts
   - keeps completed tasks collapsed by default in run view while active tasks stay expanded
@@ -54,6 +66,7 @@ Human-maintained inventory of the current frontend surface.
   - uses focusable button-like conversation rows
   - keeps search and create controls in a sticky header
   - keeps research-detail and delete actions as secondary inline controls
+  - uses lighter metadata styling and thin hover scrollbars to reduce density
 
 ## Shell Scroll Surface
 
