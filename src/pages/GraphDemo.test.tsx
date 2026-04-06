@@ -143,7 +143,7 @@ describe('GraphDemo', () => {
     vi.clearAllMocks();
   });
 
-  it('renders graph maintenance controls and per-document graph statuses', () => {
+  it('renders graph maintenance controls and a collapsed document summary by default', () => {
     render(
       <ChakraProvider theme={theme}>
         <GraphDemo />
@@ -152,10 +152,26 @@ describe('GraphDemo', () => {
 
     expect(screen.getByTestId('graph-demo-scroll-region')).toBeInTheDocument();
     expect(screen.getByText('完整重構')).toBeInTheDocument();
+    expect(screen.getByText('展開列表')).toBeInTheDocument();
+    expect(screen.getAllByText('1 失敗').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('1 0 實體').length).toBeGreaterThan(0);
+    expect(screen.queryByText('failed.pdf')).not.toBeInTheDocument();
+    expect(screen.getByText(/目前社群為 0/)).toBeInTheDocument();
+  });
+
+  it('expands the document list inside a bounded scroll region', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <GraphDemo />
+      </ChakraProvider>
+    );
+
+    fireEvent.click(screen.getByText('展開列表'));
+
+    expect(screen.getByTestId('graph-document-list-scroll-region')).toBeInTheDocument();
     expect(screen.getByText('failed.pdf')).toBeInTheDocument();
     expect(screen.getAllByText('重試此文件')).toHaveLength(2);
     expect(screen.getByText('移除殘留圖譜')).toBeInTheDocument();
-    expect(screen.getByText(/目前社群為 0/)).toBeInTheDocument();
   });
 
   it('triggers full rebuild, retry, and purge actions', () => {
@@ -166,6 +182,7 @@ describe('GraphDemo', () => {
     );
 
     fireEvent.click(screen.getByText('完整重構'));
+    fireEvent.click(screen.getByText('展開列表'));
     fireEvent.click(screen.getAllByText('重試此文件')[0]);
     fireEvent.click(screen.getByText('移除殘留圖譜'));
 

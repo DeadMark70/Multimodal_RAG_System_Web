@@ -83,6 +83,9 @@ Human-maintained inventory of the current frontend surface.
 - `GraphDemo.tsx`
   - keeps `PageHeader` fixed in-page
   - uses `graph-demo-scroll-region` as the page body scroll owner
+  - keeps the per-document GraphRAG status list collapsed by default and exposes summary badges plus an explicit expand/collapse action
+  - bounds the expanded document list inside `graph-document-list-scroll-region` to prevent long lists from pushing the graph canvas off-screen
+  - lazy-mounts the graph tabs so the hidden `ResearchFlow` panel does not initialize on first paint
 
 ## Evaluation Surface Snapshot
 
@@ -99,3 +102,11 @@ Human-maintained inventory of the current frontend surface.
   - surfaces `reference_source` for correctness-debug workflows
 - `StabilityChart.tsx`
   - now reads generic `metric_values` instead of only two hard-coded metrics
+
+## Graph Rendering Snapshot
+
+- `KnowledgeGraph.tsx`
+  - keeps 2D rendering only; no 3D mode is introduced
+  - applies zoom-tier level-of-detail rendering so labels appear only at close zoom
+  - simplifies node drawing at low zoom and keeps hover labels as the fallback identification affordance
+  - treats dense graphs as a special case by disabling link arrows and shortening force-simulation cooldown/warmup

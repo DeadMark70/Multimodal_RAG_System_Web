@@ -29,7 +29,8 @@ import {
   useBreakpointValue,
   Heading,
 } from '@chakra-ui/react';
-import { FiRefreshCw, FiRotateCcw, FiTrash2, FiZap } from 'react-icons/fi';
+import { useMemo, useState } from 'react';
+import { FiChevronDown, FiChevronUp, FiRefreshCw, FiRotateCcw, FiTrash2, FiZap } from 'react-icons/fi';
 import { KnowledgeGraph } from '../components/graph/KnowledgeGraph';
 import { ResearchFlow } from '../components/graph/ResearchFlow';
 import Layout from '../components/layout/Layout';
@@ -55,12 +56,14 @@ const STATUS_META: Record<GraphDocumentStatusItem['status'], { colorScheme: stri
   running: { colorScheme: 'blue', label: '執行中' },
   skipped: { colorScheme: 'gray', label: '未建圖' },
 };
+const EMPTY_GRAPH_DOCUMENTS: GraphDocumentStatusItem[] = [];
 
 export function GraphDemo() {
   const textColor = useColorModeValue('surface.700', 'white');
   const subTextColor = useColorModeValue('surface.500', 'surface.300');
   const graphWidth = useBreakpointValue({ base: 320, md: 760, xl: 1100 }) ?? 1100;
   const toast = useToast();
+  const [showDocumentList, setShowDocumentList] = useState(false);
 
   // Queries
   const { data: graphData, isLoading: isGraphLoading, error: graphError } = useGraphData();
@@ -77,11 +80,29 @@ export function GraphDemo() {
   const rebuildFullMutation = useRebuildFullGraph();
   const retryMutation = useRetryGraphDocument();
   const purgeMutation = usePurgeGraphDocument();
-  const graphDocuments = graphDocumentsResponse?.documents ?? [];
+  const graphDocuments = graphDocumentsResponse?.documents ?? EMPTY_GRAPH_DOCUMENTS;
   const actionableDocuments = graphDocuments.filter((doc) =>
     ['failed', 'partial', 'empty'].includes(doc.status)
   );
   const graphJobActive = Boolean(graphStatus?.active_job_state);
+  const graphDocumentSummary = useMemo(
+    () =>
+      graphDocuments.reduce(
+        (summary, doc) => {
+          summary[doc.status] += 1;
+          return summary;
+        },
+        {
+          indexed: 0,
+          partial: 0,
+          empty: 0,
+          failed: 0,
+          running: 0,
+          skipped: 0,
+        } satisfies Record<GraphDocumentStatusItem['status'], number>
+      ),
+    [graphDocuments]
+  );
 
   // 優化圖譜處理
   const handleOptimize = () => {
@@ -317,8 +338,31 @@ export function GraphDemo() {
                 可直接找出 failed / partial / empty 文件重試，或清掉已刪文件殘留的 orphan graph。
               </Text>
             </Box>
-            <Badge colorScheme="blue">{graphDocumentsResponse?.total ?? 0} 份文件</Badge>
+            <HStack spacing={2} flexWrap="wrap" justify="flex-end">
+              <Badge colorScheme="blue">{graphDocumentsResponse?.total ?? 0} 份文件</Badge>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowDocumentList((value) => !value)}
+                leftIcon={showDocumentList ? <FiChevronUp /> : <FiChevronDown />}
+              >
+                {showDocumentList ? '收合列表' : '展開列表'}
+              </Button>
+            </HStack>
           </Flex>
+
+          <HStack spacing={2} mb={4} flexWrap="wrap">
+            <Badge colorScheme="red">{graphDocumentSummary.failed} 失敗</Badge>
+            <Badge colorScheme="orange">{graphDocumentSummary.partial} 部分成功</Badge>
+            <Badge colorScheme="yellow">{graphDocumentSummary.empty} 0 實體</Badge>
+            <Badge colorScheme="green">{graphDocumentSummary.indexed} 已建圖</Badge>
+            {graphDocumentSummary.running > 0 && (
+              <Badge colorScheme="blue">{graphDocumentSummary.running} 執行中</Badge>
+            )}
+            {graphDocumentSummary.skipped > 0 && (
+              <Badge colorScheme="gray">{graphDocumentSummary.skipped} 未建圖</Badge>
+            )}
+          </HStack>
 
           {isGraphDocumentsLoading ? (
             <HStack spacing={3} color={subTextColor}>
@@ -329,76 +373,87 @@ export function GraphDemo() {
             <Text color={subTextColor} fontSize="sm">
               尚未找到可用的 GraphRAG 文件狀態。
             </Text>
+          ) : !showDocumentList ? (
+            <Text color={subTextColor} fontSize="sm">
+              文件列表預設收合，展開後可在卡片內捲動，不會再把下方圖譜推離視窗。
+            </Text>
           ) : (
-            <VStack spacing={3} align="stretch">
-              {graphDocuments.map((doc) => (
-                <Box
-                  key={doc.doc_id}
-                  borderWidth="1px"
-                  borderRadius="lg"
-                  borderColor="surface.200"
-                  p={3}
-                >
-                  <Flex justify="space-between" align="start" gap={4} wrap="wrap">
-                    <Box flex="1" minW="260px">
-                      <HStack spacing={2} flexWrap="wrap" mb={2}>
-                        <Text fontWeight="semibold" color={textColor}>
-                          {doc.file_name ?? doc.doc_id}
-                        </Text>
-                        <Badge colorScheme={STATUS_META[doc.status].colorScheme}>
-                          {STATUS_META[doc.status].label}
-                        </Badge>
-                        {!doc.is_eligible && <Badge colorScheme="gray">無 OCR artifact</Badge>}
-                      </HStack>
+            <Box
+              maxH={{ base: '320px', md: '400px' }}
+              overflowY="auto"
+              pr={1}
+              data-testid="graph-document-list-scroll-region"
+            >
+              <VStack spacing={3} align="stretch">
+                {graphDocuments.map((doc) => (
+                  <Box
+                    key={doc.doc_id}
+                    borderWidth="1px"
+                    borderRadius="lg"
+                    borderColor="surface.200"
+                    p={3}
+                  >
+                    <Flex justify="space-between" align="start" gap={4} wrap="wrap">
+                      <Box flex="1" minW="260px">
+                        <HStack spacing={2} flexWrap="wrap" mb={2}>
+                          <Text fontWeight="semibold" color={textColor}>
+                            {doc.file_name ?? doc.doc_id}
+                          </Text>
+                          <Badge colorScheme={STATUS_META[doc.status].colorScheme}>
+                            {STATUS_META[doc.status].label}
+                          </Badge>
+                          {!doc.is_eligible && <Badge colorScheme="gray">無 OCR artifact</Badge>}
+                        </HStack>
 
-                      <HStack spacing={3} flexWrap="wrap" color={subTextColor} fontSize="sm">
-                        <Text>chunks {doc.chunks_succeeded}/{doc.chunk_count}</Text>
-                        <Text>{doc.entities_added} 節點</Text>
-                        <Text>{doc.edges_added} 邊</Text>
-                      </HStack>
+                        <HStack spacing={3} flexWrap="wrap" color={subTextColor} fontSize="sm">
+                          <Text>chunks {doc.chunks_succeeded}/{doc.chunk_count}</Text>
+                          <Text>{doc.entities_added} 節點</Text>
+                          <Text>{doc.edges_added} 邊</Text>
+                        </HStack>
 
-                      {doc.last_error && (
-                        <Text mt={2} color="red.500" fontSize="sm">
-                          {doc.last_error}
-                        </Text>
+                        {doc.last_error && (
+                          <Text mt={2} color="red.500" fontSize="sm">
+                            {doc.last_error}
+                          </Text>
+                        )}
+                      </Box>
+
+                      {doc.is_eligible ? (
+                        <Button
+                          size="sm"
+                          colorScheme="orange"
+                          variant="outline"
+                          onClick={() => handleRetryDocument(doc)}
+                          isLoading={retryMutation.isPending && retryMutation.variables === doc.doc_id}
+                          loadingText="重試中..."
+                          isDisabled={graphJobActive}
+                        >
+                          重試此文件
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          leftIcon={<FiTrash2 />}
+                          colorScheme="red"
+                          variant="outline"
+                          onClick={() => handlePurgeDocument(doc)}
+                          isLoading={purgeMutation.isPending && purgeMutation.variables === doc.doc_id}
+                          loadingText="移除中..."
+                          isDisabled={graphJobActive}
+                        >
+                          移除殘留圖譜
+                        </Button>
                       )}
-                    </Box>
-
-                    {doc.is_eligible ? (
-                      <Button
-                        size="sm"
-                        colorScheme="orange"
-                        variant="outline"
-                        onClick={() => handleRetryDocument(doc)}
-                        isLoading={retryMutation.isPending && retryMutation.variables === doc.doc_id}
-                        loadingText="重試中..."
-                        isDisabled={graphJobActive}
-                      >
-                        重試此文件
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        leftIcon={<FiTrash2 />}
-                        colorScheme="red"
-                        variant="outline"
-                        onClick={() => handlePurgeDocument(doc)}
-                        isLoading={purgeMutation.isPending && purgeMutation.variables === doc.doc_id}
-                        loadingText="移除中..."
-                        isDisabled={graphJobActive}
-                      >
-                        移除殘留圖譜
-                      </Button>
-                    )}
-                  </Flex>
-                </Box>
-              ))}
-            </VStack>
+                    </Flex>
+                  </Box>
+                ))}
+              </VStack>
+            </Box>
           )}
             </SurfaceCard>
 
             <SurfaceCard p={4}>
-              <Tabs colorScheme="brand" variant="enclosed">
+              <Tabs colorScheme="brand" variant="enclosed" isLazy lazyBehavior="keepMounted">
                 <TabList>
                   <Tab>知識圖譜</Tab>
                   <Tab>研究流程</Tab>

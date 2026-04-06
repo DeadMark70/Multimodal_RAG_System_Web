@@ -70,6 +70,10 @@ const COMMUNITY_COLORS = [
   '#7C3AED', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4', '#8B5CF6',
 ];
 
+const LARGE_GRAPH_NODE_THRESHOLD = 1500;
+const LOW_DETAIL_SCALE_THRESHOLD = 0.9;
+const LABEL_SCALE_THRESHOLD = 2;
+
 const pulse = keyframes`
   0% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.1); opacity: 0.8; }
@@ -112,6 +116,7 @@ export function KnowledgeGraph({
   const linkColor = useColorModeValue('#a0aec0', '#4a5568');
 
   const graphData = useMemo(() => data ?? MOCK_GRAPH_DATA, [data]);
+  const isLargeGraph = graphData.nodes.length >= LARGE_GRAPH_NODE_THRESHOLD;
   const forceGraphData = useMemo(
     () => ({
       nodes: graphData.nodes.map((node) => ({
@@ -124,6 +129,16 @@ export function KnowledgeGraph({
       })),
     }),
     [graphData]
+  );
+  const renderConfig = useMemo(
+    () => ({
+      cooldownTicks: isLargeGraph ? 35 : 100,
+      warmupTicks: isLargeGraph ? 15 : 50,
+      linkWidth: isLargeGraph ? 1 : 1.5,
+      arrowLength: isLargeGraph ? 0 : 4,
+      nodeRelSize: isLargeGraph ? 5 : 6,
+    }),
+    [isLargeGraph]
   );
 
   // Resize Observer
@@ -172,11 +187,11 @@ export function KnowledgeGraph({
           backgroundColor={bgColor}
           nodeLabel={(node: ForceNode) => `${node.id ?? ''}\n${node.desc ?? ''}`}
           nodeColor={getNodeColor}
-          nodeRelSize={6}
+          nodeRelSize={renderConfig.nodeRelSize}
           nodeVal={(node: ForceNode) => node.val ?? 5}
           linkColor={() => linkColor}
-          linkWidth={1.5}
-          linkDirectionalArrowLength={4}
+          linkWidth={renderConfig.linkWidth}
+          linkDirectionalArrowLength={renderConfig.arrowLength}
           linkDirectionalArrowRelPos={0.9}
           linkLabel={(link: ForceLink) => link.label ?? ''}
           onNodeClick={(node) => handleNodeClick(node as ForceNode)}
@@ -186,25 +201,40 @@ export function KnowledgeGraph({
           }}
           nodeCanvasObject={(node: ForceNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
             const label = node.id ?? '';
-            const fontSize = 12 / globalScale;
-            const nodeSize = Math.sqrt(node.val ?? 5) * 4;
+            const displayLabel =
+              isLargeGraph && label.length > 24 ? `${label.slice(0, 21)}...` : label;
+            const fontSize = Math.max(3.5, 12 / globalScale);
+            const nodeSize = Math.sqrt(node.val ?? 5) * (isLargeGraph ? 3 : 4);
             const x = node.x ?? 0;
             const y = node.y ?? 0;
-            
+
+            if (globalScale < LOW_DETAIL_SCALE_THRESHOLD) {
+              const simplifiedNodeSize = Math.max(
+                isLargeGraph ? 1.2 : 1.8,
+                Math.min(nodeSize * 0.45, isLargeGraph ? 2.4 : 3)
+              );
+              ctx.beginPath();
+              ctx.arc(x, y, simplifiedNodeSize, 0, 2 * Math.PI);
+              ctx.fillStyle = getNodeColor(node);
+              ctx.fill();
+              return;
+            }
+
             ctx.beginPath();
             ctx.arc(x, y, nodeSize, 0, 2 * Math.PI);
             ctx.fillStyle = getNodeColor(node);
             ctx.fill();
-            if (globalScale > 0.7) {
+
+            if (globalScale >= LABEL_SCALE_THRESHOLD) {
               ctx.font = `${fontSize}px Sans-Serif`;
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
               ctx.fillStyle = textColor;
-              ctx.fillText(label, x, y + nodeSize + fontSize);
+              ctx.fillText(displayLabel, x, y + nodeSize + fontSize);
             }
           }}
-          cooldownTicks={100}
-          warmupTicks={50}
+          cooldownTicks={renderConfig.cooldownTicks}
+          warmupTicks={renderConfig.warmupTicks}
         />
       )}
 

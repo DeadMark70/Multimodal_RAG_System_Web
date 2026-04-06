@@ -93,6 +93,9 @@
 - Page-level routes that need long vertical content must provide their own scroll container (`flex={1} minH={0} overflowY="auto"`).
 - `/knowledge`, `/evaluation`, and `/graph-demo` now keep `PageHeader` outside the scroll area and use page-owned scroll regions for the main content body.
 - Regression coverage: `KnowledgeBase.test.tsx`, `EvaluationCenter.ui.test.tsx`, and `GraphDemo.test.tsx` assert these scroll-region containers exist.
+- `/graph-demo` now keeps the per-document GraphRAG status list collapsed by default, shows status summary badges in the card header, and bounds the expanded list inside its own scroll region so large document sets do not push the graph canvas far below the fold.
+- `KnowledgeGraph.tsx` now applies zoom-based level-of-detail rendering in 2D mode: low zoom suppresses labels and simplifies nodes, labels only appear at close zoom, and dense graphs disable arrowheads plus shorten force-simulation cooldown to reduce drag/zoom stutter.
+- `GraphDemo.tsx` now lazy-mounts graph tabs so `ResearchFlow` does not initialize during first paint unless the user opens that tab.
 
 ## Evaluation UI Contract
 
