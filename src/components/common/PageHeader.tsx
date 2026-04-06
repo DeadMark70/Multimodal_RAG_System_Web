@@ -1,13 +1,15 @@
 
 import { Badge, Box, Heading, HStack, Text, useColorModeValue } from '@chakra-ui/react';
+import type { ReactNode } from 'react';
 
 interface PageHeaderProps {
     title: string;
     subtitle?: string;
     variant?: 'default' | 'dashboard';
+    actions?: ReactNode;
 }
 
-export default function PageHeader({ title, subtitle, variant = 'default' }: PageHeaderProps) {
+export default function PageHeader({ title, subtitle, variant = 'default', actions }: PageHeaderProps) {
     const textColor = useColorModeValue('surface.700', 'white');
     const subTextColor = useColorModeValue('surface.500', 'surface.300');
     const breadcrumbColor = useColorModeValue('surface.500', 'surface.300');
@@ -40,12 +42,15 @@ export default function PageHeader({ title, subtitle, variant = 'default' }: Pag
                     </Badge>
                 </HStack>
             ) : (
-                <>
-                    <Heading color={textColor} fontSize="2xl" fontWeight="700" letterSpacing="-0.01em">
-                        {title}
-                    </Heading>
-                    {subtitle && <Text color={subTextColor} mt={2}>{subtitle}</Text>}
-                </>
+                <HStack align="flex-start" justify="space-between" flexWrap="wrap" gap={3}>
+                    <Box>
+                        <Heading color={textColor} fontSize="2xl" fontWeight="700" letterSpacing="-0.01em">
+                            {title}
+                        </Heading>
+                        {subtitle && <Text color={subTextColor} mt={2}>{subtitle}</Text>}
+                    </Box>
+                    {actions ? <Box flexShrink={0}>{actions}</Box> : null}
+                </HStack>
             )}
         </Box>
     );

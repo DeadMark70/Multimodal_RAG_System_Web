@@ -2,8 +2,6 @@ import {
   Badge,
   Box,
   Button,
-  Card,
-  CardBody,
   HStack,
   Progress,
   Tab,
@@ -75,7 +73,6 @@ export default function AgenticBenchmarkPanel({ researchState }: AgenticBenchmar
     reset,
   } = researchState;
 
-  const cardBg = useColorModeValue('white', 'navy.800');
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
   const subTextColor = useColorModeValue('gray.500', 'gray.400');
   const summaryBg = useColorModeValue('gray.50', 'whiteAlpha.100');
@@ -88,17 +85,15 @@ export default function AgenticBenchmarkPanel({ researchState }: AgenticBenchmar
   const progressPercent = progress.length > 0 ? Math.round((completedCount / progress.length) * 100) : 0;
 
   return (
-    <Card bg={cardBg} borderRadius="xl" h="100%" flex={1} minH={0} overflow="hidden">
-      <CardBody
-        display="flex"
-        flexDirection="column"
-        minH={0}
-        p={{ base: 4, md: 5 }}
-        overflowY="auto"
-        sx={subtleScrollbarSx}
-        data-testid="agentic-benchmark-scroll-region"
-      >
-        <VStack spacing={5} align="stretch" h="100%" minH={0}>
+    <Box
+      h="100%"
+      flex={1}
+      minH={0}
+      overflowY="auto"
+      sx={subtleScrollbarSx}
+      data-testid="agentic-benchmark-scroll-region"
+    >
+      <VStack spacing={5} align="stretch" h="100%" minH={0} px={{ base: 1, md: 2 }} pb={2}>
           <Box p={{ base: 4, md: 5 }} borderRadius="xl" bg={summaryBg} border="1px solid" borderColor={borderColor}>
             <HStack justify="space-between" align="start" wrap="wrap" spacing={3}>
               <VStack align="start" spacing={1}>
@@ -181,8 +176,7 @@ export default function AgenticBenchmarkPanel({ researchState }: AgenticBenchmar
               <Text color={subTextColor}>{error}</Text>
             </Box>
           )}
-        </VStack>
-      </CardBody>
-    </Card>
+      </VStack>
+    </Box>
   );
 }

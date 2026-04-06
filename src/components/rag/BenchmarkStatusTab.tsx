@@ -62,9 +62,6 @@ export default function BenchmarkStatusTab({
   return (
     <Stack spacing={6}>
       <Box>
-        <Text fontSize="sm" textTransform="uppercase" letterSpacing="0.08em" color={subTextColor} mb={1}>
-          執行狀態
-        </Text>
         <Text fontSize="lg" fontWeight="semibold">
           任務時間軸
         </Text>
@@ -72,14 +69,18 @@ export default function BenchmarkStatusTab({
 
       {orderedProgress.length === 0 ? (
         <Flex
-          minH="220px"
+          minH="150px"
           borderRadius="xl"
+          direction="column"
+          gap={3}
           align="center"
           justify="center"
-          bg={cardBg}
           px={6}
           textAlign="center"
         >
+          <Box color={emptyTextColor}>
+            <FiPlayCircle size={22} />
+          </Box>
           <Text color={emptyTextColor} fontSize="sm">
             等待計畫建立或任務啟動。
           </Text>
@@ -188,9 +189,6 @@ export default function BenchmarkStatusTab({
 
       <Stack spacing={3}>
         <Box>
-          <Text fontSize="sm" textTransform="uppercase" letterSpacing="0.08em" color={subTextColor} mb={1}>
-            Evaluation 更新
-          </Text>
           <Text fontSize="md" fontWeight="semibold">
             覆蓋與質量檢查
           </Text>

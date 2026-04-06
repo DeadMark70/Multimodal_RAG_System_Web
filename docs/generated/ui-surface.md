@@ -41,6 +41,7 @@ Human-maintained inventory of the current frontend surface.
   - keeps the main chat history as the primary scroll owner in ordinary chat mode
   - keeps desktop conversation/resource rails collapsible with page-local `localStorage` preferences (`chat.leftRailCollapsed`, `chat.rightRailCollapsed`)
   - animates rail collapse with width/flex-basis transitions instead of unmounting desktop rails
+  - places desktop rail/settings controls in the page-header action area instead of above the main workspace
   - keeps the desktop right rail compact and opens `SettingsPanel` from a right drawer
 - `DocumentSelector.tsx`
   - supports compact right-rail rendering with sticky header + bounded document list
@@ -48,8 +49,10 @@ Human-maintained inventory of the current frontend surface.
 - `AgenticBenchmarkPanel.tsx`
   - replaces stacked accordions with `執行狀態 / Trace 追蹤 / 最終結果` tabs
   - auto-selects `最終結果` when benchmark execution reaches `complete`
+  - removes the extra outer framed shell so the summary block becomes the visual starting point
 - `BenchmarkStatusTab.tsx`
   - renders benchmark task progress as a timeline and merges evaluation updates into the same status workspace
+  - removes redundant section eyebrow labels and uses a lighter empty state
 - `BenchmarkTraceTab.tsx`
   - isolates trace inspection from the rest of the benchmark UI
 - `BenchmarkResultTab.tsx`

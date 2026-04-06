@@ -72,12 +72,14 @@
   - compact right rail with document scope, preset summary, and optional evaluation summary
 - Desktop `/chat` now keeps the conversation rail and resource rail as page-local preferences backed by `localStorage` (`chat.leftRailCollapsed`, `chat.rightRailCollapsed`).
 - Desktop rail collapse is animated via width/flex-basis transitions; the rails stay mounted so the main workspace expands smoothly instead of snapping.
+- Desktop rail controls now live in the `PageHeader` action area instead of consuming space above the main benchmark/chat workspace.
 - Full `SettingsPanel` no longer renders inline on the desktop right rail; it opens from a dedicated right-side drawer instead.
 - `DocumentSelector.tsx` now supports a compact/sticky-header presentation for the desktop right rail while preserving the existing drawer/mobile usage.
 - `AgenticBenchmarkPanel.tsx` now uses a tabbed workspace:
   - `執行狀態` combines task timeline and evaluation updates
   - `Trace 追蹤` isolates trace detail reading
   - `最終結果` is a dedicated report-reading tab and becomes the default tab once execution completes
+  - the outer benchmark shell is visually lighter and avoids an extra framed container around the tabs/content area
 - `DeepResearchPanel.tsx` now separates `Plan`, `Run`, and `Report` views:
   - plan editing remains inline
   - run view keeps progress in a single scroll region and auto-expands active tasks

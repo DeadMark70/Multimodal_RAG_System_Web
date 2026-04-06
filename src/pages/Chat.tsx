@@ -36,6 +36,7 @@ import {
   FiSend,
   FiSettings,
   FiTrash2,
+  FiColumns,
 } from 'react-icons/fi';
 
 import SurfaceCard from '../components/common/SurfaceCard';
@@ -349,7 +350,41 @@ export default function Chat() {
     <Layout>
       <Flex direction="column" flex={1} h="100%" minH={0} overflow="hidden" data-testid="chat-shell">
         <Box flexShrink={0}>
-          <PageHeader title="對話" subtitle="Preset-driven RAG 問答與雙研究模式" />
+          <PageHeader
+            title="對話"
+            subtitle="Preset-driven RAG 問答與雙研究模式"
+            actions={
+              <HStack spacing={2} display={{ base: 'none', lg: 'flex' }} flexWrap="wrap" justify="flex-end">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  leftIcon={<FiMessageSquare />}
+                  onClick={leftRailPreference.toggle}
+                  display={{ base: 'none', xl: 'inline-flex' }}
+                  data-testid="chat-left-rail-toggle"
+                >
+                  {leftRailPreference.isExpanded ? '隱藏對話紀錄' : '顯示對話紀錄'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  leftIcon={<FiColumns />}
+                  onClick={rightRailPreference.toggle}
+                  data-testid="chat-right-rail-toggle"
+                >
+                  {rightRailPreference.isExpanded ? '隱藏資源欄' : '顯示資源欄'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  leftIcon={<FiSettings />}
+                  onClick={settingsDrawer.onOpen}
+                >
+                  設定
+                </Button>
+              </HStack>
+            }
+          />
         </Box>
 
         <Flex
@@ -403,44 +438,6 @@ export default function Chat() {
               >
                 資源與設定
               </Button>
-            </HStack>
-
-            <HStack
-              spacing={2}
-              mb={3}
-              display={{ base: 'none', lg: 'flex' }}
-              flexWrap="wrap"
-            >
-              <Button
-                size="sm"
-                variant="ghost"
-                leftIcon={<FiMessageSquare />}
-                onClick={leftRailPreference.toggle}
-                display={{ base: 'none', xl: 'inline-flex' }}
-                data-testid="chat-left-rail-toggle"
-              >
-                {leftRailPreference.isExpanded ? '隱藏對話紀錄' : '顯示對話紀錄'}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                leftIcon={<FiLayers />}
-                onClick={rightRailPreference.toggle}
-                data-testid="chat-right-rail-toggle"
-              >
-                {rightRailPreference.isExpanded ? '隱藏資源欄' : '顯示資源欄'}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                leftIcon={<FiSettings />}
-                onClick={settingsDrawer.onOpen}
-              >
-                設定
-              </Button>
-              <Text fontSize="xs" color="gray.500">
-                版面偏好會保留在目前瀏覽器。
-              </Text>
             </HStack>
 
             <Box flex={1} minH={0} minW={0} overflow="hidden" mb={4}>
