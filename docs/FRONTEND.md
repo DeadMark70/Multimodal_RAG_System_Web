@@ -84,8 +84,13 @@
   - plan editing remains inline
   - run view keeps progress in a single scroll region and auto-expands active tasks
   - report view shows a compact summary in-page and moves the full markdown report into a drawer
+- `MarkdownContent.tsx` is the shared renderer for long-form research/benchmark markdown:
+  - normalizes CRLF and paragraph-to-list boundaries before rendering
+  - applies `remark-gfm` + `rehype-sanitize` with Chakra-based markdown styles
+  - renders `[來源: ...]` tokens as low-contrast inline badges instead of raw distracting text
 - `MessageBubble.tsx` now treats sources as collapsible secondary content and renders assistant/image content with explicit frame/border affordances.
-- `ConversationSidebar.tsx` now renders lower-density button-like selectable rows with explicit keyboard support, a sticky search/new header, and hover-only thin scrollbars.
+- `BenchmarkResultTab.tsx`, `ResearchDetailModal.tsx`, and `ResearchStepsAccordion.tsx` reuse `MarkdownContent.tsx` for formal report/task-answer reading surfaces instead of ad hoc `ReactMarkdown`/plain-text rendering.
+  - `ConversationSidebar.tsx` now renders lower-density button-like selectable rows with explicit keyboard support, a sticky search/new header, and hover-only thin scrollbars.
 
 ## Page Scroll Ownership
 

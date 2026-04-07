@@ -57,14 +57,17 @@ Human-maintained inventory of the current frontend surface.
   - isolates trace inspection from the rest of the benchmark UI
 - `BenchmarkResultTab.tsx`
   - gives the final report a dedicated reading layout
+  - uses shared `MarkdownContent.tsx` so summary, detailed answer, and subtask answers render consistent markdown
 - `DeepResearchPanel.tsx`
   - exposes `Plan`, `Run`, and `Report` view switching without changing `useDeepResearch` contracts
   - keeps completed tasks collapsed by default in run view while active tasks stay expanded
   - opens the full research report in a drawer instead of stretching the main page
+  - uses shared `MarkdownContent.tsx` for the full report drawer, including markdown normalization and styled source tokens
 - `MessageBubble.tsx`
   - renders assistant replies with a bordered surface
   - keeps citations behind a collapsible `來源` section
   - wraps markdown images in a framed zoomable preview affordance
+  - uses shared `MarkdownContent.tsx` for assistant markdown so chat/report list rendering and `[來源: ...]` styling stay aligned
 - `ConversationSidebar.tsx`
   - uses focusable button-like conversation rows
   - keeps search and create controls in a sticky header
