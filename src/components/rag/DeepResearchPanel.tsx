@@ -48,9 +48,8 @@ import {
   FiChevronUp,
   FiFileText,
 } from 'react-icons/fi';
-import ReactMarkdown from 'react-markdown';
-import rehypeSanitize from 'rehype-sanitize';
 import { type UseDeepResearchReturn } from '../../hooks/useDeepResearch';
+import MarkdownContent from '../common/MarkdownContent';
 import MetricsBadge from './MetricsBadge';
 import EvaluationRadarChart from '../charts/EvaluationRadarChart';
 
@@ -646,18 +645,11 @@ export default function DeepResearchPanel({ researchState }: DeepResearchPanelPr
 
                 <Divider />
 
-                <Box
+                <MarkdownContent
                   className="markdown-content"
-                  sx={{
-                    '& > *': { wordBreak: 'break-word', overflowWrap: 'break-word' },
-                    '& pre': { whiteSpace: 'pre-wrap', wordBreak: 'break-word' },
-                    '& p': { wordBreak: 'break-word' },
-                  }}
-                >
-                  <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
-                    {result.detailed_answer}
-                  </ReactMarkdown>
-                </Box>
+                  content={result.detailed_answer}
+                  variant="report"
+                />
 
                 {result.all_sources.length > 0 && (
                   <Box>

@@ -20,7 +20,7 @@ import {
   Box,
   useColorModeValue,
 } from '@chakra-ui/react';
-import ReactMarkdown from 'react-markdown';
+import MarkdownContent from '../common/MarkdownContent';
 import { ResearchStepsAccordion } from './ResearchStepsAccordion';
 import type { ExecutePlanResponse } from '../../types/rag';
 
@@ -95,16 +95,9 @@ export const ResearchDetailModal: React.FC<ResearchDetailModalProps> = ({
               </TabPanel>
               
               <TabPanel>
-                 <Box className="markdown-body" p={2} sx={{ 
-                     'h1, h2, h3': { mt: 4, mb: 2, fontWeight: 'bold' }, 
-                     'p': { mb: 3 },
-                     'ul, ol': { pl: 5, mb: 3 },
-                     'code': { bg: 'gray.100', p: 1, borderRadius: 'sm' }
-                  }}>
-                   <ReactMarkdown>
-                     {data.detailed_answer || '目前沒有詳細報告。'}
-                   </ReactMarkdown>
-                 </Box>
+                <Box p={2}>
+                  <MarkdownContent content={data.detailed_answer || '目前沒有詳細報告。'} variant="report" />
+                </Box>
               </TabPanel>
 
               <TabPanel>

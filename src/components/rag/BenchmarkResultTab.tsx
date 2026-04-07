@@ -1,6 +1,7 @@
 import { Box, Divider, Stack, Text, useColorModeValue } from '@chakra-ui/react';
 
 import type { UseAgenticBenchmarkResearchReturn } from '../../hooks/useAgenticBenchmarkResearch';
+import MarkdownContent from '../common/MarkdownContent';
 
 interface BenchmarkResultTabProps {
   result: UseAgenticBenchmarkResearchReturn['result'];
@@ -34,18 +35,14 @@ export default function BenchmarkResultTab({ result }: BenchmarkResultTabProps) 
 
       <Stack spacing={3}>
         <Text fontWeight="semibold">摘要</Text>
-        <Text fontSize={{ base: 'md', lg: 'lg' }} whiteSpace="pre-wrap" lineHeight="1.9">
-          {result.summary}
-        </Text>
+        <MarkdownContent content={result.summary} variant="report" />
       </Stack>
 
       <Divider />
 
       <Stack spacing={3}>
         <Text fontWeight="semibold">詳細回答</Text>
-        <Text fontSize={{ base: 'md', lg: 'lg' }} whiteSpace="pre-wrap" lineHeight="1.9">
-          {result.detailed_answer}
-        </Text>
+        <MarkdownContent content={result.detailed_answer} variant="report" />
       </Stack>
 
       {result.sub_tasks.length > 0 && (
@@ -62,9 +59,7 @@ export default function BenchmarkResultTab({ result }: BenchmarkResultTabProps) 
                   <Text fontSize="sm" fontWeight="semibold" mb={2}>
                     {task.question}
                   </Text>
-                  <Text fontSize={{ base: 'md', lg: 'lg' }} whiteSpace="pre-wrap" lineHeight="1.9">
-                    {task.answer}
-                  </Text>
+                  <MarkdownContent content={task.answer} variant="compact" />
                 </Box>
               ))}
             </Stack>

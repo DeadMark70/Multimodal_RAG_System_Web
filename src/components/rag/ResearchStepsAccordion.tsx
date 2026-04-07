@@ -14,7 +14,7 @@ import {
 } from '@chakra-ui/react';
 import { FaExternalLinkAlt, FaBrain } from 'react-icons/fa';
 import type { SubTaskResult } from '../../types/rag';
-import ReactMarkdown from 'react-markdown';
+import MarkdownContent from '../common/MarkdownContent';
 
 interface ResearchStepsAccordionProps {
   subTasks: SubTaskResult[];
@@ -45,7 +45,7 @@ export const ResearchStepsAccordion: React.FC<ResearchStepsAccordionProps> = ({ 
               <Box w="full">
                  <Text fontWeight="bold" mb={1} color="gray.700">回答</Text>
                  <Box bg="gray.50" p={3} borderRadius="md" fontSize="sm">
-                   <ReactMarkdown>{task.answer}</ReactMarkdown>
+                   <MarkdownContent content={task.answer} variant="compact" />
                  </Box>
               </Box>
 

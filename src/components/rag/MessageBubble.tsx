@@ -2,7 +2,7 @@
  * MessageBubble 元件
  * 
  * 聊天訊息氣泡，支援：
- * - Markdown 渲染 (react-markdown + rehype-sanitize)
+ * - 共用 MarkdownContent 渲染
  * - 圖片點擊放大預覽
  * - 評估指標顯示 (MetricsBadge)
  * - 引用來源標籤
@@ -10,25 +10,20 @@
  * @version 3.0.0
  */
 
-import { useState, useCallback, useMemo } from 'react';
-import { 
-  Box, 
-  Text, 
-  Flex, 
-  Avatar, 
-  Image,
+import { useState, useCallback } from 'react';
+import {
+  Box,
+  Text,
+  Flex,
+  Avatar,
   useColorModeValue,
   useDisclosure,
-  Link,
   Button,
-  HStack,
   Collapse,
 } from '@chakra-ui/react';
-import { FiUser, FiCpu, FiChevronDown, FiChevronUp, FiSearch } from 'react-icons/fi';
-import ReactMarkdown from 'react-markdown';
-import rehypeSanitize from 'rehype-sanitize';
-import type { Components } from 'react-markdown';
+import { FiUser, FiCpu, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import type { Citation, EvaluationMetrics } from '../../types/rag';
+import MarkdownContent from '../common/MarkdownContent';
 import { MetricsBadge } from './MetricsBadge';
 import ImagePreviewModal from '../common/ImagePreviewModal';
 
@@ -111,11 +106,8 @@ export default function MessageBubble({
       
   const aiTextColor = useColorModeValue('navy.700', 'white');
   const textColor = isUser ? 'white' : aiTextColor;
-  const linkColor = useColorModeValue('brand.500', 'brand.300');
-  const codeBg = useColorModeValue('gray.100', 'gray.700');
   const aiBorderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
-  const imageFrameBg = useColorModeValue('white', 'whiteAlpha.100');
-  const imageBorderColor = useColorModeValue('blackAlpha.100', 'whiteAlpha.200');
+  const linkColor = useColorModeValue('brand.500', 'brand.300');
   const chipBg = useColorModeValue('brand.50', 'whiteAlpha.100');
   const chipBorderColor = useColorModeValue('brand.100', 'whiteAlpha.200');
   
@@ -123,151 +115,6 @@ export default function MessageBubble({
   const boxShadow = isUser 
     ? '0px 4px 12px rgba(67, 24, 255, 0.3)' 
     : '0px 8px 24px rgba(15, 23, 42, 0.08)';
-
-  // Markdown 自定義元件
-  const markdownComponents: Components = useMemo(() => ({
-    // 圖片元件：支援點擊放大
-    img: ({ src, alt, ...props }) => {
-      const transformedSrc = transformImageUrl(src);
-      return (
-        <Box
-          as="button"
-          type="button"
-          onClick={() => handleImageClick(transformedSrc, alt || '圖片')}
-          position="relative"
-          display="block"
-          w="full"
-          maxW="420px"
-          my={3}
-          cursor="zoom-in"
-          overflow="hidden"
-          borderRadius="xl"
-          border="1px solid"
-          borderColor={imageBorderColor}
-          bg={imageFrameBg}
-          textAlign="left"
-          transition="transform 0.2s ease, box-shadow 0.2s ease"
-          _hover={{ transform: 'translateY(-1px)', boxShadow: 'md' }}
-        >
-          <Image
-            src={transformedSrc}
-            alt={alt || '圖片'}
-            htmlWidth={400}
-            htmlHeight={300}
-            w="100%"
-            maxH="320px"
-            objectFit="cover"
-            display="block"
-            loading="lazy"
-            fallbackSrc="https://via.placeholder.com/400x300?text=Loading..."
-            {...props}
-          />
-          <HStack
-            position="absolute"
-            right={3}
-            bottom={3}
-            spacing={1}
-            px={2}
-            py={1}
-            borderRadius="full"
-            bg="blackAlpha.700"
-            color="white"
-            fontSize="xs"
-          >
-            <FiSearch />
-            <Text fontSize="xs" color="white">
-              放大
-            </Text>
-          </HStack>
-        </Box>
-      );
-    },
-    // 連結元件
-    a: ({ href, children, ...props }) => (
-      <Link
-        href={href}
-        color={linkColor}
-        textDecoration="underline"
-        _hover={{ opacity: 0.8 }}
-        target="_blank"
-        rel="noopener noreferrer"
-        {...props}
-      >
-        {children}
-      </Link>
-    ),
-    // 程式碼區塊
-    code: ({ children, className, ...props }) => {
-      const isInline = !className;
-      return isInline ? (
-        <Text
-          as="code"
-          bg={codeBg}
-          px={1.5}
-          py={0.5}
-          borderRadius="md"
-          fontSize="sm"
-          fontFamily="mono"
-          {...props}
-        >
-          {children}
-        </Text>
-      ) : (
-        // @ts-expect-error - ref type mismatch for pre element
-        <Box
-          as="pre"
-          bg={codeBg}
-          p={4}
-          borderRadius="md"
-          overflowX="auto"
-          my={2}
-          {...props}
-        >
-          <Text as="code" fontSize="sm" fontFamily="mono">
-            {children}
-          </Text>
-        </Box>
-      );
-    },
-    // 段落
-    p: ({ children, ...props }) => (
-      <Text mb={2} lineHeight="1.7" sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }} {...props}>
-        {children}
-      </Text>
-    ),
-    // 標題
-    h1: ({ children, ...props }) => (
-      <Text as="h1" fontSize="xl" fontWeight="bold" mt={4} mb={2} {...props}>
-        {children}
-      </Text>
-    ),
-    h2: ({ children, ...props }) => (
-      <Text as="h2" fontSize="lg" fontWeight="bold" mt={3} mb={2} {...props}>
-        {children}
-      </Text>
-    ),
-    h3: ({ children, ...props }) => (
-      <Text as="h3" fontSize="md" fontWeight="bold" mt={2} mb={1} {...props}>
-        {children}
-      </Text>
-    ),
-    // 列表
-    ul: ({ children, ...props }) => (
-      <Box as="ul" pl={5} my={2} {...props}>
-        {children}
-      </Box>
-    ),
-    ol: ({ children, ...props }) => (
-      <Box as="ol" pl={5} my={2} {...props}>
-        {children}
-      </Box>
-    ),
-    li: ({ children, ...props }) => (
-      <Box as="li" mb={1} {...props}>
-        {children}
-      </Box>
-    ),
-  }), [linkColor, codeBg, handleImageClick, imageBorderColor, imageFrameBg]);
 
   return (
     <>
@@ -318,24 +165,13 @@ export default function MessageBubble({
                 {content}
               </Text>
             ) : (
-              <Box
+              <MarkdownContent
                 className="markdown-content"
-                sx={{
-                  overflowWrap: 'anywhere',
-                  wordBreak: 'break-word',
-                  '& *': {
-                    overflowWrap: 'anywhere',
-                    wordBreak: 'break-word',
-                  },
-                }}
-              >
-                <ReactMarkdown
-                  rehypePlugins={[rehypeSanitize]}
-                  components={markdownComponents}
-                >
-                  {content}
-                </ReactMarkdown>
-              </Box>
+                content={content}
+                variant="chat"
+                resolveImageSrc={transformImageUrl}
+                onImageClick={handleImageClick}
+              />
             )}
 
             {/* AI Metrics Badge (if available) */}
