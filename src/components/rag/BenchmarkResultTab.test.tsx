@@ -21,6 +21,7 @@ describe('BenchmarkResultTab', () => {
                 question: 'Inspect evidence',
                 answer: 'Task answer\n1. first step',
                 sources: [],
+                is_drilldown: false,
               },
             ],
             all_sources: ['doc-a'],

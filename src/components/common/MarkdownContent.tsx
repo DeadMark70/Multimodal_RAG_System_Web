@@ -36,17 +36,6 @@ export interface MarkdownContentProps {
   className?: string;
 }
 
-type MarkdownImageProps = Parameters<NonNullable<Components['img']>>[0];
-type MarkdownAnchorProps = Parameters<NonNullable<Components['a']>>[0];
-type MarkdownCodeProps = Parameters<NonNullable<Components['code']>>[0];
-type MarkdownParagraphProps = Parameters<NonNullable<Components['p']>>[0];
-type MarkdownHeadingProps = Parameters<NonNullable<Components['h1']>>[0];
-type MarkdownListProps = Parameters<NonNullable<Components['ul']>>[0];
-type MarkdownListItemProps = Parameters<NonNullable<Components['li']>>[0];
-type MarkdownBlockquoteProps = Parameters<NonNullable<Components['blockquote']>>[0];
-type MarkdownTableProps = Parameters<NonNullable<Components['table']>>[0];
-type MarkdownTableCellProps = Parameters<NonNullable<Components['td']>>[0];
-
 interface DecoratableElementProps {
   children?: ReactNode;
   'data-testid'?: string;
@@ -55,6 +44,18 @@ interface DecoratableElementProps {
 type ReactMarkdownProps = ComponentProps<typeof ReactMarkdown>;
 type RemarkPlugin = NonNullable<ReactMarkdownProps['remarkPlugins']>[number];
 type RehypePlugin = NonNullable<ReactMarkdownProps['rehypePlugins']>[number];
+type ComponentProp<K extends keyof Components> = Components[K] extends (props: infer P) => unknown ? P : never;
+
+type MarkdownImageProps = ComponentProp<'img'>;
+type MarkdownAnchorProps = ComponentProp<'a'>;
+type MarkdownCodeProps = ComponentProp<'code'>;
+type MarkdownParagraphProps = ComponentProp<'p'>;
+type MarkdownHeadingProps = ComponentProp<'h1'>;
+type MarkdownListProps = ComponentProp<'ul'>;
+type MarkdownListItemProps = ComponentProp<'li'>;
+type MarkdownBlockquoteProps = ComponentProp<'blockquote'>;
+type MarkdownTableProps = ComponentProp<'table'>;
+type MarkdownTableCellProps = ComponentProp<'td'>;
 
 const remarkGfmPlugin = remarkGfm as unknown as RemarkPlugin;
 const rehypeSanitizePlugin = rehypeSanitize as unknown as RehypePlugin;
