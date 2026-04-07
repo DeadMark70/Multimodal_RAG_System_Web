@@ -52,4 +52,19 @@ describe('MessageBubble', () => {
     fireEvent.click(screen.getByAltText('diagram'));
     expect(screen.getByText('Preview: diagram')).toBeInTheDocument();
   });
+
+  it('renders markdown lists and source tokens for assistant messages', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <MessageBubble
+          role="assistant"
+          content={'Answer intro\n* item one\n* item two\n\n[來源: 子問題3]'}
+        />
+      </ChakraProvider>,
+    );
+
+    expect(screen.getByRole('list')).toBeInTheDocument();
+    expect(screen.getByText('item one')).toBeInTheDocument();
+    expect(screen.getByTestId('markdown-source-token')).toHaveTextContent('[來源: 子問題3]');
+  });
 });

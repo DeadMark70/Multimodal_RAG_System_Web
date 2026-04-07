@@ -70,7 +70,7 @@ describe('DeepResearchPanel', () => {
             result: {
               question: 'Compare two models',
               summary: 'Final summary',
-              detailed_answer: 'Detailed answer body',
+              detailed_answer: 'Detailed answer body\n* bullet item\n\n[來源: 子問題4]',
               sub_tasks: [],
               all_sources: ['doc-1', 'doc-2'],
               confidence: 0.88,
@@ -84,6 +84,7 @@ describe('DeepResearchPanel', () => {
     expect(screen.getByText('研究結果')).toBeInTheDocument();
     fireEvent.click(screen.getByText('開啟完整報告'));
     expect(screen.getByText('完整研究報告')).toBeInTheDocument();
-    expect(screen.getByText('Detailed answer body')).toBeInTheDocument();
+    expect(screen.getByRole('list')).toBeInTheDocument();
+    expect(screen.getByTestId('markdown-source-token')).toHaveTextContent('[來源: 子問題4]');
   });
 });
