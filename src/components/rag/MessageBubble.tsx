@@ -26,6 +26,7 @@ import type { Citation, EvaluationMetrics } from '../../types/rag';
 import MarkdownContent from '../common/MarkdownContent';
 import { MetricsBadge } from './MetricsBadge';
 import ImagePreviewModal from '../common/ImagePreviewModal';
+import { isAllowedMarkdownTarget, resolveApiUrl } from '../../services/networkPolicy';
 
 // ========== 常數定義 ==========
 
@@ -58,21 +59,40 @@ function transformImageUrl(src: string | undefined): string {
   
   // 已經是絕對 URL
   if (cleanSrc.startsWith('http://') || cleanSrc.startsWith('https://')) {
-    return cleanSrc;
+    return isAllowedMarkdownTarget(cleanSrc) ? cleanSrc : '';
   }
   
   // 相對路徑 /uploads/...
   if (cleanSrc.startsWith('/uploads/')) {
-    return `${API_BASE_URL}${cleanSrc}`;
+    const resolved = resolveApiUrl(API_BASE_URL, cleanSrc);
+    return isAllowedMarkdownTarget(resolved) ? resolved : '';
   }
   
   // 相對路徑 uploads/... (無前導斜線)
   if (cleanSrc.startsWith('uploads/')) {
-    return `${API_BASE_URL}/${cleanSrc}`;
+    const resolved = resolveApiUrl(API_BASE_URL, `/${cleanSrc}`);
+    return isAllowedMarkdownTarget(resolved) ? resolved : '';
   }
   
   // Fallback: 嘗試拼接
-  return `${API_BASE_URL}/uploads/${cleanSrc}`;
+  const resolved = resolveApiUrl(API_BASE_URL, `/uploads/${cleanSrc}`);
+  return isAllowedMarkdownTarget(resolved) ? resolved : '';
+}
+
+function transformLinkUrl(href: string | undefined): string | undefined {
+  if (!href) {
+    return undefined;
+  }
+
+  const baseOrigin =
+    typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : API_BASE_URL;
+  const resolved = resolveApiUrl(baseOrigin, href);
+  if (!isAllowedMarkdownTarget(resolved)) {
+    return undefined;
+  }
+  return resolved;
 }
 
 // ========== 元件 ==========
@@ -170,6 +190,7 @@ export default function MessageBubble({
                 content={content}
                 variant="chat"
                 resolveImageSrc={transformImageUrl}
+                resolveLinkHref={transformLinkUrl}
                 onImageClick={handleImageClick}
               />
             )}

@@ -32,6 +32,7 @@ export interface MarkdownContentProps {
   variant?: MarkdownVariant;
   preserveSourceTokens?: boolean;
   resolveImageSrc?: (src: string | undefined) => string;
+  resolveLinkHref?: (href: string | undefined) => string | undefined;
   onImageClick?: (src: string, alt: string) => void;
   className?: string;
 }
@@ -105,6 +106,7 @@ function MarkdownContentComponent({
   variant = 'chat',
   preserveSourceTokens = false,
   resolveImageSrc,
+  resolveLinkHref,
   onImageClick,
   className,
 }: MarkdownContentProps) {
@@ -206,6 +208,27 @@ function MarkdownContentComponent({
         const rawSrc = typeof src === 'string' ? src : undefined;
         const resolvedSrc = resolveImageSrc ? resolveImageSrc(rawSrc) : rawSrc ?? '';
         const altText = typeof alt === 'string' ? alt : '圖片';
+        if (!resolvedSrc) {
+          return (
+            <Box
+              as="span"
+              my={variantStyles.blockSpacing}
+              px={3}
+              py={2}
+              display="inline-flex"
+              alignItems="center"
+              borderRadius="lg"
+              border="1px solid"
+              borderColor={imageBorderColor}
+              bg={imageFrameBg}
+              fontSize="sm"
+              data-testid="markdown-blocked-image"
+            >
+              已封鎖外部圖片來源
+            </Box>
+          );
+        }
+
         const imageNode = (
           <Box
             as="img"
@@ -277,18 +300,36 @@ function MarkdownContentComponent({
           </Box>
         );
       },
-      a: ({ href, children }: MarkdownAnchorProps) => (
-        <Link
-          href={href}
-          color={linkColor}
-          textDecoration="underline"
-          _hover={{ opacity: 0.8 }}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {decorateChildren(children)}
-        </Link>
-      ),
+      a: ({ href, children }: MarkdownAnchorProps) => {
+        const rawHref = typeof href === 'string' ? href : undefined;
+        const resolvedHref = resolveLinkHref ? resolveLinkHref(rawHref) : rawHref;
+
+        if (!resolvedHref) {
+          return (
+            <Text
+              as="span"
+              color={sourceTokenColor}
+              textDecoration="line-through"
+              data-testid="markdown-blocked-link"
+            >
+              {decorateChildren(children)}
+            </Text>
+          );
+        }
+
+        return (
+          <Link
+            href={resolvedHref}
+            color={linkColor}
+            textDecoration="underline"
+            _hover={{ opacity: 0.8 }}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {decorateChildren(children)}
+          </Link>
+        );
+      },
       code: ({ children, className }: MarkdownCodeProps) => {
         const isInline = !className;
         return isInline ? (
@@ -438,6 +479,7 @@ function MarkdownContentComponent({
     onImageClick,
     preserveSourceTokens,
     resolveImageSrc,
+    resolveLinkHref,
     sourceTokenBg,
     sourceTokenBorderColor,
     sourceTokenColor,
