@@ -1,10 +1,15 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import { Outlet } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 
 vi.mock('./contexts/AuthContext', () => ({
   AuthProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('./components/auth/ProtectedRoute', () => ({
+  default: ({ children }: { children?: ReactNode }) => children ?? <Outlet />,
 }));
 
 vi.mock('./pages/Dashboard', () => ({ default: () => <div>Dashboard Page</div> }));

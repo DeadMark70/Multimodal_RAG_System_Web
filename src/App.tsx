@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import theme from './theme';
 import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 
 const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
@@ -38,12 +39,14 @@ function App() {
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/knowledge" element={<KnowledgeBase />} />
-                <Route path="/chat" element={<Chat />} />
-                <Route path="/experiment" element={<Experiment />} />
-                <Route path="/evaluation" element={<EvaluationCenter />} />
-                <Route path="/graph-demo" element={<GraphDemo />} />
+                <Route element={<ProtectedRoute />}>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/knowledge" element={<KnowledgeBase />} />
+                  <Route path="/chat" element={<Chat />} />
+                  <Route path="/experiment" element={<Experiment />} />
+                  <Route path="/evaluation" element={<EvaluationCenter />} />
+                  <Route path="/graph-demo" element={<GraphDemo />} />
+                </Route>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </Suspense>
