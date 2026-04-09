@@ -24,7 +24,7 @@ import type {
   TaskProgress,
   SSEEvent,
 } from '../types/rag';
-import { useSessionStore } from '../stores/useSessionStore';
+import { useCurrentChatId, useSessionActions } from '../stores/useSessionStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { useConversationMutations } from './useConversations';
 
@@ -137,7 +137,8 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
   const toast = useToast();
 
   // Integration with Session and Conversations
-  const { currentChatId, actions: { setCurrentChatId } } = useSessionStore();
+  const currentChatId = useCurrentChatId();
+  const { setCurrentChatId } = useSessionActions();
   const { create: createConversation } = useConversationMutations();
 
   // 載入歷史紀錄 (如果 currentChatId 存在且是研究類型)

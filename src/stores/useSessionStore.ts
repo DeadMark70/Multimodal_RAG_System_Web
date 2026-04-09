@@ -8,6 +8,7 @@
  * - 不使用 persist，重新整理後自動重置
  */
 
+import { useMemo } from 'react';
 import { create } from 'zustand';
 
 // ========== 介面定義 ==========
@@ -154,22 +155,61 @@ export const useSessionStore = create<SessionState>()((set) => ({
 export const useSelectedNodeId = () => useSessionStore((state) => state.selectedNodeId);
 
 /**
+ * 只選取當前對話 ID
+ */
+export const useCurrentChatId = () => useSessionStore((state) => state.currentChatId);
+
+/**
+ * 只選取當前 PDF 頁碼
+ */
+export const useCurrentPdfPage = () => useSessionStore((state) => state.currentPdfPage);
+
+/**
+ * 只選取當前 PDF 文件 ID
+ */
+export const useCurrentPdfDocId = () => useSessionStore((state) => state.currentPdfDocId);
+
+/**
+ * 只選取研究模式開關
+ */
+export const useIsResearchMode = () => useSessionStore((state) => state.isResearchMode);
+
+/**
+ * 只選取研究子任務列表
+ */
+export const useSubTasks = () => useSessionStore((state) => state.subTasks);
+
+/**
  * 只選取 PDF 狀態
  */
-export const usePdfState = () =>
-  useSessionStore((state) => ({
-    page: state.currentPdfPage,
-    docId: state.currentPdfDocId,
-  }));
+export const usePdfState = () => {
+  const page = useCurrentPdfPage();
+  const docId = useCurrentPdfDocId();
+
+  return useMemo(
+    () => ({
+      page,
+      docId,
+    }),
+    [docId, page]
+  );
+};
 
 /**
  * 只選取研究模式狀態
  */
-export const useResearchState = () =>
-  useSessionStore((state) => ({
-    isResearchMode: state.isResearchMode,
-    subTasks: state.subTasks,
-  }));
+export const useResearchState = () => {
+  const isResearchMode = useIsResearchMode();
+  const subTasks = useSubTasks();
+
+  return useMemo(
+    () => ({
+      isResearchMode,
+      subTasks,
+    }),
+    [isResearchMode, subTasks]
+  );
+};
 
 /**
  * 只選取 Actions

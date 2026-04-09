@@ -28,6 +28,11 @@ export {
 export {
   useSessionStore,
   useSelectedNodeId,
+  useCurrentChatId,
+  useCurrentPdfPage,
+  useCurrentPdfDocId,
+  useIsResearchMode,
+  useSubTasks,
   usePdfState,
   useResearchState,
   useSessionActions,

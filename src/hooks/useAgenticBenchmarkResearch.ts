@@ -3,7 +3,7 @@ import { useToast } from '@chakra-ui/react';
 
 import { addMessage, createConversation, getConversation } from '../services/conversationApi';
 import { executeAgenticBenchmarkStream } from '../services/ragApi';
-import { useSessionStore } from '../stores/useSessionStore';
+import { useCurrentChatId, useSessionActions } from '../stores/useSessionStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import type {
   AgenticBenchmarkCompleteData,
@@ -98,7 +98,8 @@ export function useAgenticBenchmarkResearch(
 ): UseAgenticBenchmarkResearchReturn {
   const toast = useToast();
   const { ragSettings, selectedChatModeId } = useSettingsStore();
-  const { currentChatId, actions: { setCurrentChatId } } = useSessionStore();
+  const currentChatId = useCurrentChatId();
+  const { setCurrentChatId } = useSessionActions();
 
   const [plan, setPlan] = useState<AgenticBenchmarkPlanReadyData | null>(null);
   const [isRunning, setIsRunning] = useState(false);
