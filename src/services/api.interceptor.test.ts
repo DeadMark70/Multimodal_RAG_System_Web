@@ -65,6 +65,25 @@ describe('api interceptors', () => {
     expect(setHeader).toHaveBeenCalledWith('Authorization', 'Bearer token-refreshed');
   });
 
+  it('blocks non-local api targets in test mode before attaching token', async () => {
+    getSessionMock.mockResolvedValue({
+      data: { session: { access_token: 'token-123' } },
+      error: null,
+    } as never);
+
+    const requestInterceptor = (
+      api.interceptors.request as unknown as {
+        handlers: Array<{ fulfilled: (config: unknown) => Promise<unknown> }>;
+      }
+    ).handlers[0].fulfilled;
+
+    const setHeader = vi.fn();
+    const config = { baseURL: 'https://api.example.com', url: '/v1/items', headers: { set: setHeader } };
+
+    await expect(requestInterceptor(config)).rejects.toThrow('測試/模擬模式禁止呼叫非本機 API');
+    expect(setHeader).not.toHaveBeenCalled();
+  });
+
   it('maps backend detail error message to thrown Error', async () => {
     const responseErrorInterceptor = (
       api.interceptors.response as unknown as {

@@ -53,6 +53,28 @@ describe('MessageBubble', () => {
     expect(screen.getByText('Preview: diagram')).toBeInTheDocument();
   });
 
+  it('blocks external markdown images to avoid browser-side tracking requests', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <MessageBubble role="assistant" content="![tracker](https://evil.example.com/pixel.png)" />
+      </ChakraProvider>
+    );
+
+    expect(screen.queryByAltText('tracker')).not.toBeInTheDocument();
+    expect(screen.getByTestId('markdown-blocked-image')).toHaveTextContent('已封鎖外部圖片來源');
+  });
+
+  it('renders untrusted markdown links as blocked text', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <MessageBubble role="assistant" content="[惡意連結](https://evil.example.com/phish)" />
+      </ChakraProvider>
+    );
+
+    expect(screen.queryByRole('link', { name: '惡意連結' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('markdown-blocked-link')).toHaveTextContent('惡意連結');
+  });
+
   it('renders markdown lists and source tokens for assistant messages', () => {
     render(
       <ChakraProvider theme={theme}>
