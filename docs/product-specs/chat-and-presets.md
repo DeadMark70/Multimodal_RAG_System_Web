@@ -16,3 +16,4 @@
 - GraphRAG and Deep Research labels should match the actual backend behavior they trigger.
 - Desktop chat rail collapse must be smooth; collapsing a rail must not unmount the central workspace or remove access to settings.
 - When Agentic Benchmark execution completes, the workspace should land on the final result tab without requiring a manual tab switch.
+- Assistant markdown content must not auto-load or expose untrusted external image/link targets in chat bubbles.
