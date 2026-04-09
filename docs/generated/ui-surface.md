@@ -109,7 +109,9 @@ Human-maintained inventory of the current frontend surface.
 ## Graph Rendering Snapshot
 
 - `KnowledgeGraph.tsx`
-  - keeps 2D rendering only; no 3D mode is introduced
+  - defaults to 2D rendering and lazy-loads a 3D mode when the user toggles it on
+  - keeps 2D and 3D graph data projections separate so dragged-node `fx/fy` pinning does not leak into the 3D simulation
   - applies zoom-tier level-of-detail rendering so labels appear only at close zoom
   - simplifies node drawing at low zoom and keeps hover labels as the fallback identification affordance
   - treats dense graphs as a special case by disabling link arrows and shortening force-simulation cooldown/warmup
+  - uses orbit/hover/select behavior in 3D mode without camera fly-to or button-based zoom controls

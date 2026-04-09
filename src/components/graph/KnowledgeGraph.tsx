@@ -10,11 +10,11 @@
  * - 內建 Mock Data 用於開發
  */
 
-import { useRef, useCallback, useMemo, useState, useEffect } from 'react';
+import { Suspense, lazy, useRef, useCallback, useMemo, useState, useEffect } from 'react';
 import ForceGraph2D, { type ForceGraphMethods } from 'react-force-graph-2d';
 import { Box, useColorModeValue, Text, VStack, IconButton } from '@chakra-ui/react';
 import { keyframes } from '@emotion/react';
-import { FiPlus, FiMinus, FiCpu } from 'react-icons/fi';
+import { FiPlus, FiMinus, FiCpu, FiBox } from 'react-icons/fi';
 import type { GraphData, GraphNode, GraphLink } from '../../types/graph';
 import { useSessionActions } from '../../stores';
 import GlassPane from '../common/GlassPane';
@@ -80,6 +80,8 @@ const pulse = keyframes`
   100% { transform: scale(1); opacity: 1; }
 `;
 
+const ForceGraph3D = lazy(() => import('react-force-graph-3d'));
+
 export interface KnowledgeGraphProps {
   data?: GraphData;
   onNodeClick?: (node: GraphNode) => void;
@@ -98,6 +100,68 @@ type ForceLink = Omit<GraphLink, 'source' | 'target'> & {
   target: string | number | ForceNode;
 };
 
+type ForceNode3D = {
+  id: string | number;
+  group?: number;
+  val?: number;
+  desc?: string;
+  type?: string;
+  source_docs?: string[];
+  x?: number;
+  y?: number;
+  z?: number;
+  vx?: number;
+  vy?: number;
+  vz?: number;
+};
+
+type ForceLink3D = {
+  source: string | number | ForceNode3D;
+  target: string | number | ForceNode3D;
+  label?: string;
+  weight?: number;
+};
+
+type GraphRenderableNode = {
+  [key: string]: unknown;
+  id?: string | number;
+  desc?: string;
+  group?: number;
+  val?: number;
+};
+
+type GraphRenderableLink = {
+  [key: string]: unknown;
+  label?: string;
+};
+
+interface GraphLoadingOverlayProps {
+  message: string;
+  zIndex: number;
+}
+
+function GraphLoadingOverlay({ message, zIndex }: GraphLoadingOverlayProps) {
+  return (
+    <Box
+      position="absolute"
+      inset="0"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      bg="blackAlpha.300"
+      backdropFilter="blur(5px)"
+      zIndex={zIndex}
+    >
+      <VStack spacing={4}>
+        <Box as={FiCpu} size="40px" color="brand.500" animation={`${pulse} 2s infinite`} />
+        <Text fontWeight="bold" color="white" textShadow="0 0 10px rgba(0,0,0,0.5)">
+          {message}
+        </Text>
+      </VStack>
+    </Box>
+  );
+}
+
 export function KnowledgeGraph({
   data,
   onNodeClick,
@@ -108,6 +172,7 @@ export function KnowledgeGraph({
   const graphRef = useRef<ForceGraphMethods<ForceNode, ForceLink> | undefined>();
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [is3D, setIs3D] = useState(false);
   const actions = useSessionActions();
 
   // Theme colors
@@ -117,7 +182,7 @@ export function KnowledgeGraph({
 
   const graphData = useMemo(() => data ?? MOCK_GRAPH_DATA, [data]);
   const isLargeGraph = graphData.nodes.length >= LARGE_GRAPH_NODE_THRESHOLD;
-  const forceGraphData = useMemo(
+  const forceGraphData2D = useMemo(
     () => ({
       nodes: graphData.nodes.map((node) => ({
         ...node,
@@ -127,6 +192,33 @@ export function KnowledgeGraph({
       links: graphData.links.map((link) => ({
         ...link,
       })),
+    }),
+    [graphData]
+  );
+  const forceGraphData3D = useMemo(
+    () => ({
+      nodes: graphData.nodes.map(
+        (node): ForceNode3D => ({
+          id: node.id,
+          group: node.group,
+          val: node.val,
+          desc: node.desc,
+          type: node.type,
+          source_docs: node.source_docs,
+          x: node.x,
+          y: node.y,
+          vx: node.vx,
+          vy: node.vy,
+        })
+      ),
+      links: graphData.links.map(
+        (link): ForceLink3D => ({
+          source: link.source,
+          target: link.target,
+          label: link.label,
+          weight: link.weight,
+        })
+      ),
     }),
     [graphData]
   );
@@ -152,20 +244,40 @@ export function KnowledgeGraph({
     return () => observer.disconnect();
   }, []);
 
-  const getNodeColor = useCallback((node: ForceNode) => {
+  const getNodeColor = useCallback((node: GraphRenderableNode) => {
     const groupIndex = (node.group ?? 0) % COMMUNITY_COLORS.length;
     return COMMUNITY_COLORS[groupIndex];
   }, []);
 
-  const handleNodeClick = useCallback((node: ForceNode) => {
-      actions.setSelectedNodeId(node.id);
+  const getNodeLabel = useCallback(
+    (node: GraphRenderableNode) => `${node.id != null ? String(node.id) : ''}\n${node.desc ?? ''}`,
+    []
+  );
+
+  const getLinkLabel = useCallback((link: GraphRenderableLink) => link.label ?? '', []);
+
+  const selectNode = useCallback((node: { id: string | number }) => {
+      actions.setSelectedNodeId(String(node.id));
+    },
+    [actions]
+  );
+
+  const handle2DNodeClick = useCallback((node: ForceNode) => {
+      selectNode(node);
       if (graphRef.current && typeof node.x === 'number' && typeof node.y === 'number') {
         graphRef.current.centerAt(node.x, node.y, 500);
         graphRef.current.zoom(2, 500);
       }
       onNodeClick?.(node as GraphNode);
     },
-    [actions, onNodeClick]
+    [onNodeClick, selectNode]
+  );
+
+  const handle3DNodeClick = useCallback((node: ForceNode3D) => {
+      selectNode(node);
+      onNodeClick?.(node as GraphNode);
+    },
+    [onNodeClick, selectNode]
   );
 
   const handleZoomIn = () => {
@@ -176,16 +288,20 @@ export function KnowledgeGraph({
     graphRef.current?.zoom((graphRef.current.zoom() || 1) / 1.2, 400);
   };
 
+  const graphWidth = dimensions.width || propWidth || 800;
+  const graphHeight = dimensions.height || propHeight || 600;
+  const canRenderGraph = !isLoading && (dimensions.width > 0 || Boolean(propWidth));
+
   return (
     <Box ref={containerRef} w="full" h={propHeight ? `${propHeight}px` : "full"} minH="400px" position="relative" overflow="hidden" borderRadius="xl" bg={bgColor}>
-      {!isLoading && (dimensions.width > 0 || propWidth) && (
+      {canRenderGraph && !is3D && (
         <ForceGraph2D
           ref={graphRef}
-          graphData={forceGraphData}
-          width={dimensions.width || propWidth || 800}
-          height={dimensions.height || propHeight || 600}
+          graphData={forceGraphData2D}
+          width={graphWidth}
+          height={graphHeight}
           backgroundColor={bgColor}
-          nodeLabel={(node: ForceNode) => `${node.id ?? ''}\n${node.desc ?? ''}`}
+          nodeLabel={getNodeLabel}
           nodeColor={getNodeColor}
           nodeRelSize={renderConfig.nodeRelSize}
           nodeVal={(node: ForceNode) => node.val ?? 5}
@@ -193,8 +309,8 @@ export function KnowledgeGraph({
           linkWidth={renderConfig.linkWidth}
           linkDirectionalArrowLength={renderConfig.arrowLength}
           linkDirectionalArrowRelPos={0.9}
-          linkLabel={(link: ForceLink) => link.label ?? ''}
-          onNodeClick={(node) => handleNodeClick(node as ForceNode)}
+          linkLabel={getLinkLabel}
+          onNodeClick={(node) => handle2DNodeClick(node as ForceNode)}
           onNodeDragEnd={(node: ForceNode) => {
             node.fx = node.x;
             node.fy = node.y;
@@ -238,21 +354,50 @@ export function KnowledgeGraph({
         />
       )}
 
+      {canRenderGraph && is3D && (
+        <Suspense fallback={<GraphLoadingOverlay message="Loading 3D Graph..." zIndex={15} />}>
+          <ForceGraph3D
+            graphData={forceGraphData3D}
+            width={graphWidth}
+            height={graphHeight}
+            backgroundColor={bgColor}
+            nodeLabel={getNodeLabel}
+            nodeColor={getNodeColor}
+            nodeVal={(node: GraphRenderableNode) => node.val ?? 5}
+            linkColor={() => linkColor}
+            linkWidth={renderConfig.linkWidth}
+            linkDirectionalArrowLength={renderConfig.arrowLength}
+            linkDirectionalArrowRelPos={0.9}
+            linkLabel={getLinkLabel}
+            onNodeClick={(node) => handle3DNodeClick(node as ForceNode3D)}
+          />
+        </Suspense>
+      )}
+
       {/* Loading Overlay */}
       {isLoading && (
-        <Box position="absolute" inset="0" display="flex" alignItems="center" justifyContent="center" bg="blackAlpha.300" backdropFilter="blur(5px)" zIndex={20}>
-            <VStack spacing={4}>
-                <Box as={FiCpu} size="40px" color="brand.500" animation={`${pulse} 2s infinite`} />
-                <Text fontWeight="bold" color="white" textShadow="0 0 10px rgba(0,0,0,0.5)">Building Graph...</Text>
-            </VStack>
-        </Box>
+        <GraphLoadingOverlay message="Building Graph..." zIndex={20} />
       )}
 
       {/* Glass Controls */}
       <GlassPane position="absolute" bottom="4" right="4" p="2" borderRadius="lg" zIndex="10">
         <VStack spacing="2">
-            <IconButton aria-label="Zoom In" icon={<FiPlus />} onClick={handleZoomIn} size="sm" variant="ghost" />
-            <IconButton aria-label="Zoom Out" icon={<FiMinus />} onClick={handleZoomOut} size="sm" variant="ghost" />
+          <IconButton
+            aria-label={is3D ? 'Switch to 2D graph' : 'Switch to 3D graph'}
+            aria-pressed={is3D}
+            icon={<FiBox />}
+            onClick={() => setIs3D((value) => !value)}
+            size="sm"
+            variant="ghost"
+            bg={is3D ? 'whiteAlpha.200' : undefined}
+            _hover={{ bg: is3D ? 'whiteAlpha.300' : 'whiteAlpha.100' }}
+          />
+          {!is3D && (
+            <>
+              <IconButton aria-label="Zoom In" icon={<FiPlus />} onClick={handleZoomIn} size="sm" variant="ghost" />
+              <IconButton aria-label="Zoom Out" icon={<FiMinus />} onClick={handleZoomOut} size="sm" variant="ghost" />
+            </>
+          )}
         </VStack>
       </GlassPane>
     </Box>
