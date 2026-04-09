@@ -5,7 +5,7 @@
 - React 18 + TypeScript + Vite 7
 - Chakra UI + Framer Motion
 - TanStack Query 5 + Zustand 5
-- Supabase Auth + shared Axios client + authenticated fetch SSE
+- Supabase Auth (non-persistent in-browser session) + shared Axios client + authenticated fetch SSE
 - Vitest + Testing Library
 
 ## Runtime Shell
@@ -49,7 +49,7 @@
 - `src/services/api.ts`
   - shared Axios client, JWT injection, one-flight refresh retry, error normalization
 - `src/services/networkPolicy.ts`
-  - allowed API target enforcement for browser/runtime safety
+  - trusted-host allowlist enforcement for API targets, bearer attachment, and markdown outbound filtering
 - `src/services/pdfApi.ts`
   - knowledge-base and PDF file actions
 - `src/services/ragApi.ts`
@@ -89,6 +89,7 @@
   - applies `remark-gfm` + `rehype-sanitize` with Chakra-based markdown styles
   - renders `[來源: ...]` tokens as low-contrast inline badges instead of raw distracting text
 - `MessageBubble.tsx` now treats sources as collapsible secondary content and renders assistant/image content with explicit frame/border affordances.
+- `MessageBubble.tsx`/`MarkdownContent.tsx` block untrusted markdown image/link targets to prevent automatic browser requests to unknown hosts.
 - `BenchmarkResultTab.tsx`, `ResearchDetailModal.tsx`, and `ResearchStepsAccordion.tsx` reuse `MarkdownContent.tsx` for formal report/task-answer reading surfaces instead of ad hoc `ReactMarkdown`/plain-text rendering.
   - `ConversationSidebar.tsx` now renders lower-density button-like selectable rows with explicit keyboard support, a sticky search/new header, and hover-only thin scrollbars.
 
@@ -128,6 +129,8 @@
 
 - Chat and evaluation streams use authenticated `fetch` + manual SSE parsing rather than browser `EventSource`.
 - Auth session fetch retries one refresh attempt before requests proceed without a token.
+- Supabase client keeps session tokens in memory (`persistSession=false`) to avoid long-lived `localStorage` credential persistence.
+- Authorization headers are attached only when request targets pass trusted-host policy checks.
 - `PASSWORD_RECOVERY` auth events redirect to `/reset-password` if the incoming URL lands elsewhere.
 - Sign-out falls back from global revocation to local cleanup so stale tokens do not trap the UI in an authenticated state.
 - Upload and graph pages expose active job state and polling-driven recovery instead of optimistic silent success.

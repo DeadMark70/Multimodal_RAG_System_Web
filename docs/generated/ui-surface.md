@@ -26,7 +26,8 @@ Human-maintained inventory of the current frontend surface.
 ## Shared Services
 
 - `api.ts`: auth injection, refresh retry, error normalization
-- `networkPolicy.ts`: API target allowlisting
+- `networkPolicy.ts`: trusted-host allowlisting for API targets, token attachment, and markdown outbound links/images
+- `supabase.ts`: Supabase client bootstrap with non-persistent browser session storage
 - `conversationApi.ts`: conversation CRUD + messages
 - `evaluationApi.ts`: evaluation REST + authenticated SSE
 - `graphApi.ts`: graph status/data/maintenance
@@ -67,6 +68,7 @@ Human-maintained inventory of the current frontend surface.
   - renders assistant replies with a bordered surface
   - keeps citations behind a collapsible `來源` section
   - wraps markdown images in a framed zoomable preview affordance
+  - blocks untrusted markdown image/link hosts instead of rendering active outbound targets
   - uses shared `MarkdownContent.tsx` for assistant markdown so chat/report list rendering and `[來源: ...]` styling stay aligned
 - `ConversationSidebar.tsx`
   - uses focusable button-like conversation rows

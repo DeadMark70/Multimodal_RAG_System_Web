@@ -6,15 +6,17 @@ The frontend is a trusted client for user intent, not a trusted authority for au
 
 ## Implemented Controls
 
-1. `src/services/api.ts` injects the Supabase JWT for protected backend requests.
-2. `src/services/networkPolicy.ts` rejects unexpected API targets instead of allowing arbitrary browser requests.
-3. `AuthProvider` keeps password-recovery routing explicit and clears local auth state after successful sign-out fallback.
-4. Protected file access and maintenance actions go through authenticated API clients rather than unauthenticated direct links.
+1. `src/services/api.ts` injects the Supabase JWT only for trusted API targets.
+2. `src/services/networkPolicy.ts` enforces trusted-host policy in all modes and keeps test/mock mode localhost-only.
+3. `src/components/common/MarkdownContent.tsx` + `MessageBubble.tsx` block untrusted markdown links/images from becoming active outbound targets.
+4. Supabase client runs with non-persistent session storage (`persistSession=false`) to reduce token exposure in browser storage.
+5. `AuthProvider` keeps password-recovery routing explicit and clears local auth state after successful sign-out fallback.
+6. Protected file access and maintenance actions go through authenticated API clients rather than unauthenticated direct links.
 
 ## Important Limits
 
 1. Tenant isolation and authorization live on the backend, not in React route guards.
-2. Environment misconfiguration can still point the client at the wrong API host unless the allowlist is kept current.
+2. Environment misconfiguration can still block legitimate targets if trusted-host allowlists are not updated during deploy changes.
 3. Browser-visible request metadata is useful for operators but must still be validated server-side.
 
 ## Deployment Hardening Priorities
