@@ -33,15 +33,6 @@ export default defineConfig({
           }
 
           if (
-            id.includes('/react-force-graph-2d/') ||
-            id.includes('/react-force-graph-3d/') ||
-            id.includes('/three/') ||
-            id.includes('/@xyflow/react/')
-          ) {
-            return 'graph-vendor';
-          }
-
-          if (
             id.includes('/react-markdown/') ||
             id.includes('/remark-gfm/') ||
             id.includes('/rehype-sanitize/')

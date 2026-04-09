@@ -124,6 +124,7 @@
 - `KnowledgeGraph.tsx` applies zoom-based level-of-detail rendering in 2D mode: low zoom suppresses labels and simplifies nodes, labels only appear at close zoom, and dense graphs disable arrowheads plus shorten force-simulation cooldown to reduce drag/zoom stutter.
 - `KnowledgeGraph.tsx` 3D mode uses orbit controls plus hover labels and node selection, but does not yet add camera fly-to or dedicated `+/-` zoom buttons.
 - `GraphDemo.tsx` now lazy-mounts graph tabs so `ResearchFlow` does not initialize during first paint unless the user opens that tab.
+- `vite.config.ts` keeps manual vendor chunking for `react-vendor`, `ui-vendor`, and `markdown-vendor`, but no longer forces a separate `graph-vendor` chunk. The previous graph-specific split created a circular import between `vendor` and `graph-vendor`, which can crash the app before React mounts with `ReferenceError: Cannot access ... before initialization`.
 
 ## Evaluation UI Contract
 
