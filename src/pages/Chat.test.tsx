@@ -210,7 +210,7 @@ describe('Chat Page Integration', () => {
     expect(window.localStorage.getItem('chat.rightRailCollapsed')).toBe('true');
   });
 
-  it('opens settings drawer from the desktop rail trigger', () => {
+  it('opens settings drawer from the desktop rail trigger', async () => {
     render(
       <QueryClientProvider client={queryClient}>
         <ChakraProvider theme={theme}>
@@ -221,7 +221,7 @@ describe('Chat Page Integration', () => {
 
     fireEvent.click(screen.getByTestId('chat-settings-trigger'));
 
-    expect(screen.getByText('SettingsPanel')).toBeInTheDocument();
+    expect(await screen.findByText('SettingsPanel')).toBeInTheDocument();
   });
 
   it('restores desktop rail preferences from localStorage', () => {

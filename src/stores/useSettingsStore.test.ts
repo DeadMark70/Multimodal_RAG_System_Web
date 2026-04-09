@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { useSettingsStore } from './useSettingsStore';
+import {
+  areRagSettingsEqual,
+  getCurrentSettingsSnapshot,
+  useSettingsStore,
+} from './useSettingsStore';
 
 describe('useSettingsStore', () => {
   beforeEach(() => {
@@ -106,5 +110,20 @@ describe('useSettingsStore', () => {
     expect(state.selectedChatModeId).toBe('agentic_benchmark');
     expect(state.ragSettings.enable_graph_rag).toBe(true);
     expect(state.ragSettings.enable_graph_planning).toBe(false);
+  });
+
+  it('compares rag settings deterministically and exposes a point-in-time snapshot', () => {
+    const initialSnapshot = getCurrentSettingsSnapshot();
+
+    expect(areRagSettingsEqual(initialSnapshot.ragSettings, useSettingsStore.getState().ragSettings)).toBe(true);
+    expect(initialSnapshot.selectedChatModeId).toBe('graph');
+
+    useSettingsStore.getState().actions.setTheme('dark');
+    const afterThemeSnapshot = getCurrentSettingsSnapshot();
+    expect(areRagSettingsEqual(initialSnapshot.ragSettings, afterThemeSnapshot.ragSettings)).toBe(true);
+
+    useSettingsStore.getState().actions.setRagSetting('enable_evaluation', true);
+    const updatedSnapshot = getCurrentSettingsSnapshot();
+    expect(areRagSettingsEqual(initialSnapshot.ragSettings, updatedSnapshot.ragSettings)).toBe(false);
   });
 });

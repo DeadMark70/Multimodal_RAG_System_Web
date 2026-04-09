@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import PageHeader from '../components/common/PageHeader';
 import {
@@ -42,10 +42,7 @@ import {
 import SurfaceCard from '../components/common/SurfaceCard';
 import MessageBubble from '../components/rag/MessageBubble';
 import DocumentSelector from '../components/rag/DocumentSelector';
-import DeepResearchPanel from '../components/rag/DeepResearchPanel';
-import AgenticBenchmarkPanel from '../components/rag/AgenticBenchmarkPanel';
 import ConversationSidebar from '../components/rag/ConversationSidebar';
-import SettingsPanel from '../components/settings/SettingsPanel';
 import { useChatRailPreference } from '../hooks/useChatRailPreference';
 import { useChat } from '../hooks/useChat';
 import { useDeepResearch } from '../hooks/useDeepResearch';
@@ -53,18 +50,20 @@ import { useAgenticBenchmarkResearch } from '../hooks/useAgenticBenchmarkResearc
 import { useConversationMutations } from '../hooks/useConversations';
 import { useCurrentChatId, useSessionActions } from '../stores/useSessionStore';
 import {
+  areRagSettingsEqual,
   getConversationTypeForMode,
+  useChatRuntimeSettings,
   useActiveChatPreset,
   useChatPresetList,
+  useRagSettingsSnapshot,
+  useSelectedChatModeId,
   useSettingsActions,
-  useSettingsStore,
 } from '../stores';
 import type { Conversation, ConversationType } from '../types/conversation';
-import type { RagSettings } from '../stores/useSettingsStore';
 
-function areSettingsEqual(left: RagSettings, right: RagSettings): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
-}
+const DeepResearchPanel = lazy(() => import('../components/rag/DeepResearchPanel'));
+const AgenticBenchmarkPanel = lazy(() => import('../components/rag/AgenticBenchmarkPanel'));
+const SettingsPanel = lazy(() => import('../components/settings/SettingsPanel'));
 
 function getChatStageLabel(stage: ReturnType<typeof useChat>['currentStage']): string | null {
   switch (stage) {
@@ -144,7 +143,9 @@ const RIGHT_RAIL_STORAGE_KEY = 'chat.rightRailCollapsed';
 export default function Chat() {
   const currentChatId = useCurrentChatId();
   const { setCurrentChatId } = useSessionActions();
-  const { ragSettings, selectedChatModeId } = useSettingsStore();
+  const ragSettings = useRagSettingsSnapshot();
+  const selectedChatModeId = useSelectedChatModeId();
+  const chatRuntimeSettings = useChatRuntimeSettings();
   const settingsActions = useSettingsActions();
   const activePreset = useActiveChatPreset();
   const presetList = useChatPresetList();
@@ -156,7 +157,7 @@ export default function Chat() {
   const isAgenticBenchmarkMode = activePreset.baseMode === 'agentic_benchmark';
   const isResearchMode = isDeepResearchMode || isAgenticBenchmarkMode;
   const activeConversationType = getConversationTypeForMode(activePreset.baseMode);
-  const presetIsDirty = !areSettingsEqual(activePreset.config, ragSettings);
+  const presetIsDirty = !areRagSettingsEqual(activePreset.config, ragSettings);
 
   const {
     messages,
@@ -167,12 +168,12 @@ export default function Chat() {
     setSelectedDocIds,
     currentStage,
   } = useChat({
-    enableEvaluation: ragSettings.enable_evaluation,
-    enableHyde: ragSettings.enable_hyde,
-    enableMultiQuery: ragSettings.enable_multi_query,
-    enableReranking: ragSettings.enable_reranking,
-    enableGraphRag: ragSettings.enable_graph_rag,
-    graphSearchMode: ragSettings.graph_search_mode,
+    enableEvaluation: chatRuntimeSettings.enableEvaluation,
+    enableHyde: chatRuntimeSettings.enableHyde,
+    enableMultiQuery: chatRuntimeSettings.enableMultiQuery,
+    enableReranking: chatRuntimeSettings.enableReranking,
+    enableGraphRag: chatRuntimeSettings.enableGraphRag,
+    graphSearchMode: chatRuntimeSettings.graphSearchMode,
     conversationId: isResearchMode ? null : currentChatId,
     ensureConversation: async () => {
       try {
@@ -444,11 +445,15 @@ export default function Chat() {
             <Box flex={1} minH={0} minW={0} overflow="hidden" mb={4}>
               {isDeepResearchMode ? (
                 <Box h="100%" minH={0} overflow="hidden">
-                  <DeepResearchPanel researchState={deepResearch} />
+                  <Suspense fallback={<Skeleton h="100%" borderRadius="xl" />}>
+                    <DeepResearchPanel researchState={deepResearch} />
+                  </Suspense>
                 </Box>
               ) : isAgenticBenchmarkMode ? (
                 <Box h="100%" minH={0} overflow="hidden" display="flex">
-                  <AgenticBenchmarkPanel researchState={agenticBenchmark} />
+                  <Suspense fallback={<Skeleton h="100%" borderRadius="xl" />}>
+                    <AgenticBenchmarkPanel researchState={agenticBenchmark} />
+                  </Suspense>
                 </Box>
               ) : (
                 <Flex
@@ -788,7 +793,9 @@ export default function Chat() {
                   </VStack>
                 </CardBody>
               </SurfaceCard>
-              <SettingsPanel isDrawerMode />
+              <Suspense fallback={<Skeleton h="320px" borderRadius="xl" />}>
+                <SettingsPanel isDrawerMode />
+              </Suspense>
             </VStack>
           </DrawerBody>
         </DrawerContent>

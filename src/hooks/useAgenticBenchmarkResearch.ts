@@ -4,7 +4,11 @@ import { useToast } from '@chakra-ui/react';
 import { addMessage, createConversation, getConversation } from '../services/conversationApi';
 import { executeAgenticBenchmarkStream } from '../services/ragApi';
 import { useCurrentChatId, useSessionActions } from '../stores/useSessionStore';
-import { useSettingsStore } from '../stores/useSettingsStore';
+import {
+  getCurrentSettingsSnapshot,
+  useBenchmarkRuntimeSettings,
+  useSelectedChatModeId,
+} from '../stores/useSettingsStore';
 import type {
   AgenticBenchmarkCompleteData,
   AgenticBenchmarkEvaluationUpdate,
@@ -97,7 +101,8 @@ export function useAgenticBenchmarkResearch(
   docIds: string[]
 ): UseAgenticBenchmarkResearchReturn {
   const toast = useToast();
-  const { ragSettings, selectedChatModeId } = useSettingsStore();
+  const runtimeSettings = useBenchmarkRuntimeSettings();
+  const selectedChatModeId = useSelectedChatModeId();
   const currentChatId = useCurrentChatId();
   const { setCurrentChatId } = useSessionActions();
 
@@ -358,12 +363,13 @@ export function useAgenticBenchmarkResearch(
     abortControllerRef.current = new AbortController();
 
     try {
+      const settingsSnapshot = getCurrentSettingsSnapshot();
       const conversation = await createConversation({
         title: question,
         type: 'research',
         metadata: {
           mode_preset: selectedChatModeId,
-          mode_config_snapshot: ragSettings,
+          mode_config_snapshot: settingsSnapshot.ragSettings,
           research_engine: 'agentic_benchmark',
           engine: 'agentic_benchmark',
           original_question: question,
@@ -380,8 +386,8 @@ export function useAgenticBenchmarkResearch(
           question,
           doc_ids: docIds.length > 0 ? docIds : undefined,
           conversation_id: conversation.id,
-          enable_reranking: ragSettings.enable_reranking,
-          enable_deep_image_analysis: ragSettings.enable_deep_image_analysis,
+          enable_reranking: runtimeSettings.enableReranking,
+          enable_deep_image_analysis: runtimeSettings.enableDeepImageAnalysis,
         },
         handleEvent,
         abortControllerRef.current.signal
@@ -412,7 +418,7 @@ export function useAgenticBenchmarkResearch(
     docIds,
     handleEvent,
     isRunning,
-    ragSettings,
+    runtimeSettings,
     selectedChatModeId,
     setCurrentChatId,
     toast,

@@ -623,4 +623,144 @@ export function getConversationTypeForMode(baseMode: ChatModeBase): Conversation
   return baseMode === 'agentic' || baseMode === 'agentic_benchmark' ? 'research' : 'chat';
 }
 
+export function areRagSettingsEqual(left: RagSettings, right: RagSettings): boolean {
+  return (
+    left.enable_hyde === right.enable_hyde &&
+    left.enable_multi_query === right.enable_multi_query &&
+    left.enable_reranking === right.enable_reranking &&
+    left.enable_evaluation === right.enable_evaluation &&
+    left.enable_graph_rag === right.enable_graph_rag &&
+    left.graph_search_mode === right.graph_search_mode &&
+    left.enable_graph_planning === right.enable_graph_planning &&
+    left.enable_deep_image_analysis === right.enable_deep_image_analysis &&
+    left.max_subtasks === right.max_subtasks
+  );
+}
+
+export function getCurrentSettingsSnapshot(): Pick<SettingsState, 'ragSettings' | 'selectedChatModeId'> {
+  const state = useSettingsStore.getState();
+  return {
+    ragSettings: state.ragSettings,
+    selectedChatModeId: state.selectedChatModeId,
+  };
+}
+
+export const useEnableHyde = () => useSettingsStore((state) => state.ragSettings.enable_hyde);
+
+export const useEnableMultiQuery = () =>
+  useSettingsStore((state) => state.ragSettings.enable_multi_query);
+
+export const useEnableReranking = () =>
+  useSettingsStore((state) => state.ragSettings.enable_reranking);
+
+export const useEnableEvaluation = () =>
+  useSettingsStore((state) => state.ragSettings.enable_evaluation);
+
+export const useEnableGraphRag = () =>
+  useSettingsStore((state) => state.ragSettings.enable_graph_rag);
+
+export const useGraphSearchMode = () =>
+  useSettingsStore((state) => state.ragSettings.graph_search_mode);
+
+export const useEnableGraphPlanning = () =>
+  useSettingsStore((state) => state.ragSettings.enable_graph_planning);
+
+export const useEnableDeepImageAnalysis = () =>
+  useSettingsStore((state) => state.ragSettings.enable_deep_image_analysis);
+
+export const useMaxSubtasks = () => useSettingsStore((state) => state.ragSettings.max_subtasks);
+
+export const useRagSettingsSnapshot = () => {
+  const enableHyde = useEnableHyde();
+  const enableMultiQuery = useEnableMultiQuery();
+  const enableReranking = useEnableReranking();
+  const enableEvaluation = useEnableEvaluation();
+  const enableGraphRag = useEnableGraphRag();
+  const graphSearchMode = useGraphSearchMode();
+  const enableGraphPlanning = useEnableGraphPlanning();
+  const enableDeepImageAnalysis = useEnableDeepImageAnalysis();
+  const maxSubtasks = useMaxSubtasks();
+
+  return useMemo(
+    () => ({
+      enable_hyde: enableHyde,
+      enable_multi_query: enableMultiQuery,
+      enable_reranking: enableReranking,
+      enable_evaluation: enableEvaluation,
+      enable_graph_rag: enableGraphRag,
+      graph_search_mode: graphSearchMode,
+      enable_graph_planning: enableGraphPlanning,
+      enable_deep_image_analysis: enableDeepImageAnalysis,
+      max_subtasks: maxSubtasks,
+    }),
+    [
+      enableDeepImageAnalysis,
+      enableEvaluation,
+      enableGraphPlanning,
+      enableGraphRag,
+      enableHyde,
+      enableMultiQuery,
+      enableReranking,
+      graphSearchMode,
+      maxSubtasks,
+    ]
+  );
+};
+
+export const useChatRuntimeSettings = () => {
+  const enableEvaluation = useEnableEvaluation();
+  const enableHyde = useEnableHyde();
+  const enableMultiQuery = useEnableMultiQuery();
+  const enableReranking = useEnableReranking();
+  const enableGraphRag = useEnableGraphRag();
+  const graphSearchMode = useGraphSearchMode();
+
+  return useMemo(
+    () => ({
+      enableEvaluation,
+      enableHyde,
+      enableMultiQuery,
+      enableReranking,
+      enableGraphRag,
+      graphSearchMode,
+    }),
+    [
+      enableEvaluation,
+      enableGraphRag,
+      enableHyde,
+      enableMultiQuery,
+      enableReranking,
+      graphSearchMode,
+    ]
+  );
+};
+
+export const useDeepResearchRuntimeSettings = () => {
+  const enableGraphPlanning = useEnableGraphPlanning();
+  const enableReranking = useEnableReranking();
+  const enableDeepImageAnalysis = useEnableDeepImageAnalysis();
+
+  return useMemo(
+    () => ({
+      enableGraphPlanning,
+      enableReranking,
+      enableDeepImageAnalysis,
+    }),
+    [enableDeepImageAnalysis, enableGraphPlanning, enableReranking]
+  );
+};
+
+export const useBenchmarkRuntimeSettings = () => {
+  const enableReranking = useEnableReranking();
+  const enableDeepImageAnalysis = useEnableDeepImageAnalysis();
+
+  return useMemo(
+    () => ({
+      enableReranking,
+      enableDeepImageAnalysis,
+    }),
+    [enableDeepImageAnalysis, enableReranking]
+  );
+};
+
 export default useSettingsStore;

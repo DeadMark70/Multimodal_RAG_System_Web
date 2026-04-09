@@ -5,7 +5,7 @@ import { useAgenticBenchmarkResearch } from './useAgenticBenchmarkResearch';
 import * as ragApi from '../services/ragApi';
 import * as conversationApi from '../services/conversationApi';
 import { useSessionStore } from '../stores/useSessionStore';
-import { useSettingsStore } from '../stores/useSettingsStore';
+import * as settingsStore from '../stores/useSettingsStore';
 import { asMock } from '../test/mock-utils';
 
 interface MockSessionStoreState {
@@ -25,7 +25,11 @@ vi.mock('../stores/useSessionStore', () => {
     useSessionActions: (): MockSessionStoreState['actions'] => useSessionStore().actions,
   };
 });
-vi.mock('../stores/useSettingsStore');
+vi.mock('../stores/useSettingsStore', () => ({
+  useBenchmarkRuntimeSettings: vi.fn(),
+  useSelectedChatModeId: vi.fn(),
+  getCurrentSettingsSnapshot: vi.fn(),
+}));
 vi.mock('@chakra-ui/react', () => ({
   useToast: () => vi.fn(),
 }));
@@ -33,7 +37,9 @@ vi.mock('@chakra-ui/react', () => ({
 describe('useAgenticBenchmarkResearch', () => {
   const mockSetCurrentChatId = vi.fn<(chatId: string | null) => void>();
   const mockUseSessionStore = asMock(useSessionStore);
-  const mockUseSettingsStore = asMock(useSettingsStore);
+  const mockUseBenchmarkRuntimeSettings = asMock(settingsStore.useBenchmarkRuntimeSettings);
+  const mockUseSelectedChatModeId = asMock(settingsStore.useSelectedChatModeId);
+  const mockGetCurrentSettingsSnapshot = asMock(settingsStore.getCurrentSettingsSnapshot);
   const mockExecuteAgenticBenchmarkStream = asMock(ragApi.executeAgenticBenchmarkStream);
   const mockCreateConversation = asMock(conversationApi.createConversation);
   const mockAddMessage = asMock(conversationApi.addMessage);
@@ -45,7 +51,12 @@ describe('useAgenticBenchmarkResearch', () => {
       currentChatId: null,
       actions: { setCurrentChatId: mockSetCurrentChatId },
     } as ReturnType<typeof useSessionStore>);
-    mockUseSettingsStore.mockReturnValue({
+    mockUseBenchmarkRuntimeSettings.mockReturnValue({
+      enableReranking: true,
+      enableDeepImageAnalysis: true,
+    });
+    mockUseSelectedChatModeId.mockReturnValue('agentic_benchmark');
+    mockGetCurrentSettingsSnapshot.mockReturnValue({
       ragSettings: {
         enable_hyde: false,
         enable_multi_query: true,
@@ -58,7 +69,7 @@ describe('useAgenticBenchmarkResearch', () => {
         max_subtasks: 5,
       },
       selectedChatModeId: 'agentic_benchmark',
-    } as ReturnType<typeof useSettingsStore>);
+    });
     mockCreateConversation.mockResolvedValue({
       id: 'bench-1',
       title: 'q',

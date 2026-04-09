@@ -25,7 +25,11 @@ import type {
   SSEEvent,
 } from '../types/rag';
 import { useCurrentChatId, useSessionActions } from '../stores/useSessionStore';
-import { useSettingsStore } from '../stores/useSettingsStore';
+import {
+  getCurrentSettingsSnapshot,
+  useDeepResearchRuntimeSettings,
+  useSelectedChatModeId,
+} from '../stores/useSettingsStore';
 import { useConversationMutations } from './useConversations';
 
 interface UseDeepResearchOptions {
@@ -122,7 +126,8 @@ function defaultStageLabel(stage: ChatPipelineStage): string {
 
 export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepResearchReturn {
   const { docIds, enableGraphPlanning } = options;
-  const { ragSettings, selectedChatModeId } = useSettingsStore();
+  const runtimeSettings = useDeepResearchRuntimeSettings();
+  const selectedChatModeId = useSelectedChatModeId();
   
   const [plan, setPlan] = useState<ResearchPlanResponse | null>(null);
   const [isPlanning, setIsPlanning] = useState(false);
@@ -189,13 +194,14 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     setProgress([]);
 
     try {
+      const settingsSnapshot = getCurrentSettingsSnapshot();
       // 1. 建立新的對話 Session (Persistence)
       const conversation = await createConversation({
         title: question,
         type: 'research',
         metadata: {
           mode_preset: selectedChatModeId,
-          mode_config_snapshot: ragSettings,
+          mode_config_snapshot: settingsSnapshot.ragSettings,
           research_engine: 'deep_research',
           engine: 'agentic',
           original_question: question,
@@ -211,7 +217,7 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
       await updateConversation(conversation.id, {
         metadata: {
           mode_preset: selectedChatModeId,
-          mode_config_snapshot: ragSettings,
+          mode_config_snapshot: settingsSnapshot.ragSettings,
           research_engine: 'deep_research',
           engine: 'agentic',
           original_question: question,
@@ -240,7 +246,6 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
   }, [
     docIds,
     enableGraphPlanning,
-    ragSettings,
     selectedChatModeId,
     toast,
     createConversation,
@@ -434,10 +439,11 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
 
     try {
       if (currentChatId) {
+        const settingsSnapshot = getCurrentSettingsSnapshot();
         await updateConversation(currentChatId, {
           metadata: {
             mode_preset: selectedChatModeId,
-            mode_config_snapshot: ragSettings,
+            mode_config_snapshot: settingsSnapshot.ragSettings,
             research_engine: 'deep_research',
             engine: 'agentic',
             original_question: plan.original_question,
@@ -451,9 +457,9 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
           original_question: plan.original_question,
           sub_tasks: plan.sub_tasks.filter(t => t.enabled),
           doc_ids: plan.doc_ids ?? undefined,
-          enable_reranking: ragSettings.enable_reranking,
+          enable_reranking: runtimeSettings.enableReranking,
           enable_drilldown: true,
-          enable_deep_image_analysis: ragSettings.enable_deep_image_analysis,
+          enable_deep_image_analysis: runtimeSettings.enableDeepImageAnalysis,
           conversation_id: currentChatId || undefined,
         },
         (event: SSEEvent) => {
@@ -487,7 +493,7 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     plan,
     toast,
     handleSSEEvent,
-    ragSettings,
+    runtimeSettings,
     selectedChatModeId,
     currentChatId,
   ]);

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
@@ -23,29 +23,34 @@ describe('App Smoke Test', () => {
     window.history.pushState({}, '', '/');
   });
 
-  it('renders without crashing', () => {
+  it('renders without crashing', async () => {
     render(<App />);
-    expect(screen.getByText('Dashboard Page')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId('app-route-fallback') ?? screen.queryByText('Dashboard Page')
+      ).toBeTruthy();
+    });
+    expect(await screen.findByText('Dashboard Page')).toBeInTheDocument();
   });
 
-  it('renders forgot password route', () => {
+  it('renders forgot password route', async () => {
     window.history.pushState({}, '', '/forgot-password');
     render(<App />);
 
-    expect(screen.getByText('Forgot Password Page')).toBeInTheDocument();
+    expect(await screen.findByText('Forgot Password Page')).toBeInTheDocument();
   });
 
-  it('renders signup route', () => {
+  it('renders signup route', async () => {
     window.history.pushState({}, '', '/signup');
     render(<App />);
 
-    expect(screen.getByText('Signup Page')).toBeInTheDocument();
+    expect(await screen.findByText('Signup Page')).toBeInTheDocument();
   });
 
-  it('renders reset password route', () => {
+  it('renders reset password route', async () => {
     window.history.pushState({}, '', '/reset-password');
     render(<App />);
 
-    expect(screen.getByText('Reset Password Page')).toBeInTheDocument();
+    expect(await screen.findByText('Reset Password Page')).toBeInTheDocument();
   });
 });
