@@ -9,10 +9,24 @@ import { asMock } from '../test/mock-utils';
 import type { Conversation, ConversationDetail, CreateConversationRequest, Message } from '../types/conversation';
 import type { ExecutePlanResponse, ResearchPlanResponse } from '../types/rag';
 
+interface MockSessionStoreState {
+  currentChatId: string | null;
+  actions: {
+    setCurrentChatId: (chatId: string | null) => void;
+  };
+}
+
 // Mock services and hooks
 vi.mock('../services/ragApi');
 vi.mock('../services/conversationApi');
-vi.mock('../stores/useSessionStore');
+vi.mock('../stores/useSessionStore', () => {
+  const useSessionStore = vi.fn<() => MockSessionStoreState>();
+  return {
+    useSessionStore,
+    useCurrentChatId: (): string | null => useSessionStore().currentChatId,
+    useSessionActions: (): MockSessionStoreState['actions'] => useSessionStore().actions,
+  };
+});
 vi.mock('../hooks/useConversations');
 vi.mock('@chakra-ui/react', () => ({
   useToast: () => vi.fn(),

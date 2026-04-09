@@ -75,6 +75,19 @@ describe('MessageBubble', () => {
     expect(screen.getByTestId('markdown-blocked-link')).toHaveTextContent('惡意連結');
   });
 
+  it('renders trusted markdown links with noopener protection', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <MessageBubble role="assistant" content="[內部文件](/knowledge)" />
+      </ChakraProvider>
+    );
+
+    const link = screen.getByRole('link', { name: '內部文件' });
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(link).toHaveAttribute('href', `${window.location.origin}/knowledge`);
+  });
+
   it('renders markdown lists and source tokens for assistant messages', () => {
     render(
       <ChakraProvider theme={theme}>

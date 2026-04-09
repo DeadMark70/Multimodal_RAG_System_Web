@@ -51,7 +51,7 @@ import { useChat } from '../hooks/useChat';
 import { useDeepResearch } from '../hooks/useDeepResearch';
 import { useAgenticBenchmarkResearch } from '../hooks/useAgenticBenchmarkResearch';
 import { useConversationMutations } from '../hooks/useConversations';
-import { useSessionStore } from '../stores/useSessionStore';
+import { useCurrentChatId, useSessionActions } from '../stores/useSessionStore';
 import {
   getConversationTypeForMode,
   useActiveChatPreset,
@@ -142,7 +142,8 @@ const LEFT_RAIL_STORAGE_KEY = 'chat.leftRailCollapsed';
 const RIGHT_RAIL_STORAGE_KEY = 'chat.rightRailCollapsed';
 
 export default function Chat() {
-  const { currentChatId, actions: { setCurrentChatId } } = useSessionStore();
+  const currentChatId = useCurrentChatId();
+  const { setCurrentChatId } = useSessionActions();
   const { ragSettings, selectedChatModeId } = useSettingsStore();
   const settingsActions = useSettingsActions();
   const activePreset = useActiveChatPreset();

@@ -8,9 +8,23 @@ import { useSessionStore } from '../stores/useSessionStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { asMock } from '../test/mock-utils';
 
+interface MockSessionStoreState {
+  currentChatId: string | null;
+  actions: {
+    setCurrentChatId: (chatId: string | null) => void;
+  };
+}
+
 vi.mock('../services/ragApi');
 vi.mock('../services/conversationApi');
-vi.mock('../stores/useSessionStore');
+vi.mock('../stores/useSessionStore', () => {
+  const useSessionStore = vi.fn<() => MockSessionStoreState>();
+  return {
+    useSessionStore,
+    useCurrentChatId: (): string | null => useSessionStore().currentChatId,
+    useSessionActions: (): MockSessionStoreState['actions'] => useSessionStore().actions,
+  };
+});
 vi.mock('../stores/useSettingsStore');
 vi.mock('@chakra-ui/react', () => ({
   useToast: () => vi.fn(),

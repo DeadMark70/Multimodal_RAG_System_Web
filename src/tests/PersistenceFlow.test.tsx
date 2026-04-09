@@ -19,6 +19,13 @@ import type {
 } from '../types/conversation';
 import type { AskResponse, ChatStreamEvent } from '../types/rag';
 
+interface MockSessionStoreState {
+  currentChatId: string | null;
+  actions: {
+    setCurrentChatId: (chatId: string | null) => void;
+  };
+}
+
 // Mock dependencies
 vi.mock('../components/layout/Layout', () => ({
   default: ({ children }: { children: ReactNode }) => <div data-testid="layout">{children}</div>,
@@ -46,9 +53,14 @@ vi.mock('../components/rag/ConversationSidebar', () => ({
 
 // We will use the REAL useSessionStore for this test to allow state updates?
 // No, it's safer to mock it to control `currentChatId` explicitly in different steps.
-vi.mock('../stores/useSessionStore', () => ({
-  useSessionStore: vi.fn(),
-}));
+vi.mock('../stores/useSessionStore', () => {
+  const useSessionStore = vi.fn<() => MockSessionStoreState>();
+  return {
+    useSessionStore,
+    useCurrentChatId: (): string | null => useSessionStore().currentChatId,
+    useSessionActions: (): MockSessionStoreState['actions'] => useSessionStore().actions,
+  };
+});
 
 vi.mock('../hooks/useConversations', () => ({
   useConversationMutations: vi.fn(),

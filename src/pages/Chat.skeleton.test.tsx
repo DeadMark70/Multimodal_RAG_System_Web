@@ -15,9 +15,17 @@ vi.mock('../components/rag/MessageBubble', () => ({ default: () => <div>MessageB
 vi.mock('../components/rag/DeepResearchPanel', () => ({ default: () => <div>DeepResearch</div> }));
 vi.mock('../components/rag/AgenticBenchmarkPanel', () => ({ default: () => <div>AgenticBenchmark</div> }));
 vi.mock('../components/settings/SettingsPanel', () => ({ default: () => <div>SettingsPanel</div> }));
-vi.mock('../stores/useSessionStore', () => ({
-  useSessionStore: vi.fn(() => ({ currentChatId: '123', actions: { setCurrentChatId: vi.fn() } })),
-}));
+vi.mock('../stores/useSessionStore', () => {
+  const useSessionStore = vi.fn(() => ({
+    currentChatId: '123',
+    actions: { setCurrentChatId: vi.fn() },
+  }));
+  return {
+    useSessionStore,
+    useCurrentChatId: () => useSessionStore().currentChatId,
+    useSessionActions: () => useSessionStore().actions,
+  };
+});
 vi.mock('../hooks/useConversations', () => ({
   useConversationMutations: vi.fn(() => ({ create: vi.fn() })),
 }));
