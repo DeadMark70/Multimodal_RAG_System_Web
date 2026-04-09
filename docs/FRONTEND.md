@@ -37,6 +37,7 @@
 
 - `useSettingsStore`
   - persisted mode flags, official/custom presets, theme, and sidebar state
+  - exposes primitive selector hooks plus derived runtime hooks for hot pages (`useSelectedChatModeId`, `useRagSettingsSnapshot`, `useChatRuntimeSettings`, `useDeepResearchRuntimeSettings`, `useBenchmarkRuntimeSettings`) so chat/research surfaces do not subscribe to the full settings store
 - `useSessionStore`
   - transient conversation UI, graph viewport state, selected PDF page, Deep Research task/session state
   - exposes primitive selector hooks for high-frequency consumers (`useCurrentChatId`, `useCurrentPdfPage`, `useCurrentPdfDocId`, `useIsResearchMode`, `useSubTasks`) so route/hooks do not subscribe to the full session store by default
@@ -66,17 +67,22 @@
 
 ## Bundle Strategy
 
+- `src/App.tsx` now uses route-level `lazy(...)` + `Suspense`, so heavyweight pages (`/chat`, `/evaluation`, `/graph-demo`, and other non-auth routes) leave the initial entry bundle.
 - `vite.config.ts` now pins `manualChunks` for stable browser caching and smaller first-load work:
   - `react-vendor`: React, Router, TanStack Query, Zustand
   - `ui-vendor`: Chakra, Emotion, Framer Motion, React Icons
   - `graph-vendor`: ForceGraph, Three.js, XYFlow
   - `markdown-vendor`: React Markdown, GFM, sanitize pipeline
   - `vendor`: remaining `node_modules`
+- Route-level lazy boundaries now align with those manual chunks instead of relying on vendor splitting alone.
 - `KnowledgeGraph.tsx` still lazy-loads 3D mode, so the heavy 3D graph path remains out of the default route bundle even with explicit vendor chunking.
 
 ## Chat UI Contract
 
 - `Chat.tsx` now relies on the `Layout` content shell plus a local flex chain for height control; the page no longer uses a hard-coded viewport subtraction to size the desktop workspace.
+- `Chat.tsx` no longer subscribes to the full settings store on the hot path:
+  - preset dirtiness uses field-aware `areRagSettingsEqual(...)` instead of `JSON.stringify(...)`
+  - ordinary chat/research execution reads narrow selector-based runtime settings
 - Desktop `/chat` now has three stable regions:
   - conversation history column
   - main message / Deep Research workspace
@@ -85,6 +91,7 @@
 - Desktop rail collapse is animated via width/flex-basis transitions; the rails stay mounted so the main workspace expands smoothly instead of snapping.
 - Desktop rail controls now live in the `PageHeader` action area instead of consuming space above the main benchmark/chat workspace.
 - Full `SettingsPanel` no longer renders inline on the desktop right rail; it opens from a dedicated right-side drawer instead.
+- `DeepResearchPanel`, `AgenticBenchmarkPanel`, and `SettingsPanel` are now lazy-loaded from `Chat.tsx`; ordinary chat no longer pays the initial bundle cost for both research panels.
 - `DocumentSelector.tsx` now supports a compact/sticky-header presentation for the desktop right rail while preserving the existing drawer/mobile usage.
 - `AgenticBenchmarkPanel.tsx` now uses a tabbed workspace:
   - `執行狀態` combines task timeline and evaluation updates

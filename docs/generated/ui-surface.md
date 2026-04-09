@@ -12,14 +12,14 @@ Human-maintained inventory of the current frontend surface.
 | `/reset-password` | `ResetPassword.tsx` | `AuthProvider` context | `supabase` |
 | `/dashboard` | `Dashboard.tsx` | `useDashboardStats` | `statsApi.ts` |
 | `/knowledge` | `KnowledgeBase.tsx` | `useDocuments`, `useUploadProgressStore` | `pdfApi.ts` |
-| `/chat` | `Chat.tsx` | `useChat`, `useDeepResearch`, `useConversations`, `useSettingsStore`, `useSessionStore` | `ragApi.ts`, `conversationApi.ts` |
+| `/chat` | `Chat.tsx` | `useChat`, `useDeepResearch`, `useAgenticBenchmarkResearch`, `useConversationMutations`, selector-based `useSettingsStore` hooks, selector-based `useSessionStore` hooks | `ragApi.ts`, `conversationApi.ts` |
 | `/experiment` | `Experiment.tsx` | page-local state | `ragApi.ts` |
 | `/evaluation` | `EvaluationCenter.tsx` | TanStack Query + evaluation components | `evaluationApi.ts` |
 | `/graph-demo` | `GraphDemo.tsx` | `useGraphData`, `useSessionStore` | `graphApi.ts` |
 
 ## Shared Stores
 
-- `useSettingsStore`: persisted presets, mode flags, theme, sidebar
+- `useSettingsStore`: persisted presets, mode flags, theme, sidebar, plus primitive selector hooks and derived runtime snapshots for chat/research hot paths
 - `useSessionStore`: transient session and graph/chat workspace state, with primitive selector hooks for narrow subscriptions on current chat ID, PDF state, and research task state
 - `useUploadProgressStore`: background upload/index progress
 
@@ -39,6 +39,7 @@ Human-maintained inventory of the current frontend surface.
 
 - `vite.config.ts`
   - assigns stable `manualChunks` for `react-vendor`, `ui-vendor`, `graph-vendor`, `markdown-vendor`, and fallback `vendor`
+  - now works with route-level lazy page boundaries from `App.tsx`, not only vendor splitting
   - keeps the existing 3D graph lazy chunk separate from the default chat/graph route path
 - `nginx.conf`
   - now emits a CSP response header that constrains browser image/connect sources and forbids object embedding plus framing
@@ -46,12 +47,14 @@ Human-maintained inventory of the current frontend surface.
 ## Chat Surface Snapshot
 
 - `Chat.tsx`
+  - is route-lazy from `App.tsx` and lazy-loads `DeepResearchPanel`, `AgenticBenchmarkPanel`, and `SettingsPanel` only when the active mode or drawer needs them
   - uses a fixed-height flex workspace inside the shared `Layout` shell instead of viewport subtraction math
   - keeps the main chat history as the primary scroll owner in ordinary chat mode
   - keeps desktop conversation/resource rails collapsible with page-local `localStorage` preferences (`chat.leftRailCollapsed`, `chat.rightRailCollapsed`)
   - animates rail collapse with width/flex-basis transitions instead of unmounting desktop rails
   - places desktop rail/settings controls in the page-header action area instead of above the main workspace
   - keeps the desktop right rail compact and opens `SettingsPanel` from a right drawer
+  - compares preset state with `areRagSettingsEqual(...)` and selector snapshots instead of full-store subscription + `JSON.stringify(...)`
 - `DocumentSelector.tsx`
   - supports compact right-rail rendering with sticky header + bounded document list
   - uses lighter text-link controls and thin hover scrollbars in the desktop rail
