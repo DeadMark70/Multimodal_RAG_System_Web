@@ -20,7 +20,7 @@ Human-maintained inventory of the current frontend surface.
 ## Shared Stores
 
 - `useSettingsStore`: persisted presets, mode flags, theme, sidebar
-- `useSessionStore`: transient session and graph/chat workspace state
+- `useSessionStore`: transient session and graph/chat workspace state, with primitive selector hooks for narrow subscriptions on current chat ID, PDF state, and research task state
 - `useUploadProgressStore`: background upload/index progress
 
 ## Shared Services
@@ -34,6 +34,14 @@ Human-maintained inventory of the current frontend surface.
 - `pdfApi.ts`: documents and PDF file actions
 - `ragApi.ts`: ask, ask stream, research plan/execute
 - `statsApi.ts`: dashboard metrics
+
+## Build / Delivery Surface
+
+- `vite.config.ts`
+  - assigns stable `manualChunks` for `react-vendor`, `ui-vendor`, `graph-vendor`, `markdown-vendor`, and fallback `vendor`
+  - keeps the existing 3D graph lazy chunk separate from the default chat/graph route path
+- `nginx.conf`
+  - now emits a CSP response header that constrains browser image/connect sources and forbids object embedding plus framing
 
 ## Chat Surface Snapshot
 

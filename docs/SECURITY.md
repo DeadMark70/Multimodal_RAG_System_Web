@@ -9,9 +9,11 @@ The frontend is a trusted client for user intent, not a trusted authority for au
 1. `src/services/api.ts` injects the Supabase JWT only for trusted API targets.
 2. `src/services/networkPolicy.ts` enforces trusted-host policy in all modes and keeps test/mock mode localhost-only.
 3. `src/components/common/MarkdownContent.tsx` + `MessageBubble.tsx` block untrusted markdown links/images from becoming active outbound targets.
-4. Supabase client runs with non-persistent session storage (`persistSession=false`) to reduce token exposure in browser storage.
-5. `AuthProvider` keeps password-recovery routing explicit and clears local auth state after successful sign-out fallback.
-6. Protected file access and maintenance actions go through authenticated API clients rather than unauthenticated direct links.
+4. Trusted markdown links rendered by `MarkdownContent.tsx` always use `target="_blank"` with `rel="noopener noreferrer"` to prevent opener abuse/tabnabbing.
+5. `nginx.conf` sends a deployment CSP that constrains `img-src`, `connect-src`, `object-src`, `base-uri`, and `frame-ancestors`.
+6. Supabase client runs with non-persistent session storage (`persistSession=false`) to reduce token exposure in browser storage.
+7. `AuthProvider` keeps password-recovery routing explicit and clears local auth state after successful sign-out fallback.
+8. Protected file access and maintenance actions go through authenticated API clients rather than unauthenticated direct links.
 
 ## Important Limits
 
@@ -22,6 +24,7 @@ The frontend is a trusted client for user intent, not a trusted authority for au
 ## Deployment Hardening Priorities
 
 1. Keep backend authz strict on every protected endpoint.
-2. Review origin/redirect settings for Supabase auth flows in each environment.
-3. Keep dependency and environment checks in CI.
-4. Expand auth-failure telemetry where product support needs stronger operator visibility.
+2. Keep CSP source lists aligned with real deploy dependencies (Supabase domains, avatar hosts, API origin) so hardening does not break legitimate flows.
+3. Review origin/redirect settings for Supabase auth flows in each environment.
+4. Keep dependency and environment checks in CI.
+5. Expand auth-failure telemetry where product support needs stronger operator visibility.

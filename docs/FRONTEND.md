@@ -39,6 +39,7 @@
   - persisted mode flags, official/custom presets, theme, and sidebar state
 - `useSessionStore`
   - transient conversation UI, graph viewport state, selected PDF page, Deep Research task/session state
+  - exposes primitive selector hooks for high-frequency consumers (`useCurrentChatId`, `useCurrentPdfPage`, `useCurrentPdfDocId`, `useIsResearchMode`, `useSubTasks`) so route/hooks do not subscribe to the full session store by default
 - `useUploadProgressStore`
   - batch upload progress, polling status, and per-document activity
 - TanStack Query
@@ -62,6 +63,16 @@
   - test cases, model presets, campaigns, results, traces, metrics, authenticated SSE
 - `src/services/statsApi.ts`
   - dashboard summary data
+
+## Bundle Strategy
+
+- `vite.config.ts` now pins `manualChunks` for stable browser caching and smaller first-load work:
+  - `react-vendor`: React, Router, TanStack Query, Zustand
+  - `ui-vendor`: Chakra, Emotion, Framer Motion, React Icons
+  - `graph-vendor`: ForceGraph, Three.js, XYFlow
+  - `markdown-vendor`: React Markdown, GFM, sanitize pipeline
+  - `vendor`: remaining `node_modules`
+- `KnowledgeGraph.tsx` still lazy-loads 3D mode, so the heavy 3D graph path remains out of the default route bundle even with explicit vendor chunking.
 
 ## Chat UI Contract
 
@@ -90,6 +101,7 @@
   - renders `[來源: ...]` tokens as low-contrast inline badges instead of raw distracting text
 - `MessageBubble.tsx` now treats sources as collapsible secondary content and renders assistant/image content with explicit frame/border affordances.
 - `MessageBubble.tsx`/`MarkdownContent.tsx` block untrusted markdown image/link targets to prevent automatic browser requests to unknown hosts.
+- Trusted markdown links rendered by `MarkdownContent.tsx` always open in a new tab with `rel="noopener noreferrer"`; untrusted targets remain inert blocked text or blocked-image placeholders.
 - `BenchmarkResultTab.tsx`, `ResearchDetailModal.tsx`, and `ResearchStepsAccordion.tsx` reuse `MarkdownContent.tsx` for formal report/task-answer reading surfaces instead of ad hoc `ReactMarkdown`/plain-text rendering.
   - `ConversationSidebar.tsx` now renders lower-density button-like selectable rows with explicit keyboard support, a sticky search/new header, and hover-only thin scrollbars.
 
@@ -131,6 +143,7 @@
 - Auth session fetch retries one refresh attempt before requests proceed without a token.
 - Supabase client keeps session tokens in memory (`persistSession=false`) to avoid long-lived `localStorage` credential persistence.
 - Authorization headers are attached only when request targets pass trusted-host policy checks.
+- Frontend outbound markdown requests are protected twice: `networkPolicy.ts` filters link/image hosts in React, and deployment CSP limits browser `img-src` / `connect-src` even if unsafe content slips through.
 - `PASSWORD_RECOVERY` auth events redirect to `/reset-password` if the incoming URL lands elsewhere.
 - Sign-out falls back from global revocation to local cleanup so stale tokens do not trap the UI in an authenticated state.
 - Upload and graph pages expose active job state and polling-driven recovery instead of optimistic silent success.
