@@ -297,6 +297,10 @@ export function getAllChatPresets(customPresets: CustomChatPreset[]): ChatModePr
   ];
 }
 
+function isOfficialChatMode(value: string): value is OfficialChatMode {
+  return value in OFFICIAL_CHAT_PRESETS;
+}
+
 function resolvePresetFromState(
   selectedChatModeId: string,
   customChatPresets: CustomChatPreset[]
@@ -342,17 +346,37 @@ function buildCustomPresetId(): string {
   return `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 function normalizeCustomPresets(presets: CustomChatPreset[] | undefined): CustomChatPreset[] {
   if (!Array.isArray(presets)) {
     return [];
   }
 
-  return presets.map((preset, index) => ({
-    id: typeof preset.id === 'string' && preset.id ? preset.id : `custom-${index}`,
-    name: typeof preset.name === 'string' && preset.name.trim() ? preset.name.trim() : `自訂模式 ${index + 1}`,
-    baseMode: OFFICIAL_CHAT_PRESETS[preset.baseMode]?.baseMode ?? 'graph',
-    config: normalizeRagSettings(preset.config ?? {}),
-  }));
+  return presets.flatMap((preset, index) => {
+    if (!isPlainObject(preset)) {
+      return [];
+    }
+
+    const baseModeCandidate = typeof preset.baseMode === 'string' ? preset.baseMode : 'graph';
+    const configCandidate = isPlainObject(preset.config)
+      ? (preset.config as Partial<RagSettings>)
+      : {};
+
+    return [{
+      id: typeof preset.id === 'string' && preset.id ? preset.id : `custom-${index}`,
+      name:
+        typeof preset.name === 'string' && preset.name.trim()
+          ? preset.name.trim()
+          : `自訂模式 ${index + 1}`,
+      baseMode: isOfficialChatMode(baseModeCandidate)
+        ? OFFICIAL_CHAT_PRESETS[baseModeCandidate].baseMode
+        : 'graph',
+      config: normalizeRagSettings(configCandidate),
+    }];
+  });
 }
 
 function extractConversationSnapshot(

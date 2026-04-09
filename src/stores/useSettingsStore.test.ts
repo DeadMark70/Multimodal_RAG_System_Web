@@ -112,6 +112,44 @@ describe('useSettingsStore', () => {
     expect(state.ragSettings.enable_graph_planning).toBe(false);
   });
 
+  it('ignores malformed persisted custom presets during rehydration', async () => {
+    localStorage.setItem(
+      'rag-settings-storage',
+      JSON.stringify({
+        state: {
+          selectedChatModeId: 'broken-custom',
+          customChatPresets: [
+            null,
+            {
+              id: 'valid-custom',
+              name: '有效模式',
+              baseMode: 'agentic',
+              config: {
+                enable_hyde: true,
+                enable_multi_query: false,
+                enable_reranking: true,
+                enable_evaluation: false,
+                enable_graph_rag: true,
+                graph_search_mode: 'generic',
+                enable_graph_planning: true,
+                enable_deep_image_analysis: true,
+                max_subtasks: 7,
+              },
+            },
+          ],
+        },
+        version: 0,
+      })
+    );
+
+    await expect(useSettingsStore.persist.rehydrate()).resolves.toBeUndefined();
+
+    const state = useSettingsStore.getState();
+    expect(state.customChatPresets).toHaveLength(1);
+    expect(state.customChatPresets[0]?.id).toBe('valid-custom');
+    expect(state.selectedChatModeId).toBe('graph');
+  });
+
   it('compares rag settings deterministically and exposes a point-in-time snapshot', () => {
     const initialSnapshot = getCurrentSettingsSnapshot();
 
