@@ -10,12 +10,15 @@
  * - POST /graph/documents/{doc_id}/retry - 重試單一文件 GraphRAG
  * - DELETE /graph/documents/{doc_id} - 移除單一文件 GraphRAG 殘留
  * - POST /graph/optimize - 優化圖譜
+ * - POST /graph/node-vector/sync - 手動同步節點嵌入索引
+ * - GET /graph/node-vector/sync/status - 手動同步狀態
  */
 
 import api from './api';
 import type {
   GraphData,
   GraphDocumentStatusListResponse,
+  NodeVectorSyncStatusResponse,
   GraphStatusResponse,
   GraphRebuildResponse,
   GraphOptimizeResponse,
@@ -92,5 +95,21 @@ export async function optimizeGraph(
   const response = await api.post<GraphOptimizeResponse>('/graph/optimize', {
     regenerate_communities: regenerateCommunities,
   });
+  return response.data;
+}
+
+/**
+ * 啟動 node-vector 手動同步（背景工作）
+ */
+export async function startNodeVectorSync(): Promise<GraphRebuildResponse> {
+  const response = await api.post<GraphRebuildResponse>('/graph/node-vector/sync');
+  return response.data;
+}
+
+/**
+ * 查詢 node-vector 手動同步狀態
+ */
+export async function getNodeVectorSyncStatus(): Promise<NodeVectorSyncStatusResponse> {
+  const response = await api.get<NodeVectorSyncStatusResponse>('/graph/node-vector/sync/status');
   return response.data;
 }

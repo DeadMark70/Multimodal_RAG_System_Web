@@ -94,4 +94,44 @@ describe('graphApi', () => {
     expect(mockedApi.delete).toHaveBeenCalledWith('/graph/documents/doc-123');
     expect(result.message).toContain('移除');
   });
+
+  it('starts node-vector sync via POST /graph/node-vector/sync', async () => {
+    mockedApi.post.mockResolvedValue({
+      data: {
+        status: 'started',
+        message: '節點嵌入同步已啟動，請稍候查看進度',
+        details: { total_nodes: 20 },
+      },
+    });
+
+    const result = await graphApi.startNodeVectorSync();
+
+    expect(mockedApi.post).toHaveBeenCalledWith('/graph/node-vector/sync');
+    expect(result.status).toBe('started');
+  });
+
+  it('gets node-vector sync status via GET /graph/node-vector/sync/status', async () => {
+    mockedApi.get.mockResolvedValue({
+      data: {
+        state: 'running',
+        processed: 10,
+        total: 30,
+        changed: 15,
+        reused: 15,
+        removed: 2,
+        index_state: 'running',
+        autosync_duration_ms: null,
+        last_error: null,
+        started_at: null,
+        updated_at: null,
+        finished_at: null,
+      },
+    });
+
+    const result = await graphApi.getNodeVectorSyncStatus();
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/graph/node-vector/sync/status');
+    expect(result.state).toBe('running');
+    expect(result.processed).toBe(10);
+  });
 });

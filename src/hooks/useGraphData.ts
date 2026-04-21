@@ -10,16 +10,19 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getGraphData,
   getGraphDocuments,
+  getNodeVectorSyncStatus,
   getGraphStatus,
   optimizeGraph,
   purgeGraphDocument,
   rebuildGraph,
   rebuildFullGraph,
   retryGraphDocument,
+  startNodeVectorSync,
 } from '../services/graphApi';
 import type {
   GraphData,
   GraphDocumentStatusListResponse,
+  NodeVectorSyncStatusResponse,
   GraphStatusResponse,
   GraphOptimizeResponse,
   GraphRebuildResponse,
@@ -60,6 +63,19 @@ export function useGraphDocuments() {
     queryFn: getGraphDocuments,
     staleTime: 30 * 1000,
     retry: 1,
+  });
+}
+
+/**
+ * 取得 node-vector 手動同步狀態（執行中時輪詢）
+ */
+export function useNodeVectorSyncStatus() {
+  return useQuery<NodeVectorSyncStatusResponse, Error>({
+    queryKey: ['graph', 'node-vector-sync', 'status'],
+    queryFn: getNodeVectorSyncStatus,
+    staleTime: 1000,
+    retry: 1,
+    refetchInterval: (query) => (query.state.data?.state === 'running' ? 1000 : false),
   });
 }
 
@@ -138,6 +154,23 @@ export function usePurgeGraphDocument() {
     mutationFn: (docId) => purgeGraphDocument(docId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['graph'] });
+    },
+  });
+}
+
+/**
+ * 啟動 node-vector 手動同步
+ */
+export function useStartNodeVectorSync() {
+  const queryClient = useQueryClient();
+
+  return useMutation<GraphRebuildResponse, Error, void>({
+    mutationFn: () => startNodeVectorSync(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['graph'] });
+      await queryClient.invalidateQueries({
+        queryKey: ['graph', 'node-vector-sync', 'status'],
+      });
     },
   });
 }

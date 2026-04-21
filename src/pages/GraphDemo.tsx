@@ -17,6 +17,7 @@ import {
   TabPanels,
   Tab,
   TabPanel,
+  Progress,
   Text,
   useColorModeValue,
   Alert,
@@ -30,7 +31,7 @@ import {
   Heading,
 } from '@chakra-ui/react';
 import { useMemo, useState } from 'react';
-import { FiChevronDown, FiChevronUp, FiRefreshCw, FiRotateCcw, FiTrash2, FiZap } from 'react-icons/fi';
+import { FiChevronDown, FiChevronUp, FiCpu, FiRefreshCw, FiRotateCcw, FiTrash2, FiZap } from 'react-icons/fi';
 import { KnowledgeGraph } from '../components/graph/KnowledgeGraph';
 import { ResearchFlow } from '../components/graph/ResearchFlow';
 import Layout from '../components/layout/Layout';
@@ -39,12 +40,14 @@ import SurfaceCard from '../components/common/SurfaceCard';
 import {
   useGraphData,
   useGraphDocuments,
+  useNodeVectorSyncStatus,
   useGraphStatus,
   useOptimizeGraph,
   usePurgeGraphDocument,
   useRebuildFullGraph,
   useRebuildGraph,
   useRetryGraphDocument,
+  useStartNodeVectorSync,
 } from '../hooks/useGraphData';
 import type { GraphDocumentStatusItem } from '../types/graph';
 
@@ -73,6 +76,7 @@ export function GraphDemo() {
     isLoading: isGraphDocumentsLoading,
     error: graphDocumentsError,
   } = useGraphDocuments();
+  const { data: nodeVectorSyncStatus } = useNodeVectorSyncStatus();
 
   // Mutations
   const optimizeMutation = useOptimizeGraph();
@@ -80,11 +84,17 @@ export function GraphDemo() {
   const rebuildFullMutation = useRebuildFullGraph();
   const retryMutation = useRetryGraphDocument();
   const purgeMutation = usePurgeGraphDocument();
+  const startNodeVectorSyncMutation = useStartNodeVectorSync();
   const graphDocuments = graphDocumentsResponse?.documents ?? EMPTY_GRAPH_DOCUMENTS;
   const actionableDocuments = graphDocuments.filter((doc) =>
     ['failed', 'partial', 'empty'].includes(doc.status)
   );
   const graphJobActive = Boolean(graphStatus?.active_job_state);
+  const nodeVectorSyncRunning = nodeVectorSyncStatus?.state === 'running';
+  const nodeVectorSyncProgressPercent =
+    nodeVectorSyncStatus && nodeVectorSyncStatus.total > 0
+      ? Math.min(100, Math.round((nodeVectorSyncStatus.processed / nodeVectorSyncStatus.total) * 100))
+      : 0;
   const graphDocumentSummary = useMemo(
     () =>
       graphDocuments.reduce(
@@ -211,6 +221,27 @@ export function GraphDemo() {
     });
   };
 
+  const handleStartNodeVectorSync = () => {
+    startNodeVectorSyncMutation.mutate(undefined, {
+      onSuccess: (data) => {
+        toast({
+          title: data.status === 'skipped' ? '未啟動嵌入同步' : '嵌入同步已啟動',
+          description: data.message,
+          status: data.status === 'skipped' ? 'warning' : 'info',
+          duration: 5000,
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: '啟動嵌入同步失敗',
+          description: error.message,
+          status: 'error',
+          duration: 5000,
+        });
+      },
+    });
+  };
+
   return (
     <Layout>
       <Flex direction="column" flex={1} minH={0} overflow="hidden">
@@ -296,11 +327,59 @@ export function GraphDemo() {
                   優化社群
                 </Button>
               </Tooltip>
+              <Tooltip label="手動補齊舊圖譜節點的向量嵌入索引（背景執行）" hasArrow>
+                <Button
+                  leftIcon={<FiCpu />}
+                  colorScheme="teal"
+                  size="sm"
+                  onClick={handleStartNodeVectorSync}
+                  isLoading={startNodeVectorSyncMutation.isPending}
+                  loadingText="啟動中..."
+                  isDisabled={graphJobActive || nodeVectorSyncRunning}
+                >
+                  補齊節點嵌入
+                </Button>
+              </Tooltip>
             </HStack>
           </Flex>
           <Text mt={3} color={subTextColor} fontSize="sm">
             圖譜控制與流程視覺化均使用同一份 API 狀態，便於觀察重算效果。
           </Text>
+          {nodeVectorSyncStatus && nodeVectorSyncStatus.state !== 'idle' && (
+            <Box mt={3}>
+              <HStack justify="space-between" mb={2}>
+                <Badge
+                  colorScheme={
+                    nodeVectorSyncStatus.state === 'completed'
+                      ? 'green'
+                      : nodeVectorSyncStatus.state === 'failed'
+                        ? 'red'
+                        : 'blue'
+                  }
+                >
+                  節點嵌入同步：{nodeVectorSyncStatus.state}
+                </Badge>
+                <Text color={subTextColor} fontSize="sm">
+                  {nodeVectorSyncStatus.processed}/{nodeVectorSyncStatus.total}
+                </Text>
+              </HStack>
+              <Progress
+                value={nodeVectorSyncProgressPercent}
+                size="sm"
+                borderRadius="md"
+                colorScheme={nodeVectorSyncStatus.state === 'failed' ? 'red' : 'teal'}
+              />
+              <Text mt={2} color={subTextColor} fontSize="sm">
+                changed {nodeVectorSyncStatus.changed} / reused {nodeVectorSyncStatus.reused} / removed{' '}
+                {nodeVectorSyncStatus.removed}
+              </Text>
+              {nodeVectorSyncStatus.last_error && (
+                <Text mt={1} color="red.500" fontSize="sm">
+                  {nodeVectorSyncStatus.last_error}
+                </Text>
+              )}
+            </Box>
+          )}
             </SurfaceCard>
 
             {graphError && (

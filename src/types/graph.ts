@@ -186,6 +186,23 @@ export interface GraphDocumentStatusListResponse {
   total: number;
 }
 
+export type NodeVectorSyncState = 'idle' | 'running' | 'completed' | 'failed';
+
+export interface NodeVectorSyncStatusResponse {
+  state: NodeVectorSyncState;
+  processed: number;
+  total: number;
+  changed: number;
+  reused: number;
+  removed: number;
+  index_state: string | null;
+  autosync_duration_ms: number | null;
+  last_error: string | null;
+  started_at: string | null;
+  updated_at: string | null;
+  finished_at: string | null;
+}
+
 // ========== 圖譜搜尋模式 ==========
 
 /**

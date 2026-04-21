@@ -9,12 +9,14 @@ import GraphDemo from './GraphDemo';
 const {
   rebuildMutateMock,
   rebuildFullMutateMock,
+  startNodeVectorSyncMutateMock,
   optimizeMutateMock,
   purgeMutateMock,
   retryMutateMock,
 } = vi.hoisted(() => ({
   rebuildMutateMock: vi.fn(),
   rebuildFullMutateMock: vi.fn(),
+  startNodeVectorSyncMutateMock: vi.fn(),
   optimizeMutateMock: vi.fn(),
   purgeMutateMock: vi.fn(),
   retryMutateMock: vi.fn(),
@@ -114,6 +116,22 @@ vi.mock('../hooks/useGraphData', () => ({
     isLoading: false,
     error: null,
   }),
+  useNodeVectorSyncStatus: () => ({
+    data: {
+      state: 'completed',
+      processed: 3,
+      total: 3,
+      changed: 1,
+      reused: 2,
+      removed: 0,
+      index_state: 'ready',
+      autosync_duration_ms: 12,
+      last_error: null,
+      started_at: null,
+      updated_at: null,
+      finished_at: null,
+    },
+  }),
   useOptimizeGraph: () => ({
     mutate: optimizeMutateMock,
     isPending: false,
@@ -136,6 +154,10 @@ vi.mock('../hooks/useGraphData', () => ({
     isPending: false,
     variables: undefined,
   }),
+  useStartNodeVectorSync: () => ({
+    mutate: startNodeVectorSyncMutateMock,
+    isPending: false,
+  }),
 }));
 
 describe('GraphDemo', () => {
@@ -152,6 +174,7 @@ describe('GraphDemo', () => {
 
     expect(screen.getByTestId('graph-demo-scroll-region')).toBeInTheDocument();
     expect(screen.getByText('完整重構')).toBeInTheDocument();
+    expect(screen.getByText('補齊節點嵌入')).toBeInTheDocument();
     expect(screen.getByText('展開列表')).toBeInTheDocument();
     expect(screen.getAllByText('1 失敗').length).toBeGreaterThan(0);
     expect(screen.getAllByText('1 0 實體').length).toBeGreaterThan(0);
@@ -189,5 +212,17 @@ describe('GraphDemo', () => {
     expect(rebuildFullMutateMock).toHaveBeenCalledOnce();
     expect(retryMutateMock).toHaveBeenCalledWith('doc-1', expect.any(Object));
     expect(purgeMutateMock).toHaveBeenCalledWith('doc-orphan', expect.any(Object));
+  });
+
+  it('triggers node-vector sync action', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <GraphDemo />
+      </ChakraProvider>
+    );
+
+    fireEvent.click(screen.getByText('補齊節點嵌入'));
+
+    expect(startNodeVectorSyncMutateMock).toHaveBeenCalledOnce();
   });
 });

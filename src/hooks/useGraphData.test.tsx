@@ -5,32 +5,40 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   useGraphDocuments,
+  useNodeVectorSyncStatus,
   usePurgeGraphDocument,
   useRebuildFullGraph,
   useRetryGraphDocument,
+  useStartNodeVectorSync,
 } from './useGraphData';
 
 const {
   getGraphDocumentsMock,
+  getNodeVectorSyncStatusMock,
   purgeGraphDocumentMock,
   rebuildFullGraphMock,
   retryGraphDocumentMock,
+  startNodeVectorSyncMock,
 } = vi.hoisted(() => ({
   getGraphDocumentsMock: vi.fn(),
+  getNodeVectorSyncStatusMock: vi.fn(),
   purgeGraphDocumentMock: vi.fn(),
   rebuildFullGraphMock: vi.fn(),
   retryGraphDocumentMock: vi.fn(),
+  startNodeVectorSyncMock: vi.fn(),
 }));
 
 vi.mock('../services/graphApi', () => ({
   getGraphData: vi.fn(),
   getGraphStatus: vi.fn(),
   getGraphDocuments: getGraphDocumentsMock,
+  getNodeVectorSyncStatus: getNodeVectorSyncStatusMock,
   optimizeGraph: vi.fn(),
   purgeGraphDocument: purgeGraphDocumentMock,
   rebuildGraph: vi.fn(),
   rebuildFullGraph: rebuildFullGraphMock,
   retryGraphDocument: retryGraphDocumentMock,
+  startNodeVectorSync: startNodeVectorSyncMock,
 }));
 
 function createWrapper(queryClient: QueryClient) {
@@ -125,5 +133,48 @@ describe('useGraphData hooks', () => {
     });
 
     expect(purgeGraphDocumentMock).toHaveBeenCalledWith('doc-orphan');
+  });
+
+  it('queries node-vector sync status', async () => {
+    const queryClient = new QueryClient();
+    getNodeVectorSyncStatusMock.mockResolvedValue({
+      state: 'completed',
+      processed: 4,
+      total: 10,
+      changed: 6,
+      reused: 4,
+      removed: 0,
+      index_state: 'running',
+      autosync_duration_ms: null,
+      last_error: null,
+      started_at: null,
+      updated_at: null,
+      finished_at: null,
+    });
+
+    const { result } = renderHook(() => useNodeVectorSyncStatus(), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await waitFor(() => expect(result.current.data?.state).toBe('completed'));
+    expect(getNodeVectorSyncStatusMock).toHaveBeenCalledOnce();
+  });
+
+  it('starts node-vector sync mutation', async () => {
+    const queryClient = new QueryClient();
+    startNodeVectorSyncMock.mockResolvedValue({
+      status: 'started',
+      message: '節點嵌入同步已啟動',
+    });
+
+    const { result } = renderHook(() => useStartNodeVectorSync(), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync();
+    });
+
+    expect(startNodeVectorSyncMock).toHaveBeenCalledOnce();
   });
 });
