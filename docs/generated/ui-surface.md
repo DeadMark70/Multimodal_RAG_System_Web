@@ -30,7 +30,7 @@ Human-maintained inventory of the current frontend surface.
 - `supabase.ts`: Supabase client bootstrap with non-persistent browser session storage
 - `conversationApi.ts`: conversation CRUD + messages
 - `evaluationApi.ts`: evaluation REST + authenticated SSE
-- `graphApi.ts`: graph status/data/maintenance
+- `graphApi.ts`: graph status/data/maintenance + node-vector sync start/status polling
 - `pdfApi.ts`: documents and PDF file actions
 - `ragApi.ts`: ask, ask stream, research plan/execute
 - `statsApi.ts`: dashboard metrics
@@ -101,6 +101,8 @@ Human-maintained inventory of the current frontend surface.
   - uses `graph-demo-scroll-region` as the page body scroll owner
   - keeps the per-document GraphRAG status list collapsed by default and exposes summary badges plus an explicit expand/collapse action
   - bounds the expanded document list inside `graph-document-list-scroll-region` to prevent long lists from pushing the graph canvas off-screen
+  - exposes manual legacy backfill control (`補齊節點嵌入`) wired to background sync start and status polling
+  - displays node-vector sync progress and terminal state (`completed`/`failed`) from `/graph/node-vector/sync/status`
   - lazy-mounts the graph tabs so the hidden `ResearchFlow` panel does not initialize on first paint
 
 ## Evaluation Surface Snapshot
