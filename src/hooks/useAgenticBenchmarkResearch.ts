@@ -19,6 +19,7 @@ import type {
   ExecutePlanResponse,
 } from '../types/rag';
 import type { AgentTraceStep } from '../types/evaluation';
+import { buildConversationTitle } from '../utils/conversationTitle';
 
 type AgenticBenchmarkPhase =
   | 'idle'
@@ -364,8 +365,9 @@ export function useAgenticBenchmarkResearch(
 
     try {
       const settingsSnapshot = getCurrentSettingsSnapshot();
+      const conversationTitle = buildConversationTitle(question);
       const conversation = await createConversation({
-        title: question,
+        title: conversationTitle,
         type: 'research',
         metadata: {
           mode_preset: selectedChatModeId,

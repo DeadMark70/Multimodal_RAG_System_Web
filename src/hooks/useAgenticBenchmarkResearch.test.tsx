@@ -7,6 +7,7 @@ import * as conversationApi from '../services/conversationApi';
 import { useSessionStore } from '../stores/useSessionStore';
 import * as settingsStore from '../stores/useSettingsStore';
 import { asMock } from '../test/mock-utils';
+import { CONVERSATION_TITLE_MAX_LENGTH } from '../utils/conversationTitle';
 
 interface MockSessionStoreState {
   currentChatId: string | null;
@@ -171,6 +172,23 @@ describe('useAgenticBenchmarkResearch', () => {
       expect(result.current.result?.summary).toBe('summary');
       expect(result.current.currentPhase).toBe('complete');
     });
+  });
+
+  it('truncates overly long question when creating benchmark conversation title', async () => {
+    const longQuestion = 'B'.repeat(CONVERSATION_TITLE_MAX_LENGTH + 60);
+
+    mockExecuteAgenticBenchmarkStream.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useAgenticBenchmarkResearch([]));
+
+    await act(async () => {
+      await result.current.runBenchmark(longQuestion);
+    });
+
+    expect(mockCreateConversation).toHaveBeenCalledWith(expect.objectContaining({
+      title: longQuestion.slice(0, CONVERSATION_TITLE_MAX_LENGTH),
+      type: 'research',
+    }));
   });
 
   it('restores benchmark result from conversation metadata', async () => {

@@ -30,6 +30,7 @@ import {
   useDeepResearchRuntimeSettings,
   useSelectedChatModeId,
 } from '../stores/useSettingsStore';
+import { buildConversationTitle } from '../utils/conversationTitle';
 import { useConversationMutations } from './useConversations';
 
 interface UseDeepResearchOptions {
@@ -195,9 +196,10 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
 
     try {
       const settingsSnapshot = getCurrentSettingsSnapshot();
+      const conversationTitle = buildConversationTitle(question);
       // 1. 建立新的對話 Session (Persistence)
       const conversation = await createConversation({
-        title: question,
+        title: conversationTitle,
         type: 'research',
         metadata: {
           mode_preset: selectedChatModeId,

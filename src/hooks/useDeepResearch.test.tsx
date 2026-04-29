@@ -6,6 +6,7 @@ import * as conversationApi from '../services/conversationApi';
 import { useSessionStore } from '../stores/useSessionStore';
 import { useConversationMutations } from '../hooks/useConversations';
 import { asMock } from '../test/mock-utils';
+import { CONVERSATION_TITLE_MAX_LENGTH } from '../utils/conversationTitle';
 import type { Conversation, ConversationDetail, CreateConversationRequest, Message } from '../types/conversation';
 import type { ExecutePlanResponse, ResearchPlanResponse } from '../types/rag';
 
@@ -135,6 +136,38 @@ describe('useDeepResearch Hook - Persistence', () => {
       role: 'user',
       content: question,
     });
+  });
+
+  it('truncates overly long question when creating conversation title', async () => {
+    const longQuestion = 'A'.repeat(CONVERSATION_TITLE_MAX_LENGTH + 50);
+    const newConvId = 'research-long-title';
+
+    const planResponse: ResearchPlanResponse = {
+      status: 'waiting_confirmation',
+      original_question: longQuestion,
+      sub_tasks: [],
+      estimated_complexity: 'simple',
+      doc_ids: null,
+    };
+    mockGenerateResearchPlan.mockResolvedValue(planResponse);
+    mockCreateConversation.mockResolvedValue({
+      id: newConvId,
+      title: longQuestion.slice(0, CONVERSATION_TITLE_MAX_LENGTH),
+      type: 'research',
+      created_at: '',
+      updated_at: '',
+    });
+
+    const { result } = renderHook(() => useDeepResearch());
+
+    await act(async () => {
+      await result.current.generatePlan(longQuestion);
+    });
+
+    expect(mockCreateConversation).toHaveBeenCalledWith(expect.objectContaining({
+      title: longQuestion.slice(0, CONVERSATION_TITLE_MAX_LENGTH),
+      type: 'research',
+    }));
   });
 
   it('restores research state from canonical conversation metadata', async () => {
