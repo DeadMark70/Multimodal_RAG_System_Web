@@ -151,6 +151,8 @@ export default function CampaignRunner() {
   const [streamNotice, setStreamNotice] = useState<string | null>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
   const activeCampaignIdRef = useRef<string | null>(null);
+  const pollingTimerRef = useRef<number | null>(null);
+  const pollingCampaignIdRef = useRef<string | null>(null);
   const toast = useToast();
 
   const categories = useMemo(
@@ -188,7 +190,45 @@ export default function CampaignRunner() {
     return items;
   }, []);
 
+  const stopPollingFallback = useCallback(() => {
+    if (pollingTimerRef.current != null) {
+      window.clearTimeout(pollingTimerRef.current);
+      pollingTimerRef.current = null;
+    }
+    pollingCampaignIdRef.current = null;
+  }, []);
+
+  const startPollingFallback = useCallback((campaignId: string) => {
+    stopPollingFallback();
+    pollingCampaignIdRef.current = campaignId;
+
+    const poll = async () => {
+      if (pollingCampaignIdRef.current !== campaignId) {
+        return;
+      }
+      try {
+        const history = await listCampaigns();
+        setCampaigns(history);
+        const current = history.find((campaign) => campaign.id === campaignId) ?? null;
+        if (current) {
+          setActiveCampaign({ snapshot: current, progress: progressFromCampaign(current) });
+          if (TERMINAL_STATUSES.has(current.status)) {
+            stopPollingFallback();
+            setStreamNotice(null);
+            return;
+          }
+        }
+      } catch (error) {
+        setStreamNotice(error instanceof Error ? `輪詢失敗：${error.message}` : '輪詢失敗');
+      }
+      pollingTimerRef.current = window.setTimeout(poll, 4000);
+    };
+
+    pollingTimerRef.current = window.setTimeout(poll, 0);
+  }, [stopPollingFallback]);
+
   const handleStreamEvent = useCallback((event: CampaignStreamEvent) => {
+    stopPollingFallback();
     if (event.type === 'campaign_progress') {
       setActiveCampaign((prev) => ({
         snapshot: prev.snapshot && prev.snapshot.id === event.data.campaign_id
@@ -222,7 +262,7 @@ export default function CampaignRunner() {
       setStreamNotice(null);
       void reloadCampaigns();
     }
-  }, [reloadCampaigns]);
+  }, [reloadCampaigns, stopPollingFallback]);
 
   const connectToCampaign = useCallback(async (campaignId: string, attempt = 0): Promise<void> => {
     streamAbortRef.current?.abort();
@@ -243,14 +283,15 @@ export default function CampaignRunner() {
         await connectToCampaign(campaignId, attempt + 1);
         return;
       }
-      setStreamNotice(error instanceof Error ? error.message : '串流中斷');
+      setStreamNotice('串流中斷，已切換輪詢備援');
+      startPollingFallback(campaignId);
       toast({
         title: 'Campaign 串流中斷',
-        description: error instanceof Error ? error.message : '請稍後再試',
-        status: 'warning',
+        description: error instanceof Error ? `${error.message}，已切換輪詢備援` : '已切換輪詢備援',
+        status: 'info',
       });
     }
-  }, [handleStreamEvent, toast]);
+  }, [handleStreamEvent, startPollingFallback, toast]);
 
   const loadInitialData = useCallback(async () => {
     setLoading(true);
@@ -286,8 +327,9 @@ export default function CampaignRunner() {
     void loadInitialData();
     return () => {
       streamAbortRef.current?.abort();
+      stopPollingFallback();
     };
-  }, [loadInitialData]);
+  }, [loadInitialData, stopPollingFallback]);
 
   const toggleCaseSelection = (testCaseId: string) => {
     setSelectedCaseIds((prev) =>
@@ -375,6 +417,7 @@ export default function CampaignRunner() {
       }
       streamAbortRef.current?.abort();
       activeCampaignIdRef.current = null;
+      stopPollingFallback();
     } catch (error) {
       toast({
         title: '取消 campaign 失敗',

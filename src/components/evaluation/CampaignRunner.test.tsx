@@ -1,6 +1,6 @@
 import { ChakraProvider } from '@chakra-ui/react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   cancelCampaign as cancelCampaignFn,
   createCampaign as createCampaignFn,
@@ -112,6 +112,9 @@ function renderRunner() {
 describe('CampaignRunner', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('creates a campaign and renders streamed progress', async () => {
@@ -239,6 +242,138 @@ describe('CampaignRunner', () => {
     });
     expect(screen.getByText('agentic_eval_v1')).toBeInTheDocument();
   }, 15000);
+
+  it('falls back to polling when SSE reconnects are exhausted and stops after terminal status', async () => {
+    mockListTestCases.mockResolvedValue(baseTestCases);
+    mockListModelConfigs.mockResolvedValue([baseConfig]);
+    mockListCampaigns
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        createCampaignStatus({
+          id: 'cmp-poll',
+          status: 'running',
+          current_question_id: 'Q1',
+          current_mode: 'naive',
+        }),
+      ])
+      .mockResolvedValueOnce([
+        createCampaignStatus({
+          id: 'cmp-poll',
+          status: 'running',
+          current_question_id: 'Q1',
+          current_mode: 'naive',
+        }),
+      ])
+      .mockResolvedValue([
+        createCampaignStatus({
+          id: 'cmp-poll',
+          status: 'completed',
+          phase: 'evaluation',
+          completed_units: 1,
+          total_units: 1,
+          evaluation_completed_units: 1,
+          evaluation_total_units: 1,
+          current_question_id: 'Q1',
+          current_mode: 'naive',
+          completed_at: '2026-03-07T00:00:10+00:00',
+          updated_at: '2026-03-07T00:00:10+00:00',
+        }),
+      ]);
+    mockCreateCampaign.mockResolvedValue({ campaign_id: 'cmp-poll', status: 'pending' });
+    mockStreamCampaign.mockRejectedValue(new Error('SSE disconnected'));
+    renderRunner();
+
+    await waitFor(() => {
+      expect(screen.getByText('已選擇 1 題')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '開始評估' }));
+
+    await waitFor(() => {
+      expect(mockCreateCampaign).toHaveBeenCalledTimes(1);
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByText('已完成').length).toBeGreaterThan(0);
+    }, { timeout: 17000 });
+
+    const callCountAfterTerminal = mockListCampaigns.mock.calls.length;
+    await new Promise((resolve) => window.setTimeout(resolve, 4500));
+    expect(mockListCampaigns.mock.calls.length).toBe(callCountAfterTerminal);
+  }, 20000);
+
+  it('stops polling fallback after SSE reconnect succeeds', async () => {
+    mockListTestCases.mockResolvedValue(baseTestCases);
+    mockListModelConfigs.mockResolvedValue([baseConfig]);
+    mockListCampaigns
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        createCampaignStatus({
+          id: 'cmp-recover',
+          status: 'running',
+          current_question_id: 'Q1',
+          current_mode: 'naive',
+        }),
+      ])
+      .mockResolvedValue([
+        createCampaignStatus({
+          id: 'cmp-recover',
+          status: 'running',
+          current_question_id: 'Q1',
+          current_mode: 'naive',
+        }),
+      ]);
+    mockCreateCampaign.mockResolvedValue({ campaign_id: 'cmp-recover', status: 'pending' });
+    let streamCalls = 0;
+    mockStreamCampaign.mockImplementation(async (_campaignId, onEvent) => {
+      streamCalls += 1;
+      if (streamCalls <= 4) {
+        throw new Error('SSE disconnected');
+      }
+      onEvent({
+        type: 'campaign_completed',
+        data: createCampaignStatus({
+          id: 'cmp-recover',
+          status: 'completed',
+          phase: 'evaluation',
+          completed_units: 1,
+          total_units: 1,
+          evaluation_completed_units: 1,
+          evaluation_total_units: 1,
+          current_question_id: 'Q1',
+          current_mode: 'naive',
+          completed_at: '2026-03-07T00:00:10+00:00',
+          updated_at: '2026-03-07T00:00:10+00:00',
+        }),
+      });
+    });
+    renderRunner();
+
+    await waitFor(() => {
+      expect(screen.getByText('已選擇 1 題')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '開始評估' }));
+    await waitFor(() => {
+      expect(mockCreateCampaign).toHaveBeenCalledTimes(1);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('串流中斷，已切換輪詢備援')).toBeInTheDocument();
+    }, { timeout: 10000 });
+
+    fireEvent.click(screen.getAllByRole('button', { name: '重連' })[0]);
+    await waitFor(() => {
+      expect(streamCalls).toBe(5);
+    });
+    await waitFor(() => {
+      expect(screen.getAllByText('已完成').length).toBeGreaterThan(0);
+    }, { timeout: 5000 });
+
+    const callCountAfterReconnect = mockListCampaigns.mock.calls.length;
+    await new Promise((resolve) => window.setTimeout(resolve, 4500));
+    expect(mockListCampaigns.mock.calls.length).toBe(callCountAfterReconnect);
+  }, 25000);
 
   it('renders execution failure from streamed terminal event', async () => {
     mockListTestCases.mockResolvedValue(baseTestCases);
