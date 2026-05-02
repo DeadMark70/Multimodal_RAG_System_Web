@@ -326,6 +326,7 @@ describe('CampaignRunner', () => {
     mockCreateCampaign.mockResolvedValue({ campaign_id: 'cmp-recover', status: 'pending' });
     let streamCalls = 0;
     mockStreamCampaign.mockImplementation(async (_campaignId, onEvent) => {
+      await Promise.resolve();
       streamCalls += 1;
       if (streamCalls <= 4) {
         throw new Error('SSE disconnected');
