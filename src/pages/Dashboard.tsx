@@ -20,15 +20,38 @@ import {
   Spinner,
   useColorModeValue,
 } from '@chakra-ui/react';
-import { FiActivity, FiCheckCircle, FiAlertTriangle, FiHelpCircle, FiFileText } from 'react-icons/fi';
+import { FiActivity, FiAlertTriangle, FiCheckCircle, FiClock, FiFileText } from 'react-icons/fi';
 import useDashboardStats from '../hooks/useDashboardStats';
-import AccuracyPieChart from '../components/charts/AccuracyPieChart';
+import { useDocumentList } from '../hooks/useDocuments';
+import { useGraphDocuments, useGraphStatus } from '../hooks/useGraphData';
+import DocumentGraphStatusChart from '../components/charts/DocumentGraphStatusChart';
 import QueryTrendChart from '../components/charts/QueryTrendChart';
 import SurfaceCard from '../components/common/SurfaceCard';
 import MetricCard from '../components/common/MetricCard';
 
+const ACTIVE_DOCUMENT_STEPS = new Set([
+  'uploading',
+  'ocr',
+  'indexing',
+  'image_analysis',
+  'graph_indexing',
+  'translating',
+  'generating_pdf',
+]);
+
 export default function Dashboard() {
   const { data: stats, isLoading, error } = useDashboardStats();
+  const {
+    data: documents = [],
+    isLoading: isDocumentsLoading,
+    error: documentsError,
+  } = useDocumentList();
+  const { data: graphStatus, isLoading: isGraphStatusLoading, error: graphStatusError } = useGraphStatus();
+  const {
+    data: graphDocumentsResponse,
+    isLoading: isGraphDocumentsLoading,
+    error: graphDocumentsError,
+  } = useGraphDocuments();
   
   const textColor = useColorModeValue('surface.700', 'white');
   const subTextColor = useColorModeValue('surface.500', 'surface.300');
@@ -37,7 +60,10 @@ export default function Dashboard() {
   const warningIconBg = useColorModeValue('orange.50', 'orange.900');
   const warningIconColor = useColorModeValue('orange.600', 'orange.200');
 
-  if (isLoading) {
+  const isDashboardLoading =
+    isLoading || isDocumentsLoading || isGraphStatusLoading || isGraphDocumentsLoading;
+
+  if (isDashboardLoading) {
     return (
       <Layout>
         <PageHeader title="儀表板" subtitle="RAG 實驗總覽" variant="dashboard" />
@@ -62,21 +88,84 @@ export default function Dashboard() {
 
   // 使用真實資料或預設值
   const totalQueries = stats?.total_queries ?? 0;
-  const accuracyRate = stats?.accuracy_rate ?? 0;
-  const groundedCount = stats?.grounded_count ?? 0;
-  const hallucinatedCount = stats?.hallucinated_count ?? 0;
-  const uncertainCount = stats?.uncertain_count ?? 0;
-  const avgConfidence = stats?.avg_confidence ?? 0;
   const queriesLast7Days = stats?.queries_last_7_days ?? [0, 0, 0, 0, 0, 0, 0];
   const topDocuments = stats?.top_documents ?? [];
+  const graphDocuments = graphDocumentsResponse?.documents ?? [];
+  const documentCount = documents.length;
+
+  const processingDocumentCount = documents.filter((document) =>
+    document.processing_step ? ACTIVE_DOCUMENT_STEPS.has(document.processing_step) : false
+  ).length;
+  const failedDocumentCount = documents.filter(
+    (document) =>
+      document.processing_step === 'index_failed' ||
+      document.status === 'failed'
+  ).length;
+
+  const graphIndexedCount = graphStatus?.indexed_document_count ?? 0;
+  const graphEligibleCount = graphStatus?.eligible_document_count ?? 0;
+  const graphCoverageRate =
+    graphEligibleCount > 0 ? graphIndexedCount / graphEligibleCount : 0;
+
+  const graphSkippedCount = graphDocuments.filter((document) => document.status === 'skipped').length;
+  const graphRunningCount = graphDocuments.filter((document) => document.status === 'running').length;
+  const graphIssueCount = graphDocuments.filter((document) =>
+    ['failed', 'partial', 'empty'].includes(document.status)
+  ).length;
+  const failedOrPendingCount =
+    processingDocumentCount +
+    failedDocumentCount +
+    graphSkippedCount +
+    graphRunningCount +
+    graphIssueCount;
+
+  const statusDistribution = [
+    { name: '文件處理中', value: processingDocumentCount, color: '#3182CE' },
+    { name: '文件失敗', value: failedDocumentCount, color: '#E53E3E' },
+    { name: '待建圖', value: graphSkippedCount, color: '#718096' },
+    { name: '建圖中', value: graphRunningCount, color: '#805AD5' },
+    { name: '已建圖', value: graphIndexedCount, color: '#38A169' },
+    { name: '建圖異常', value: graphIssueCount, color: '#DD6B20' },
+  ];
+
+  const graphHealthHint = graphStatusError
+    ? 'Graph 狀態讀取失敗'
+    : graphEligibleCount > 0
+      ? `${graphIndexedCount}/${graphEligibleCount} 份可建圖文件`
+      : '尚無可建圖文件';
+  const issueHintParts = [];
+  if (failedDocumentCount + graphIssueCount > 0) {
+    issueHintParts.push(`${failedDocumentCount + graphIssueCount} 失敗`);
+  }
+  if (processingDocumentCount + graphSkippedCount + graphRunningCount > 0) {
+    issueHintParts.push(
+      `${processingDocumentCount + graphSkippedCount + graphRunningCount} 待處理`
+    );
+  }
+  const issueHint =
+    issueHintParts.length > 0 ? issueHintParts.join(' / ') : '目前無待處理項目';
+  const summaryBadgeText = documentsError
+    ? '文件資料讀取失敗'
+    : `文件總數 ${documentCount} 份`;
+  const pipelineBadge = graphStatusError
+    ? { colorScheme: 'orange', label: 'Graph 狀態讀取失敗' }
+    : graphStatus?.active_job_state
+      ? { colorScheme: 'orange', label: `Graph 執行中: ${graphStatus.active_job_state}` }
+      : graphStatus?.has_graph
+        ? { colorScheme: 'green', label: 'Graph Pipeline 待命' }
+        : { colorScheme: 'gray', label: 'Graph 尚未建立' };
 
   return (
     <Layout>
       <PageHeader title="儀表板" subtitle="RAG 實驗總覽" variant="dashboard" />
       
       <HStack spacing={3} mb={4} flexWrap="wrap" data-testid="dashboard-summary">
-        <Badge colorScheme="blue" borderRadius="full" px={3} py={1}>資料版本: 即時</Badge>
-        <Badge colorScheme="green" borderRadius="full" px={3} py={1}>RAG Pipeline 正常</Badge>
+        <Badge colorScheme={documentsError ? 'orange' : 'blue'} borderRadius="full" px={3} py={1}>
+          {summaryBadgeText}
+        </Badge>
+        <Badge colorScheme={pipelineBadge.colorScheme} borderRadius="full" px={3} py={1}>
+          {pipelineBadge.label}
+        </Badge>
       </HStack>
 
       <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing={4} mb={5} data-testid="dashboard-kpis">
@@ -87,40 +176,36 @@ export default function Dashboard() {
           icon={FiActivity}
         />
         <MetricCard
-          label="準確率"
-          value={`${(accuracyRate * 100).toFixed(1)}%`}
-          hint={`${groundedCount} 則有據回答`}
+          label="文件總數"
+          value={documentCount.toLocaleString()}
+          hint={documentsError ? '文件清單讀取失敗' : '知識庫中的已上傳文件'}
           icon={FiCheckCircle}
           iconBg={successIconBg}
           iconColor={successIconColor}
         />
         <MetricCard
-          label="幻覺回答"
-          value={hallucinatedCount}
-          hint="需人工複核"
+          label="已索引/建圖覆蓋率"
+          value={`${(graphCoverageRate * 100).toFixed(0)}%`}
+          hint={graphHealthHint}
           icon={FiAlertTriangle}
           iconBg={warningIconBg}
           iconColor={warningIconColor}
         />
         <MetricCard
-          label="平均信心"
-          value={`${(avgConfidence * 100).toFixed(0)}%`}
-          hint="模型回覆信心值"
-          icon={FiHelpCircle}
+          label="失敗或待處理數"
+          value={failedOrPendingCount.toLocaleString()}
+          hint={issueHint}
+          icon={FiClock}
         />
       </SimpleGrid>
 
       <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4} mb={5} data-testid="dashboard-charts">
         <SurfaceCard>
           <CardHeader pb={0}>
-            <Text fontWeight="800" fontSize="md" color={textColor}>忠實度分佈</Text>
+            <Text fontWeight="800" fontSize="md" color={textColor}>文件 / Graph 狀態分佈</Text>
           </CardHeader>
           <CardBody>
-            <AccuracyPieChart 
-              grounded={groundedCount}
-              hallucinated={hallucinatedCount}
-              uncertain={uncertainCount}
-            />
+            <DocumentGraphStatusChart data={statusDistribution} />
           </CardBody>
         </SurfaceCard>
 
@@ -165,6 +250,11 @@ export default function Dashboard() {
           ) : (
             <Text color={subTextColor} textAlign="center" py={4}>
               尚無查詢記錄。請先至「對話」頁面開始提問。
+            </Text>
+          )}
+          {graphDocumentsError && (
+            <Text color="orange.500" fontSize="sm" mt={4}>
+              Graph 文件狀態讀取失敗：{graphDocumentsError.message}
             </Text>
           )}
         </CardBody>

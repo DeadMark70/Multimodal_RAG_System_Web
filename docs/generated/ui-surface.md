@@ -10,7 +10,7 @@ Human-maintained inventory of the current frontend surface.
 | `/signup` | `Signup.tsx` | `AuthProvider` context | `supabase` |
 | `/forgot-password` | `ForgotPassword.tsx` | `AuthProvider` context | `supabase` |
 | `/reset-password` | `ResetPassword.tsx` | `AuthProvider` context | `supabase` |
-| `/dashboard` | `Dashboard.tsx` | `useDashboardStats` | `statsApi.ts` |
+| `/dashboard` | `Dashboard.tsx` | `useDashboardStats`, `useDocumentList`, `useGraphStatus`, `useGraphDocuments` | `statsApi.ts`, `pdfApi.ts`, `graphApi.ts` |
 | `/knowledge` | `KnowledgeBase.tsx` | `useDocuments`, `useUploadProgressStore` | `pdfApi.ts` |
 | `/chat` | `Chat.tsx` | `useChat`, `useDeepResearch`, `useAgenticBenchmarkResearch`, `useConversationMutations`, selector-based `useSettingsStore` hooks, selector-based `useSessionStore` hooks | `ragApi.ts`, `conversationApi.ts` |
 | `/experiment` | `Experiment.tsx` | page-local state | `ragApi.ts` |
