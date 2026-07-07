@@ -116,6 +116,25 @@ function formatStatus(status: CampaignStatus['status']): string {
   }
 }
 
+function formatThinkingConfig(config: ModelConfig): string {
+  if (!config.thinking_mode) {
+    return 'Reasoning: off';
+  }
+  if (config.thinking_level) {
+    return `Reasoning: ${config.thinking_level}`;
+  }
+  if (config.thinking_budget === -1) {
+    return 'Reasoning: dynamic budget';
+  }
+  if (typeof config.thinking_budget === 'number') {
+    return `Reasoning: budget ${config.thinking_budget}`;
+  }
+  return 'Reasoning: on';
+}
+
+function sumReasoningTokens(results: CampaignResultsResponse['results']): number {
+  return results.reduce((total, result) => total + (result.token_usage.reasoning_tokens ?? 0), 0);
+}
 function statusColor(status: CampaignStatus['status']): string {
   switch (status) {
     case 'completed':
@@ -472,6 +491,11 @@ export default function CampaignRunner() {
                     </option>
                   ))}
                 </Select>
+                {selectedConfig && (
+                  <Text fontSize="sm" color="gray.600" mt={1}>
+                    {selectedConfig.model_name} - {formatThinkingConfig(selectedConfig)}
+                  </Text>
+                )}
               </FormControl>
 
               <FormControl>
@@ -665,7 +689,12 @@ export default function CampaignRunner() {
                   <Text fontWeight="medium">{campaign.name || campaign.id}</Text>
                   <Text color="gray.500" fontSize="sm">{new Date(campaign.created_at).toLocaleString()}</Text>
                 </Td>
-                <Td>{campaign.config.modes.join(', ')}</Td>
+                <Td>
+                  <Text>{campaign.config.modes.join(', ')}</Text>
+                  <Text color="gray.500" fontSize="sm">
+                    {campaign.config.model_config.model_name} - {formatThinkingConfig(campaign.config.model_config)}
+                  </Text>
+                </Td>
                 <Td>{campaign.completed_units} / {campaign.total_units}</Td>
                 <Td>
                   <Badge colorScheme={statusColor(campaign.status)}>
@@ -706,6 +735,7 @@ export default function CampaignRunner() {
             <Text>
               {resultsView.campaign.name || resultsView.campaign.id} 共 {resultsView.results.length} 筆結果
             </Text>
+            <Text color="gray.600">Reasoning tokens: {sumReasoningTokens(resultsView.results)}</Text>
             <Table size="sm">
               <Thead>
                 <Tr>
@@ -747,3 +777,5 @@ export default function CampaignRunner() {
     </VStack>
   );
 }
+
+

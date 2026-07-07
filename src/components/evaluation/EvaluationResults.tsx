@@ -118,6 +118,21 @@ function metricLabel(metric: string): string {
     .join(" ");
 }
 
+function formatThinkingConfig(config: CampaignStatus['config']['model_config']): string {
+  if (!config.thinking_mode) {
+    return 'Reasoning: off';
+  }
+  if (config.thinking_level) {
+    return `Reasoning: ${config.thinking_level}`;
+  }
+  if (config.thinking_budget === -1) {
+    return 'Reasoning: dynamic budget';
+  }
+  if (typeof config.thinking_budget === 'number') {
+    return `Reasoning: budget ${config.thinking_budget}`;
+  }
+  return 'Reasoning: on';
+}
 function ecrLabel(ecr?: number | null): string {
   if (ecr == null) {
     return "N/A";
@@ -1075,6 +1090,9 @@ export default function EvaluationResults() {
                   Evaluator: {metrics.evaluator_model}
                 </Text>
                 <Text color="text.secondary">
+                  Model: {metrics.campaign.config.model_config.model_name} - {formatThinkingConfig(metrics.campaign.config.model_config)}
+                </Text>
+                <Text color="text.secondary">
                   Available metrics:{" "}
                   {metrics.available_metrics.map(metricLabel).join(", ") ||
                     "None"}
@@ -1529,3 +1547,4 @@ export default function EvaluationResults() {
     </VStack>
   );
 }
+

@@ -169,3 +169,10 @@
   - `npm run lint:ci`
   - `npx tsc --noEmit`
   - `npx vitest run`
+
+## Evaluation Model Thinking Controls
+
+- `src/types/evaluation.ts` models `ThinkingCapability`, `thinking_budget`, `thinking_level`, and `thinking_include_thoughts` across available models and saved presets.
+- `ModelConfigPanel.tsx` uses `ThinkingConfigControl.tsx` to switch between budget, level, and unavailable states based on the selected model metadata from `/api/evaluation/models`.
+- Campaign setup and history show the selected preset's model plus reasoning setting, and raw campaign results summarize returned reasoning tokens.
+- Results analysis shows the campaign model and reasoning setting in the metrics header so exported/inspected metrics can be traced back to the run configuration.

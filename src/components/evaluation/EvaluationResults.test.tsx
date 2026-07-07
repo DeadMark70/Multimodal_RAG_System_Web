@@ -518,4 +518,34 @@ describe('EvaluationResults', () => {
       });
     });
   });
+  it('shows campaign model reasoning settings in the metrics header', async () => {
+    const levelCampaign: CampaignStatus = {
+      ...completedCampaign,
+      config: {
+        ...baseCampaignConfig,
+        model_config: {
+          ...baseCampaignConfig.model_config,
+          model_name: 'gemini-3.0-flash',
+          thinking_mode: true,
+          thinking_budget: null,
+          thinking_level: 'high',
+          thinking_include_thoughts: false,
+        },
+      },
+    };
+
+    mockListCampaigns.mockResolvedValue([levelCampaign]);
+    mockGetCampaignMetrics.mockResolvedValue({
+      ...emptyMetrics,
+      campaign: levelCampaign,
+      evaluator_model: 'gemini-2.5-pro',
+    });
+
+    renderResults();
+
+    await waitFor(() => {
+      expect(screen.getByText('Evaluator: gemini-2.5-pro')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Model: gemini-3.0-flash - Reasoning: high')).toBeInTheDocument();
+  });
 });

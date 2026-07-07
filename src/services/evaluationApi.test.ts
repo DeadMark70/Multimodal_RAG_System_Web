@@ -21,6 +21,7 @@ import {
   updateModelConfig,
   updateTestCase,
 } from './evaluationApi';
+import type { AvailableModel } from '../types/evaluation';
 
 vi.mock('./api', () => ({
   default: {
@@ -123,6 +124,38 @@ describe('evaluationApi', () => {
     expect(configs[0].id).toBe('cfg-1');
   });
 
+
+  it('preserves thinking capability metadata from available models', async () => {
+    mockedApi.get.mockResolvedValueOnce({
+      data: [
+        {
+          name: 'gemini-3.0-flash',
+          display_name: 'Gemini 3.0 Flash',
+          description: null,
+          input_token_limit: 1048576,
+          output_token_limit: 8192,
+          supported_actions: ['generateContent'],
+          thinking: {
+            supported: true,
+            control_type: 'level',
+            levels: ['minimal', 'low', 'medium', 'high'],
+            budget_min: null,
+            budget_max: null,
+            supports_disable: false,
+            supports_dynamic: false,
+            default_level: 'medium',
+            default_budget: null,
+            guidance: 'Gemini 3 models should use thinking_level rather than thinking_budget.',
+          },
+        } satisfies AvailableModel,
+      ],
+    });
+
+    const models = await listAvailableModels();
+
+    expect(models[0].thinking.control_type).toBe('level');
+    expect(models[0].thinking.default_level).toBe('medium');
+  });
   it('creates, updates and deletes model config', async () => {
     mockedApi.post.mockResolvedValue({ data: { id: 'cfg-1' } });
     mockedApi.put.mockResolvedValue({ data: { id: 'cfg-1', name: 'updated' } });
@@ -329,3 +362,4 @@ describe('evaluationApi', () => {
     expect(events).toEqual(['campaign_failed']);
   });
 });
+

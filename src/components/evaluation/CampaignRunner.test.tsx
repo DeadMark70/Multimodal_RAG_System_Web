@@ -477,4 +477,61 @@ describe('CampaignRunner', () => {
     expect(screen.getByText('RAGAS evaluation failed')).toBeInTheDocument();
     expect(screen.getByText('目前階段：RAGAS 評估')).toBeInTheDocument();
   });
+  it('shows model reasoning settings in setup, history, and raw result summaries', async () => {
+    const reasoningConfig = {
+      ...baseConfig,
+      thinking_mode: true,
+      thinking_budget: 8192,
+      thinking_level: null,
+      thinking_include_thoughts: false,
+    };
+    const campaign = createCampaignStatus({
+      config: {
+        ...baseCampaignConfig,
+        model_config: reasoningConfig,
+      },
+    });
+
+    mockListTestCases.mockResolvedValue(baseTestCases);
+    mockListModelConfigs.mockResolvedValue([reasoningConfig]);
+    mockListCampaigns.mockResolvedValue([campaign]);
+    mockStreamCampaign.mockResolvedValue(undefined);
+    mockGetCampaignResults.mockResolvedValue({
+      campaign,
+      results: [
+        {
+          id: 'result-reasoning-1',
+          campaign_id: campaign.id,
+          question_id: 'Q1',
+          question: 'Question 1',
+          ground_truth: 'Answer 1',
+          ground_truth_short: 'Short answer 1',
+          key_points: ['point-1'],
+          ragas_focus: ['answer_correctness'],
+          mode: 'naive',
+          run_number: 1,
+          answer: 'answer',
+          contexts: [],
+          source_doc_ids: [],
+          expected_sources: [],
+          latency_ms: 10,
+          token_usage: { total_tokens: 42, reasoning_tokens: 7 },
+          status: 'completed',
+          has_trace: false,
+          created_at: '2026-03-07T00:00:10+00:00',
+        },
+      ],
+    });
+
+    renderRunner();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('gemini-2.5-flash - Reasoning: budget 8192').length).toBeGreaterThan(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '查看結果' }));
+    await waitFor(() => {
+      expect(screen.getByText('Reasoning tokens: 7')).toBeInTheDocument();
+    });
+  });
 });

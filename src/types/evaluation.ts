@@ -27,6 +27,22 @@ export interface DeleteResult {
   total: number;
 }
 
+export type ThinkingControlType = 'none' | 'budget' | 'level';
+export type ThinkingLevel = 'minimal' | 'low' | 'medium' | 'high';
+
+export interface ThinkingCapability {
+  supported: boolean;
+  control_type: ThinkingControlType;
+  levels: ThinkingLevel[];
+  budget_min?: number | null;
+  budget_max?: number | null;
+  supports_disable: boolean;
+  supports_dynamic: boolean;
+  default_level?: ThinkingLevel | null;
+  default_budget?: number | null;
+  guidance?: string | null;
+}
+
 export interface ModelConfig {
   id: string;
   name: string;
@@ -37,7 +53,9 @@ export interface ModelConfig {
   max_input_tokens: number;
   max_output_tokens: number;
   thinking_mode: boolean;
-  thinking_budget: number;
+  thinking_budget?: number | null;
+  thinking_level?: ThinkingLevel | null;
+  thinking_include_thoughts?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -53,6 +71,7 @@ export interface AvailableModel {
   input_token_limit?: number | null;
   output_token_limit?: number | null;
   supported_actions: string[];
+  thinking: ThinkingCapability;
 }
 
 export type CampaignMode = 'naive' | 'advanced' | 'graph' | 'agentic';
@@ -321,3 +340,5 @@ export type CampaignStreamEvent =
   | { type: 'campaign_completed'; data: CampaignStatus }
   | { type: 'campaign_failed'; data: CampaignStatus }
   | { type: 'campaign_cancelled'; data: CampaignStatus };
+
+
