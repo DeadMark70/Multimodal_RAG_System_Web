@@ -4,6 +4,25 @@ import {
   cancelCampaign,
   createCampaign,
   getCampaignResultTrace,
+  getCampaignOverview,
+  getCampaignRuns,
+  getModeComparison,
+  getQuestionComparison,
+  getCostLatency,
+  getRouterAnalysis,
+  getAblationAnalysis,
+  exportCampaignAnalysis,
+  getHumanEvalQueue,
+  postRunHumanRating,
+  getHumanVsAuto,
+  getRunDetail,
+  getRunTrace,
+  getRunRetrieval,
+  getRunContext,
+  getRunLlmCalls,
+  getRunClaims,
+  getRunMetrics,
+  getRunDiff,
   createModelConfig,
   createTestCase,
   deleteModelConfig,
@@ -295,6 +314,247 @@ describe('evaluationApi', () => {
     );
   });
 
+  it('fetches campaign research analytics endpoints', async () => {
+    mockedApi.get
+      .mockResolvedValueOnce({ data: { campaign_id: 'cmp-1', sample_count: 3 } })
+      .mockResolvedValueOnce({ data: { campaign_id: 'cmp-1', runs: [{ run_id: 'run-1' }] } })
+      .mockResolvedValueOnce({ data: { campaign_id: 'cmp-1', rows: [{ mode: 'naive' }] } })
+      .mockResolvedValueOnce({ data: { campaign_id: 'cmp-1', rows: [{ question_id: 'Q1' }] } })
+      .mockResolvedValueOnce({ data: { campaign_id: 'cmp-1', rows: [{ run_id: 'run-1' }] } })
+      .mockResolvedValueOnce({
+        data: { campaign_id: 'cmp-1', analysis_type: 'retrospective', rows: [{ selected_mode: 'naive' }] },
+      })
+      .mockResolvedValueOnce({ data: { campaign_id: 'cmp-1', rows: [{ condition_id: 'baseline' }] } })
+      .mockResolvedValueOnce({ data: { campaign_id: 'cmp-1', rows: [{ run_id: 'run-1' }] } });
+
+    expect(await getCampaignOverview('cmp-1')).toEqual({ campaign_id: 'cmp-1', sample_count: 3 });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(1, '/api/evaluation/campaigns/cmp-1/overview');
+
+    expect(await getCampaignRuns('cmp-1')).toEqual({
+      campaign_id: 'cmp-1',
+      runs: [{ run_id: 'run-1' }],
+    });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(2, '/api/evaluation/campaigns/cmp-1/runs');
+
+    expect(await getModeComparison('cmp-1')).toEqual({
+      campaign_id: 'cmp-1',
+      rows: [{ mode: 'naive' }],
+    });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(3, '/api/evaluation/campaigns/cmp-1/mode-comparison');
+
+    expect(await getQuestionComparison('cmp-1')).toEqual({
+      campaign_id: 'cmp-1',
+      rows: [{ question_id: 'Q1' }],
+    });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(4, '/api/evaluation/campaigns/cmp-1/question-comparison');
+
+    expect(await getCostLatency('cmp-1')).toEqual({
+      campaign_id: 'cmp-1',
+      rows: [{ run_id: 'run-1' }],
+    });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(5, '/api/evaluation/campaigns/cmp-1/cost-latency');
+
+    expect(await getRouterAnalysis('cmp-1')).toEqual({
+      campaign_id: 'cmp-1',
+      analysis_type: 'retrospective',
+      rows: [{ selected_mode: 'naive' }],
+    });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(6, '/api/evaluation/campaigns/cmp-1/router-analysis');
+
+    expect(await getAblationAnalysis('cmp-1')).toEqual({
+      campaign_id: 'cmp-1',
+      rows: [{ condition_id: 'baseline' }],
+    });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(7, '/api/evaluation/campaigns/cmp-1/ablation');
+
+    expect(await getHumanVsAuto('cmp-1')).toEqual({
+      campaign_id: 'cmp-1',
+      rows: [{ run_id: 'run-1' }],
+    });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(8, '/api/evaluation/campaigns/cmp-1/human-vs-auto');
+  });
+
+  it('posts export and human-evaluation requests to the new endpoints', async () => {
+    mockedApi.post
+      .mockResolvedValueOnce({
+        data: {
+          campaign_id: 'cmp-1',
+          exported_at: '2026-07-08T00:00:00Z',
+          export_options: { include_prompt_previews: true },
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          run_id: 'run-1',
+          rating_id: 'rating-1',
+          rubric_version: 'v1',
+        },
+      });
+    mockedApi.get.mockResolvedValueOnce({
+      data: {
+        campaign_id: 'cmp-1',
+        queue: [{ run_id: 'run-1' }],
+      },
+    });
+
+    expect(
+      await exportCampaignAnalysis('cmp-1', {
+        include_raw_trace_payloads: true,
+        include_prompt_previews: false,
+        include_full_prompts: false,
+        include_answers: true,
+        include_retrieved_excerpts: true,
+        format: 'json',
+      })
+    ).toEqual({
+      campaign_id: 'cmp-1',
+      exported_at: '2026-07-08T00:00:00Z',
+      export_options: { include_prompt_previews: true },
+    });
+    expect(mockedApi.post).toHaveBeenNthCalledWith(1, '/api/evaluation/campaigns/cmp-1/export', {
+      include_raw_trace_payloads: true,
+      include_prompt_previews: false,
+      include_full_prompts: false,
+      include_answers: true,
+      include_retrieved_excerpts: true,
+      format: 'json',
+    });
+
+    expect(await getHumanEvalQueue('cmp-1')).toEqual({
+      campaign_id: 'cmp-1',
+      queue: [{ run_id: 'run-1' }],
+    });
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/evaluation/campaigns/cmp-1/human-eval-queue');
+
+    expect(
+      await postRunHumanRating('run-1', {
+        rubric_version: 'v1',
+        correctness_score: 0.9,
+        faithfulness_score: 0.8,
+        completeness_score: 0.7,
+        citation_quality_score: 0.95,
+        usefulness_score: 0.85,
+        comments: 'Strong answer',
+        is_blinded: true,
+        shown_mode_label: false,
+      })
+    ).toEqual({
+      run_id: 'run-1',
+      rating_id: 'rating-1',
+      rubric_version: 'v1',
+    });
+    expect(mockedApi.post).toHaveBeenNthCalledWith(2, '/api/evaluation/runs/run-1/human-ratings', {
+      rubric_version: 'v1',
+      correctness_score: 0.9,
+      faithfulness_score: 0.8,
+      completeness_score: 0.7,
+      citation_quality_score: 0.95,
+      usefulness_score: 0.85,
+      comments: 'Strong answer',
+      is_blinded: true,
+      shown_mode_label: false,
+    });
+  });
+
+  it('fetches run-level research detail endpoints', async () => {
+    mockedApi.get
+      .mockResolvedValueOnce({ data: { run_id: 'run-1', campaign_id: 'cmp-1', trace_events: [] } })
+      .mockResolvedValueOnce({ data: { run_id: 'run-1', campaign_id: 'cmp-1', trace_events: [] } })
+      .mockResolvedValueOnce({ data: { run_id: 'run-1', campaign_id: 'cmp-1', retrieval_events: [] } })
+      .mockResolvedValueOnce({ data: { run_id: 'run-1', campaign_id: 'cmp-1', context_packs: [] } })
+      .mockResolvedValueOnce({ data: { run_id: 'run-1', campaign_id: 'cmp-1', llm_calls: [] } })
+      .mockResolvedValueOnce({ data: { run_id: 'run-1', campaign_id: 'cmp-1', claims: [] } })
+      .mockResolvedValueOnce({
+        data: { run_id: 'run-1', campaign_id: 'cmp-1', total_tokens: 21, latency_ms: 50, derived_metrics: {} },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          run_id: 'run-1',
+          baseline_run_id: 'run-0',
+          campaign_id: 'cmp-1',
+          baseline_campaign_id: 'cmp-1',
+          token_delta: 3,
+          latency_delta_ms: 4,
+          comparable: true,
+          comparison_scope: 'same_campaign_question',
+          answer_changed: false,
+          answer_change_status: 'unchanged',
+          derived_metric_delta: {},
+        },
+      });
+
+    expect(await getRunDetail('cmp-1', 'run-1')).toEqual({
+      run_id: 'run-1',
+      campaign_id: 'cmp-1',
+      trace_events: [],
+    });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(
+      1,
+      '/api/evaluation/campaigns/cmp-1/runs/run-1/observability'
+    );
+
+    expect(await getRunTrace('run-1')).toEqual({
+      run_id: 'run-1',
+      campaign_id: 'cmp-1',
+      trace_events: [],
+    });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(2, '/api/evaluation/runs/run-1/trace');
+
+    expect(await getRunRetrieval('run-1')).toEqual({
+      run_id: 'run-1',
+      campaign_id: 'cmp-1',
+      retrieval_events: [],
+    });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(3, '/api/evaluation/runs/run-1/retrieval');
+
+    expect(await getRunContext('run-1')).toEqual({
+      run_id: 'run-1',
+      campaign_id: 'cmp-1',
+      context_packs: [],
+    });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(4, '/api/evaluation/runs/run-1/context');
+
+    expect(await getRunLlmCalls('run-1')).toEqual({
+      run_id: 'run-1',
+      campaign_id: 'cmp-1',
+      llm_calls: [],
+    });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(5, '/api/evaluation/runs/run-1/llm-calls');
+
+    expect(await getRunClaims('run-1')).toEqual({
+      run_id: 'run-1',
+      campaign_id: 'cmp-1',
+      claims: [],
+    });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(6, '/api/evaluation/runs/run-1/claims');
+
+    expect(await getRunMetrics('run-1')).toEqual({
+      run_id: 'run-1',
+      campaign_id: 'cmp-1',
+      total_tokens: 21,
+      latency_ms: 50,
+      derived_metrics: {},
+    });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(7, '/api/evaluation/runs/run-1/metrics');
+
+    expect(await getRunDiff('run-1', 'run-0')).toEqual({
+      run_id: 'run-1',
+      baseline_run_id: 'run-0',
+      campaign_id: 'cmp-1',
+      baseline_campaign_id: 'cmp-1',
+      token_delta: 3,
+      latency_delta_ms: 4,
+      comparable: true,
+      comparison_scope: 'same_campaign_question',
+      answer_changed: false,
+      answer_change_status: 'unchanged',
+      derived_metric_delta: {},
+    });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(8, '/api/evaluation/runs/run-1/diff', {
+      params: { baseline_run_id: 'run-0' },
+    });
+  });
+
   it('streams campaign SSE events via fetch', async () => {
     const encoder = new TextEncoder();
     const body = new ReadableStream<Uint8Array>({
@@ -360,6 +620,40 @@ describe('evaluationApi', () => {
     });
 
     expect(events).toEqual(['campaign_failed']);
+  });
+
+  it('parses granular SSE events with CRLF, preserves sequence metadata, and flushes EOF payloads', async () => {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            'event: run_started\r\n' +
+              'data: {"event_schema_version":"1.0","sequence":2,"campaign_id":"cmp-1","run_id":"run-1","span_id":"span-root","parent_span_id":null,"stage_type":"routing","stage_name":"Run started","status":"running","created_at":"2026-07-08T00:00:00Z","payload":{"question_id":"Q1"}}\r\n\r\n' +
+              'event: unknown_event\r\n' +
+              'data: {"ignored":true}\r\n\r\n' +
+              'event: retrieval_completed\r\n' +
+              'data: {"event_schema_version":"1.0","sequence":3,"campaign_id":"cmp-1","run_id":"run-1","span_id":"span-retrieval","parent_span_id":"span-root","stage_type":"retrieval","stage_name":"Retrieval","status":"success","created_at":"2026-07-08T00:00:01Z","payload":{"retrieval_count":4}}'
+          )
+        );
+        controller.close();
+      },
+    });
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(body, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const events: Array<{ type: string; sequence?: number }> = [];
+    await streamCampaign('cmp-1', (event) => {
+      events.push({
+        type: event.type,
+        sequence: 'sequence' in event.data ? Number(event.data.sequence) : undefined,
+      });
+    });
+
+    expect(events).toEqual([
+      { type: 'run_started', sequence: 2 },
+      { type: 'retrieval_completed', sequence: 3 },
+    ]);
   });
 });
 

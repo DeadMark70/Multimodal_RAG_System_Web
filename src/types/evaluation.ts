@@ -78,7 +78,7 @@ export interface AvailableModel {
   thinking: ThinkingCapability;
 }
 
-export type CampaignMode = 'naive' | 'advanced' | 'graph' | 'agentic';
+export type CampaignMode = 'naive' | 'advanced' | 'graph' | 'agentic' | 'router';
 export type CampaignEvaluationPhase = 'execution' | 'evaluation';
 export type CampaignMetricName = string;
 export type ReferenceSource = 'ground_truth_short' | 'ground_truth_fallback_long';
@@ -175,6 +175,173 @@ export interface CampaignResult {
 export interface CampaignResultsResponse {
   campaign: CampaignStatus;
   results: CampaignResult[];
+}
+
+export interface CampaignOverviewResponse {
+  campaign_id: string;
+  analysis_unit: 'execution' | 'question' | 'category';
+  sample_count: number;
+  independent_question_count: number;
+  repeat_count: number;
+  sample_note: string;
+  mode_counts: Record<string, number>;
+  total_tokens: number;
+  total_cost_usd?: number | null;
+  total_cost_twd?: number | null;
+  cost_status: 'complete' | 'partial' | 'unknown';
+  priced_call_count: number;
+  unpriced_call_count: number;
+  avg_latency_ms?: number | null;
+}
+
+export interface AnalyticsAggregateResponse {
+  campaign_id: string;
+  analysis_unit: 'execution' | 'question' | 'category';
+  sample_count: number;
+  independent_question_count: number;
+  repeat_count: number;
+  sample_note: string;
+  warnings: string[];
+  rows: Array<Record<string, unknown>>;
+  summaries: Record<string, unknown>;
+}
+
+export interface ModeComparisonResponse extends AnalyticsAggregateResponse {}
+
+export interface QuestionComparisonResponse extends AnalyticsAggregateResponse {}
+
+export interface CostLatencyResponse extends AnalyticsAggregateResponse {}
+
+export interface RouterAnalysisResponse extends AnalyticsAggregateResponse {
+  analysis_type: 'retrospective' | 'actual';
+}
+
+export interface AblationResponse extends AnalyticsAggregateResponse {}
+
+export interface HumanVsAutoResponse extends AnalyticsAggregateResponse {}
+
+export interface RepeatStabilitySummary extends AnalyticsAggregateResponse {}
+
+export interface EvaluationRunListItem {
+  run_id: string;
+  campaign_id: string;
+  question_id: string;
+  question: string;
+  mode: CampaignMode;
+  run_number: number;
+  status: CampaignResultStatus;
+  total_tokens: number;
+  total_latency_ms?: number | null;
+  created_at: string;
+}
+
+export interface EvaluationRunListResponse {
+  campaign_id: string;
+  runs: EvaluationRunListItem[];
+}
+
+export interface RunTraceResponse {
+  run_id: string;
+  campaign_id: string;
+  trace_events: Array<Record<string, unknown>>;
+  routing_decisions: Array<Record<string, unknown>>;
+}
+
+export interface RunRetrievalResponse {
+  run_id: string;
+  campaign_id: string;
+  retrieval_events: Array<Record<string, unknown>>;
+  retrieval_chunks: Array<Record<string, unknown>>;
+}
+
+export interface RunContextResponse {
+  run_id: string;
+  campaign_id: string;
+  context_packs: Array<Record<string, unknown>>;
+}
+
+export interface RunLlmCallsResponse {
+  run_id: string;
+  campaign_id: string;
+  llm_calls: Array<Record<string, unknown>>;
+}
+
+export interface RunClaimsResponse {
+  run_id: string;
+  campaign_id: string;
+  claims: Array<Record<string, unknown>>;
+}
+
+export interface RunMetricsResponse {
+  run_id: string;
+  campaign_id: string;
+  derived_metrics: Record<string, unknown>;
+  token_usage: Record<string, unknown>;
+  total_tokens: number;
+  latency_ms: number;
+  total_latency_ms?: number | null;
+}
+
+export interface RunDiffResponse {
+  run_id: string;
+  baseline_run_id: string;
+  campaign_id: string;
+  baseline_campaign_id: string;
+  token_delta: number;
+  latency_delta_ms: number;
+  comparable: boolean;
+  comparison_scope: 'same_run' | 'same_campaign_question' | 'cross_campaign';
+  answer_changed: boolean;
+  answer_change_status: 'changed' | 'unchanged' | 'unknown';
+  derived_metric_delta: Record<string, number>;
+}
+
+export interface RunDetailResponse {
+  run_id: string;
+  campaign_id: string;
+  trace_events: Array<Record<string, unknown>>;
+  llm_calls: Array<Record<string, unknown>>;
+  retrieval_events: Array<Record<string, unknown>>;
+  retrieval_chunks: Array<Record<string, unknown>>;
+  context_packs: Array<Record<string, unknown>>;
+  tool_calls: Array<Record<string, unknown>>;
+  routing_decisions: Array<Record<string, unknown>>;
+  claims: Array<Record<string, unknown>>;
+  human_ratings: Array<Record<string, unknown>>;
+}
+
+export interface ExportCampaignRequest {
+  include_raw_trace_payloads?: boolean;
+  include_prompt_previews?: boolean;
+  include_full_prompts?: boolean;
+  include_answers?: boolean;
+  include_retrieved_excerpts?: boolean;
+  format?: 'json';
+}
+
+export interface ExportCampaignResponse extends Record<string, unknown> {
+  campaign_id: string;
+}
+
+export interface HumanRatingRequest {
+  rubric_version: string;
+  correctness_score: number;
+  faithfulness_score: number;
+  completeness_score: number;
+  citation_quality_score: number;
+  usefulness_score: number;
+  comments?: string | null;
+  is_blinded?: boolean;
+  shown_mode_label?: boolean;
+}
+
+export interface HumanRatingResponse extends Record<string, unknown> {
+  run_id: string;
+}
+
+export interface HumanEvalQueueResponse {
+  campaign_id: string;
+  queue: Array<Record<string, unknown>>;
 }
 
 export interface CampaignProgressEvent {
@@ -338,11 +505,32 @@ export interface AgentTraceDetail extends AgentTraceSummary {
   steps: AgentTraceStep[];
 }
 
+export interface CampaignGranularStreamEventData {
+  event_schema_version: string;
+  sequence: number;
+  campaign_id: string;
+  run_id?: string | null;
+  span_id?: string | null;
+  parent_span_id?: string | null;
+  stage_type?: string | null;
+  stage_name?: string | null;
+  status: string;
+  created_at: string;
+  payload: Record<string, unknown>;
+}
+
 export type CampaignStreamEvent =
   | { type: 'campaign_snapshot'; data: CampaignStatus }
   | { type: 'campaign_progress'; data: CampaignProgressEvent }
   | { type: 'campaign_completed'; data: CampaignStatus }
   | { type: 'campaign_failed'; data: CampaignStatus }
-  | { type: 'campaign_cancelled'; data: CampaignStatus };
+  | { type: 'campaign_cancelled'; data: CampaignStatus }
+  | { type: 'run_started'; data: CampaignGranularStreamEventData }
+  | { type: 'routing_completed'; data: CampaignGranularStreamEventData }
+  | { type: 'retrieval_completed'; data: CampaignGranularStreamEventData }
+  | { type: 'generation_completed'; data: CampaignGranularStreamEventData }
+  | { type: 'metric_completed'; data: CampaignGranularStreamEventData }
+  | { type: 'run_completed'; data: CampaignGranularStreamEventData }
+  | { type: 'run_failed'; data: CampaignGranularStreamEventData };
 
 
