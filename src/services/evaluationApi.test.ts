@@ -11,6 +11,7 @@ import {
   getCostLatency,
   getRouterAnalysis,
   getAblationAnalysis,
+  getCampaignErrors,
   exportCampaignAnalysis,
   getHumanEvalQueue,
   postRunHumanRating,
@@ -372,6 +373,18 @@ describe('evaluationApi', () => {
       rows: [{ run_id: 'run-1' }],
     });
     expect(mockedApi.get).toHaveBeenNthCalledWith(8, '/api/evaluation/campaigns/cmp-1/human-vs-auto');
+
+    mockedApi.get.mockResolvedValueOnce({
+      data: {
+        campaign_id: 'cmp-1',
+        rows: [{ run_id: 'run-1', message: 'Provider error details were redacted.' }],
+      },
+    });
+    expect(await getCampaignErrors('cmp-1')).toEqual({
+      campaign_id: 'cmp-1',
+      rows: [{ run_id: 'run-1', message: 'Provider error details were redacted.' }],
+    });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(9, '/api/evaluation/campaigns/cmp-1/errors');
   });
 
   it('posts export and human-evaluation requests to the new endpoints', async () => {
@@ -393,7 +406,7 @@ describe('evaluationApi', () => {
     mockedApi.get.mockResolvedValueOnce({
       data: {
         campaign_id: 'cmp-1',
-        queue: [{ run_id: 'run-1' }],
+        rows: [{ run_id: 'run-1' }],
       },
     });
 
@@ -422,7 +435,7 @@ describe('evaluationApi', () => {
 
     expect(await getHumanEvalQueue('cmp-1')).toEqual({
       campaign_id: 'cmp-1',
-      queue: [{ run_id: 'run-1' }],
+      rows: [{ run_id: 'run-1' }],
     });
     expect(mockedApi.get).toHaveBeenCalledWith('/api/evaluation/campaigns/cmp-1/human-eval-queue');
 

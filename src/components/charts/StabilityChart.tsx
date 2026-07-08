@@ -26,6 +26,7 @@ const MODE_COLORS: Record<CampaignMode, string> = {
   advanced: '#2F855A',
   graph: '#DD6B20',
   agentic: '#C53030',
+  router: '#6B46C1',
 };
 
 const MODE_LABELS: Record<CampaignMode, string> = {
@@ -33,6 +34,7 @@ const MODE_LABELS: Record<CampaignMode, string> = {
   advanced: 'Advanced',
   graph: 'Graph',
   agentic: 'Agentic',
+  router: 'Router',
 };
 
 function percentile(sorted: number[], ratio: number): number {

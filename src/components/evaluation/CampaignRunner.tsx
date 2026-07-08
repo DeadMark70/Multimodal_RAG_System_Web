@@ -269,6 +269,15 @@ export default function CampaignRunner() {
       return;
     }
 
+    if (
+      event.type !== 'campaign_snapshot'
+      && event.type !== 'campaign_completed'
+      && event.type !== 'campaign_failed'
+      && event.type !== 'campaign_cancelled'
+    ) {
+      return;
+    }
+
     setActiveCampaign({
       snapshot: event.data,
       progress: progressFromCampaign(event.data),

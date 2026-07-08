@@ -89,6 +89,14 @@ export type TokenUsage = Record<string, unknown> & {
   reasoning_tokens?: number;
 };
 
+export interface AblationCondition {
+  condition_id: string;
+  label: string;
+  mode: CampaignMode;
+  ablation_flags?: Record<string, unknown>;
+  budget?: Record<string, unknown> | null;
+}
+
 export type CampaignLifecycleStatus =
   | 'pending'
   | 'running'
@@ -102,6 +110,7 @@ export type CampaignResultStatus = 'completed' | 'failed';
 export interface CampaignConfigInput {
   test_case_ids: string[];
   modes: CampaignMode[];
+  ablation_conditions?: AblationCondition[];
   model_config: ModelConfig;
   model_config_id?: string;
   repeat_count: number;
@@ -158,6 +167,7 @@ export interface CampaignResult {
   execution_profile?: string | null;
   context_policy_version?: string | null;
   run_number: number;
+  repeat_number?: number;
   answer: string;
   contexts: string[];
   source_doc_ids: string[];
@@ -168,6 +178,17 @@ export interface CampaignResult {
   difficulty?: string | null;
   status: CampaignResultStatus;
   error_message?: string | null;
+  question_version?: string | null;
+  request_id?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  total_latency_ms?: number | null;
+  total_tokens?: number | null;
+  question_snapshot?: Record<string, unknown>;
+  model_config_snapshot?: Record<string, unknown>;
+  system_version_snapshot?: Record<string, unknown>;
+  derived_metrics?: Record<string, unknown>;
+  final_answer_hash?: string | null;
   has_trace: boolean;
   created_at: string;
 }
@@ -229,6 +250,7 @@ export interface EvaluationRunListItem {
   question: string;
   mode: CampaignMode;
   run_number: number;
+  repeat_number?: number;
   status: CampaignResultStatus;
   total_tokens: number;
   total_latency_ms?: number | null;
@@ -320,7 +342,14 @@ export interface ExportCampaignRequest {
 }
 
 export interface ExportCampaignResponse extends Record<string, unknown> {
-  campaign_id: string;
+  campaign?: Record<string, unknown>;
+  redaction?: Record<string, unknown>;
+  runs?: Array<Record<string, unknown>>;
+  metrics?: Record<string, unknown>;
+  trace_events?: Array<Record<string, unknown>>;
+  llm_calls?: Array<Record<string, unknown>>;
+  retrieval_summary?: Array<Record<string, unknown>>;
+  claim_summary?: Array<Record<string, unknown>>;
 }
 
 export interface HumanRatingRequest {
@@ -336,12 +365,41 @@ export interface HumanRatingRequest {
 }
 
 export interface HumanRatingResponse extends Record<string, unknown> {
+  human_rating_id?: string;
   run_id: string;
+}
+
+export interface HumanEvalQueueItem extends Record<string, unknown> {
+  run_id: string;
+  campaign_id: string;
+  question_id: string;
+  question: string;
+  mode: CampaignMode;
+  run_number: number;
+  repeat_number?: number;
+  answer_preview: string;
+  existing_rating_count: number;
+  already_rated_by_current_user: boolean;
 }
 
 export interface HumanEvalQueueResponse {
   campaign_id: string;
-  queue: Array<Record<string, unknown>>;
+  rows: HumanEvalQueueItem[];
+}
+
+export interface SanitizedErrorRow extends Record<string, unknown> {
+  run_id: string;
+  campaign_id: string;
+  stage_name: string;
+  code?: string | null;
+  message: string;
+  source: 'run' | 'trace' | 'llm_call';
+  created_at: string;
+}
+
+export interface CampaignErrorsResponse {
+  campaign_id: string;
+  rows: SanitizedErrorRow[];
 }
 
 export interface CampaignProgressEvent {

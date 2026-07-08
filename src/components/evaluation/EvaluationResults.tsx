@@ -67,6 +67,7 @@ const MODE_LABELS: Record<CampaignMode, string> = {
   advanced: "Advanced",
   graph: "Graph",
   agentic: "Agentic",
+  router: "Router",
 };
 
 type EcrDirection = "positive" | "neutral" | "negative";

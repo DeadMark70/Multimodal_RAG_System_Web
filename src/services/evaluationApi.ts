@@ -5,6 +5,7 @@ import type {
   AblationResponse,
   AvailableModel,
   CampaignGranularStreamEventData,
+  CampaignErrorsResponse,
   CampaignCreateRequest,
   CampaignCreateResponse,
   CampaignEvaluateRequest,
@@ -278,6 +279,11 @@ export async function postRunHumanRating(
 
 export async function getHumanVsAuto(campaignId: string): Promise<HumanVsAutoResponse> {
   const response = await api.get<HumanVsAutoResponse>(`/api/evaluation/campaigns/${campaignId}/human-vs-auto`);
+  return response.data;
+}
+
+export async function getCampaignErrors(campaignId: string): Promise<CampaignErrorsResponse> {
+  const response = await api.get<CampaignErrorsResponse>(`/api/evaluation/campaigns/${campaignId}/errors`);
   return response.data;
 }
 
