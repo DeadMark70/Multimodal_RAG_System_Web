@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import theme from '../theme';
 import EvaluationCenter from './EvaluationCenter';
-import { getCampaignOverview } from '../services/evaluationApi';
+import { exportCampaignAnalysis, getCampaignOverview, getQuestionComparison } from '../services/evaluationApi';
 
 vi.mock('../components/layout/Layout', () => ({
   default: ({ children }: { children: ReactNode }) => <div data-testid="layout">{children}</div>,
@@ -168,10 +168,24 @@ describe('EvaluationCenter UI', () => {
     expect(screen.getByRole('tab', { name: 'Ablation' })).toBeInTheDocument();
     await waitFor(() => expect(getCampaignOverview).toHaveBeenCalledWith('cmp-1'));
     expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
+    expect(exportCampaignAnalysis).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Setup evaluation' }));
     expect(screen.getByText('TestCaseManager')).toBeInTheDocument();
     expect(screen.getByText('ModelConfigPanel')).toBeInTheDocument();
     expect(screen.getByText('CampaignRunner')).toBeInTheDocument();
+  });
+
+  it('does not keep the whole dashboard loading while deferred tab analytics are pending', async () => {
+    vi.mocked(getQuestionComparison).mockReturnValueOnce(new Promise(() => {}));
+
+    render(
+      <ChakraProvider theme={theme}>
+        <EvaluationCenter />
+      </ChakraProvider>
+    );
+
+    expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Loading evaluation analytics...')).not.toBeInTheDocument());
   });
 });
