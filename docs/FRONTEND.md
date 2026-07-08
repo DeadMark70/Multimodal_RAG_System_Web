@@ -129,22 +129,159 @@
 
 ## Evaluation UI Contract
 
-- `TestCase` now includes:
-  - `ground_truth_short`
-  - `key_points`
-  - `ragas_focus`
-- `CampaignResult` mirrors those fields for executed samples.
-- `CampaignMetricsResponse` now includes:
-  - `available_metrics`
-  - row-level `metric_values`
-  - row-level `reference_source`
-  - `summary_by_mode`
-  - `summary_by_category`
-  - `summary_by_focus`
-- `EvaluationResults.tsx` uses a runtime metric selector instead of assuming only two fixed metrics.
-- `EvaluationResults.tsx` renders wide results tables inside horizontal scroll containers instead of letting dense data overflow the page shell.
-- `EvaluationResults.tsx` consolidates `Category / Difficulty / Question Delta` into a tabbed Delta / ECR analysis card and keeps ECR notes behind tooltip triggers instead of always-visible note columns.
-- `TestCaseManager.tsx` now edits long-form answers, short-form answers, key points, and ragas focus metadata in one flow.
+- `/evaluation` is now an analytics-first shell owned by `src/pages/EvaluationCenter.tsx`.
+  - Header actions:
+    - campaign selector populated from `listCampaigns()`
+    - `Setup evaluation` button opening `EvaluationSetupDrawer.tsx`
+  - Data loading:
+    - page shell uses `useEffect` + page-local state, not TanStack Query
+    - initial load fetches campaigns only
+    - selecting a campaign refetches the full analytics bundle with `Promise.all(...)`
+  - Scroll ownership:
+    - page keeps `PageHeader` fixed in-page
+    - `evaluation-scroll-region` is the only vertical scroll owner for the route
+- Main analytics dashboard tabs (8):
+  - `Campaign Overview` -> `CampaignOverviewTab`
+  - `Question Analysis` -> `QuestionAnalysisTab`
+  - `Run Trace` -> `RunTraceTab`
+  - `Retrieval Evidence` -> `RetrievalEvidenceTab`
+  - `Agent Behavior` -> `AgentBehaviorTab`
+  - `Claim Evidence` -> `ClaimEvidenceTab`
+  - `Router Lab` -> `RouterLabTab`
+  - `Ablation` -> `AblationDashboardTab`
+- Setup / admin drawer tabs (right-side `Drawer`, `size="xl"`):
+  - `Test Cases` -> `TestCaseManager`
+  - `Model Configs` -> `ModelConfigPanel`
+  - `Campaigns` -> `CampaignRunner`
+
+### Evaluation Component Boundaries
+
+- `src/pages/EvaluationCenter.tsx`
+  - orchestration layer for campaign selection, analytics fetch fan-out, and view-model mapping
+  - service calls:
+    - `listCampaigns`
+    - `getCampaignOverview`
+    - `getCampaignResults`
+    - `getCampaignRuns`
+    - `getModeComparison`
+    - `getQuestionComparison`
+    - `getCostLatency`
+    - `getRouterAnalysis`
+    - `getAblationAnalysis`
+    - `getHumanVsAuto`
+    - `getHumanEvalQueue`
+    - `getCampaignErrors`
+    - `exportCampaignAnalysis`
+    - `getRunDetail` for the first available run only
+  - maps raw API payloads into simpler tab props; tab components stay presentation-focused
+- `EvaluationSetupDrawer.tsx`
+  - contains setup CRUD/execution surfaces; does not share page-local selection state with the analytics tabs
+- `TestCaseManager.tsx`
+  - owns test-case CRUD, JSON import/export, and modal form state
+  - service calls:
+    - `listTestCases`
+    - `createTestCase`
+    - `updateTestCase`
+    - `deleteTestCase`
+    - `importTestCases`
+  - edits `ground_truth`, `ground_truth_short`, `key_points`, `ragas_focus`, and preserves backend-managed research metadata when updating an existing row
+- `ModelConfigPanel.tsx`
+  - owns model discovery and preset CRUD
+  - service calls:
+    - `listAvailableModels`
+    - `listModelConfigs`
+    - `createModelConfig`
+    - `updateModelConfig`
+    - `deleteModelConfig`
+  - uses `ThinkingConfigControl.tsx` to switch between budget/level/unavailable reasoning controls based on `/api/evaluation/models`
+- `CampaignRunner.tsx`
+  - owns campaign creation, resumable live progress, cancel/reconnect actions, and a raw results preview
+  - service calls:
+    - `listTestCases`
+    - `listModelConfigs`
+    - `listCampaigns`
+    - `createCampaign`
+    - `cancelCampaign`
+    - `getCampaignResults`
+    - `streamCampaign`
+  - resumes the first non-terminal campaign on load and reconnects automatically
+- Standalone evaluation surfaces that still exist in the repo but are not mounted on `/evaluation`:
+  - `EvaluationResults.tsx`: older metrics/results analysis surface driven by `listCampaigns`, `getCampaignMetrics`, and `evaluateCampaign`
+  - `AgentTraceViewer.tsx`: older trace comparison surface driven by `listCampaigns`, `listCampaignTraces`, and `getCampaignResultTrace`
+
+### Evaluation Chart / Table Behavior
+
+- `CampaignOverviewTab.tsx`
+  - summary cards + four table-driven chart panels
+  - `ModeComparisonChart`, `CostQualityScatter`, `LatencyWaterfall`, and `TokenBreakdownChart` all render empty-copy text instead of placeholder graphics when no rows are present
+  - current "charts" are mostly compact tables with progress bars, not canvas/SVG charting
+- `QuestionAnalysisTab.tsx`
+  - category/status filters are local-only
+  - `QuestionDeltaHeatmap` renders a small table with cell background tinting (`green.50` / `red.50` / `gray.50`)
+  - detailed question table sits inside `overflowX="auto"`
+- `RunTraceTab.tsx` / `RunTraceTree.tsx`
+  - run selector fields are display-only `Select`s
+  - trace table sorts persisted events by `sequence`
+  - payload/error blobs stay collapsed behind per-row disclosure buttons
+- `RetrievalEvidenceTab.tsx`
+  - query cards + `RetrievedChunksTable` + `EvidenceCoveragePanel`
+  - chunk and coverage tables are horizontally scrollable; coverage totals are summarized above the table
+- `AgentBehaviorTab.tsx`
+  - top summary cards are aggregate totals computed client-side from row data
+  - detailed behavior table is scrollable and numeric-heavy
+- `ClaimEvidenceTab.tsx`
+  - `ClaimEvidenceTable` plus a separate unsupported-reasons list
+- `RouterLabTab.tsx`
+  - shows a retrospective-only warning if the campaign has no actual router runs
+  - policy comparison and optional confusion-matrix tables both use horizontal overflow wrappers
+- `AblationDashboardTab.tsx`
+  - groups ablation conditions, human calibration queue, export preview, and sanitized errors into separate table sections
+  - export controls are UI-only toggles plus preview metadata; the button does not currently trigger a new export request
+- `EvaluationResults.tsx` legacy surface
+  - reads `available_metrics`
+  - uses a runtime metric selector instead of assuming only two fixed metrics
+  - renders wide results tables inside horizontal scroll containers
+  - consolidates `Category / Difficulty / Question Delta` into a tabbed Delta / ECR card and keeps ECR notes behind tooltip triggers
+  - surfaces `reference_source` to distinguish `ground_truth_short` from `ground_truth_fallback_long`
+
+### Evaluation Empty-State / Legacy Compatibility Notes
+
+- Dashboard tabs are defensive when analytics are missing or partial:
+  - no selected campaign overview data -> `Select a campaign to view overview metrics.`
+  - no question comparisons -> `Question-level analysis will appear after run comparisons are available.`
+  - no trace events -> `Select a run to inspect trace details.`
+  - no retrieval / claims / agent aggregation / router / ablation payloads -> tab-specific explanatory copy
+- `RunTraceTab.tsx` still supports a legacy `legacySteps` prop and renders a simplified "legacy trace" list when supplied; `EvaluationCenter.tsx` currently feeds modern `traceEvents`, not legacy steps.
+- `CampaignRunner.tsx` legacy/empty states:
+  - no visible test cases for the current category filter -> `目前篩選沒有題目。`
+  - no running campaign -> `目前沒有執行中的 campaign。`
+  - no campaign history -> `尚未建立任何 campaign。`
+  - no raw results selected -> `選擇一個 campaign 以查看逐題結果。`
+- `EvaluationResults.tsx` legacy metrics surface:
+  - no campaigns -> `尚未建立任何 campaign，因此目前沒有可分析的結果。`
+  - completed/evaluating campaigns without visualizable RAGAS rows -> `此 campaign 目前尚無可視覺化的 RAGAS 指標。`
+- `AgentTraceViewer.tsx` legacy trace surface:
+  - no campaigns -> `尚未建立任何 campaign，因此目前沒有可檢視的 trace。`
+  - execution profile labels fall back to `legacy` when traces predate newer profiling fields
+
+### Evaluation SSE Compatibility
+
+- `src/services/evaluationApi.ts::streamCampaign(...)`
+  - uses authenticated `fetch`, not browser `EventSource`
+  - accepts only recognized `event:` names:
+    - lifecycle: `campaign_snapshot`, `campaign_progress`, `campaign_completed`, `campaign_failed`, `campaign_cancelled`
+    - granular: `run_started`, `routing_completed`, `retrieval_completed`, `generation_completed`, `metric_completed`, `run_completed`, `run_failed`
+  - concatenates multiple `data:` lines, parses JSON once, and ignores unknown event names or malformed payloads
+- Granular SSE payload typing includes `event_schema_version` and `sequence` (`CampaignGranularStreamEventData`), but the live client currently:
+  - does not branch on `event_schema_version`
+  - does not buffer or reorder incoming live events by `sequence`
+- Sequence handling is implemented for persisted observability views instead:
+  - `EvaluationCenter.tsx` maps `trace_events[*].sequence` into `RunTraceEvent.sequence`
+  - `RunTraceTree.tsx` sorts rows ascending by `sequence` before rendering
+- Campaign progress recovery is compatibility-first:
+  - `CampaignRunner.tsx` reconnects SSE with backoff
+  - if reconnect attempts are exhausted, it falls back to polling `listCampaigns()`
+  - on page load it resumes the first non-terminal campaign from campaign snapshots rather than depending on uninterrupted SSE continuity
 
 ## Reliability-Critical Behaviors
 

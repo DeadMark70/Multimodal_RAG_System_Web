@@ -14,7 +14,7 @@ Human-maintained inventory of the current frontend surface.
 | `/knowledge` | `KnowledgeBase.tsx` | `useDocuments`, `useUploadProgressStore` | `pdfApi.ts` |
 | `/chat` | `Chat.tsx` | `useChat`, `useDeepResearch`, `useAgenticBenchmarkResearch`, `useConversationMutations`, selector-based `useSettingsStore` hooks, selector-based `useSessionStore` hooks | `ragApi.ts`, `conversationApi.ts` |
 | `/experiment` | `Experiment.tsx` | page-local state | `ragApi.ts` |
-| `/evaluation` | `EvaluationCenter.tsx` | TanStack Query + evaluation components | `evaluationApi.ts` |
+| `/evaluation` | `EvaluationCenter.tsx` | page-local `useState`/`useEffect`, `useDisclosure`, evaluation presentation components | `evaluationApi.ts` |
 | `/graph-demo` | `GraphDemo.tsx` | `useGraphData`, `useSessionStore` | `graphApi.ts` |
 
 ## Shared Stores
@@ -107,19 +107,69 @@ Human-maintained inventory of the current frontend surface.
 
 ## Evaluation Surface Snapshot
 
+- `EvaluationCenter.tsx`
+  - keeps `PageHeader` fixed in-page and uses `evaluation-scroll-region` as the route scroll owner
+  - loads campaign inventory first, then refetches the selected campaign's analytics bundle with direct service calls instead of TanStack Query
+  - exposes eight main tabs:
+    - `Campaign Overview`
+    - `Question Analysis`
+    - `Run Trace`
+    - `Retrieval Evidence`
+    - `Agent Behavior`
+    - `Claim Evidence`
+    - `Router Lab`
+    - `Ablation`
+  - opens `EvaluationSetupDrawer.tsx` from the header for setup/admin work
+- `EvaluationSetupDrawer.tsx`
+  - right-side drawer with setup tabs for `Test Cases`, `Model Configs`, and `Campaigns`
 - `TestCaseManager.tsx`
-  - imports/exports master datasets
+  - imports/exports JSON datasets
   - edits `ground_truth`, `ground_truth_short`, `key_points`, and `ragas_focus`
-- `EvaluationResults.tsx`
-  - reads `available_metrics`
-  - lets the user switch the active metric at runtime
-  - renders grouped summaries by mode, category, and ragas focus
-  - wraps dense tables in horizontal scroll containers to preserve layout on typical desktop widths
-  - groups `Category / Difficulty / Question Delta` into a tabbed Delta / ECR explorer with sticky leading labels
-  - hides ECR note strings behind tooltip triggers instead of permanent note columns
-  - surfaces `reference_source` for correctness-debug workflows
-- `StabilityChart.tsx`
-  - now reads generic `metric_values` instead of only two hard-coded metrics
+  - preserves existing research metadata fields when updating a row
+- `ModelConfigPanel.tsx`
+  - loads available models plus saved presets
+  - uses `ThinkingConfigControl.tsx` to map model metadata into budget, level, or unavailable reasoning controls
+  - offers explicit model refresh and preset CRUD
+- `CampaignRunner.tsx`
+  - creates campaigns from saved presets, selected test cases, and selected modes
+  - resumes the first non-terminal campaign on load
+  - streams live progress through `streamCampaign(...)`, retries SSE reconnects, then falls back to `listCampaigns()` polling
+  - exposes campaign history and a raw results preview table
+- `CampaignOverviewTab.tsx`
+  - composes `MetricCard`, `ModeComparisonChart`, `CostQualityScatter`, `LatencyWaterfall`, and `TokenBreakdownChart`
+  - all panels degrade to explicit empty-copy text when the mapped dataset is missing
+- `QuestionAnalysisTab.tsx`
+  - applies local category/status filters
+  - combines `QuestionDeltaHeatmap.tsx` with a horizontally scrollable detail table
+- `RunTraceTab.tsx`
+  - renders display-only selectors for campaign/question/mode/repeat metadata
+  - supports legacy `legacySteps` rendering, but `/evaluation` currently passes modern `traceEvents`
+  - delegates table rendering to `RunTraceTree.tsx`, which sorts rows by `sequence`
+- `RetrievalEvidenceTab.tsx`
+  - renders query cards, `RetrievedChunksTable.tsx`, and `EvidenceCoveragePanel.tsx`
+- `AgentBehaviorTab.tsx`
+  - computes aggregate summary cards from result rows and shows a dense detail table
+- `ClaimEvidenceTab.tsx`
+  - combines `ClaimEvidenceTable.tsx` with an unsupported-reasons list
+- `RouterLabTab.tsx`
+  - shows retrospective-only warning copy when a campaign lacks actual router runs
+  - renders a decision summary, KPI cards, policy comparison table, and optional confusion-matrix table
+- `AblationDashboardTab.tsx`
+  - groups ablation counts, human-eval queue, export preview options, and sanitized errors into separate sections
+  - current export button is presentational; the page uses a prefetched `exportCampaignAnalysis(...)` preview rather than issuing a new request from the button
+- Standalone legacy evaluation surfaces still in the codebase:
+  - `EvaluationResults.tsx`
+    - reads `available_metrics`
+    - lets the user switch the active metric at runtime
+    - renders grouped summaries by mode, category, and ragas focus
+    - wraps dense tables in horizontal scroll containers
+    - groups `Category / Difficulty / Question Delta` into a tabbed Delta / ECR explorer
+    - hides ECR notes behind tooltip triggers
+    - surfaces `reference_source` for correctness-debug workflows
+  - `AgentTraceViewer.tsx`
+    - compares one or two stored traces for a selected campaign using `listCampaignTraces(...)` + `getCampaignResultTrace(...)`
+  - `StabilityChart.tsx`
+    - reads generic `metric_values` instead of only two hard-coded metrics
 
 ## Graph Rendering Snapshot
 
