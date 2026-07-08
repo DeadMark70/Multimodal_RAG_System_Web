@@ -64,6 +64,23 @@ function parseList(text: string): string[] {
     .filter(Boolean);
 }
 
+function preservedResearchMetadata(item?: TestCase) {
+  const metadata: Partial<Pick<TestCase, 'question_version' | 'required_modalities' | 'atomic_facts' | 'expected_evidence'>> = {};
+  if (item?.question_version != null) {
+    metadata.question_version = item.question_version;
+  }
+  if (Array.isArray(item?.required_modalities)) {
+    metadata.required_modalities = item.required_modalities;
+  }
+  if (Array.isArray(item?.atomic_facts)) {
+    metadata.atomic_facts = item.atomic_facts;
+  }
+  if (Array.isArray(item?.expected_evidence)) {
+    metadata.expected_evidence = item.expected_evidence;
+  }
+  return metadata;
+}
+
 const emptyFormState = (): TestCaseFormState => ({
   id: '',
   question: '',
@@ -179,6 +196,7 @@ export default function TestCaseManager() {
     }
 
     setSaving(true);
+    const existingCase = editingId ? cases.find((item) => item.id === editingId) : undefined;
     const payload = {
       id: form.id.trim() || undefined,
       question: form.question.trim(),
@@ -191,6 +209,7 @@ export default function TestCaseManager() {
       source_docs: parseList(form.source_docs_text),
       requires_multi_doc_reasoning: form.requires_multi_doc_reasoning,
       test_objective: form.test_objective.trim() || undefined,
+      ...preservedResearchMetadata(existingCase),
     };
 
     try {

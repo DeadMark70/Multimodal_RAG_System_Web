@@ -10,6 +10,10 @@ export interface TestCase {
   source_docs: string[];
   requires_multi_doc_reasoning: boolean;
   test_objective?: string | null;
+  question_version?: string | null;
+  required_modalities?: string[];
+  atomic_facts?: Array<Record<string, unknown>>;
+  expected_evidence?: Array<Record<string, unknown>>;
 }
 
 export interface GoldenDatasetImportRequest {
