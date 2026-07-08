@@ -227,21 +227,21 @@ export interface AnalyticsAggregateResponse {
   summaries: Record<string, unknown>;
 }
 
-export interface ModeComparisonResponse extends AnalyticsAggregateResponse {}
+export type ModeComparisonResponse = AnalyticsAggregateResponse;
 
-export interface QuestionComparisonResponse extends AnalyticsAggregateResponse {}
+export type QuestionComparisonResponse = AnalyticsAggregateResponse;
 
-export interface CostLatencyResponse extends AnalyticsAggregateResponse {}
+export type CostLatencyResponse = AnalyticsAggregateResponse;
 
 export interface RouterAnalysisResponse extends AnalyticsAggregateResponse {
   analysis_type: 'retrospective' | 'actual';
 }
 
-export interface AblationResponse extends AnalyticsAggregateResponse {}
+export type AblationResponse = AnalyticsAggregateResponse;
 
-export interface HumanVsAutoResponse extends AnalyticsAggregateResponse {}
+export type HumanVsAutoResponse = AnalyticsAggregateResponse;
 
-export interface RepeatStabilitySummary extends AnalyticsAggregateResponse {}
+export type RepeatStabilitySummary = AnalyticsAggregateResponse;
 
 export interface EvaluationRunListItem {
   run_id: string;

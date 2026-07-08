@@ -93,6 +93,10 @@ function stringValue(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
 
+function scalarString(value: unknown, fallback: string): string {
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : fallback;
+}
+
 function modeLabel(mode: string): string {
   return mode.charAt(0).toUpperCase() + mode.slice(1);
 }
@@ -190,7 +194,7 @@ function mapRunOptions(runs?: EvaluationRunListResponse) {
 
 function mapTraceEvents(detail?: RunDetailResponse) {
   return (detail?.trace_events ?? []).map((event) => ({
-    eventId: stringValue(event.event_id, stringValue(event.span_id, String(event.sequence ?? 'event'))),
+    eventId: stringValue(event.event_id, stringValue(event.span_id, scalarString(event.sequence, 'event'))),
     sequence: numberValue(event.sequence),
     stageName: stringValue(event.stage_name, 'unknown'),
     status: stringValue(event.status, 'unknown'),
@@ -207,22 +211,24 @@ function mapRetrieval(detail?: RunDetailResponse) {
       queryLabel: stringValue(event.retriever_name, `query ${index + 1}`),
       queryText: stringValue(event.query, stringValue(event.query_hash, 'n/a')),
     })),
-    chunks: (detail?.retrieval_chunks ?? []).map((chunk, index) => ({
-      rank: numberValue(chunk.rank_after_rerank, numberValue(chunk.rank_before_rerank, index + 1)),
-      docId: stringValue(chunk.doc_id, stringValue(chunk.chunk_id, 'n/a')),
-      page:
-        chunk.page_start || chunk.page_end
-          ? `${chunk.page_start ?? '?'}-${chunk.page_end ?? chunk.page_start ?? '?'}`
-          : 'n/a',
-      modality: stringValue(chunk.modality, 'text'),
-      denseScore: numberValue(chunk.dense_score),
-      bm25Score: numberValue(chunk.bm25_score),
-      rerankScore: numberValue(chunk.rerank_score),
-      inContext: Boolean(chunk.used_in_context),
-      usedInAnswer: Boolean(chunk.used_in_answer),
-      goldMatch: Boolean(chunk.expected_evidence_match),
-      excerpt: stringValue(chunk.excerpt),
-    })),
+    chunks: (detail?.retrieval_chunks ?? []).map((chunk, index) => {
+      const hasPage = typeof chunk.page_start === 'number' || typeof chunk.page_end === 'number';
+      const pageStart = scalarString(chunk.page_start, '?');
+      const pageEnd = scalarString(chunk.page_end, pageStart);
+      return {
+        rank: numberValue(chunk.rank_after_rerank, numberValue(chunk.rank_before_rerank, index + 1)),
+        docId: stringValue(chunk.doc_id, stringValue(chunk.chunk_id, 'n/a')),
+        page: hasPage ? `${pageStart}-${pageEnd}` : 'n/a',
+        modality: stringValue(chunk.modality, 'text'),
+        denseScore: numberValue(chunk.dense_score),
+        bm25Score: numberValue(chunk.bm25_score),
+        rerankScore: numberValue(chunk.rerank_score),
+        inContext: Boolean(chunk.used_in_context),
+        usedInAnswer: Boolean(chunk.used_in_answer),
+        goldMatch: Boolean(chunk.expected_evidence_match),
+        excerpt: stringValue(chunk.excerpt),
+      };
+    }),
     coverage: [],
   };
 }

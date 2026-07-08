@@ -167,7 +167,7 @@ describe('EvaluationCenter UI', () => {
     expect(screen.getByRole('tab', { name: 'Router Lab' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Ablation' })).toBeInTheDocument();
     await waitFor(() => expect(getCampaignOverview).toHaveBeenCalledWith('cmp-1'));
-    expect(screen.getByText('CampaignOverviewTab 2')).toBeInTheDocument();
+    expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Setup evaluation' }));
     expect(screen.getByText('TestCaseManager')).toBeInTheDocument();
