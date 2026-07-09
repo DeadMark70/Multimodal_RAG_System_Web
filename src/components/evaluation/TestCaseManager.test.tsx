@@ -70,6 +70,9 @@ describe('TestCaseManager', () => {
     });
 
     fireEvent.click(screen.getAllByRole('button', { name: '編輯' })[0]);
+    await waitFor(() => {
+      expect(screen.getByLabelText(/ID/)).toHaveValue('Q1');
+    });
     fireEvent.click(screen.getByRole('button', { name: '儲存' }));
 
     await waitFor(() => {
@@ -92,5 +95,24 @@ describe('TestCaseManager', () => {
         ],
       })
     );
+  });
+
+  it('keeps existing test case ids read-only while editing', async () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <TestCaseManager />
+      </ChakraProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Q1')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByRole('button', { name: '編輯' })[0]);
+    await waitFor(() => {
+      expect(screen.getByLabelText(/ID/)).toHaveValue('Q1');
+    });
+
+    expect(screen.getByLabelText(/ID/)).toBeDisabled();
   });
 });

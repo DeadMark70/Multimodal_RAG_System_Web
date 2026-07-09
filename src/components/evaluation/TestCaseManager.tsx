@@ -442,11 +442,12 @@ export default function TestCaseManager() {
           <ModalBody>
             <VStack spacing={3} align="stretch">
               <FormControl>
-                <FormLabel>ID（可選）</FormLabel>
+                <FormLabel>{editingId ? 'ID（建立後不可修改）' : 'ID（可選）'}</FormLabel>
                 <Input
                   value={form.id}
                   onChange={(event) => setForm((prev) => ({ ...prev, id: event.target.value }))}
-                  placeholder="留空則由後端自動產生"
+                  isDisabled={Boolean(editingId)}
+                  placeholder={editingId ? undefined : '留空則由後端自動產生'}
                 />
               </FormControl>
               <FormControl isRequired>
