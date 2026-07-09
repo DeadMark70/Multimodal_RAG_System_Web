@@ -26,22 +26,14 @@ import ClaimEvidenceTab from '../components/evaluation/ClaimEvidenceTab';
 import RouterLabTab from '../components/evaluation/RouterLabTab';
 import AblationDashboardTab from '../components/evaluation/AblationDashboardTab';
 import {
-  getAblationAnalysis,
-  getCampaignErrors,
-  getCampaignOverview,
+  getCampaignAnalyticsDashboard,
   getCampaignResults,
-  getCampaignRuns,
-  getCostLatency,
-  getHumanEvalQueue,
-  getHumanVsAuto,
-  getModeComparison,
-  getQuestionComparison,
-  getRouterAnalysis,
   getRunDetail,
   listCampaigns,
 } from '../services/evaluationApi';
 import type {
   AblationResponse,
+  CampaignAnalyticsDashboardResponse,
   CampaignErrorsResponse,
   CampaignOverviewResponse,
   CampaignResultsResponse,
@@ -72,6 +64,25 @@ interface DashboardApiData {
   errors?: CampaignErrorsResponse;
   exportPreview?: ExportCampaignResponse;
   runDetail?: RunDetailResponse;
+}
+
+function dashboardBundleToData(
+  campaigns: CampaignStatus[],
+  bundle: CampaignAnalyticsDashboardResponse
+): DashboardApiData {
+  return {
+    campaigns,
+    overview: bundle.overview,
+    runs: bundle.runs,
+    modeComparison: bundle.mode_comparison,
+    questionComparison: bundle.question_comparison,
+    costLatency: bundle.cost_latency,
+    routerAnalysis: bundle.router_analysis,
+    ablation: bundle.ablation,
+    humanVsAuto: bundle.human_vs_auto,
+    humanQueue: bundle.human_queue,
+    errors: bundle.errors,
+  };
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -346,61 +357,36 @@ export default function EvaluationCenter() {
     const loadDashboard = async () => {
       setLoadingDashboard(true);
       try {
-        const [campaigns, overview, modeComparison, errors] = await Promise.all([
+        const [campaigns, bundle] = await Promise.all([
           listCampaigns(),
-          getCampaignOverview(selectedCampaignId),
-          getModeComparison(selectedCampaignId),
-          getCampaignErrors(selectedCampaignId),
+          getCampaignAnalyticsDashboard(selectedCampaignId),
         ]);
         if (!mounted) {
           return;
         }
-        setDashboardData({
-          campaigns,
-          overview,
-          modeComparison,
-          errors,
-        });
+        setDashboardData(dashboardBundleToData(campaigns, bundle));
         setDashboardError(null);
         setLoadingDashboard(false);
 
-        const updateDeferredData = <K extends keyof DashboardApiData>(
-          key: K,
-          loader: () => Promise<Exclude<DashboardApiData[K], undefined>>
-        ) => {
-          void loader()
-            .then((value) => {
-              if (mounted) {
-                setDashboardData((current) => ({ ...current, [key]: value }));
-              }
-            })
-            .catch(() => undefined);
-        };
-
-        updateDeferredData('results', () => getCampaignResults(selectedCampaignId));
-        updateDeferredData('questionComparison', () => getQuestionComparison(selectedCampaignId));
-        updateDeferredData('costLatency', () => getCostLatency(selectedCampaignId));
-        updateDeferredData('routerAnalysis', () => getRouterAnalysis(selectedCampaignId));
-        updateDeferredData('ablation', () => getAblationAnalysis(selectedCampaignId));
-        updateDeferredData('humanVsAuto', () => getHumanVsAuto(selectedCampaignId));
-        updateDeferredData('humanQueue', () => getHumanEvalQueue(selectedCampaignId));
-
-        void getCampaignRuns(selectedCampaignId)
-          .then(async (runs) => {
+        void getCampaignResults(selectedCampaignId)
+          .then((results) => {
             if (!mounted) {
               return;
             }
-            setDashboardData((current) => ({ ...current, runs }));
-            const firstRunId = runs.runs[0]?.run_id;
-            if (!firstRunId) {
-              return;
-            }
-            const runDetail = await getRunDetail(selectedCampaignId, firstRunId);
-            if (mounted) {
-              setDashboardData((current) => ({ ...current, runDetail }));
-            }
+            setDashboardData((current) => ({ ...current, results }));
           })
           .catch(() => undefined);
+
+        const firstRunId = bundle.runs.runs[0]?.run_id;
+        if (firstRunId) {
+          void getRunDetail(selectedCampaignId, firstRunId)
+            .then((runDetail) => {
+              if (mounted) {
+                setDashboardData((current) => ({ ...current, runDetail }));
+              }
+            })
+            .catch(() => undefined);
+        }
       } catch (error) {
         if (mounted) {
           setDashboardError(error instanceof Error ? error.message : 'Failed to load evaluation analytics');

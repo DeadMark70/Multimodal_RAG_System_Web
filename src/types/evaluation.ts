@@ -402,6 +402,20 @@ export interface CampaignErrorsResponse {
   rows: SanitizedErrorRow[];
 }
 
+export interface CampaignAnalyticsDashboardResponse {
+  campaign_id: string;
+  overview: CampaignOverviewResponse;
+  runs: EvaluationRunListResponse;
+  mode_comparison: ModeComparisonResponse;
+  question_comparison: QuestionComparisonResponse;
+  cost_latency: CostLatencyResponse;
+  router_analysis: RouterAnalysisResponse;
+  ablation: AblationResponse;
+  human_vs_auto: HumanVsAutoResponse;
+  human_queue: HumanEvalQueueResponse;
+  errors: CampaignErrorsResponse;
+}
+
 export interface CampaignProgressEvent {
   campaign_id: string;
   status: CampaignLifecycleStatus;

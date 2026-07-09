@@ -4,7 +4,12 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import theme from '../theme';
 import EvaluationCenter from './EvaluationCenter';
-import { exportCampaignAnalysis, getCampaignOverview, getQuestionComparison } from '../services/evaluationApi';
+import {
+  exportCampaignAnalysis,
+  getCampaignAnalyticsDashboard,
+  getCampaignOverview,
+  getQuestionComparison,
+} from '../services/evaluationApi';
 
 vi.mock('../components/layout/Layout', () => ({
   default: ({ children }: { children: ReactNode }) => <div data-testid="layout">{children}</div>,
@@ -88,6 +93,69 @@ vi.mock('../services/evaluationApi', () => ({
     unpriced_call_count: 0,
     avg_latency_ms: 1000,
   }),
+  getCampaignAnalyticsDashboard: vi.fn().mockResolvedValue({
+    campaign_id: 'cmp-1',
+    overview: {
+      campaign_id: 'cmp-1',
+      sample_count: 2,
+      independent_question_count: 1,
+      repeat_count: 1,
+      sample_note: 'n = 2',
+      mode_counts: { agentic: 2 },
+      total_tokens: 200,
+      total_cost_usd: 0.02,
+      total_cost_twd: 0.64,
+      cost_status: 'complete',
+      priced_call_count: 1,
+      unpriced_call_count: 0,
+      avg_latency_ms: 1000,
+    },
+    runs: {
+      campaign_id: 'cmp-1',
+      runs: [
+        {
+          run_id: 'run-1',
+          campaign_id: 'cmp-1',
+          question_id: 'Q1',
+          question: 'Question?',
+          mode: 'agentic',
+          run_number: 1,
+          repeat_number: 1,
+          status: 'completed',
+          total_tokens: 100,
+          created_at: '2026-07-08T00:00:00Z',
+        },
+      ],
+    },
+    mode_comparison: {
+      campaign_id: 'cmp-1',
+      analysis_unit: 'execution',
+      sample_count: 2,
+      independent_question_count: 1,
+      repeat_count: 1,
+      sample_note: 'n = 2',
+      warnings: [],
+      rows: [],
+      summaries: { agentic: { sample_count: 2, total_tokens_mean: 100, latency_ms_mean: 1000 } },
+    },
+    question_comparison: {
+      campaign_id: 'cmp-1',
+      analysis_unit: 'question',
+      sample_count: 2,
+      independent_question_count: 1,
+      repeat_count: 1,
+      sample_note: 'n = 2',
+      warnings: [],
+      rows: [],
+      summaries: { Q1: { execution_sample_count: 2, modes: ['agentic'], total_tokens_mean: 100 } },
+    },
+    cost_latency: { campaign_id: 'cmp-1', analysis_unit: 'execution', sample_count: 2, independent_question_count: 1, repeat_count: 1, sample_note: 'n = 2', warnings: [], rows: [], summaries: {} },
+    router_analysis: { campaign_id: 'cmp-1', analysis_unit: 'execution', analysis_type: 'retrospective', sample_count: 2, independent_question_count: 1, repeat_count: 1, sample_note: 'n = 2', warnings: [], rows: [], summaries: {} },
+    ablation: { campaign_id: 'cmp-1', analysis_unit: 'execution', sample_count: 2, independent_question_count: 1, repeat_count: 1, sample_note: 'n = 2', warnings: [], rows: [], summaries: { condition_counts: {}, condition_labels: {} } },
+    human_vs_auto: { campaign_id: 'cmp-1', analysis_unit: 'execution', sample_count: 0, independent_question_count: 0, repeat_count: 0, sample_note: 'none', warnings: [], rows: [], summaries: {} },
+    human_queue: { campaign_id: 'cmp-1', rows: [] },
+    errors: { campaign_id: 'cmp-1', rows: [] },
+  }),
   getCampaignResults: vi.fn().mockResolvedValue({
     campaign: {},
     results: [
@@ -166,7 +234,8 @@ describe('EvaluationCenter UI', () => {
     expect(screen.getByRole('tab', { name: 'Claim Evidence' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Router Lab' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Ablation' })).toBeInTheDocument();
-    await waitFor(() => expect(getCampaignOverview).toHaveBeenCalledWith('cmp-1'));
+    await waitFor(() => expect(getCampaignAnalyticsDashboard).toHaveBeenCalledWith('cmp-1'));
+    expect(getCampaignOverview).not.toHaveBeenCalled();
     expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
     expect(exportCampaignAnalysis).not.toHaveBeenCalled();
 
@@ -186,6 +255,7 @@ describe('EvaluationCenter UI', () => {
     );
 
     expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
+    expect(getCampaignAnalyticsDashboard).toHaveBeenCalledWith('cmp-1');
     await waitFor(() => expect(screen.queryByText('Loading evaluation analytics...')).not.toBeInTheDocument());
   });
 });

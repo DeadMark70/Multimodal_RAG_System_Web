@@ -6,6 +6,7 @@ import type {
   AvailableModel,
   CampaignGranularStreamEventData,
   CampaignErrorsResponse,
+  CampaignAnalyticsDashboardResponse,
   CampaignCreateRequest,
   CampaignCreateResponse,
   CampaignEvaluateRequest,
@@ -220,6 +221,13 @@ export async function getCampaignOverview(campaignId: string): Promise<CampaignO
 
 export async function getCampaignRuns(campaignId: string): Promise<EvaluationRunListResponse> {
   const response = await api.get<EvaluationRunListResponse>(`/api/evaluation/campaigns/${campaignId}/runs`);
+  return response.data;
+}
+
+export async function getCampaignAnalyticsDashboard(campaignId: string): Promise<CampaignAnalyticsDashboardResponse> {
+  const response = await api.get<CampaignAnalyticsDashboardResponse>(
+    `/api/evaluation/campaigns/${campaignId}/analytics-dashboard`
+  );
   return response.data;
 }
 
