@@ -83,6 +83,7 @@
 - `Chat.tsx` no longer subscribes to the full settings store on the hot path:
   - preset dirtiness uses field-aware `areRagSettingsEqual(...)` instead of `JSON.stringify(...)`
   - ordinary chat/research execution reads narrow selector-based runtime settings
+- Fresh chat, invalid persisted preset IDs, malformed custom-preset base modes, and ordinary legacy conversation fallback all select the complete `Advanced` runtime config. Custom presets are normalized against their resolved base preset. `Graph RAG` remains an explicit optional preset for cross-document relations and claim-scope questions.
 - Desktop `/chat` now has three stable regions:
   - conversation history column
   - main message / Deep Research workspace
@@ -313,3 +314,6 @@
 - `ModelConfigPanel.tsx` uses `ThinkingConfigControl.tsx` to switch between budget, level, and unavailable states based on the selected model metadata from `/api/evaluation/models`.
 - Campaign setup and history show the selected preset's model plus reasoning setting, and raw campaign results summarize returned reasoning tokens.
 - Results analysis shows the campaign model and reasoning setting in the metrics header so exported/inspected metrics can be traced back to the run configuration.
+# Graph Workspace
+
+The Graph Workspace includes static quality diagnostics, campaign runtime quality lookup, and a query debugger. The debugger shows route, entity links, graph evidence provenance/resolution/verification state, and only counts independently eligible final-context items as answer-ready evidence.

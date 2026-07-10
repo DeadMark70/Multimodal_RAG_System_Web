@@ -66,6 +66,19 @@ function conditionRows(data?: AblationResponse) {
   }));
 }
 
+function graphFamilyRows(data?: AblationResponse) {
+  const summaries = asRecord(data?.summaries);
+  const conditions = asRecord(summaries.conditions_by_ablation_family);
+  const metrics = asRecord(summaries.graph_metrics_by_ablation_family);
+  return Object.entries(conditions)
+    .filter(([family]) => family.startsWith('graph_'))
+    .map(([family, value]) => ({
+      family,
+      conditionCount: Object.keys(asRecord(value)).length,
+      metrics: asRecord(metrics[family]),
+    }));
+}
+
 function toggleOption(
   options: Required<ExportCampaignRequest>,
   key: keyof Omit<Required<ExportCampaignRequest>, 'format'>
@@ -79,6 +92,7 @@ function toggleOption(
 export default function AblationDashboardTab({ data }: { data?: AblationDashboardData }) {
   const [exportOptions, setExportOptions] = useState(defaultExportOptions);
   const ablationRows = conditionRows(data?.ablation);
+  const graphFamilies = graphFamilyRows(data?.ablation);
   const humanSummaries = asRecord(data?.humanVsAuto?.summaries);
   const exportRedaction = asRecord(data?.exportPreview?.redaction);
   const exportRuns = Array.isArray(data?.exportPreview?.runs) ? data.exportPreview.runs.length : 0;
@@ -127,6 +141,42 @@ export default function AblationDashboardTab({ data }: { data?: AblationDashboar
               ) : (
                 <Tr>
                   <Td colSpan={3}>No ablation conditions recorded.</Td>
+                </Tr>
+              )}
+            </Tbody>
+          </Table>
+        </Box>
+      </Box>
+
+      <Box>
+        <Heading size="sm" mb={3}>
+          Graph Ablation Families
+        </Heading>
+        <Box overflowX="auto">
+          <Table size="sm">
+            <Thead>
+              <Tr>
+                <Th>Family</Th>
+                <Th isNumeric>Conditions</Th>
+                <Th isNumeric>Graph to Chunk</Th>
+                <Th isNumeric>Context Noise</Th>
+                <Th isNumeric>Unsupported Claims</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {graphFamilies.length ? (
+                graphFamilies.map((row) => (
+                  <Tr key={row.family}>
+                    <Td fontWeight="medium">{row.family}</Td>
+                    <Td isNumeric>{row.conditionCount.toLocaleString()}</Td>
+                    <Td isNumeric>{formatNumber(row.metrics.graph_to_chunk_success_rate)}</Td>
+                    <Td isNumeric>{formatNumber(row.metrics.graph_context_noise_ratio)}</Td>
+                    <Td isNumeric>{formatNumber(row.metrics.unsupported_graph_claim_rate)}</Td>
+                  </Tr>
+                ))
+              ) : (
+                <Tr>
+                  <Td colSpan={5}>No graph ablation families recorded.</Td>
                 </Tr>
               )}
             </Tbody>

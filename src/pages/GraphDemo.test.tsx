@@ -132,6 +132,28 @@ vi.mock('../hooks/useGraphData', () => ({
       finished_at: null,
     },
   }),
+  useGraphQuality: () => ({
+    data: {
+      score: 82,
+      num_nodes: 8,
+      num_edges: 5,
+      edge_with_provenance_ratio: 0.8,
+      generic_relation_ratio: 0.1,
+      duplicate_method_node_ratio: 0,
+      orphan_node_ratio: 0.1,
+      claim_scope_missing_count: 0,
+      issues: [
+        {
+          code: 'missing_edge_provenance',
+          severity: 'warning',
+          message: 'Some graph edges lack full provenance.',
+          recommended_action: 'Rebuild affected documents.',
+        },
+      ],
+    },
+  }),
+  useGraphRuntimeQuality: () => ({ data: undefined }),
+  useDebugGraphSearch: () => ({ mutate: vi.fn(), isPending: false, data: undefined }),
   useOptimizeGraph: () => ({
     mutate: optimizeMutateMock,
     isPending: false,
@@ -180,6 +202,19 @@ describe('GraphDemo', () => {
     expect(screen.getAllByText('1 0 實體').length).toBeGreaterThan(0);
     expect(screen.queryByText('failed.pdf')).not.toBeInTheDocument();
     expect(screen.getByText(/目前社群為 0/)).toBeInTheDocument();
+  });
+
+  it('renders graph quality issues and query debugger controls', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <GraphDemo />
+      </ChakraProvider>
+    );
+
+    expect(screen.getByText('Graph Quality')).toBeInTheDocument();
+    expect(screen.getByText('Some graph edges lack full provenance.')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Graph debug query' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Run graph debug search' })).toBeInTheDocument();
   });
 
   it('expands the document list inside a bounded scroll region', () => {

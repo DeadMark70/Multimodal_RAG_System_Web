@@ -29,6 +29,9 @@ import {
   Tooltip,
   useBreakpointValue,
   Heading,
+  Input,
+  Select,
+  SimpleGrid,
 } from '@chakra-ui/react';
 import { useMemo, useState } from 'react';
 import { FiChevronDown, FiChevronUp, FiCpu, FiRefreshCw, FiRotateCcw, FiTrash2, FiZap } from 'react-icons/fi';
@@ -48,8 +51,11 @@ import {
   useRebuildGraph,
   useRetryGraphDocument,
   useStartNodeVectorSync,
+  useDebugGraphSearch,
+  useGraphQuality,
+  useGraphRuntimeQuality,
 } from '../hooks/useGraphData';
-import type { GraphDocumentStatusItem } from '../types/graph';
+import type { GraphDocumentStatusItem, GraphSearchMode } from '../types/graph';
 
 const STATUS_META: Record<GraphDocumentStatusItem['status'], { colorScheme: string; label: string }> = {
   indexed: { colorScheme: 'green', label: '成功' },
@@ -67,6 +73,9 @@ export function GraphDemo() {
   const graphWidth = useBreakpointValue({ base: 320, md: 760, xl: 1100 }) ?? 1100;
   const toast = useToast();
   const [showDocumentList, setShowDocumentList] = useState(false);
+  const [debugQuery, setDebugQuery] = useState('');
+  const [debugSearchMode, setDebugSearchMode] = useState<GraphSearchMode>('generic');
+  const [runtimeCampaignId, setRuntimeCampaignId] = useState('');
 
   // Queries
   const { data: graphData, isLoading: isGraphLoading, error: graphError } = useGraphData();
@@ -77,6 +86,8 @@ export function GraphDemo() {
     error: graphDocumentsError,
   } = useGraphDocuments();
   const { data: nodeVectorSyncStatus } = useNodeVectorSyncStatus();
+  const { data: graphQuality } = useGraphQuality();
+  const { data: graphRuntimeQuality } = useGraphRuntimeQuality(runtimeCampaignId);
 
   // Mutations
   const optimizeMutation = useOptimizeGraph();
@@ -85,6 +96,7 @@ export function GraphDemo() {
   const retryMutation = useRetryGraphDocument();
   const purgeMutation = usePurgeGraphDocument();
   const startNodeVectorSyncMutation = useStartNodeVectorSync();
+  const debugSearchMutation = useDebugGraphSearch();
   const graphDocuments = graphDocumentsResponse?.documents ?? EMPTY_GRAPH_DOCUMENTS;
   const actionableDocuments = graphDocuments.filter((doc) =>
     ['failed', 'partial', 'empty'].includes(doc.status)
@@ -113,6 +125,12 @@ export function GraphDemo() {
       ),
     [graphDocuments]
   );
+
+  const handleDebugSearch = () => {
+    const query = debugQuery.trim();
+    if (!query) return;
+    debugSearchMutation.mutate({ query, search_mode: debugSearchMode });
+  };
 
   // 優化圖譜處理
   const handleOptimize = () => {
@@ -406,6 +424,100 @@ export function GraphDemo() {
                 <Text>無法取得文件級 GraphRAG 狀態：{graphDocumentsError.message}</Text>
               </Alert>
             )}
+
+            <SurfaceCard p={4}>
+              <Flex justify="space-between" align="start" gap={4} wrap="wrap">
+                <Box>
+                  <Heading size="sm" color={textColor}>Graph Quality</Heading>
+                  <Text mt={1} color={subTextColor} fontSize="sm">
+                    Static graph integrity is separate from campaign runtime violations.
+                  </Text>
+                </Box>
+                <Badge colorScheme={graphQuality && graphQuality.score < 70 ? 'red' : 'green'}>
+                  {graphQuality ? `${graphQuality.score}/100` : 'Loading'}
+                </Badge>
+              </Flex>
+              {graphQuality && (
+                <>
+                  <SimpleGrid mt={4} columns={{ base: 2, md: 4 }} spacing={3} fontSize="sm">
+                    <Text>Nodes: {graphQuality.num_nodes}</Text>
+                    <Text>Edges: {graphQuality.num_edges}</Text>
+                    <Text>Full provenance: {Math.round(graphQuality.edge_with_provenance_ratio * 100)}%</Text>
+                    <Text>Orphans: {Math.round(graphQuality.orphan_node_ratio * 100)}%</Text>
+                  </SimpleGrid>
+                  <VStack mt={4} align="stretch" spacing={2}>
+                    {graphQuality.issues.length === 0 ? (
+                      <Text color={subTextColor} fontSize="sm">No static graph issues detected.</Text>
+                    ) : graphQuality.issues.map((issue) => (
+                      <Box key={issue.code} borderLeftWidth="3px" borderColor={issue.severity === 'critical' ? 'red.400' : 'orange.400'} pl={3}>
+                        <Text fontSize="sm" fontWeight="semibold">{issue.message}</Text>
+                        <Text color={subTextColor} fontSize="sm">{issue.recommended_action}</Text>
+                      </Box>
+                    ))}
+                  </VStack>
+                </>
+              )}
+              <HStack mt={4} spacing={2} align="end" flexWrap="wrap">
+                <Input
+                  aria-label="Runtime campaign id"
+                  value={runtimeCampaignId}
+                  onChange={(event) => setRuntimeCampaignId(event.target.value)}
+                  placeholder="Campaign ID for runtime quality"
+                  maxW="320px"
+                  size="sm"
+                />
+                {graphRuntimeQuality && (
+                  <Text color={subTextColor} fontSize="sm">
+                    unresolved {graphRuntimeQuality.unresolved_anchor_count} / noise {graphRuntimeQuality.graph_context_noise_ratio ?? 'n/a'}
+                  </Text>
+                )}
+              </HStack>
+            </SurfaceCard>
+
+            <SurfaceCard p={4}>
+              <Heading size="sm" color={textColor}>Query Debugger</Heading>
+              <HStack mt={3} spacing={2} align="end" flexWrap="wrap">
+                <Input
+                  aria-label="Graph debug query"
+                  value={debugQuery}
+                  onChange={(event) => setDebugQuery(event.target.value)}
+                  placeholder="Inspect graph route and evidence eligibility"
+                  minW={{ base: '100%', md: '360px' }}
+                  size="sm"
+                />
+                <Select aria-label="Graph debug search mode" value={debugSearchMode} onChange={(event) => setDebugSearchMode(event.target.value as GraphSearchMode)} size="sm" maxW="150px">
+                  <option value="generic">generic</option>
+                  <option value="local">local</option>
+                  <option value="global">global</option>
+                  <option value="hybrid">hybrid</option>
+                </Select>
+                <Button aria-label="Run graph debug search" size="sm" onClick={handleDebugSearch} isLoading={debugSearchMutation.isPending} isDisabled={!debugQuery.trim()}>
+                  Run
+                </Button>
+              </HStack>
+              {debugSearchMutation.data && (
+                <Box mt={4} fontSize="sm">
+                  <HStack spacing={3} mb={3} flexWrap="wrap">
+                    <Badge colorScheme="blue">route: {debugSearchMutation.data.route}</Badge>
+                    <Badge>{debugSearchMutation.data.entity_links.length} entity links</Badge>
+                    <Badge>{debugSearchMutation.data.evidence_items.length} evidence items</Badge>
+                    <Badge colorScheme="green">{debugSearchMutation.data.final_context_items.length} final-context eligible</Badge>
+                  </HStack>
+                  <VStack align="stretch" spacing={2}>
+                    {debugSearchMutation.data.evidence_items.map((item) => (
+                      <Box key={item.item_id} borderWidth="1px" borderColor="surface.200" p={3}>
+                        <Flex justify="space-between" gap={3} wrap="wrap">
+                          <Text fontWeight="semibold">{item.summary}</Text>
+                          <Badge colorScheme={item.usable_as_context ? 'green' : 'gray'}>{item.usable_as_context ? 'eligible' : 'not eligible'}</Badge>
+                        </Flex>
+                        <Text color={subTextColor} mt={1}>{item.provenance_status} / {item.resolution_status} / {item.verification_status}</Text>
+                        <Text color={subTextColor}>{item.use_reason}</Text>
+                      </Box>
+                    ))}
+                  </VStack>
+                </Box>
+              )}
+            </SurfaceCard>
 
             <SurfaceCard p={4}>
           <Flex justify="space-between" align="center" mb={4} gap={4} wrap="wrap">

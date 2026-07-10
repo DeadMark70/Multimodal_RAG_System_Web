@@ -22,6 +22,10 @@ import type {
   GraphStatusResponse,
   GraphRebuildResponse,
   GraphOptimizeResponse,
+  GraphDebugSearchRequest,
+  GraphDebugSearchResponse,
+  GraphQualityResponse,
+  GraphRuntimeQualityResponse,
 } from '../types/graph';
 
 /**
@@ -111,5 +115,26 @@ export async function startNodeVectorSync(): Promise<GraphRebuildResponse> {
  */
 export async function getNodeVectorSyncStatus(): Promise<NodeVectorSyncStatusResponse> {
   const response = await api.get<NodeVectorSyncStatusResponse>('/graph/node-vector/sync/status');
+  return response.data;
+}
+
+export async function getGraphQuality(): Promise<GraphQualityResponse> {
+  const response = await api.get<GraphQualityResponse>('/graph/quality');
+  return response.data;
+}
+
+export async function getGraphRuntimeQuality(
+  campaignId: string
+): Promise<GraphRuntimeQualityResponse> {
+  const response = await api.get<GraphRuntimeQualityResponse>('/graph/runtime-quality', {
+    params: { campaign_id: campaignId },
+  });
+  return response.data;
+}
+
+export async function debugGraphSearch(
+  request: GraphDebugSearchRequest
+): Promise<GraphDebugSearchResponse> {
+  const response = await api.post<GraphDebugSearchResponse>('/graph/debug/search', request);
   return response.data;
 }

@@ -97,7 +97,7 @@ interface SettingsState {
 }
 
 const OFFICIAL_PRESET_ORDER: OfficialChatMode[] = ['native', 'advanced', 'graph', 'agentic', 'agentic_benchmark'];
-const DEFAULT_CHAT_MODE_ID: OfficialChatMode = 'graph';
+const DEFAULT_CHAT_MODE_ID: OfficialChatMode = 'advanced';
 
 function clampMaxSubtasks(value: number): number {
   if (!Number.isFinite(value)) {
@@ -253,7 +253,7 @@ export const OFFICIAL_CHAT_PRESETS: Record<OfficialChatMode, ChatModePreset> = {
     id: 'graph',
     name: 'Graph RAG',
     baseMode: 'graph',
-    description: '包含 Advanced 能力，再加上 Generic GraphRAG。',
+    description: 'Graph-assisted retrieval for cross-document relations and claim-scope questions.',
     config: createPresetConfig('graph'),
     isOfficial: true,
   },
@@ -360,7 +360,10 @@ function normalizeCustomPresets(presets: CustomChatPreset[] | undefined): Custom
       return [];
     }
 
-    const baseModeCandidate = typeof preset.baseMode === 'string' ? preset.baseMode : 'graph';
+    const baseModeCandidate = typeof preset.baseMode === 'string' ? preset.baseMode : 'advanced';
+    const baseMode = isOfficialChatMode(baseModeCandidate)
+      ? OFFICIAL_CHAT_PRESETS[baseModeCandidate].baseMode
+      : DEFAULT_CHAT_MODE_ID;
     const configCandidate = isPlainObject(preset.config)
       ? (preset.config as Partial<RagSettings>)
       : {};
@@ -371,10 +374,11 @@ function normalizeCustomPresets(presets: CustomChatPreset[] | undefined): Custom
         typeof preset.name === 'string' && preset.name.trim()
           ? preset.name.trim()
           : `自訂模式 ${index + 1}`,
-      baseMode: isOfficialChatMode(baseModeCandidate)
-        ? OFFICIAL_CHAT_PRESETS[baseModeCandidate].baseMode
-        : 'graph',
-      config: normalizeRagSettings(configCandidate),
+      baseMode,
+      config: normalizeRagSettings(
+        configCandidate,
+        OFFICIAL_CHAT_PRESETS[baseMode].config
+      ),
     }];
   });
 }
@@ -488,7 +492,7 @@ export const useSettingsStore = create<SettingsState>()(
             const { modeId, snapshot } = extractConversationSnapshot(metadata);
             const researchMode = resolveResearchModeFromMetadata(metadata);
             const fallbackMode: OfficialChatMode =
-              conversationType === 'research' ? researchMode ?? 'agentic' : 'graph';
+              conversationType === 'research' ? researchMode ?? 'agentic' : DEFAULT_CHAT_MODE_ID;
             const resolvedModeId =
               modeId && isKnownPresetId(modeId, state.customChatPresets)
                 ? modeId
@@ -601,15 +605,16 @@ export const useSettingsStore = create<SettingsState>()(
           ? requestedChatModeId
           : DEFAULT_CHAT_MODE_ID;
         const preset = resolvePresetFromState(selectedChatModeId, customChatPresets);
+        const hasValidPersistedMode = selectedChatModeId === requestedChatModeId;
 
         return {
           ...currentState,
           ...typedState,
           customChatPresets,
           selectedChatModeId,
-          ragSettings: normalizeRagSettings(
-            typedState?.ragSettings ?? preset.config
-          ),
+          ragSettings: hasValidPersistedMode && typedState?.ragSettings
+            ? normalizeRagSettings(typedState.ragSettings, preset.config)
+            : normalizeRagSettings(preset.config),
         };
       },
     }
