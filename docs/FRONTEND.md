@@ -83,7 +83,7 @@
 - `Chat.tsx` no longer subscribes to the full settings store on the hot path:
   - preset dirtiness uses field-aware `areRagSettingsEqual(...)` instead of `JSON.stringify(...)`
   - ordinary chat/research execution reads narrow selector-based runtime settings
-- Fresh chat, invalid persisted preset IDs, malformed custom-preset base modes, and ordinary legacy conversation fallback all select `Advanced`. `Graph RAG` remains an explicit manual preset for cross-document relations and claim-scope questions.
+- Fresh chat, invalid persisted preset IDs, malformed custom-preset base modes, and ordinary legacy conversation fallback all select the complete `Advanced` runtime config. Custom presets are normalized against their resolved base preset. `Graph RAG` remains an explicit optional preset for cross-document relations and claim-scope questions.
 - Desktop `/chat` now has three stable regions:
   - conversation history column
   - main message / Deep Research workspace

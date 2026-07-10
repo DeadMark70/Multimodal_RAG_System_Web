@@ -361,6 +361,9 @@ function normalizeCustomPresets(presets: CustomChatPreset[] | undefined): Custom
     }
 
     const baseModeCandidate = typeof preset.baseMode === 'string' ? preset.baseMode : 'advanced';
+    const baseMode = isOfficialChatMode(baseModeCandidate)
+      ? OFFICIAL_CHAT_PRESETS[baseModeCandidate].baseMode
+      : DEFAULT_CHAT_MODE_ID;
     const configCandidate = isPlainObject(preset.config)
       ? (preset.config as Partial<RagSettings>)
       : {};
@@ -371,10 +374,11 @@ function normalizeCustomPresets(presets: CustomChatPreset[] | undefined): Custom
         typeof preset.name === 'string' && preset.name.trim()
           ? preset.name.trim()
           : `自訂模式 ${index + 1}`,
-      baseMode: isOfficialChatMode(baseModeCandidate)
-        ? OFFICIAL_CHAT_PRESETS[baseModeCandidate].baseMode
-        : 'advanced',
-      config: normalizeRagSettings(configCandidate),
+      baseMode,
+      config: normalizeRagSettings(
+        configCandidate,
+        OFFICIAL_CHAT_PRESETS[baseMode].config
+      ),
     }];
   });
 }
@@ -601,15 +605,16 @@ export const useSettingsStore = create<SettingsState>()(
           ? requestedChatModeId
           : DEFAULT_CHAT_MODE_ID;
         const preset = resolvePresetFromState(selectedChatModeId, customChatPresets);
+        const hasValidPersistedMode = selectedChatModeId === requestedChatModeId;
 
         return {
           ...currentState,
           ...typedState,
           customChatPresets,
           selectedChatModeId,
-          ragSettings: normalizeRagSettings(
-            typedState?.ragSettings ?? preset.config
-          ),
+          ragSettings: hasValidPersistedMode && typedState?.ragSettings
+            ? normalizeRagSettings(typedState.ragSettings, preset.config)
+            : normalizeRagSettings(preset.config),
         };
       },
     }

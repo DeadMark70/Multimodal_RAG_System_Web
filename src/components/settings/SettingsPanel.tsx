@@ -331,10 +331,9 @@ export function SettingsPanel({ isDrawerMode = false }: SettingsPanelProps) {
             <SettingItem
               icon={FiShare2}
               label="Graph RAG"
-              description="預設啟用，可搭配 Generic Mode 自動路由"
+              description="選用於跨文件關係與主張範圍問題的輔助檢索。"
               isEnabled={ragSettings.enable_graph_rag}
               onChange={(v) => updateSetting('enable_graph_rag', v)}
-              isDefault
             />
 
             <Collapse in={ragSettings.enable_graph_rag} animateOpacity>

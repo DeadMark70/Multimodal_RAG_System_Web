@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   areRagSettingsEqual,
   getCurrentSettingsSnapshot,
+  OFFICIAL_CHAT_PRESETS,
   useSettingsStore,
 } from './useSettingsStore';
 
@@ -148,6 +149,69 @@ describe('useSettingsStore', () => {
     expect(state.customChatPresets).toHaveLength(1);
     expect(state.customChatPresets[0]?.id).toBe('valid-custom');
     expect(state.selectedChatModeId).toBe('advanced');
+    expect(state.ragSettings).toEqual(OFFICIAL_CHAT_PRESETS.advanced.config);
+  });
+
+  it('replaces stale persisted settings when the selected preset id is invalid', async () => {
+    localStorage.setItem(
+      'rag-settings-storage',
+      JSON.stringify({
+        state: {
+          selectedChatModeId: 'deleted-preset',
+          ragSettings: {
+            enable_hyde: true,
+            enable_multi_query: false,
+            enable_reranking: false,
+            enable_evaluation: true,
+            enable_graph_rag: true,
+            graph_search_mode: 'global',
+            enable_graph_planning: true,
+            enable_deep_image_analysis: true,
+            max_subtasks: 9,
+          },
+        },
+        version: 0,
+      })
+    );
+
+    await expect(useSettingsStore.persist.rehydrate()).resolves.toBeUndefined();
+
+    const state = useSettingsStore.getState();
+    expect(state.selectedChatModeId).toBe('advanced');
+    expect(state.ragSettings).toEqual(OFFICIAL_CHAT_PRESETS.advanced.config);
+  });
+
+  it('normalizes a custom preset against its resolved base preset config', async () => {
+    localStorage.setItem(
+      'rag-settings-storage',
+      JSON.stringify({
+        state: {
+          selectedChatModeId: 'custom-advanced',
+          customChatPresets: [
+            {
+              id: 'custom-advanced',
+              name: 'Partial advanced',
+              baseMode: 'advanced',
+              config: { enable_evaluation: true },
+            },
+          ],
+        },
+        version: 0,
+      })
+    );
+
+    await expect(useSettingsStore.persist.rehydrate()).resolves.toBeUndefined();
+
+    const state = useSettingsStore.getState();
+    expect(state.selectedChatModeId).toBe('custom-advanced');
+    expect(state.ragSettings).toEqual({
+      ...OFFICIAL_CHAT_PRESETS.advanced.config,
+      enable_evaluation: true,
+    });
+    expect(state.customChatPresets[0]?.config).toEqual({
+      ...OFFICIAL_CHAT_PRESETS.advanced.config,
+      enable_evaluation: true,
+    });
   });
 
   it('compares rag settings deterministically and exposes a point-in-time snapshot', () => {
