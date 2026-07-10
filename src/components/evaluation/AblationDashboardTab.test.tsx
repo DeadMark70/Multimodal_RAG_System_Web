@@ -87,6 +87,7 @@ describe('AblationDashboardTab', () => {
     renderWithTheme(<AblationDashboardTab data={dashboardData} />);
 
     expect(screen.getByText('Ablation Conditions')).toBeInTheDocument();
+    expect(screen.getByText('Graph Ablation Families')).toBeInTheDocument();
     expect(screen.getByText('text_only')).toBeInTheDocument();
     expect(screen.getByText('Visual + verifier')).toBeInTheDocument();
     expect(screen.getByText('Human Calibration')).toBeInTheDocument();
