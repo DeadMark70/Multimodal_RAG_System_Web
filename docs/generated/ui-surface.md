@@ -19,7 +19,7 @@ Human-maintained inventory of the current frontend surface.
 
 ## Shared Stores
 
-- `useSettingsStore`: persisted presets, mode flags, theme, sidebar, plus primitive selector hooks and derived runtime snapshots for chat/research hot paths
+- `useSettingsStore`: persisted presets, mode flags, theme, sidebar, plus primitive selector hooks and derived runtime snapshots for chat/research hot paths; `Advanced` is the default/fallback chat preset while `Graph RAG` stays an explicit relation/claim-scope preset
 - `useSessionStore`: transient session and graph/chat workspace state, with primitive selector hooks for narrow subscriptions on current chat ID, PDF state, and research task state
 - `useUploadProgressStore`: background upload/index progress
 

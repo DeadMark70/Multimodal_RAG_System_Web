@@ -145,13 +145,13 @@ describe('Chat Page Integration', () => {
         enable_multi_query: true,
         enable_reranking: true,
         enable_evaluation: false,
-        enable_graph_rag: true,
+        enable_graph_rag: false,
         graph_search_mode: 'generic',
         enable_graph_planning: false,
         enable_deep_image_analysis: false,
         max_subtasks: 5,
       },
-      selectedChatModeId: 'graph',
+      selectedChatModeId: 'advanced',
       customChatPresets: [],
     });
     mockSetCurrentChatId.mockReset();

@@ -15,13 +15,13 @@ describe('useSettingsStore', () => {
         enable_multi_query: true,
         enable_reranking: true,
         enable_evaluation: false,
-        enable_graph_rag: true,
+        enable_graph_rag: false,
         graph_search_mode: 'generic',
         enable_graph_planning: false,
         enable_deep_image_analysis: false,
         max_subtasks: 5,
       },
-      selectedChatModeId: 'graph',
+      selectedChatModeId: 'advanced',
       customChatPresets: [],
       theme: 'system',
       sidebarOpen: true,
@@ -29,12 +29,12 @@ describe('useSettingsStore', () => {
     });
   });
 
-  it('defaults to graph preset with generic mode enabled', () => {
+  it('defaults to advanced preset without graph retrieval', () => {
     const state = useSettingsStore.getState();
 
-    expect(state.selectedChatModeId).toBe('graph');
+    expect(state.selectedChatModeId).toBe('advanced');
     expect(state.ragSettings.enable_multi_query).toBe(true);
-    expect(state.ragSettings.enable_graph_rag).toBe(true);
+    expect(state.ragSettings.enable_graph_rag).toBe(false);
     expect(state.ragSettings.graph_search_mode).toBe('generic');
   });
 
@@ -147,14 +147,14 @@ describe('useSettingsStore', () => {
     const state = useSettingsStore.getState();
     expect(state.customChatPresets).toHaveLength(1);
     expect(state.customChatPresets[0]?.id).toBe('valid-custom');
-    expect(state.selectedChatModeId).toBe('graph');
+    expect(state.selectedChatModeId).toBe('advanced');
   });
 
   it('compares rag settings deterministically and exposes a point-in-time snapshot', () => {
     const initialSnapshot = getCurrentSettingsSnapshot();
 
     expect(areRagSettingsEqual(initialSnapshot.ragSettings, useSettingsStore.getState().ragSettings)).toBe(true);
-    expect(initialSnapshot.selectedChatModeId).toBe('graph');
+    expect(initialSnapshot.selectedChatModeId).toBe('advanced');
 
     useSettingsStore.getState().actions.setTheme('dark');
     const afterThemeSnapshot = getCurrentSettingsSnapshot();
