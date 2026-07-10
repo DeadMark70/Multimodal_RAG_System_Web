@@ -180,3 +180,6 @@ Human-maintained inventory of the current frontend surface.
   - simplifies node drawing at low zoom and keeps hover labels as the fallback identification affordance
   - treats dense graphs as a special case by disabling link arrows and shortening force-simulation cooldown/warmup
   - uses orbit/hover/select behavior in 3D mode without camera fly-to or button-based zoom controls
+# Graph Workspace Surfaces
+
+- `GraphDemo`: graph maintenance controls, static quality issues, optional campaign runtime quality, and a query debugger with evidence eligibility state.

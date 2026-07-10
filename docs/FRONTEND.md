@@ -314,3 +314,6 @@
 - `ModelConfigPanel.tsx` uses `ThinkingConfigControl.tsx` to switch between budget, level, and unavailable states based on the selected model metadata from `/api/evaluation/models`.
 - Campaign setup and history show the selected preset's model plus reasoning setting, and raw campaign results summarize returned reasoning tokens.
 - Results analysis shows the campaign model and reasoning setting in the metrics header so exported/inspected metrics can be traced back to the run configuration.
+# Graph Workspace
+
+The Graph Workspace includes static quality diagnostics, campaign runtime quality lookup, and a query debugger. The debugger shows route, entity links, graph evidence provenance/resolution/verification state, and only counts independently eligible final-context items as answer-ready evidence.

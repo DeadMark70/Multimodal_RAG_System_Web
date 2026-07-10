@@ -210,6 +210,66 @@ export interface NodeVectorSyncStatusResponse {
  */
 export type GraphSearchMode = 'local' | 'global' | 'hybrid' | 'auto' | 'generic';
 
+export interface GraphQualityIssue {
+  code: string;
+  severity: 'info' | 'warning' | 'critical';
+  message: string;
+  recommended_action: string;
+}
+
+export interface GraphQualityResponse {
+  score: number;
+  num_nodes: number;
+  num_edges: number;
+  edge_with_provenance_ratio: number;
+  generic_relation_ratio: number;
+  duplicate_method_node_ratio: number;
+  orphan_node_ratio: number;
+  graph_to_chunk_success_rate?: number | null;
+  table_coverage_ratio?: number | null;
+  figure_coverage_ratio?: number | null;
+  formula_coverage_ratio?: number | null;
+  claim_scope_missing_count: number;
+  issues: GraphQualityIssue[];
+}
+
+export interface GraphRuntimeQualityResponse {
+  campaign_id: string | null;
+  community_summary_used_as_evidence_count: number;
+  unsupported_graph_claim_rate: number | null;
+  graph_context_noise_ratio: number | null;
+  unresolved_anchor_count: number;
+  graph_to_chunk_success_rate: number | null;
+  issues: GraphQualityIssue[];
+}
+
+export interface GraphDebugSearchRequest {
+  query: string;
+  search_mode?: GraphSearchMode;
+}
+
+export interface GraphDebugEvidenceItem {
+  item_id: string;
+  source: string;
+  summary: string;
+  provenance_status: 'full' | 'partial' | 'missing';
+  resolution_status: 'resolved' | 'fuzzy_resolved' | 'unresolved' | 'stale';
+  verification_status: 'quote_match' | 'quote_mismatch' | 'hash_mismatch' | 'not_checked';
+  usable_as_context: boolean;
+  use_reason: string;
+  source_chunk_ids: string[];
+  asset_ids: string[];
+}
+
+export interface GraphDebugSearchResponse {
+  query: string;
+  route: string;
+  entity_links: Array<Record<string, unknown>>;
+  hints: Array<Record<string, unknown>>;
+  evidence_items: GraphDebugEvidenceItem[];
+  final_context_items: GraphDebugEvidenceItem[];
+}
+
 // ========== React Force Graph 專用類型 ==========
 
 /**

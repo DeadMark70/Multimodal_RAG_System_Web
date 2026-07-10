@@ -9,6 +9,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getGraphData,
+  getGraphQuality,
+  getGraphRuntimeQuality,
   getGraphDocuments,
   getNodeVectorSyncStatus,
   getGraphStatus,
@@ -18,6 +20,7 @@ import {
   rebuildFullGraph,
   retryGraphDocument,
   startNodeVectorSync,
+  debugGraphSearch,
 } from '../services/graphApi';
 import type {
   GraphData,
@@ -26,6 +29,10 @@ import type {
   GraphStatusResponse,
   GraphOptimizeResponse,
   GraphRebuildResponse,
+  GraphDebugSearchRequest,
+  GraphDebugSearchResponse,
+  GraphQualityResponse,
+  GraphRuntimeQualityResponse,
 } from '../types/graph';
 
 // ========== Queries ==========
@@ -76,6 +83,31 @@ export function useNodeVectorSyncStatus() {
     staleTime: 1000,
     retry: 1,
     refetchInterval: (query) => (query.state.data?.state === 'running' ? 1000 : false),
+  });
+}
+
+export function useGraphQuality() {
+  return useQuery<GraphQualityResponse, Error>({
+    queryKey: ['graph', 'quality'],
+    queryFn: getGraphQuality,
+    staleTime: 30 * 1000,
+    retry: 1,
+  });
+}
+
+export function useGraphRuntimeQuality(campaignId: string) {
+  return useQuery<GraphRuntimeQualityResponse, Error>({
+    queryKey: ['graph', 'runtime-quality', campaignId],
+    queryFn: () => getGraphRuntimeQuality(campaignId),
+    enabled: Boolean(campaignId.trim()),
+    staleTime: 30 * 1000,
+    retry: 1,
+  });
+}
+
+export function useDebugGraphSearch() {
+  return useMutation<GraphDebugSearchResponse, Error, GraphDebugSearchRequest>({
+    mutationFn: debugGraphSearch,
   });
 }
 
