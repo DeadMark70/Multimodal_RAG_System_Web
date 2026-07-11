@@ -70,6 +70,20 @@ describe('AccountCard', () => {
     expect(screen.getByText('tester@example.com')).toBeInTheDocument();
   });
 
+  it('opens the protected change-password page', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <MemoryRouter>
+          <AccountCard onOpenSettings={vi.fn()} />
+        </MemoryRouter>
+      </ChakraProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '修改密碼' }));
+
+    expect(navigateMock).toHaveBeenCalledWith('/change-password');
+  });
+
   it('uses the auth context logout flow and redirects to login', async () => {
     signOutMock.mockResolvedValue(undefined);
 

@@ -9,7 +9,7 @@ import {
   useColorModeValue,
   useToast,
 } from '@chakra-ui/react';
-import { FiLogOut, FiSettings } from 'react-icons/fi';
+import { FiKey, FiLogOut, FiSettings } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/useAuth';
 
@@ -113,7 +113,21 @@ export default function AccountCard({ onOpenSettings, onBeforeSignOut }: Account
         </VStack>
       </HStack>
 
-      <HStack mt={4} spacing={2}>
+      <Button
+        mt={4}
+        width="full"
+        size="sm"
+        variant="ghost"
+        leftIcon={<FiKey />}
+        bg={settingsBg}
+        borderWidth="1px"
+        borderColor={settingsBorder}
+        onClick={() => void navigate('/change-password')}
+      >
+        修改密碼
+      </Button>
+
+      <HStack mt={2} spacing={2}>
         <Button
           flex="1"
           size="sm"
