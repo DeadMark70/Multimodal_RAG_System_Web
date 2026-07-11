@@ -43,6 +43,7 @@ describe('Login', () => {
       session: null,
       user: null,
       loading: false,
+      recoveryActive: false,
       signOut: signOutMock,
     });
   });
@@ -76,6 +77,7 @@ describe('Login', () => {
       session: { user: { id: '1' } } as AuthContextType['session'],
       user: { id: '1' } as AuthContextType['user'],
       loading: false,
+      recoveryActive: false,
       signOut: signOutMock,
     });
 

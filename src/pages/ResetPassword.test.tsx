@@ -44,6 +44,7 @@ describe('ResetPassword', () => {
       session: { user: { id: '1' } } as AuthContextType['session'],
       user: { id: '1' } as AuthContextType['user'],
       loading: false,
+      recoveryActive: false,
       signOut: signOutMock,
     });
     signOutMock.mockResolvedValue(undefined);
@@ -54,6 +55,7 @@ describe('ResetPassword', () => {
       session: null,
       user: null,
       loading: false,
+      recoveryActive: false,
       signOut: signOutMock,
     });
 

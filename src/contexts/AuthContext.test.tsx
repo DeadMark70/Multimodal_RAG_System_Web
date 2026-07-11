@@ -39,6 +39,11 @@ describe('AuthProvider', () => {
     );
   };
 
+  const RecoveryProbe = () => {
+    const { recoveryActive } = useAuth();
+    return <div data-testid="recovery-active">{String(recoveryActive)}</div>;
+  };
+
   beforeEach(() => {
     authStateChangeCallback = null;
     getSessionMock.mockReset();
@@ -80,6 +85,37 @@ describe('AuthProvider', () => {
     expect(window.location.pathname).toBe('/reset-password');
   });
 
+  it('activates recovery only after PASSWORD_RECOVERY', async () => {
+    const { getByTestId } = render(
+      <AuthProvider>
+        <RecoveryProbe />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(authStateChangeCallback).not.toBeNull());
+    expect(getByTestId('recovery-active')).toHaveTextContent('false');
+
+    act(() => {
+      authStateChangeCallback?.('PASSWORD_RECOVERY', null);
+    });
+
+    expect(getByTestId('recovery-active')).toHaveTextContent('true');
+  });
+
+  it('does not activate recovery for a persisted normal session', async () => {
+    getSessionMock.mockResolvedValue({
+      data: { session: { user: { id: '1' } } },
+    });
+
+    const { getByTestId } = render(
+      <AuthProvider>
+        <RecoveryProbe />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(getByTestId('recovery-active')).toHaveTextContent('false'));
+  });
+
   it('does not redirect for non-recovery auth events', async () => {
     render(
       <AuthProvider>
@@ -117,5 +153,28 @@ describe('AuthProvider', () => {
       expect(signOutMock).toHaveBeenNthCalledWith(1, { scope: 'global' });
       expect(signOutMock).toHaveBeenNthCalledWith(2, { scope: 'local' });
     });
+  });
+
+  it('clears recovery state on sign-out', async () => {
+    signOutMock.mockResolvedValue({ error: null });
+
+    const { getByRole, getByTestId } = render(
+      <AuthProvider>
+        <RecoveryProbe />
+        <TriggerSignOut />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(authStateChangeCallback).not.toBeNull());
+    act(() => {
+      authStateChangeCallback?.('PASSWORD_RECOVERY', null);
+    });
+    expect(getByTestId('recovery-active')).toHaveTextContent('true');
+
+    act(() => {
+      getByRole('button', { name: 'sign-out' }).click();
+    });
+
+    await waitFor(() => expect(getByTestId('recovery-active')).toHaveTextContent('false'));
   });
 });

@@ -43,6 +43,7 @@ function createAuthValue(overrides: Partial<AuthContextType> = {}): AuthContextT
       email: 'tester@example.com',
     } as AuthContextType['user'],
     loading: false,
+    recoveryActive: false,
     signOut: signOutMock,
     ...overrides,
   };

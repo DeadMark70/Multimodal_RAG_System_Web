@@ -7,6 +7,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recoveryActive, setRecoveryActive] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -26,6 +27,14 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       if (event === 'PASSWORD_RECOVERY' && window.location.pathname !== '/reset-password') {
         window.history.replaceState(window.history.state, '', '/reset-password');
       }
+
+      if (event === 'PASSWORD_RECOVERY') {
+        setRecoveryActive(true);
+      }
+
+      if (event === 'SIGNED_OUT') {
+        setRecoveryActive(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -42,10 +51,11 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
     setSession(null);
     setUser(null);
+    setRecoveryActive(false);
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, signOut }}>
+    <AuthContext.Provider value={{ session, user, loading, recoveryActive, signOut }}>
       {children}
     </AuthContext.Provider>
   );
