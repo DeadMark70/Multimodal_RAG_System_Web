@@ -166,6 +166,8 @@ export type GraphDocumentExtractionState =
   | 'running'
   | 'skipped';
 
+export type GraphExtractionProfile = 'standard' | 'high_precision';
+
 export interface GraphDocumentStatusItem {
   doc_id: string;
   status: GraphDocumentExtractionState;
@@ -179,6 +181,11 @@ export interface GraphDocumentStatusItem {
   last_succeeded_at: string | null;
   file_name: string | null;
   is_eligible: boolean;
+  extraction_model?: string | null;
+  extraction_thinking_level?: string | null;
+  extraction_profile?: GraphExtractionProfile | null;
+  extraction_prompt_version?: string | null;
+  extraction_recorded_at?: string | null;
 }
 
 export interface GraphDocumentStatusListResponse {

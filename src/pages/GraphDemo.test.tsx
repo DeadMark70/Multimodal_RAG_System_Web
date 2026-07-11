@@ -245,8 +245,32 @@ describe('GraphDemo', () => {
     fireEvent.click(screen.getByText('移除殘留圖譜'));
 
     expect(rebuildFullMutateMock).toHaveBeenCalledOnce();
-    expect(retryMutateMock).toHaveBeenCalledWith('doc-1', expect.any(Object));
+    expect(retryMutateMock).toHaveBeenCalledWith(
+      { docId: 'doc-1', extractionProfile: 'standard' },
+      expect.any(Object),
+    );
     expect(purgeMutateMock).toHaveBeenCalledWith('doc-orphan', expect.any(Object));
+  });
+
+  it('confirms before retrying a document at high precision', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <GraphDemo />
+      </ChakraProvider>,
+    );
+
+    fireEvent.click(screen.getByText('展開列表'));
+    fireEvent.click(screen.getAllByText('高精度重試')[0]);
+
+    expect(retryMutateMock).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: '確認高精度重試' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '確認高精度重試' }));
+
+    expect(retryMutateMock).toHaveBeenCalledWith(
+      { docId: 'doc-1', extractionProfile: 'high_precision' },
+      expect.any(Object),
+    );
   });
 
   it('triggers node-vector sync action', () => {

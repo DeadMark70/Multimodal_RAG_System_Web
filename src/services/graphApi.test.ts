@@ -77,7 +77,9 @@ describe('graphApi', () => {
 
     const result = await graphApi.retryGraphDocument('doc-123');
 
-    expect(mockedApi.post).toHaveBeenCalledWith('/graph/documents/doc-123/retry');
+    expect(mockedApi.post).toHaveBeenCalledWith('/graph/documents/doc-123/retry', {
+      extraction_profile: 'standard',
+    });
     expect(result.message).toContain('重試');
   });
 

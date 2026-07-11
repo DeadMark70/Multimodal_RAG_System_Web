@@ -26,6 +26,7 @@ import type {
   GraphDebugSearchResponse,
   GraphQualityResponse,
   GraphRuntimeQualityResponse,
+  GraphExtractionProfile,
 } from '../types/graph';
 
 /**
@@ -75,8 +76,13 @@ export async function rebuildFullGraph(): Promise<GraphRebuildResponse> {
 /**
  * 重試單一文件的 GraphRAG 抽取
  */
-export async function retryGraphDocument(docId: string): Promise<GraphRebuildResponse> {
-  const response = await api.post<GraphRebuildResponse>(`/graph/documents/${docId}/retry`);
+export async function retryGraphDocument(
+  docId: string,
+  extractionProfile: GraphExtractionProfile = 'standard',
+): Promise<GraphRebuildResponse> {
+  const response = await api.post<GraphRebuildResponse>(`/graph/documents/${docId}/retry`, {
+    extraction_profile: extractionProfile,
+  });
   return response.data;
 }
 
