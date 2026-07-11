@@ -116,8 +116,7 @@ export function GraphDemo() {
   );
   const graphJobActive = Boolean(
     graphStatus?.active_job_state
-    || fullRebuildStatus?.state === 'pending'
-    || fullRebuildStatus?.state === 'running'
+    || (fullRebuildStatus && !['completed', 'failed'].includes(fullRebuildStatus.state))
   );
   const nodeVectorSyncRunning = nodeVectorSyncStatus?.state === 'running';
   const nodeVectorSyncProgressPercent =
@@ -206,6 +205,27 @@ export function GraphDemo() {
       onError: (error) => {
         toast({
           title: '完整重構失敗',
+          description: error.message,
+          status: 'error',
+          duration: 5000,
+        });
+      },
+    });
+  };
+
+  const handleResumeFullRebuild = () => {
+    resumeFullRebuildMutation.mutate(undefined, {
+      onSuccess: (data) => {
+        toast({
+          title: data.state === 'completed_with_failures' ? '仍有失敗文件待重試' : '完整重構已繼續',
+          description: `已恢復重構工作，共 ${data.total} 份文件。`,
+          status: data.state === 'completed_with_failures' ? 'warning' : 'info',
+          duration: 5000,
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: '無法繼續完整重構',
           description: error.message,
           status: 'error',
           duration: 5000,
@@ -311,7 +331,7 @@ export function GraphDemo() {
               <GraphRebuildProgress
                 status={fullRebuildStatus}
                 isActionPending={resumeFullRebuildMutation.isPending}
-                onResume={() => resumeFullRebuildMutation.mutate()}
+                onResume={handleResumeFullRebuild}
               />
             )}
             <SurfaceCard p={4}>

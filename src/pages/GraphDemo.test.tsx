@@ -271,27 +271,24 @@ describe('GraphDemo', () => {
     expect(screen.getByText('移除殘留圖譜')).toBeInTheDocument();
   });
 
-  it('triggers full rebuild, retry, and purge actions', () => {
+  it('requires a recoverable durable job to use its resume action', () => {
     render(
       <ChakraProvider theme={theme}>
         <GraphDemo />
       </ChakraProvider>
     );
 
-    fireEvent.click(screen.getByText('完整重構'));
+    expect(screen.getByRole('button', { name: '完整重構' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: '繼續重建' }));
     fireEvent.click(screen.getByText('展開列表'));
-    fireEvent.click(screen.getAllByText('重試此文件')[0]);
-    fireEvent.click(screen.getByText('移除殘留圖譜'));
 
-    expect(rebuildFullMutateMock).toHaveBeenCalledOnce();
-    expect(retryMutateMock).toHaveBeenCalledWith(
-      { docId: 'doc-1', extractionProfile: 'standard' },
-      expect.any(Object),
-    );
-    expect(purgeMutateMock).toHaveBeenCalledWith('doc-orphan', expect.any(Object));
+    expect(rebuildFullMutateMock).not.toHaveBeenCalled();
+    expect(resumeFullRebuildMutateMock).toHaveBeenCalledWith(undefined, expect.any(Object));
+    expect(screen.getAllByText('重試此文件')[0]).toBeDisabled();
+    expect(screen.getByText('移除殘留圖譜')).toBeDisabled();
   });
 
-  it('confirms before retrying a document at high precision', () => {
+  it('blocks high-precision retry while a durable rebuild is recoverable', () => {
     render(
       <ChakraProvider theme={theme}>
         <GraphDemo />
@@ -299,28 +296,18 @@ describe('GraphDemo', () => {
     );
 
     fireEvent.click(screen.getByText('展開列表'));
-    fireEvent.click(screen.getAllByText('高精度重試')[0]);
-
+    expect(screen.getAllByText('高精度重試')[0]).toBeDisabled();
     expect(retryMutateMock).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: '確認高精度重試' })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: '確認高精度重試' }));
-
-    expect(retryMutateMock).toHaveBeenCalledWith(
-      { docId: 'doc-1', extractionProfile: 'high_precision' },
-      expect.any(Object),
-    );
   });
 
-  it('triggers node-vector sync action', () => {
+  it('blocks node-vector sync while a durable rebuild is recoverable', () => {
     render(
       <ChakraProvider theme={theme}>
         <GraphDemo />
       </ChakraProvider>
     );
 
-    fireEvent.click(screen.getByText('補齊節點嵌入'));
-
-    expect(startNodeVectorSyncMutateMock).toHaveBeenCalledOnce();
+    expect(screen.getByText('補齊節點嵌入')).toBeDisabled();
+    expect(startNodeVectorSyncMutateMock).not.toHaveBeenCalled();
   });
 });
