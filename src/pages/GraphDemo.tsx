@@ -42,6 +42,7 @@ import {
 import { useMemo, useRef, useState } from 'react';
 import { FiChevronDown, FiChevronUp, FiCpu, FiRefreshCw, FiRotateCcw, FiTrash2, FiZap } from 'react-icons/fi';
 import { KnowledgeGraph } from '../components/graph/KnowledgeGraph';
+import { GraphRebuildProgress } from '../components/graph/GraphRebuildProgress';
 import { ResearchFlow } from '../components/graph/ResearchFlow';
 import Layout from '../components/layout/Layout';
 import PageHeader from '../components/common/PageHeader';
@@ -49,11 +50,13 @@ import SurfaceCard from '../components/common/SurfaceCard';
 import {
   useGraphData,
   useGraphDocuments,
+  useFullGraphRebuildStatus,
   useNodeVectorSyncStatus,
   useGraphStatus,
   useOptimizeGraph,
   usePurgeGraphDocument,
   useRebuildFullGraph,
+  useResumeFullGraphRebuild,
   useRebuildGraph,
   useRetryGraphDocument,
   useStartNodeVectorSync,
@@ -93,6 +96,7 @@ export function GraphDemo() {
     isLoading: isGraphDocumentsLoading,
     error: graphDocumentsError,
   } = useGraphDocuments();
+  const { data: fullRebuildStatus } = useFullGraphRebuildStatus();
   const { data: nodeVectorSyncStatus } = useNodeVectorSyncStatus();
   const { data: graphQuality } = useGraphQuality();
   const { data: graphRuntimeQuality } = useGraphRuntimeQuality(runtimeCampaignId);
@@ -101,6 +105,7 @@ export function GraphDemo() {
   const optimizeMutation = useOptimizeGraph();
   const rebuildMutation = useRebuildGraph();
   const rebuildFullMutation = useRebuildFullGraph();
+  const resumeFullRebuildMutation = useResumeFullGraphRebuild();
   const retryMutation = useRetryGraphDocument();
   const purgeMutation = usePurgeGraphDocument();
   const startNodeVectorSyncMutation = useStartNodeVectorSync();
@@ -109,7 +114,11 @@ export function GraphDemo() {
   const actionableDocuments = graphDocuments.filter((doc) =>
     ['failed', 'partial', 'empty'].includes(doc.status)
   );
-  const graphJobActive = Boolean(graphStatus?.active_job_state);
+  const graphJobActive = Boolean(
+    graphStatus?.active_job_state
+    || fullRebuildStatus?.state === 'pending'
+    || fullRebuildStatus?.state === 'running'
+  );
   const nodeVectorSyncRunning = nodeVectorSyncStatus?.state === 'running';
   const nodeVectorSyncProgressPercent =
     nodeVectorSyncStatus && nodeVectorSyncStatus.total > 0
@@ -298,6 +307,13 @@ export function GraphDemo() {
           data-testid="graph-demo-scroll-region"
         >
           <VStack spacing={4} align="stretch">
+            {fullRebuildStatus && (
+              <GraphRebuildProgress
+                status={fullRebuildStatus}
+                isActionPending={resumeFullRebuildMutation.isPending}
+                onResume={() => resumeFullRebuildMutation.mutate()}
+              />
+            )}
             <SurfaceCard p={4}>
           <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
             <HStack spacing={2} flexWrap="wrap">

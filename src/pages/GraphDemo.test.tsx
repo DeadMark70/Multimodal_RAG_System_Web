@@ -9,6 +9,7 @@ import GraphDemo from './GraphDemo';
 const {
   rebuildMutateMock,
   rebuildFullMutateMock,
+  resumeFullRebuildMutateMock,
   startNodeVectorSyncMutateMock,
   optimizeMutateMock,
   purgeMutateMock,
@@ -16,6 +17,7 @@ const {
 } = vi.hoisted(() => ({
   rebuildMutateMock: vi.fn(),
   rebuildFullMutateMock: vi.fn(),
+  resumeFullRebuildMutateMock: vi.fn(),
   startNodeVectorSyncMutateMock: vi.fn(),
   optimizeMutateMock: vi.fn(),
   purgeMutateMock: vi.fn(),
@@ -166,6 +168,31 @@ vi.mock('../hooks/useGraphData', () => ({
     mutate: rebuildFullMutateMock,
     isPending: false,
   }),
+  useFullGraphRebuildStatus: () => ({
+    data: {
+      job_id: 'job-1',
+      state: 'interrupted',
+      phase: 'done',
+      total: 2,
+      processed: 1,
+      succeeded: 1,
+      empty: 0,
+      failed: 0,
+      partial: 0,
+      pending: 1,
+      progress_percent: 50,
+      current_document: null,
+      documents: [],
+      can_resume: true,
+      can_retry_failed: false,
+      live_graph_unchanged: true,
+      last_error: null,
+    },
+  }),
+  useResumeFullGraphRebuild: () => ({
+    mutate: resumeFullRebuildMutateMock,
+    isPending: false,
+  }),
   useRetryGraphDocument: () => ({
     mutate: retryMutateMock,
     isPending: false,
@@ -202,6 +229,18 @@ describe('GraphDemo', () => {
     expect(screen.getAllByText('1 0 實體').length).toBeGreaterThan(0);
     expect(screen.queryByText('failed.pdf')).not.toBeInTheDocument();
     expect(screen.getByText(/目前社群為 0/)).toBeInTheDocument();
+  });
+
+  it('renders durable rebuild progress and resumes an interrupted job', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <GraphDemo />
+      </ChakraProvider>
+    );
+
+    expect(screen.getByText('完整重建進度')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '繼續重建' }));
+    expect(resumeFullRebuildMutateMock).toHaveBeenCalledOnce();
   });
 
   it('renders graph quality issues and query debugger controls', () => {
