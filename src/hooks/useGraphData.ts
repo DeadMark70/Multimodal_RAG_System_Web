@@ -12,12 +12,14 @@ import {
   getGraphQuality,
   getGraphRuntimeQuality,
   getGraphDocuments,
+  getFullGraphRebuildStatus,
   getNodeVectorSyncStatus,
   getGraphStatus,
   optimizeGraph,
   purgeGraphDocument,
   rebuildGraph,
   rebuildFullGraph,
+  resumeFullGraphRebuild,
   retryGraphDocument,
   startNodeVectorSync,
   debugGraphSearch,
@@ -29,6 +31,7 @@ import type {
   GraphStatusResponse,
   GraphOptimizeResponse,
   GraphRebuildResponse,
+  GraphRebuildStatus,
   GraphDebugSearchRequest,
   GraphDebugSearchResponse,
   GraphQualityResponse,
@@ -84,6 +87,20 @@ export function useNodeVectorSyncStatus() {
     staleTime: 1000,
     retry: 1,
     refetchInterval: (query) => (query.state.data?.state === 'running' ? 1000 : false),
+  });
+}
+
+/** Poll durable full-rebuild progress only while the backend runner is active. */
+export function useFullGraphRebuildStatus() {
+  return useQuery<GraphRebuildStatus | null, Error>({
+    queryKey: ['graph', 'rebuild-full', 'status'],
+    queryFn: getFullGraphRebuildStatus,
+    staleTime: 1000,
+    retry: 1,
+    refetchInterval: (query) => {
+      const state = query.state.data?.state;
+      return state === 'pending' || state === 'running' ? 2000 : false;
+    },
   });
 }
 
@@ -155,8 +172,20 @@ export function useRebuildGraph() {
 export function useRebuildFullGraph() {
   const queryClient = useQueryClient();
 
-  return useMutation<GraphRebuildResponse, Error, void>({
+  return useMutation<GraphRebuildStatus, Error, void>({
     mutationFn: () => rebuildFullGraph(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['graph'] });
+    },
+  });
+}
+
+/** Resume an interrupted rebuild or retry only the failed document checkpoints. */
+export function useResumeFullGraphRebuild() {
+  const queryClient = useQueryClient();
+
+  return useMutation<GraphRebuildStatus, Error, void>({
+    mutationFn: resumeFullGraphRebuild,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['graph'] });
     },

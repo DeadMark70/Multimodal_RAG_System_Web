@@ -188,9 +188,9 @@ export function GraphDemo() {
     rebuildFullMutation.mutate(undefined, {
       onSuccess: (data) => {
         toast({
-          title: data.status === 'skipped' ? '未啟動完整重構' : '完整重構已啟動',
-          description: data.message,
-          status: data.status === 'skipped' ? 'warning' : 'info',
+          title: data.state === 'completed_with_failures' ? '完整重構等待失敗文件重試' : '完整重構已啟動',
+          description: `重構工作已建立，共 ${data.total} 份文件。`,
+          status: data.state === 'completed_with_failures' ? 'warning' : 'info',
           duration: 5000,
         });
       },

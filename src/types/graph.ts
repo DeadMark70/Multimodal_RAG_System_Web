@@ -143,6 +143,70 @@ export interface GraphRebuildResponse {
   details?: Record<string, unknown>;
 }
 
+export type GraphRebuildJobState =
+  | 'pending'
+  | 'running'
+  | 'interrupted'
+  | 'completed_with_failures'
+  | 'failed'
+  | 'completed';
+
+export type GraphRebuildPhase =
+  | 'preparing'
+  | 'extracting'
+  | 'retry_wait'
+  | 'optimizing'
+  | 'building_communities'
+  | 'syncing_sidecars'
+  | 'validating'
+  | 'publishing'
+  | 'done';
+
+export type GraphRebuildDocumentState =
+  | 'pending'
+  | 'running'
+  | 'retry_wait'
+  | 'indexed'
+  | 'empty'
+  | 'partial'
+  | 'failed';
+
+export interface GraphRebuildDocumentStatus {
+  doc_id: string;
+  file_name: string | null;
+  state: GraphRebuildDocumentState;
+  attempt: number;
+  cumulative_attempts: number;
+  chunk_count: number;
+  chunks_succeeded: number;
+  chunks_failed: number;
+  entities_added: number;
+  edges_added: number;
+  last_error: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface GraphRebuildStatus {
+  job_id: string;
+  state: GraphRebuildJobState;
+  phase: GraphRebuildPhase;
+  total: number;
+  processed: number;
+  succeeded: number;
+  empty: number;
+  failed: number;
+  partial: number;
+  pending: number;
+  progress_percent: number;
+  current_document: GraphRebuildDocumentStatus | null;
+  documents: GraphRebuildDocumentStatus[];
+  can_resume: boolean;
+  can_retry_failed: boolean;
+  live_graph_unchanged: boolean;
+  last_error: string | null;
+}
+
 /**
  * 圖譜優化回應
  *

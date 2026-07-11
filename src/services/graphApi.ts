@@ -21,6 +21,7 @@ import type {
   NodeVectorSyncStatusResponse,
   GraphStatusResponse,
   GraphRebuildResponse,
+  GraphRebuildStatus,
   GraphOptimizeResponse,
   GraphDebugSearchRequest,
   GraphDebugSearchResponse,
@@ -68,8 +69,20 @@ export async function rebuildGraph(force = false): Promise<GraphRebuildResponse>
 /**
  * 從所有 OCR 文件完整重構圖譜
  */
-export async function rebuildFullGraph(): Promise<GraphRebuildResponse> {
-  const response = await api.post<GraphRebuildResponse>('/graph/rebuild-full');
+export async function rebuildFullGraph(): Promise<GraphRebuildStatus> {
+  const response = await api.post<GraphRebuildStatus>('/graph/rebuild-full');
+  return response.data;
+}
+
+/** 取得目前或最近一次完整重構的 durable job 狀態。 */
+export async function getFullGraphRebuildStatus(): Promise<GraphRebuildStatus | null> {
+  const response = await api.get<GraphRebuildStatus | null>('/graph/rebuild-full/status');
+  return response.data;
+}
+
+/** 手動續跑中斷工作，或只重試上次失敗的文件。 */
+export async function resumeFullGraphRebuild(): Promise<GraphRebuildStatus> {
+  const response = await api.post<GraphRebuildStatus>('/graph/rebuild-full/resume');
   return response.data;
 }
 

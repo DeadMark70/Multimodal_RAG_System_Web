@@ -55,16 +55,47 @@ describe('graphApi', () => {
   it('starts a full rebuild via POST /graph/rebuild-full', async () => {
     mockedApi.post.mockResolvedValue({
       data: {
-        status: 'started',
-        message: '完整圖譜重構已開始',
-        details: { document_count: 3 },
+        job_id: 'job-1',
+        state: 'running',
+        phase: 'extracting',
+        total: 3,
+        processed: 0,
+        succeeded: 0,
+        empty: 0,
+        failed: 0,
+        partial: 0,
+        pending: 3,
+        progress_percent: 0,
+        current_document: null,
+        documents: [],
+        can_resume: false,
+        can_retry_failed: false,
+        live_graph_unchanged: true,
+        last_error: null,
       },
     });
 
     const result = await graphApi.rebuildFullGraph();
 
     expect(mockedApi.post).toHaveBeenCalledWith('/graph/rebuild-full');
-    expect(result.status).toBe('started');
+    expect(result.job_id).toBe('job-1');
+  });
+
+  it('gets durable full rebuild status', async () => {
+    mockedApi.get.mockResolvedValue({ data: null });
+
+    await expect(graphApi.getFullGraphRebuildStatus()).resolves.toBeNull();
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/graph/rebuild-full/status');
+  });
+
+  it('resumes a durable full rebuild via POST', async () => {
+    mockedApi.post.mockResolvedValue({ data: { job_id: 'job-1' } });
+
+    const result = await graphApi.resumeFullGraphRebuild();
+
+    expect(mockedApi.post).toHaveBeenCalledWith('/graph/rebuild-full/resume');
+    expect(result.job_id).toBe('job-1');
   });
 
   it('retries a single graph document via POST /graph/documents/{doc_id}/retry', async () => {

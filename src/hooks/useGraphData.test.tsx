@@ -5,9 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   useGraphDocuments,
+  useFullGraphRebuildStatus,
   useNodeVectorSyncStatus,
   usePurgeGraphDocument,
   useRebuildFullGraph,
+  useResumeFullGraphRebuild,
   useRetryGraphDocument,
   useStartNodeVectorSync,
 } from './useGraphData';
@@ -15,15 +17,19 @@ import {
 const {
   getGraphDocumentsMock,
   getNodeVectorSyncStatusMock,
+  getFullGraphRebuildStatusMock,
   purgeGraphDocumentMock,
   rebuildFullGraphMock,
+  resumeFullGraphRebuildMock,
   retryGraphDocumentMock,
   startNodeVectorSyncMock,
 } = vi.hoisted(() => ({
   getGraphDocumentsMock: vi.fn(),
   getNodeVectorSyncStatusMock: vi.fn(),
+  getFullGraphRebuildStatusMock: vi.fn(),
   purgeGraphDocumentMock: vi.fn(),
   rebuildFullGraphMock: vi.fn(),
+  resumeFullGraphRebuildMock: vi.fn(),
   retryGraphDocumentMock: vi.fn(),
   startNodeVectorSyncMock: vi.fn(),
 }));
@@ -33,10 +39,12 @@ vi.mock('../services/graphApi', () => ({
   getGraphStatus: vi.fn(),
   getGraphDocuments: getGraphDocumentsMock,
   getNodeVectorSyncStatus: getNodeVectorSyncStatusMock,
+  getFullGraphRebuildStatus: getFullGraphRebuildStatusMock,
   optimizeGraph: vi.fn(),
   purgeGraphDocument: purgeGraphDocumentMock,
   rebuildGraph: vi.fn(),
   rebuildFullGraph: rebuildFullGraphMock,
+  resumeFullGraphRebuild: resumeFullGraphRebuildMock,
   retryGraphDocument: retryGraphDocumentMock,
   startNodeVectorSync: startNodeVectorSyncMock,
 }));
@@ -84,8 +92,7 @@ describe('useGraphData hooks', () => {
   it('starts full rebuild mutation', async () => {
     const queryClient = new QueryClient();
     rebuildFullGraphMock.mockResolvedValue({
-      status: 'started',
-      message: '完整圖譜重構已開始',
+      job_id: 'job-1',
     });
 
     const { result } = renderHook(() => useRebuildFullGraph(), {
@@ -97,6 +104,51 @@ describe('useGraphData hooks', () => {
     });
 
     expect(rebuildFullGraphMock).toHaveBeenCalledOnce();
+  });
+
+  it('queries active full rebuild status', async () => {
+    const queryClient = new QueryClient();
+    getFullGraphRebuildStatusMock.mockResolvedValue({
+      job_id: 'job-1',
+      state: 'running',
+      phase: 'extracting',
+      total: 3,
+      processed: 1,
+      succeeded: 1,
+      empty: 0,
+      failed: 0,
+      partial: 0,
+      pending: 2,
+      progress_percent: 33,
+      current_document: null,
+      documents: [],
+      can_resume: false,
+      can_retry_failed: false,
+      live_graph_unchanged: true,
+      last_error: null,
+    });
+
+    const { result } = renderHook(() => useFullGraphRebuildStatus(), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await waitFor(() => expect(result.current.data?.state).toBe('running'));
+    expect(getFullGraphRebuildStatusMock).toHaveBeenCalledOnce();
+  });
+
+  it('resumes an interrupted full rebuild mutation', async () => {
+    const queryClient = new QueryClient();
+    resumeFullGraphRebuildMock.mockResolvedValue({ job_id: 'job-1' });
+
+    const { result } = renderHook(() => useResumeFullGraphRebuild(), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync();
+    });
+
+    expect(resumeFullGraphRebuildMock).toHaveBeenCalledOnce();
   });
 
   it('retries a single document mutation', async () => {
