@@ -32,8 +32,14 @@ import {
   Input,
   Select,
   SimpleGrid,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogOverlay,
 } from '@chakra-ui/react';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { FiChevronDown, FiChevronUp, FiCpu, FiRefreshCw, FiRotateCcw, FiTrash2, FiZap } from 'react-icons/fi';
 import { KnowledgeGraph } from '../components/graph/KnowledgeGraph';
 import { ResearchFlow } from '../components/graph/ResearchFlow';
@@ -55,7 +61,7 @@ import {
   useGraphQuality,
   useGraphRuntimeQuality,
 } from '../hooks/useGraphData';
-import type { GraphDocumentStatusItem, GraphSearchMode } from '../types/graph';
+import type { GraphDocumentStatusItem, GraphExtractionProfile, GraphSearchMode } from '../types/graph';
 
 const STATUS_META: Record<GraphDocumentStatusItem['status'], { colorScheme: string; label: string }> = {
   indexed: { colorScheme: 'green', label: '成功' },
@@ -76,6 +82,8 @@ export function GraphDemo() {
   const [debugQuery, setDebugQuery] = useState('');
   const [debugSearchMode, setDebugSearchMode] = useState<GraphSearchMode>('generic');
   const [runtimeCampaignId, setRuntimeCampaignId] = useState('');
+  const [highPrecisionDoc, setHighPrecisionDoc] = useState<GraphDocumentStatusItem | null>(null);
+  const highPrecisionCancelRef = useRef<HTMLButtonElement>(null);
 
   // Queries
   const { data: graphData, isLoading: isGraphLoading, error: graphError } = useGraphData();
@@ -197,11 +205,18 @@ export function GraphDemo() {
     });
   };
 
-  const handleRetryDocument = (doc: GraphDocumentStatusItem) => {
-    retryMutation.mutate(doc.doc_id, {
+  const handleRetryDocument = (
+    doc: GraphDocumentStatusItem,
+    extractionProfile: GraphExtractionProfile = 'standard',
+  ) => {
+    retryMutation.mutate({ docId: doc.doc_id, extractionProfile }, {
       onSuccess: (data) => {
         toast({
-          title: data.status === 'skipped' ? '未啟動重試' : '文件重試已啟動',
+          title: data.status === 'skipped'
+            ? '未啟動重試'
+            : extractionProfile === 'high_precision'
+              ? '高精度文件重試已啟動'
+              : '文件重試已啟動',
           description: `${doc.file_name ?? doc.doc_id}：${data.message}`,
           status: data.status === 'skipped' ? 'warning' : 'info',
           duration: 5000,
@@ -216,6 +231,13 @@ export function GraphDemo() {
         });
       },
     });
+  };
+
+  const handleConfirmHighPrecisionRetry = () => {
+    if (highPrecisionDoc) {
+      handleRetryDocument(highPrecisionDoc, 'high_precision');
+    }
+    setHighPrecisionDoc(null);
   };
 
   const handlePurgeDocument = (doc: GraphDocumentStatusItem) => {
@@ -602,6 +624,12 @@ export function GraphDemo() {
                           <Text>{doc.edges_added} 邊</Text>
                         </HStack>
 
+                        <Text mt={2} color={subTextColor} fontSize="xs">
+                          {doc.extraction_model
+                            ? `抽取：${doc.extraction_model} / ${doc.extraction_thinking_level ?? '未記錄'} / ${doc.extraction_profile ?? '未記錄'}`
+                            : '抽取 policy：舊圖譜，未記錄'}
+                        </Text>
+
                         {doc.last_error && (
                           <Text mt={2} color="red.500" fontSize="sm">
                             {doc.last_error}
@@ -610,17 +638,28 @@ export function GraphDemo() {
                       </Box>
 
                       {doc.is_eligible ? (
-                        <Button
-                          size="sm"
-                          colorScheme="orange"
-                          variant="outline"
-                          onClick={() => handleRetryDocument(doc)}
-                          isLoading={retryMutation.isPending && retryMutation.variables === doc.doc_id}
-                          loadingText="重試中..."
-                          isDisabled={graphJobActive}
-                        >
-                          重試此文件
-                        </Button>
+                        <HStack spacing={2}>
+                          <Button
+                            size="sm"
+                            colorScheme="orange"
+                            variant="outline"
+                            onClick={() => handleRetryDocument(doc)}
+                            isLoading={retryMutation.isPending && retryMutation.variables?.docId === doc.doc_id}
+                            loadingText="重試中..."
+                            isDisabled={graphJobActive}
+                          >
+                            重試此文件
+                          </Button>
+                          <Button
+                            size="sm"
+                            colorScheme="teal"
+                            variant="outline"
+                            onClick={() => setHighPrecisionDoc(doc)}
+                            isDisabled={graphJobActive}
+                          >
+                            高精度重試
+                          </Button>
+                        </HStack>
                       ) : (
                         <Button
                           size="sm"
@@ -676,6 +715,28 @@ export function GraphDemo() {
           </VStack>
         </Box>
       </Flex>
+      <AlertDialog
+        isOpen={Boolean(highPrecisionDoc)}
+        leastDestructiveRef={highPrecisionCancelRef}
+        onClose={() => setHighPrecisionDoc(null)}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader>確認高精度重試</AlertDialogHeader>
+            <AlertDialogBody>
+              僅重新抽取此文件並刷新社群；若工作失敗，現有圖譜會保留不變。
+            </AlertDialogBody>
+            <AlertDialogFooter>
+              <Button ref={highPrecisionCancelRef} onClick={() => setHighPrecisionDoc(null)}>
+                取消
+              </Button>
+              <Button colorScheme="teal" ml={3} onClick={handleConfirmHighPrecisionRetry}>
+                確認高精度重試
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </Layout>
   );
 }

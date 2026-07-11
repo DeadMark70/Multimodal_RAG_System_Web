@@ -33,6 +33,7 @@ import type {
   GraphDebugSearchResponse,
   GraphQualityResponse,
   GraphRuntimeQualityResponse,
+  GraphExtractionProfile,
 } from '../types/graph';
 
 // ========== Queries ==========
@@ -168,8 +169,12 @@ export function useRebuildFullGraph() {
 export function useRetryGraphDocument() {
   const queryClient = useQueryClient();
 
-  return useMutation<GraphRebuildResponse, Error, string>({
-    mutationFn: (docId) => retryGraphDocument(docId),
+  return useMutation<
+    GraphRebuildResponse,
+    Error,
+    { docId: string; extractionProfile: GraphExtractionProfile }
+  >({
+    mutationFn: ({ docId, extractionProfile }) => retryGraphDocument(docId, extractionProfile),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['graph'] });
     },

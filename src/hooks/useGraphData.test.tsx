@@ -111,10 +111,13 @@ describe('useGraphData hooks', () => {
     });
 
     await act(async () => {
-      await result.current.mutateAsync('doc-1');
+      await result.current.mutateAsync({
+        docId: 'doc-1',
+        extractionProfile: 'high_precision',
+      });
     });
 
-    expect(retryGraphDocumentMock).toHaveBeenCalledWith('doc-1');
+    expect(retryGraphDocumentMock).toHaveBeenCalledWith('doc-1', 'high_precision');
   });
 
   it('purges a single orphan document mutation', async () => {
