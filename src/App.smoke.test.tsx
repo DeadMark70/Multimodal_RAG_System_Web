@@ -17,6 +17,7 @@ vi.mock('./pages/Login', () => ({ default: () => <div>Login Page</div> }));
 vi.mock('./pages/Signup', () => ({ default: () => <div>Signup Page</div> }));
 vi.mock('./pages/ForgotPassword', () => ({ default: () => <div>Forgot Password Page</div> }));
 vi.mock('./pages/ResetPassword', () => ({ default: () => <div>Reset Password Page</div> }));
+vi.mock('./pages/ChangePassword', () => ({ default: () => <div>Change Password Page</div> }));
 vi.mock('./pages/KnowledgeBase', () => ({ default: () => <div>Knowledge Base Page</div> }));
 vi.mock('./pages/Chat', () => ({ default: () => <div>Chat Page</div> }));
 vi.mock('./pages/Experiment', () => ({ default: () => <div>Experiment Page</div> }));
@@ -57,5 +58,12 @@ describe('App Smoke Test', () => {
     render(<App />);
 
     expect(await screen.findByText('Reset Password Page')).toBeInTheDocument();
+  });
+
+  it('renders protected change password route', async () => {
+    window.history.pushState({}, '', '/change-password');
+    render(<App />);
+
+    expect(await screen.findByText('Change Password Page')).toBeInTheDocument();
   });
 });

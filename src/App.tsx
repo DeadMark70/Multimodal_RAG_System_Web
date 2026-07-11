@@ -10,6 +10,7 @@ const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const ChangePassword = lazy(() => import('./pages/ChangePassword'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const KnowledgeBase = lazy(() => import('./pages/KnowledgeBase'));
 const Chat = lazy(() => import('./pages/Chat'));
@@ -40,6 +41,7 @@ function App() {
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route element={<ProtectedRoute />}>
+                  <Route path="/change-password" element={<ChangePassword />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/knowledge" element={<KnowledgeBase />} />
                   <Route path="/chat" element={<Chat />} />
