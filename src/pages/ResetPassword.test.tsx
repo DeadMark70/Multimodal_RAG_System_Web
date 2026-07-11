@@ -44,7 +44,7 @@ describe('ResetPassword', () => {
       session: { user: { id: '1' } } as AuthContextType['session'],
       user: { id: '1' } as AuthContextType['user'],
       loading: false,
-      recoveryActive: false,
+      recoveryActive: true,
       signOut: signOutMock,
     });
     signOutMock.mockResolvedValue(undefined);
@@ -69,6 +69,27 @@ describe('ResetPassword', () => {
 
     expect(screen.getByRole('heading', { name: '重設連結不可用' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '回登入頁' })).toHaveAttribute('href', '/login');
+  });
+
+  it('rejects an ordinary authenticated session without recovery authorization', () => {
+    useAuthMock.mockReturnValue({
+      session: { user: { id: '1' } } as AuthContextType['session'],
+      user: { id: '1' } as AuthContextType['user'],
+      loading: false,
+      recoveryActive: false,
+      signOut: signOutMock,
+    });
+
+    render(
+      <ChakraProvider theme={theme}>
+        <MemoryRouter>
+          <ResetPassword />
+        </MemoryRouter>
+      </ChakraProvider>
+    );
+
+    expect(screen.getByRole('heading', { name: '重設連結不可用' })).toBeInTheDocument();
+    expect(updateUserMock).not.toHaveBeenCalled();
   });
 
   it('blocks submission when passwords do not match', async () => {

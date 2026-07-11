@@ -19,8 +19,7 @@ import {
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/useAuth';
-
-const MIN_PASSWORD_LENGTH = 8;
+import { getPasswordAuthErrorMessage, validateNewPassword } from '../services/authPassword';
 
 export default function ResetPassword() {
   const [password, setPassword] = useState('');
@@ -29,7 +28,7 @@ export default function ResetPassword() {
   const [errorMessage, setErrorMessage] = useState('');
   const toast = useToast();
   const navigate = useNavigate();
-  const { session, loading, signOut } = useAuth();
+  const { session, loading, recoveryActive, signOut } = useAuth();
 
   const pageBg = useColorModeValue('surface.50', 'surface.900');
   const panelBg = useColorModeValue('white', 'surface.800');
@@ -39,18 +38,14 @@ export default function ResetPassword() {
   const eyebrowColor = useColorModeValue('brand.600', 'brand.200');
 
   const submitPasswordReset = async () => {
-    if (!session) {
+    if (!session || !recoveryActive) {
       setErrorMessage('重設連結已失效，請重新申請重設密碼。');
       return;
     }
 
-    if (password.length < MIN_PASSWORD_LENGTH) {
-      setErrorMessage(`密碼長度至少需要 ${MIN_PASSWORD_LENGTH} 個字元。`);
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setErrorMessage('兩次輸入的密碼不一致。');
+    const validationError = validateNewPassword(password, confirmPassword);
+    if (validationError) {
+      setErrorMessage(validationError);
       return;
     }
 
@@ -71,10 +66,11 @@ export default function ResetPassword() {
       });
       void navigate('/login', { replace: true });
     } catch (error) {
-      setErrorMessage('更新密碼失敗，請重新嘗試。');
+      const message = getPasswordAuthErrorMessage(error, 'recovery');
+      setErrorMessage(message);
       toast({
         title: '密碼更新失敗',
-        description: error instanceof Error ? error.message : '請稍後再試。',
+        description: message,
         status: 'error',
       });
     } finally {
@@ -98,7 +94,7 @@ export default function ResetPassword() {
     );
   }
 
-  if (!session) {
+  if (!session || !recoveryActive) {
     return (
       <Flex minH="100vh" bg={pageBg} align="center" justify="center" px={{ base: 6, md: 10 }} py={{ base: 10, md: 12 }}>
         <Box

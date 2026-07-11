@@ -9,6 +9,16 @@ const { resetPasswordForEmailMock } = vi.hoisted(() => ({
   resetPasswordForEmailMock: vi.fn(),
 }));
 
+const toastMock = vi.fn();
+
+vi.mock('@chakra-ui/react', async () => {
+  const actual = await vi.importActual<Record<string, unknown>>('@chakra-ui/react');
+  return {
+    ...actual,
+    useToast: () => toastMock,
+  };
+});
+
 vi.mock('../services/supabase', () => ({
   supabase: {
     auth: {
@@ -20,6 +30,7 @@ vi.mock('../services/supabase', () => ({
 describe('ForgotPassword', () => {
   beforeEach(() => {
     resetPasswordForEmailMock.mockReset();
+    toastMock.mockReset();
     resetPasswordForEmailMock.mockResolvedValue({ data: {}, error: null });
   });
 
@@ -46,7 +57,7 @@ describe('ForgotPassword', () => {
   });
 
   it('shows error state when reset email request fails', async () => {
-    resetPasswordForEmailMock.mockRejectedValueOnce(new Error('request failed'));
+    resetPasswordForEmailMock.mockRejectedValueOnce(new Error('provider internal detail'));
 
     render(
       <ChakraProvider theme={theme}>
@@ -62,5 +73,9 @@ describe('ForgotPassword', () => {
     await waitFor(() =>
       expect(screen.getByText('寄送失敗，請稍後再試。')).toBeInTheDocument()
     );
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ description: '寄送失敗，請稍後再試。' })
+    );
+    expect(screen.queryByText('provider internal detail')).not.toBeInTheDocument();
   });
 });

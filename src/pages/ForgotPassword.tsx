@@ -60,11 +60,11 @@ export default function ForgotPassword() {
         description: GENERIC_SUCCESS_MESSAGE,
         status: 'success',
       });
-    } catch (error) {
+    } catch {
       setErrorMessage(GENERIC_ERROR_MESSAGE);
       toast({
         title: '無法寄送重設信件',
-        description: error instanceof Error ? error.message : GENERIC_ERROR_MESSAGE,
+        description: GENERIC_ERROR_MESSAGE,
         status: 'error',
       });
     } finally {
