@@ -63,7 +63,7 @@ export function GraphRebuildProgress({
 
       {status.current_document && (
         <Text mt={3}>
-          目前文件：{status.current_document.file_name ?? status.current_document.doc_id}：第 {status.current_document.attempt} 次，共 3 次
+          目前文件：{status.current_document.file_name ?? status.current_document.doc_id}：第 {status.current_document.attempt} 次，共 {status.max_attempts ?? 3} 次
         </Text>
       )}
       {status.live_graph_unchanged && (

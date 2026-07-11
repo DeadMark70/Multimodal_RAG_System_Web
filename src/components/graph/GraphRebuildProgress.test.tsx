@@ -18,6 +18,7 @@ const runningStatus: GraphRebuildStatus = {
   partial: 1,
   pending: 27,
   progress_percent: 46,
+  max_attempts: 5,
   current_document: {
     doc_id: 'doc-24',
     file_name: 'paper.pdf',
@@ -53,7 +54,7 @@ describe('GraphRebuildProgress', () => {
     renderProgress(runningStatus);
 
     expect(screen.getByText('23 / 50（46%）')).toBeInTheDocument();
-    expect(screen.getByText(/paper.pdf：第 2 次，共 3 次/)).toBeInTheDocument();
+    expect(screen.getByText(/paper.pdf：第 2 次，共 5 次/)).toBeInTheDocument();
     expect(screen.getByText(/目前查詢仍使用舊圖譜/)).toBeInTheDocument();
   });
 

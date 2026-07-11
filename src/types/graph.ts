@@ -199,6 +199,7 @@ export interface GraphRebuildStatus {
   partial: number;
   pending: number;
   progress_percent: number;
+  max_attempts?: number;
   current_document: GraphRebuildDocumentStatus | null;
   documents: GraphRebuildDocumentStatus[];
   can_resume: boolean;
