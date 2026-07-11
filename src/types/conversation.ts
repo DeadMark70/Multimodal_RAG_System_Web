@@ -22,6 +22,11 @@ export interface Conversation {
   metadata?: Record<string, unknown>;
 }
 
+export interface ConversationPage {
+  items: Conversation[];
+  next_cursor?: string | null;
+}
+
 /**
  * 對話訊息 (對應 messages table)
  */
@@ -38,6 +43,11 @@ export interface Message {
  */
 export interface ConversationDetail extends Conversation {
   messages: Message[];
+}
+
+export interface MessagePage {
+  items: Message[];
+  next_cursor?: string | null;
 }
 
 /**

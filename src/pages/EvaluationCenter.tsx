@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Button,
@@ -16,24 +16,22 @@ import {
 } from '@chakra-ui/react';
 import Layout from '../components/layout/Layout';
 import PageHeader from '../components/common/PageHeader';
-import EvaluationSetupDrawer from '../components/evaluation/EvaluationSetupDrawer';
-import CampaignOverviewTab from '../components/evaluation/CampaignOverviewTab';
-import QuestionAnalysisTab from '../components/evaluation/QuestionAnalysisTab';
-import RunTraceTab from '../components/evaluation/RunTraceTab';
-import RetrievalEvidenceTab from '../components/evaluation/RetrievalEvidenceTab';
-import AgentBehaviorTab from '../components/evaluation/AgentBehaviorTab';
-import ClaimEvidenceTab from '../components/evaluation/ClaimEvidenceTab';
-import RouterLabTab from '../components/evaluation/RouterLabTab';
-import AblationDashboardTab from '../components/evaluation/AblationDashboardTab';
 import {
-  getCampaignAnalyticsDashboard,
+  getAblationAnalysis,
+  getCampaignErrors,
+  getCampaignOverview,
   getCampaignResults,
+  getHumanEvalQueue,
+  getHumanVsAuto,
+  getModeComparison,
+  getQuestionComparison,
+  getRouterAnalysis,
+  getCampaignRuns,
   getRunDetail,
   listCampaigns,
 } from '../services/evaluationApi';
 import type {
   AblationResponse,
-  CampaignAnalyticsDashboardResponse,
   CampaignErrorsResponse,
   CampaignOverviewResponse,
   CampaignResultsResponse,
@@ -48,6 +46,16 @@ import type {
   RouterAnalysisResponse,
   RunDetailResponse,
 } from '../types/evaluation';
+
+const EvaluationSetupDrawer = lazy(() => import('../components/evaluation/EvaluationSetupDrawer'));
+const CampaignOverviewTab = lazy(() => import('../components/evaluation/CampaignOverviewTab'));
+const QuestionAnalysisTab = lazy(() => import('../components/evaluation/QuestionAnalysisTab'));
+const RunTraceTab = lazy(() => import('../components/evaluation/RunTraceTab'));
+const RetrievalEvidenceTab = lazy(() => import('../components/evaluation/RetrievalEvidenceTab'));
+const AgentBehaviorTab = lazy(() => import('../components/evaluation/AgentBehaviorTab'));
+const ClaimEvidenceTab = lazy(() => import('../components/evaluation/ClaimEvidenceTab'));
+const RouterLabTab = lazy(() => import('../components/evaluation/RouterLabTab'));
+const AblationDashboardTab = lazy(() => import('../components/evaluation/AblationDashboardTab'));
 
 interface DashboardApiData {
   campaigns: CampaignStatus[];
@@ -64,25 +72,6 @@ interface DashboardApiData {
   errors?: CampaignErrorsResponse;
   exportPreview?: ExportCampaignResponse;
   runDetail?: RunDetailResponse;
-}
-
-function dashboardBundleToData(
-  campaigns: CampaignStatus[],
-  bundle: CampaignAnalyticsDashboardResponse
-): DashboardApiData {
-  return {
-    campaigns,
-    overview: bundle.overview,
-    runs: bundle.runs,
-    modeComparison: bundle.mode_comparison,
-    questionComparison: bundle.question_comparison,
-    costLatency: bundle.cost_latency,
-    routerAnalysis: bundle.router_analysis,
-    ablation: bundle.ablation,
-    humanVsAuto: bundle.human_vs_auto,
-    humanQueue: bundle.human_queue,
-    errors: bundle.errors,
-  };
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -316,7 +305,11 @@ export default function EvaluationCenter() {
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const [dashboardData, setDashboardData] = useState<DashboardApiData>({ campaigns: [] });
   const [loadingDashboard, setLoadingDashboard] = useState(true);
+  const [loadingTab, setLoadingTab] = useState(false);
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const loadedTabsRef = useRef(new Set<string>());
+  const requestGenerationRef = useRef(0);
 
   useEffect(() => {
     let mounted = true;
@@ -354,39 +347,21 @@ export default function EvaluationCenter() {
     }
 
     let mounted = true;
+    const generation = requestGenerationRef.current + 1;
+    requestGenerationRef.current = generation;
+    loadedTabsRef.current = new Set();
+    setActiveTabIndex(0);
+    setDashboardData((current) => ({ campaigns: current.campaigns }));
     const loadDashboard = async () => {
       setLoadingDashboard(true);
       try {
-        const [campaigns, bundle] = await Promise.all([
-          listCampaigns(),
-          getCampaignAnalyticsDashboard(selectedCampaignId),
-        ]);
+        const overview = await getCampaignOverview(selectedCampaignId);
         if (!mounted) {
           return;
         }
-        setDashboardData(dashboardBundleToData(campaigns, bundle));
+        setDashboardData((current) => ({ ...current, overview }));
         setDashboardError(null);
         setLoadingDashboard(false);
-
-        void getCampaignResults(selectedCampaignId)
-          .then((results) => {
-            if (!mounted) {
-              return;
-            }
-            setDashboardData((current) => ({ ...current, results }));
-          })
-          .catch(() => undefined);
-
-        const firstRunId = bundle.runs.runs[0]?.run_id;
-        if (firstRunId) {
-          void getRunDetail(selectedCampaignId, firstRunId)
-            .then((runDetail) => {
-              if (mounted) {
-                setDashboardData((current) => ({ ...current, runDetail }));
-              }
-            })
-            .catch(() => undefined);
-        }
       } catch (error) {
         if (mounted) {
           setDashboardError(error instanceof Error ? error.message : 'Failed to load evaluation analytics');
@@ -400,6 +375,79 @@ export default function EvaluationCenter() {
       mounted = false;
     };
   }, [selectedCampaignId]);
+
+  const loadTabData = useCallback(async (tabIndex: number, campaignId: string) => {
+    switch (tabIndex) {
+      case 0: {
+        const [modeComparison, errors] = await Promise.all([
+          getModeComparison(campaignId),
+          getCampaignErrors(campaignId),
+        ]);
+        return { modeComparison, errors };
+      }
+      case 1:
+        return { questionComparison: await getQuestionComparison(campaignId) };
+      case 2:
+      case 3:
+      case 5: {
+        const runs = await getCampaignRuns(campaignId);
+        const firstRunId = runs.runs[0]?.run_id;
+        const runDetail = firstRunId ? await getRunDetail(campaignId, firstRunId) : undefined;
+        return { runs, runDetail };
+      }
+      case 4:
+        return { results: await getCampaignResults(campaignId) };
+      case 6:
+        return { routerAnalysis: await getRouterAnalysis(campaignId) };
+      case 7: {
+        const [ablation, humanVsAuto, humanQueue, errors] = await Promise.all([
+          getAblationAnalysis(campaignId),
+          getHumanVsAuto(campaignId),
+          getHumanEvalQueue(campaignId),
+          getCampaignErrors(campaignId),
+        ]);
+        return { ablation, humanVsAuto, humanQueue, errors };
+      }
+      default:
+        return {};
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!selectedCampaignId || !dashboardData.overview) {
+      return;
+    }
+    const tabKey = `${selectedCampaignId}:${activeTabIndex}`;
+    if (loadedTabsRef.current.has(tabKey)) {
+      return;
+    }
+
+    let mounted = true;
+    const generation = requestGenerationRef.current;
+    setLoadingTab(true);
+    void loadTabData(activeTabIndex, selectedCampaignId)
+      .then((partialData) => {
+        if (!mounted || generation !== requestGenerationRef.current) {
+          return;
+        }
+        setDashboardData((current) => ({ ...current, ...partialData }));
+        loadedTabsRef.current.add(tabKey);
+      })
+      .catch((error) => {
+        if (mounted && generation === requestGenerationRef.current) {
+          setDashboardError(error instanceof Error ? error.message : 'Failed to load evaluation tab');
+        }
+      })
+      .finally(() => {
+        if (mounted && generation === requestGenerationRef.current) {
+          setLoadingTab(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeTabIndex, dashboardData.overview, loadTabData, selectedCampaignId]);
 
   const selectedCampaign = useMemo(
     () => dashboardData.campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
@@ -507,31 +555,46 @@ export default function EvaluationCenter() {
               <Text>Loading evaluation analytics...</Text>
             </HStack>
           ) : null}
+          {!loadingDashboard && loadingTab ? (
+            <HStack py={2} color="text.secondary">
+              <Spinner size="sm" />
+              <Text>Loading selected analytics...</Text>
+            </HStack>
+          ) : null}
           {dashboardError ? (
             <Text py={2} color="red.500">
               {dashboardError}
             </Text>
           ) : null}
-          <Tabs variant="enclosed" isLazy>
-            <TabList overflowX="auto" overflowY="hidden" pb={1}>
-              {dashboardTabs.map((tab) => (
-                <Tab key={tab.label} whiteSpace="nowrap">
-                  {tab.label}
-                </Tab>
-              ))}
-            </TabList>
+          <Suspense fallback={<Text py={4}>Loading evaluation view...</Text>}>
+            <Tabs
+              variant="enclosed"
+              isLazy
+              index={activeTabIndex}
+              onChange={setActiveTabIndex}
+            >
+              <TabList overflowX="auto" overflowY="hidden" pb={1}>
+                {dashboardTabs.map((tab) => (
+                  <Tab key={tab.label} whiteSpace="nowrap">
+                    {tab.label}
+                  </Tab>
+                ))}
+              </TabList>
 
-            <TabPanels>
-              {dashboardTabs.map((tab) => (
-                <TabPanel key={tab.label} px={0} pt={4}>
-                  {tab.component}
-                </TabPanel>
-              ))}
-            </TabPanels>
-          </Tabs>
+              <TabPanels>
+                {dashboardTabs.map((tab) => (
+                  <TabPanel key={tab.label} px={0} pt={4}>
+                    {tab.component}
+                  </TabPanel>
+                ))}
+              </TabPanels>
+            </Tabs>
+          </Suspense>
         </Box>
       </Flex>
-      <EvaluationSetupDrawer isOpen={setupDrawer.isOpen} onClose={setupDrawer.onClose} />
+      <Suspense fallback={null}>
+        <EvaluationSetupDrawer isOpen={setupDrawer.isOpen} onClose={setupDrawer.onClose} />
+      </Suspense>
     </Layout>
   );
 }

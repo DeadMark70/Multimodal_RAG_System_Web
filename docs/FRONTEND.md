@@ -58,7 +58,7 @@
 - `src/services/ragApi.ts`
   - ask, ask stream, planning, execution, and Deep Research requests
 - `src/services/conversationApi.ts`
-  - conversation list/detail/message persistence
+  - legacy conversation CRUD plus bounded summary pages, cursor-paginated message pages, and message persistence
 - `src/services/graphApi.ts`
   - graph status, data, rebuild/optimize, document retry/purge, node-vector sync start/status polling
 - `src/services/evaluationApi.ts`
@@ -136,9 +136,9 @@
     - campaign selector populated from `listCampaigns()`
     - `Setup evaluation` button opening `EvaluationSetupDrawer.tsx`
   - Data loading:
-    - page shell uses `useEffect` + page-local state, not TanStack Query
-    - initial load fetches campaigns only
-    - selecting a campaign refetches the full analytics bundle with `Promise.all(...)`
+    - page shell uses page-local orchestration for campaign selection and a bounded overview request
+    - selecting a campaign loads overview only; each analytics tab requests its own data on first activation
+    - setup drawer and analytics tabs are true dynamic imports, so hidden surfaces do not enter the first route chunk
   - Scroll ownership:
     - page keeps `PageHeader` fixed in-page
     - `evaluation-scroll-region` is the only vertical scroll owner for the route
@@ -159,7 +159,7 @@
 ### Evaluation Component Boundaries
 
 - `src/pages/EvaluationCenter.tsx`
-  - orchestration layer for campaign selection, analytics fetch fan-out, and view-model mapping
+  - orchestration layer for campaign selection, bounded overview, tab-on-demand analytics, and view-model mapping
   - service calls:
     - `listCampaigns`
     - `getCampaignOverview`
@@ -174,7 +174,7 @@
     - `getHumanEvalQueue`
     - `getCampaignErrors`
     - `exportCampaignAnalysis`
-    - `getRunDetail` for the first available run only
+    - `getRunDetail` only after a run-detail tab is activated
   - maps raw API payloads into simpler tab props; tab components stay presentation-focused
 - `EvaluationSetupDrawer.tsx`
   - contains setup CRUD/execution surfaces; does not share page-local selection state with the analytics tabs

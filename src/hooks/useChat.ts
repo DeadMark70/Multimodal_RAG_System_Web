@@ -11,7 +11,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@chakra-ui/react';
 
 import { askQuestionStream } from '../services/ragApi';
-import { getConversation, addMessage } from '../services/conversationApi';
+import { getConversationMessagesPage, addMessage } from '../services/conversationApi';
 import type {
   AskRequest,
   AskResponse,
@@ -101,8 +101,8 @@ export function useChat(options: UseChatOptions = {}) {
     const loadHistory = async () => {
       setIsLoadingHistory(true);
       try {
-        const conversation = await getConversation(conversationId);
-        const loadedMessages: ChatMessage[] = conversation.messages.map((msg) => ({
+        const messagePage = await getConversationMessagesPage(conversationId);
+        const loadedMessages: ChatMessage[] = messagePage.items.map((msg) => ({
           id: String(msg.id),
           role: msg.role === 'system' ? 'assistant' : msg.role,
           content: msg.content,

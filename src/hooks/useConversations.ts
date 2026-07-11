@@ -4,10 +4,10 @@
  * 使用 TanStack Query 管理對話列表
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@chakra-ui/react';
 import { 
-  listConversations, 
+  listConversationPage,
   createConversation, 
   getConversation,
   updateConversation,
@@ -22,11 +22,14 @@ const QUERY_KEY = ['conversations'];
 /**
  * 取得對話列表
  */
-export function useConversationList() {
-  return useQuery({
-    queryKey: QUERY_KEY,
-    queryFn: listConversations,
-    staleTime: 30 * 1000, // 30 seconds
+export function useConversationList(search = '') {
+  return useInfiniteQuery({
+    queryKey: [...QUERY_KEY, 'page', search.trim()],
+    queryFn: ({ pageParam }) => listConversationPage({ cursor: pageParam, search }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -118,13 +121,16 @@ export function useConversationMutations() {
 /**
  * 組合 Hook - 完整對話管理
  */
-export function useConversations() {
-  const listQuery = useConversationList();
+export function useConversations(search = '') {
+  const listQuery = useConversationList(search);
   const mutations = useConversationMutations();
 
   return {
-    conversations: listQuery.data ?? [],
+    conversations: listQuery.data?.pages.flatMap((page) => page.items) ?? [],
     isLoading: listQuery.isLoading,
+    isFetchingNextPage: listQuery.isFetchingNextPage,
+    hasNextPage: listQuery.hasNextPage,
+    fetchNextPage: listQuery.fetchNextPage,
     error: listQuery.error,
     refetch: listQuery.refetch,
     ...mutations,

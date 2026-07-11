@@ -7,7 +7,12 @@
  * - 搜尋對話
  */
 
-import { useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import {
+  useDeferredValue,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type UIEvent as ReactUIEvent,
+} from 'react';
 import { 
   Box,
   VStack,
@@ -53,7 +58,16 @@ export default function ConversationSidebar({
   defaultNewType = 'chat',
 }: ConversationSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const { conversations, isLoading, remove, isDeleting } = useConversations();
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const {
+    conversations,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    remove,
+    isDeleting,
+  } = useConversations(deferredSearchQuery);
   
   // Modal state
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -100,6 +114,16 @@ export default function ConversationSidebar({
   const filteredConversations = conversations.filter(conv =>
     conv.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleListScroll = (event: ReactUIEvent<HTMLDivElement>) => {
+    if (!hasNextPage || isFetchingNextPage) {
+      return;
+    }
+    const target = event.currentTarget;
+    if (target.scrollTop + target.clientHeight >= target.scrollHeight - 120) {
+      void fetchNextPage();
+    }
+  };
 
   // 格式化時間
   const formatTime = (dateString: string) => {
@@ -227,7 +251,14 @@ export default function ConversationSidebar({
         </Box>
 
         {/* Conversation List */}
-        <Box flex={1} minH={0} overflowY="auto" p={2} sx={subtleScrollbarSx}>
+        <Box
+          flex={1}
+          minH={0}
+          overflowY="auto"
+          p={2}
+          sx={subtleScrollbarSx}
+          onScroll={handleListScroll}
+        >
           {isLoading ? (
             <VStack spacing={2}>
               {[1, 2, 3].map(i => (
@@ -388,6 +419,12 @@ export default function ConversationSidebar({
                   </Flex>
                 );
               })}
+              {isFetchingNextPage ? (
+                <VStack spacing={2} pt={2}>
+                  <Skeleton h="48px" w="100%" borderRadius="md" />
+                  <Skeleton h="48px" w="100%" borderRadius="md" />
+                </VStack>
+              ) : null}
             </VStack>
           )}
         </Box>

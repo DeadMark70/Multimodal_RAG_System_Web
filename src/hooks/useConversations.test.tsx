@@ -28,7 +28,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 );
 
 describe('useConversations Hook', () => {
-  const mockListConversations = asMock(conversationApi.listConversations);
+  const mockListConversationPage = asMock(conversationApi.listConversationPage);
   const mockGetConversation = asMock(conversationApi.getConversation);
   const mockCreateConversation = asMock(conversationApi.createConversation);
 
@@ -42,12 +42,12 @@ describe('useConversations Hook', () => {
       const mockList: Conversation[] = [
         { id: '1', title: 'Test', type: 'chat', created_at: '', updated_at: '' }
       ];
-      mockListConversations.mockResolvedValue(mockList);
+      mockListConversationPage.mockResolvedValue({ items: mockList, next_cursor: null });
 
       const { result } = renderHook(() => useConversationList(), { wrapper });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
-      expect(result.current.data).toEqual(mockList);
+      expect(result.current.data?.pages[0].items).toEqual(mockList);
     });
   });
 

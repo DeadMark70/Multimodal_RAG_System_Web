@@ -26,6 +26,9 @@ describe('ConversationSidebar Component', () => {
     mockUseConversations.mockReturnValue({
       conversations: mockConversations,
       isLoading: false,
+      isFetchingNextPage: false,
+      hasNextPage: false,
+      fetchNextPage: vi.fn(),
       error: null,
       refetch: vi.fn(),
       create: vi.fn(),

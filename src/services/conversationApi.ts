@@ -17,7 +17,9 @@ import type {
   CreateConversationRequest,
   UpdateConversationRequest,
   CreateMessageRequest,
-  Message
+  Message,
+  ConversationPage,
+  MessagePage,
 } from '../types/conversation';
 
 /**
@@ -25,6 +27,21 @@ import type {
  */
 export async function listConversations(): Promise<Conversation[]> {
   const response = await api.get<Conversation[]>('/api/conversations');
+  return response.data;
+}
+
+export async function listConversationPage(params: {
+  cursor?: string;
+  search?: string;
+  limit?: number;
+} = {}): Promise<ConversationPage> {
+  const response = await api.get<ConversationPage>('/api/conversations/page', {
+    params: {
+      limit: params.limit ?? 40,
+      ...(params.cursor ? { cursor: params.cursor } : {}),
+      ...(params.search?.trim() ? { search: params.search.trim() } : {}),
+    },
+  });
   return response.data;
 }
 
@@ -49,6 +66,19 @@ export async function getConversation(
     params: options?.includeMessages === undefined
       ? undefined
       : { include_messages: options.includeMessages },
+  });
+  return response.data;
+}
+
+export async function getConversationMessagesPage(
+  id: string,
+  params: { cursor?: string; limit?: number } = {}
+): Promise<MessagePage> {
+  const response = await api.get<MessagePage>(`/api/conversations/${id}/messages/page`, {
+    params: {
+      limit: params.limit ?? 50,
+      ...(params.cursor ? { cursor: params.cursor } : {}),
+    },
   });
   return response.data;
 }

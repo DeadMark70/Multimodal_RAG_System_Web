@@ -8,7 +8,7 @@ import * as ragApi from '../services/ragApi';
 import * as conversationApi from '../services/conversationApi';
 import { asMock } from '../test/mock-utils';
 import type { ChatStreamEvent } from '../types/rag';
-import type { ConversationDetail, Message } from '../types/conversation';
+import type { Message } from '../types/conversation';
 
 vi.mock('../services/ragApi');
 vi.mock('../services/conversationApi');
@@ -30,7 +30,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 
 describe('useChat Hook', () => {
   const mockAskQuestionStream = asMock(ragApi.askQuestionStream);
-  const mockGetConversation = asMock(conversationApi.getConversation);
+  const mockGetConversationMessagesPage = asMock(conversationApi.getConversationMessagesPage);
   const mockAddMessage = asMock(conversationApi.addMessage);
 
   beforeEach(() => {
@@ -42,15 +42,7 @@ describe('useChat Hook', () => {
     const conversationId = '123';
     const userMessage = 'Hello';
 
-    const conversation: ConversationDetail = {
-      id: conversationId,
-      title: 'Test',
-      type: 'chat',
-      created_at: '',
-      updated_at: '',
-      messages: [],
-    };
-    mockGetConversation.mockResolvedValue(conversation);
+    mockGetConversationMessagesPage.mockResolvedValue({ items: [], next_cursor: null });
     mockAddMessage.mockResolvedValue({
       id: 'persisted-1',
       role: 'assistant',
@@ -68,7 +60,7 @@ describe('useChat Hook', () => {
 
     const { result } = renderHook(() => useChat({ conversationId }), { wrapper });
 
-    await waitFor(() => expect(mockGetConversation).toHaveBeenCalledWith(conversationId));
+    await waitFor(() => expect(mockGetConversationMessagesPage).toHaveBeenCalledWith(conversationId));
 
     await act(async () => {
       await result.current.sendMessage(userMessage);
@@ -91,14 +83,7 @@ describe('useChat Hook', () => {
 
   it('creates a conversation and keeps first-turn messages visible during empty history hydration', async () => {
     const userMessage = 'First question';
-    mockGetConversation.mockResolvedValue({
-      id: 'new-chat',
-      title: 'New Chat',
-      type: 'chat',
-      created_at: '',
-      updated_at: '',
-      messages: [],
-    } as ConversationDetail);
+    mockGetConversationMessagesPage.mockResolvedValue({ items: [], next_cursor: null });
     mockAddMessage.mockResolvedValue({
       id: 'persisted-2',
       role: 'assistant',

@@ -12,6 +12,8 @@
 - Manual SSE parsing in chat and evaluation clients
 - Split state ownership across settings, session, and upload-progress stores
 - TanStack Query refetch/polling for documents, graph, and evaluation snapshots
+- Bounded conversation summary/message pages and query caching keep first paint independent of total history size
+- Evaluation overview and secondary tabs load independently so a slow analytics surface does not block the shell
 - Axios auth interceptor plus one-flight token refresh retry
 - `AuthProvider` redirect handling for `PASSWORD_RECOVERY`
 

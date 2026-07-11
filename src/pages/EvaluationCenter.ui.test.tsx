@@ -6,9 +6,8 @@ import theme from '../theme';
 import EvaluationCenter from './EvaluationCenter';
 import {
   exportCampaignAnalysis,
-  getCampaignAnalyticsDashboard,
+  getModeComparison,
   getCampaignOverview,
-  getQuestionComparison,
 } from '../services/evaluationApi';
 
 vi.mock('../components/layout/Layout', () => ({
@@ -226,27 +225,27 @@ describe('EvaluationCenter UI', () => {
 
     expect(screen.getByTestId('layout')).toBeInTheDocument();
     expect(screen.getByTestId('evaluation-scroll-region')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Campaign Overview' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Question Analysis' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Run Trace' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Retrieval Evidence' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Agent Behavior' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Claim Evidence' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Router Lab' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Ablation' })).toBeInTheDocument();
-    await waitFor(() => expect(getCampaignAnalyticsDashboard).toHaveBeenCalledWith('cmp-1'));
-    expect(getCampaignOverview).not.toHaveBeenCalled();
+    expect(await screen.findByRole('tab', { name: 'Campaign Overview' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Question Analysis' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Run Trace' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Retrieval Evidence' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Agent Behavior' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Claim Evidence' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Router Lab' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Ablation' })).toBeInTheDocument();
+    await waitFor(() => expect(getCampaignOverview).toHaveBeenCalledWith('cmp-1'));
+    await waitFor(() => expect(getModeComparison).toHaveBeenCalledWith('cmp-1'));
     expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
     expect(exportCampaignAnalysis).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Setup evaluation' }));
-    expect(screen.getByText('TestCaseManager')).toBeInTheDocument();
-    expect(screen.getByText('ModelConfigPanel')).toBeInTheDocument();
-    expect(screen.getByText('CampaignRunner')).toBeInTheDocument();
+    expect(await screen.findByText('TestCaseManager')).toBeInTheDocument();
+    expect(await screen.findByText('ModelConfigPanel')).toBeInTheDocument();
+    expect(await screen.findByText('CampaignRunner')).toBeInTheDocument();
   });
 
   it('does not keep the whole dashboard loading while deferred tab analytics are pending', async () => {
-    vi.mocked(getQuestionComparison).mockReturnValueOnce(new Promise(() => {}));
+    vi.mocked(getModeComparison).mockReturnValueOnce(new Promise(() => {}));
 
     render(
       <ChakraProvider theme={theme}>
@@ -255,7 +254,7 @@ describe('EvaluationCenter UI', () => {
     );
 
     expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
-    expect(getCampaignAnalyticsDashboard).toHaveBeenCalledWith('cmp-1');
+    expect(getCampaignOverview).toHaveBeenCalledWith('cmp-1');
     await waitFor(() => expect(screen.queryByText('Loading evaluation analytics...')).not.toBeInTheDocument());
   });
 });

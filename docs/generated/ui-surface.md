@@ -29,7 +29,7 @@ Human-maintained inventory of the current frontend surface.
 - `api.ts`: auth injection, refresh retry, error normalization
 - `networkPolicy.ts`: trusted-host allowlisting for API targets, token attachment, and markdown outbound links/images
 - `supabase.ts`: Supabase client bootstrap with intentionally persisted browser sessions and Supabase lifetime controls
-- `conversationApi.ts`: conversation CRUD + messages
+- `conversationApi.ts`: conversation CRUD, bounded conversation summary pages, cursor-paginated message pages, and message persistence
 - `evaluationApi.ts`: evaluation REST + authenticated SSE
 - `graphApi.ts`: graph status/data/maintenance + node-vector sync start/status polling
 - `pdfApi.ts`: documents and PDF file actions
