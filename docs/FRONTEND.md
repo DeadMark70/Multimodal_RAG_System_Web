@@ -5,7 +5,7 @@
 - React 18 + TypeScript + Vite 7
 - Chakra UI + Framer Motion
 - TanStack Query 5 + Zustand 5
-- Supabase Auth (non-persistent in-browser session) + shared Axios client + authenticated fetch SSE
+- Supabase Auth (persisted browser session with Supabase lifetime controls) + shared Axios client + authenticated fetch SSE
 - Vitest + Testing Library
 
 ## Runtime Shell
@@ -17,6 +17,7 @@
   - `/signup`
   - `/forgot-password`
   - `/reset-password`
+  - `/change-password`
   - `/dashboard`
   - `/knowledge`
   - `/chat`
@@ -288,10 +289,11 @@
 
 - Chat and evaluation streams use authenticated `fetch` + manual SSE parsing rather than browser `EventSource`.
 - Auth session fetch retries one refresh attempt before requests proceed without a token.
-- Supabase client keeps session tokens in memory (`persistSession=false`) to avoid long-lived `localStorage` credential persistence.
+- Supabase client intentionally persists sessions (`persistSession=true`) across browser restarts; Supabase controls JWT expiry, inactivity timeout, maximum session lifetime, and refresh-token reuse detection.
 - Authorization headers are attached only when request targets pass trusted-host policy checks.
 - Frontend outbound markdown requests are protected twice: `networkPolicy.ts` filters link/image hosts in React, and deployment CSP limits browser `img-src` / `connect-src` even if unsafe content slips through.
-- `PASSWORD_RECOVERY` auth events redirect to `/reset-password` if the incoming URL lands elsewhere.
+- `PASSWORD_RECOVERY` auth events redirect to `/reset-password` if the incoming URL lands elsewhere and activate the in-memory recovery capability required by the reset form.
+- `/change-password` is a protected route that sends the current password and new password directly to Supabase Auth; it is separate from email recovery.
 - Sign-out falls back from global revocation to local cleanup so stale tokens do not trap the UI in an authenticated state.
 - Upload and graph pages expose active job state and polling-driven recovery instead of optimistic silent success.
 - Evaluation results surface `reference_source` so fallback-to-long-answer cases are visible during debug.

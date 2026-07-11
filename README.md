@@ -49,6 +49,7 @@
   - `/forgot-password`
   - `/reset-password`
 - Protected routes (`ProtectedRoute` + `AuthProvider`):
+  - `/change-password`
   - `/dashboard`
   - `/knowledge`
   - `/chat`
@@ -94,7 +95,9 @@
 
 - Supabase client 建於 `src/services/supabase.ts`
 - `AuthProvider` 在啟動時 `getSession()`，並監聽 `onAuthStateChange`
-- `PASSWORD_RECOVERY` 事件會導向 `/reset-password`
+- `PASSWORD_RECOVERY` 事件會導向 `/reset-password`，且只有該 recovery state 可使用重設表單
+- 一般已登入的使用者從帳號卡進入 `/change-password`，需輸入目前密碼後才能設定新密碼
+- Supabase Session 會跨瀏覽器重開持久化；實際時效由 Supabase Auth Dashboard 的 JWT、閒置與最大 Session 設定控制
 - 登出流程先嘗試 `global`，失敗時 fallback `local`
 
 ### 5.2 一般 Chat（SSE）

@@ -10,6 +10,7 @@ Human-maintained inventory of the current frontend surface.
 | `/signup` | `Signup.tsx` | `AuthProvider` context | `supabase` |
 | `/forgot-password` | `ForgotPassword.tsx` | `AuthProvider` context | `supabase` |
 | `/reset-password` | `ResetPassword.tsx` | `AuthProvider` context | `supabase` |
+| `/change-password` | `ChangePassword.tsx` | `AuthProvider` context | `supabase` |
 | `/dashboard` | `Dashboard.tsx` | `useDashboardStats`, `useDocumentList`, `useGraphStatus`, `useGraphDocuments` | `statsApi.ts`, `pdfApi.ts`, `graphApi.ts` |
 | `/knowledge` | `KnowledgeBase.tsx` | `useDocuments`, `useUploadProgressStore` | `pdfApi.ts` |
 | `/chat` | `Chat.tsx` | `useChat`, `useDeepResearch`, `useAgenticBenchmarkResearch`, `useConversationMutations`, selector-based `useSettingsStore` hooks, selector-based `useSessionStore` hooks | `ragApi.ts`, `conversationApi.ts` |
@@ -27,7 +28,7 @@ Human-maintained inventory of the current frontend surface.
 
 - `api.ts`: auth injection, refresh retry, error normalization
 - `networkPolicy.ts`: trusted-host allowlisting for API targets, token attachment, and markdown outbound links/images
-- `supabase.ts`: Supabase client bootstrap with non-persistent browser session storage
+- `supabase.ts`: Supabase client bootstrap with intentionally persisted browser sessions and Supabase lifetime controls
 - `conversationApi.ts`: conversation CRUD + messages
 - `evaluationApi.ts`: evaluation REST + authenticated SSE
 - `graphApi.ts`: graph status/data/maintenance + node-vector sync start/status polling

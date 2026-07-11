@@ -9,7 +9,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // Keep session tokens in memory only to reduce credential exposure in browser storage.
+    // Persist sessions across browser restarts by product policy.
+    // Supabase Auth settings enforce token lifetime and refresh-token reuse protections.
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
