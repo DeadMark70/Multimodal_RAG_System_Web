@@ -60,7 +60,7 @@
 - `src/services/conversationApi.ts`
   - legacy conversation CRUD plus bounded summary pages, cursor-paginated message pages, and message persistence
 - `src/services/graphApi.ts`
-  - graph status, data, rebuild/optimize, document retry/purge, node-vector sync start/status polling
+  - graph status, data, durable full-rebuild start/status/resume, rebuild/optimize, document retry/purge, node-vector sync start/status polling
 - `src/services/evaluationApi.ts`
   - test cases, model presets, campaigns, results, traces, metrics, authenticated SSE
 - `src/services/statsApi.ts`
@@ -122,6 +122,7 @@
 - Regression coverage: `KnowledgeBase.test.tsx`, `EvaluationCenter.ui.test.tsx`, and `GraphDemo.test.tsx` assert these scroll-region containers exist.
 - `/graph-demo` now keeps the per-document GraphRAG status list collapsed by default, shows status summary badges in the card header, and bounds the expanded list inside its own scroll region so large document sets do not push the graph canvas far below the fold.
 - `/graph-demo` now includes a manual node-vector sync control (`補齊節點嵌入`) for legacy graph backfill, plus status polling/progress display (`idle/running/completed/failed`, processed counts, changed/reused/removed, error text).
+- `/graph-demo` also polls durable full-rebuild jobs every two seconds only while pending/running. Its progress panel shows source-document completion, current retry attempt, failure counts, staging/old-graph notice, and manual `繼續重建` or `重試失敗文件` recovery actions after interruption or incomplete completion.
 - `KnowledgeGraph.tsx` now defaults to 2D rendering and lazy-loads an optional 3D mode on demand, so Three.js does not enter the initial route bundle.
 - `KnowledgeGraph.tsx` keeps mode-specific graph projections: 2D preserves dragged-node `fx/fy` pinning, while 3D strips those pinned coordinates before simulation so dragged 2D sessions do not flatten the 3D layout onto `z=0`.
 - `KnowledgeGraph.tsx` applies zoom-based level-of-detail rendering in 2D mode: low zoom suppresses labels and simplifies nodes, labels only appear at close zoom, and dense graphs disable arrowheads plus shorten force-simulation cooldown to reduce drag/zoom stutter.

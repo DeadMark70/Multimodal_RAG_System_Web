@@ -16,7 +16,7 @@ Human-maintained inventory of the current frontend surface.
 | `/chat` | `Chat.tsx` | `useChat`, `useDeepResearch`, `useAgenticBenchmarkResearch`, `useConversationMutations`, selector-based `useSettingsStore` hooks, selector-based `useSessionStore` hooks | `ragApi.ts`, `conversationApi.ts` |
 | `/experiment` | `Experiment.tsx` | page-local state | `ragApi.ts` |
 | `/evaluation` | `EvaluationCenter.tsx` | page-local `useState`/`useEffect`, `useDisclosure`, evaluation presentation components | `evaluationApi.ts` |
-| `/graph-demo` | `GraphDemo.tsx` | `useGraphData`, `useSessionStore` | `graphApi.ts` |
+| `/graph-demo` | `GraphDemo.tsx` | `useGraphData`, `useFullGraphRebuildStatus`, `useResumeFullGraphRebuild` | `graphApi.ts` |
 
 ## Shared Stores
 
@@ -31,7 +31,7 @@ Human-maintained inventory of the current frontend surface.
 - `supabase.ts`: Supabase client bootstrap with intentionally persisted browser sessions and Supabase lifetime controls
 - `conversationApi.ts`: conversation CRUD, bounded conversation summary pages, cursor-paginated message pages, and message persistence
 - `evaluationApi.ts`: evaluation REST + authenticated SSE
-- `graphApi.ts`: graph status/data/maintenance + node-vector sync start/status polling
+- `graphApi.ts`: graph status/data/maintenance, durable full-rebuild start/status/resume, and node-vector sync start/status polling
 - `pdfApi.ts`: documents and PDF file actions
 - `ragApi.ts`: ask, ask stream, research plan/execute
 - `statsApi.ts`: dashboard metrics
@@ -104,6 +104,7 @@ Human-maintained inventory of the current frontend surface.
   - bounds the expanded document list inside `graph-document-list-scroll-region` to prevent long lists from pushing the graph canvas off-screen
   - exposes manual legacy backfill control (`補齊節點嵌入`) wired to background sync start and status polling
   - displays node-vector sync progress and terminal state (`completed`/`failed`) from `/graph/node-vector/sync/status`
+  - renders `GraphRebuildProgress` from the durable full-rebuild status API; active work polls every two seconds and interrupted/failed-document jobs expose manual continuation actions
   - lazy-mounts the graph tabs so the hidden `ResearchFlow` panel does not initialize on first paint
 
 ## Evaluation Surface Snapshot
