@@ -94,6 +94,7 @@ const renderWithProviders = (component: React.ReactNode) => {
 
 describe('End-to-End Persistence Flow', () => {
   const mockGetConversation = asMock(conversationApi.getConversation);
+  const mockGetConversationMessagesPage = asMock(conversationApi.getConversationMessagesPage);
   const mockAddMessage = asMock(conversationApi.addMessage);
   const mockAskQuestionStream = asMock(ragApi.askQuestionStream);
   const mockUseSessionStore = asMock(useSessionStore);
@@ -113,6 +114,16 @@ describe('End-to-End Persistence Flow', () => {
         return Promise.reject(new Error('Not found'));
       }
       return Promise.resolve(mockDbConversations[id]);
+    });
+
+    mockGetConversationMessagesPage.mockImplementation((id: string) => {
+      if (!mockDbConversations[id]) {
+        return Promise.reject(new Error('Not found'));
+      }
+      return Promise.resolve({
+        items: [...mockDbConversations[id].messages].reverse(),
+        next_cursor: null,
+      });
     });
 
     mockAddMessage.mockImplementation((id: string, message: CreateMessageRequest) => {
@@ -185,7 +196,7 @@ describe('End-to-End Persistence Flow', () => {
 
     // Wait for initial load
     await waitFor(() => {
-      expect(mockGetConversation).toHaveBeenCalledWith('chat-1');
+      expect(mockGetConversationMessagesPage).toHaveBeenCalledWith('chat-1');
     });
 
     // 3. User types and sends message
@@ -217,7 +228,7 @@ describe('End-to-End Persistence Flow', () => {
     // 7. Verify messages are loaded from "DB"
     await waitFor(() => {
       // Expect at least 2 calls (one initial, one reload). Might be more due to StrictMode/Rerenders
-      expect(mockGetConversation).toHaveBeenCalled();
+      expect(mockGetConversationMessagesPage).toHaveBeenCalled();
       expect(screen.getByText(/Hello Persistence/)).toBeInTheDocument();
       expect(screen.getByText(/AI Response/)).toBeInTheDocument();
     });

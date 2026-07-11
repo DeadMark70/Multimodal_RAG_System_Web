@@ -8,7 +8,6 @@ import * as ragApi from '../services/ragApi';
 import * as conversationApi from '../services/conversationApi';
 import { asMock } from '../test/mock-utils';
 import type { ChatStreamEvent } from '../types/rag';
-import type { ConversationDetail } from '../types/conversation';
 
 vi.mock('../services/ragApi');
 vi.mock('../services/conversationApi');
@@ -30,7 +29,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 
 describe('useChat Hook Error Handling', () => {
   const mockAskQuestionStream = asMock(ragApi.askQuestionStream);
-  const mockGetConversation = asMock(conversationApi.getConversation);
+  const mockGetConversationMessagesPage = asMock(conversationApi.getConversationMessagesPage);
   const mockAddMessage = asMock(conversationApi.addMessage);
 
   beforeEach(() => {
@@ -41,14 +40,7 @@ describe('useChat Hook Error Handling', () => {
   it('shows error toast when saving user message fails', async () => {
     const conversationId = '123';
 
-    mockGetConversation.mockResolvedValue({
-      id: conversationId,
-      title: 'Test',
-      type: 'chat',
-      created_at: '',
-      updated_at: '',
-      messages: [],
-    } as ConversationDetail);
+    mockGetConversationMessagesPage.mockResolvedValue({ items: [], next_cursor: null });
     mockAddMessage.mockRejectedValue(new Error('Save failed'));
     mockAskQuestionStream.mockImplementation((_request, onEvent) => {
       onEvent({
@@ -60,7 +52,7 @@ describe('useChat Hook Error Handling', () => {
 
     const { result } = renderHook(() => useChat({ conversationId }), { wrapper });
 
-    await waitFor(() => expect(mockGetConversation).toHaveBeenCalledWith(conversationId));
+    await waitFor(() => expect(mockGetConversationMessagesPage).toHaveBeenCalledWith(conversationId));
 
     await act(async () => {
       await result.current.sendMessage('Hello');
