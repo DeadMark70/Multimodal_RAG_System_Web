@@ -58,6 +58,18 @@ describe('GraphRebuildProgress', () => {
     expect(screen.getByText(/目前查詢仍使用舊圖譜/)).toBeInTheDocument();
   });
 
+  it('confirms the new graph is live after a completed rebuild', () => {
+    renderProgress({
+      ...runningStatus,
+      state: 'completed',
+      phase: 'done',
+      live_graph_unchanged: false,
+    });
+
+    expect(screen.getByText(/新圖譜已切換/)).toBeInTheDocument();
+    expect(screen.queryByText(/目前查詢仍使用舊圖譜/)).not.toBeInTheDocument();
+  });
+
   it('offers resume for interrupted jobs', () => {
     const onResume = vi.fn();
     renderProgress({ ...runningStatus, state: 'interrupted', can_resume: true }, onResume);

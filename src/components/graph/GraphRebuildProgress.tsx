@@ -71,6 +71,11 @@ export function GraphRebuildProgress({
           <AlertIcon />目前查詢仍使用舊圖譜；新圖譜只會在所有文件成功後切換。
         </Alert>
       )}
+      {status.state === 'completed' && !status.live_graph_unchanged && (
+        <Alert status="success" mt={3} borderRadius="md">
+          <AlertIcon />新圖譜已切換，查詢目前使用新圖譜。
+        </Alert>
+      )}
       {status.last_error && <Text mt={3} color="red.500">最近錯誤：{status.last_error}</Text>}
 
       <HStack mt={3} spacing={3} flexWrap="wrap">
