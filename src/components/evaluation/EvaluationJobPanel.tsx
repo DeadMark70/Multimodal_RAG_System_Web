@@ -77,6 +77,7 @@ function countValue(
   job: EvaluationJob,
   key: keyof EvaluationJobItemCounts,
   items: EvaluationJobItemSummary[] = [],
+  itemsLoaded = items.length > 0,
 ): number | null {
   const explicit = job.counts?.[key];
   if (typeof explicit === 'number') return explicit;
@@ -90,6 +91,9 @@ function countValue(
   if (key === 'interrupted' && typeof job.interrupted_items === 'number') return job.interrupted_items;
   if (key === 'missing' && typeof job.missing_items === 'number') return job.missing_items;
   if (key === 'cancelled' && typeof job.cancelled_items === 'number') return job.cancelled_items;
+  if (key === 'missing' && itemsLoaded && typeof job.total_items === 'number') {
+    return Math.max(job.total_items - items.length, 0);
+  }
   if (items.length > 0) {
     const derived = items.reduce(
       (counts, item) => {
@@ -126,7 +130,9 @@ function workItemIdFromJob(job: EvaluationJob): string | null {
 
 function failedStages(items: EvaluationJobItemSummary[]): EvaluationRerunRequest['stages'] {
   const failedTypes = new Set(
-    items.filter((item) => item.status === 'failed').map((item) => item.work_type),
+    items
+      .filter((item) => item.status === 'failed' || item.status === 'interrupted')
+      .map((item) => item.work_type),
   );
   if (failedTypes.has('dataset_execution') && failedTypes.has('ragas_metric')) {
     return 'execution_and_ragas';
@@ -138,10 +144,10 @@ function failedStages(items: EvaluationJobItemSummary[]): EvaluationRerunRequest
 
 function newestAttempt(attempts: EvaluationAttempt[]): EvaluationAttempt | null {
   return [...attempts].sort((left, right) => {
-    if (right.attempt_number !== left.attempt_number) {
-      return right.attempt_number - left.attempt_number;
-    }
-    return Date.parse(right.finished_at ?? right.started_at) - Date.parse(left.finished_at ?? left.started_at);
+    const rightTime = Date.parse(right.finished_at ?? right.started_at);
+    const leftTime = Date.parse(left.finished_at ?? left.started_at);
+    if (rightTime !== leftTime) return rightTime - leftTime;
+    return right.attempt_number - left.attempt_number;
   })[0] ?? null;
 }
 
@@ -474,13 +480,14 @@ export default function EvaluationJobPanel({
   if (!selectedJob) return null;
 
   const disabledActions = isDisabled || activeJob !== null;
+  const itemsLoaded = jobItemsKey === selectedJobKey;
   const counts: Array<[string, number | null]> = [
-    ['Valid', countValue(selectedJob, 'valid', jobItems)],
-    ['Failed', countValue(selectedJob, 'failed', jobItems)],
-    ['Retrying', countValue(selectedJob, 'retrying', jobItems)],
-    ['Interrupted', countValue(selectedJob, 'interrupted', jobItems)],
-    ['Missing', countValue(selectedJob, 'missing', jobItems)],
-    ['Cancelled', countValue(selectedJob, 'cancelled', jobItems)],
+    ['Valid', countValue(selectedJob, 'valid', jobItems, itemsLoaded)],
+    ['Failed', countValue(selectedJob, 'failed', jobItems, itemsLoaded)],
+    ['Retrying', countValue(selectedJob, 'retrying', jobItems, itemsLoaded)],
+    ['Interrupted', countValue(selectedJob, 'interrupted', jobItems, itemsLoaded)],
+    ['Missing', countValue(selectedJob, 'missing', jobItems, itemsLoaded)],
+    ['Cancelled', countValue(selectedJob, 'cancelled', jobItems, itemsLoaded)],
   ];
   const knownAttempts = mergeAttempts(jobItems, attempts);
   const latestSafeError = newestAttempt(
@@ -499,9 +506,9 @@ export default function EvaluationJobPanel({
       <HStack spacing={4} flexWrap="wrap" mb={4}>
         {counts.map(([label, value]) => <Text key={label} fontSize="sm">{label}: {value ?? '—'}</Text>)}
       </HStack>
-      {(latestSafeError ?? selectedJob.latest_safe_error_message ?? selectedJob.error_message) && (
+      {(latestSafeError ?? selectedJob.latest_safe_error_message) && (
         <Text color="orange.600" fontSize="sm" mb={3}>
-          {latestSafeError ?? selectedJob.latest_safe_error_message ?? selectedJob.error_message}
+          {latestSafeError ?? selectedJob.latest_safe_error_message}
         </Text>
       )}
       <HStack spacing={2} flexWrap="wrap">

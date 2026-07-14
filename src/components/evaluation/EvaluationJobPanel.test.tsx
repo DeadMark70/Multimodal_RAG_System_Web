@@ -141,7 +141,7 @@ describe('EvaluationJobPanel', () => {
 
     await waitFor(() => expect(screen.getByText('job-new')).toBeInTheDocument());
     expect(screen.getByText('Interrupted: —')).toBeInTheDocument();
-    expect(screen.getByText('Missing: —')).toBeInTheDocument();
+    expect(screen.getByText('Missing: 5')).toBeInTheDocument();
     expect(screen.getByText('Cancelled: 2')).toBeInTheDocument();
     expect(onJobTerminal).toHaveBeenCalledWith(expect.objectContaining({ job_id: 'job-new' }));
   });
@@ -161,6 +161,20 @@ describe('EvaluationJobPanel', () => {
     })));
   });
 
+  it('retries interrupted RAGAS work as a RAGAS-only rerun', async () => {
+    mockListCampaignJobs.mockResolvedValue([job]);
+    mockListEvaluationJobItems.mockResolvedValue([
+      { job_item_id: 'item-ragas', job_id: 'job-1', work_item_id: 'work-ragas', work_type: 'ragas_metric', status: 'interrupted' },
+    ]);
+    renderPanel();
+    await waitFor(() => expect(screen.getByText('Completed with errors')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Retry failed' }));
+    await waitFor(() => expect(mockCreateCampaignRerun).toHaveBeenCalledWith('cmp-1', expect.objectContaining({
+      scope: 'failed_only',
+      stages: 'ragas',
+    })));
+  });
+
   it('derives counts and safe errors from every job item, and loads every attempt history', async () => {
     const attempts = ['work-1', 'work-2', 'work-3', 'work-4', 'work-5'].map((workItemId, index) => ({
       attempt_id: `attempt-${index + 1}`,
@@ -169,14 +183,14 @@ describe('EvaluationJobPanel', () => {
       work_item_id: workItemId,
       attempt_number: index + 1,
       status: 'failed' as const,
-      started_at: `2026-07-14T00:0${index}:00Z`,
+      started_at: `2026-07-14T00:0${5 - index}:00Z`,
       safe_error_message: `Safe error ${index + 1}`,
     }));
     const items: EvaluationJobItemSummary[] = [
-      { job_item_id: 'item-1', job_id: 'job-1', work_item_id: 'work-1', work_type: 'dataset_execution', status: 'succeeded' },
+      { job_item_id: 'item-1', job_id: 'job-1', work_item_id: 'work-1', work_type: 'dataset_execution', status: 'succeeded', latest_attempt: attempts[0] },
       { job_item_id: 'item-2', job_id: 'job-1', work_item_id: 'work-2', work_type: 'dataset_execution', status: 'failed', latest_attempt: attempts[1] },
-      { job_item_id: 'item-3', job_id: 'job-1', work_item_id: 'work-3', work_type: 'ragas_metric', status: 'retry_wait' },
-      { job_item_id: 'item-4', job_id: 'job-1', work_item_id: 'work-4', work_type: 'ragas_metric', status: 'interrupted' },
+      { job_item_id: 'item-3', job_id: 'job-1', work_item_id: 'work-3', work_type: 'ragas_metric', status: 'retry_wait', latest_attempt: attempts[2] },
+      { job_item_id: 'item-4', job_id: 'job-1', work_item_id: 'work-4', work_type: 'ragas_metric', status: 'interrupted', latest_attempt: attempts[3] },
       { job_item_id: 'item-5', job_id: 'job-1', work_item_id: 'work-5', work_type: 'ragas_metric', status: 'cancelled', latest_attempt: attempts[4] },
     ];
     const countsless = {
@@ -205,12 +219,12 @@ describe('EvaluationJobPanel', () => {
     expect(screen.getByText('Retrying: 1')).toBeInTheDocument();
     expect(screen.getByText('Interrupted: 1')).toBeInTheDocument();
     expect(screen.getByText('Cancelled: 1')).toBeInTheDocument();
-    expect(screen.getByText('Safe error 5')).toBeInTheDocument();
+    expect(screen.getByText('Safe error 1')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Show attempt history' }));
     await waitFor(() => expect(mockListWorkItemAttempts).toHaveBeenCalledTimes(5));
-    expect(screen.getByText(/Safe error 1/)).toBeInTheDocument();
-    expect(screen.getByText('Safe error 5')).toBeInTheDocument();
+    expect(screen.getAllByText(/Safe error 1/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Safe error 5/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('stops durable polling when the jobs endpoint is unavailable', async () => {
@@ -220,5 +234,19 @@ describe('EvaluationJobPanel', () => {
     await waitFor(() => expect(screen.queryByText('Unable to load evaluation jobs')).not.toBeInTheDocument());
     await new Promise((resolve) => setTimeout(resolve, 1600));
     expect(mockListCampaignJobs).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not render an unsafe aggregate error field', async () => {
+    const unsafeJob = {
+      ...job,
+      counts: undefined,
+      latest_safe_error_message: null,
+      error_message: 'raw provider secret',
+    };
+    mockListCampaignJobs.mockResolvedValue([unsafeJob]);
+    mockListEvaluationJobItems.mockResolvedValue([]);
+    renderPanel();
+    await waitFor(() => expect(screen.getByText('Completed with errors')).toBeInTheDocument());
+    expect(screen.queryByText('raw provider secret')).not.toBeInTheDocument();
   });
 });
