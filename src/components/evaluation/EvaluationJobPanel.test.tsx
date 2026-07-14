@@ -81,7 +81,7 @@ describe('EvaluationJobPanel', () => {
         safe_error_message: 'Provider response details were redacted.',
       },
     ]);
-    mockListEvaluationJobItems.mockImplementation(async (jobId) => ([
+    mockListEvaluationJobItems.mockImplementation((jobId) => Promise.resolve([
       {
         job_item_id: 'item-1',
         job_id: jobId,
@@ -208,9 +208,9 @@ describe('EvaluationJobPanel', () => {
     } as unknown as EvaluationJob;
     mockListCampaignJobs.mockResolvedValue([countsless]);
     mockListEvaluationJobItems.mockResolvedValue(items);
-    mockListWorkItemAttempts.mockImplementation(async (workItemId) => [
+    mockListWorkItemAttempts.mockImplementation((workItemId) => Promise.resolve([
       attempts.find((attempt) => attempt.work_item_id === workItemId)!,
-    ]);
+    ]));
 
     renderPanel();
 
