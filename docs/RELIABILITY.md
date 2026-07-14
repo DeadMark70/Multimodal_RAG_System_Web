@@ -32,6 +32,10 @@
 - Let users retry planning, execution, indexing, graph extraction, and evaluation from surfaced controls.
 - Treat cancellation as non-destructive and keep the last stable UI state visible.
 
+## Evaluation Rerun Recovery
+
+The Evaluation Center treats jobs and attempts as durable state rather than a single optimistic request. Refreshing the page discovers the newest job, loads all work-item attempts, and displays only sanitized latest errors. Failed or interrupted work can be retried by stage without erasing prior attempts; missing metrics remain missing instead of appearing as zero. Legacy servers that do not expose durable job routes are detected and use the compatibility rerun flow without repeated polling errors.
+
 ## Operational Checks
 
 - `npm run lint:ci`

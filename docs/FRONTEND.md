@@ -317,6 +317,12 @@
 - `ModelConfigPanel.tsx` uses `ThinkingConfigControl.tsx` to switch between budget, level, and unavailable states based on the selected model metadata from `/api/evaluation/models`.
 - Campaign setup and history show the selected preset's model plus reasoning setting, and raw campaign results summarize returned reasoning tokens.
 - Results analysis shows the campaign model and reasoning setting in the metrics header so exported/inspected metrics can be traced back to the run configuration.
+
+## Durable Evaluation Jobs
+
+- Evaluation results discover durable jobs and select the newest job after refresh; terminal `completed_with_errors` remains visible as a partial result.
+- Job panels show per-work-item status, retrying/interrupted/cancelled/missing counts, latest safe errors, and attempt history. Failed retries preserve the failed attempt and create a new attempt.
+- The UI retries only the failed work type (execution or RAGAS), polls durable jobs with transient-error handling, and disables durable polling when a legacy backend returns 404/405 while retaining the compatibility rerun path.
 # Graph Workspace
 
 The Graph Workspace includes static quality diagnostics, campaign runtime quality lookup, and a query debugger. The debugger shows route, entity links, graph evidence provenance/resolution/verification state, and only counts independently eligible final-context items as answer-ready evidence.
