@@ -655,11 +655,15 @@ export interface EvaluationJobItemSummary {
   work_item_id: string;
   work_type: EvaluationWorkType;
   status: EvaluationJobItemStatus;
+  question_id?: string | null;
+  metric_name?: string | null;
   retry_after?: string | null;
   max_attempts?: number;
   active_attempt_id?: string | null;
   created_at?: string;
   updated_at?: string;
+  latest_attempt?: EvaluationAttempt | null;
+  latest_attempts?: EvaluationAttempt[];
 }
 
 export interface EvaluationJob {

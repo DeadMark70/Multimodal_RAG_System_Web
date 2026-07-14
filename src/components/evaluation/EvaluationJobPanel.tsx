@@ -76,19 +76,44 @@ function statusColor(status: EvaluationJob['status']): string {
 function countValue(
   job: EvaluationJob,
   key: keyof EvaluationJobItemCounts,
+  items: EvaluationJobItemSummary[] = [],
 ): number | null {
   const explicit = job.counts?.[key];
   if (typeof explicit === 'number') return explicit;
   if (key === 'valid' && typeof job.valid_items === 'number') return job.valid_items;
-  if (key === 'valid') return typeof job.succeeded_items === 'number' ? job.succeeded_items : null;
-  if (key === 'failed') return typeof job.failed_items === 'number' ? job.failed_items : null;
+  if (key === 'valid' && typeof job.succeeded_items === 'number') return job.succeeded_items;
+  if (key === 'failed' && typeof job.failed_items === 'number') return job.failed_items;
   if (key === 'retrying') {
-    return job.retrying_items ?? job.retry_wait_items ?? null;
+    if (typeof job.retrying_items === 'number') return job.retrying_items;
+    if (typeof job.retry_wait_items === 'number') return job.retry_wait_items;
   }
-  if (key === 'interrupted') return job.interrupted_items ?? null;
-  if (key === 'missing') return job.missing_items ?? null;
-  if (key === 'cancelled') return job.cancelled_items ?? null;
+  if (key === 'interrupted' && typeof job.interrupted_items === 'number') return job.interrupted_items;
+  if (key === 'missing' && typeof job.missing_items === 'number') return job.missing_items;
+  if (key === 'cancelled' && typeof job.cancelled_items === 'number') return job.cancelled_items;
+  if (items.length > 0) {
+    const derived = items.reduce(
+      (counts, item) => {
+        if (item.status === 'succeeded') counts.valid += 1;
+        if (item.status === 'failed') counts.failed += 1;
+        if (item.status === 'retry_wait') counts.retrying += 1;
+        if (item.status === 'interrupted') counts.interrupted += 1;
+        if (item.status === 'cancelled') counts.cancelled += 1;
+        return counts;
+      },
+      { valid: 0, failed: 0, retrying: 0, interrupted: 0, cancelled: 0 },
+    );
+    if (key === 'valid') return derived.valid;
+    if (key === 'failed') return derived.failed;
+    if (key === 'retrying') return derived.retrying;
+    if (key === 'interrupted') return derived.interrupted;
+    if (key === 'cancelled') return derived.cancelled;
+  }
   return null;
+}
+
+function isDurableEndpointUnavailable(error: unknown): boolean {
+  const status = (error as { response?: { status?: unknown } })?.response?.status;
+  return status === 404 || status === 405;
 }
 
 function workItemIdFromJob(job: EvaluationJob): string | null {
@@ -120,6 +145,33 @@ function newestAttempt(attempts: EvaluationAttempt[]): EvaluationAttempt | null 
   })[0] ?? null;
 }
 
+function attemptsFromItems(items: EvaluationJobItemSummary[]): EvaluationAttempt[] {
+  return items.flatMap((item) => [
+    ...(item.latest_attempts ?? []),
+    ...(item.latest_attempt ? [item.latest_attempt] : []),
+  ]);
+}
+
+function mergeAttempts(
+  items: EvaluationJobItemSummary[],
+  attempts: EvaluationAttempt[],
+): EvaluationAttempt[] {
+  const byId = new Map<string, EvaluationAttempt>();
+  for (const attempt of [...attemptsFromItems(items), ...attempts]) {
+    byId.set(attempt.attempt_id, attempt);
+  }
+  return [...byId.values()].sort((left, right) => {
+    const leftTime = Date.parse(left.finished_at ?? left.started_at);
+    const rightTime = Date.parse(right.finished_at ?? right.started_at);
+    if (rightTime !== leftTime) return rightTime - leftTime;
+    return right.attempt_number - left.attempt_number;
+  });
+}
+
+function itemsForJob(items: EvaluationJobItemSummary[], selectedKey: string): EvaluationJobItemSummary[] {
+  return items.filter((item) => item.job_id === selectedKey);
+}
+
 export default function EvaluationJobPanel({
   campaignId,
   jobs: controlledJobs,
@@ -132,6 +184,8 @@ export default function EvaluationJobPanel({
   const [action, setAction] = useState<string | null>(null);
   const [attempts, setAttempts] = useState<EvaluationAttempt[]>([]);
   const [jobItems, setJobItems] = useState<EvaluationJobItemSummary[]>([]);
+  const [jobItemsKey, setJobItemsKey] = useState<string | null>(null);
+  const [durableApiUnavailable, setDurableApiUnavailable] = useState(false);
   const [showAttempts, setShowAttempts] = useState(false);
   const notifiedTerminalJobRef = useRef<string | null>(null);
   const toast = useToast();
@@ -151,12 +205,21 @@ export default function EvaluationJobPanel({
 
   const refreshJobs = useCallback(async () => {
     if (controlledJobs !== undefined) return controlledJobs;
+    if (durableApiUnavailable) return [];
     // Keep older embedded clients usable while they migrate to the durable-job API.
     if (typeof listCampaignJobs !== 'function') return [];
-    const nextJobs = await listCampaignJobs(campaignId);
-    updateJobs(nextJobs);
-    return nextJobs;
-  }, [campaignId, controlledJobs, updateJobs]);
+    try {
+      const nextJobs = await listCampaignJobs(campaignId);
+      updateJobs(nextJobs);
+      return nextJobs;
+    } catch (error) {
+      if (isDurableEndpointUnavailable(error)) {
+        setDurableApiUnavailable(true);
+        return [];
+      }
+      throw error;
+    }
+  }, [campaignId, controlledJobs, durableApiUnavailable, updateJobs]);
 
   useEffect(() => {
     if (controlledJobs !== undefined) return;
@@ -165,6 +228,7 @@ export default function EvaluationJobPanel({
     void refreshJobs()
       .catch((error: unknown) => {
         if (mounted) {
+          if (isDurableEndpointUnavailable(error)) return;
           toast({
             title: 'Unable to load evaluation jobs',
             description: error instanceof Error ? error.message : 'Unknown error',
@@ -185,6 +249,42 @@ export default function EvaluationJobPanel({
     [sortedJobs],
   );
   const selectedJob = sortedJobs[0] ?? null;
+  const selectedJobKey = selectedJob ? jobKey(selectedJob) : null;
+  const embeddedJobItems = selectedJob?.items;
+
+  useEffect(() => {
+    setAttempts([]);
+    setShowAttempts(false);
+    if (!selectedJobKey) {
+      setJobItems([]);
+      setJobItemsKey(null);
+      return;
+    }
+    if (embeddedJobItems) {
+      setJobItems(itemsForJob(embeddedJobItems, selectedJobKey));
+      setJobItemsKey(selectedJobKey);
+      return;
+    }
+    if (typeof listEvaluationJobItems !== 'function' || durableApiUnavailable) return;
+    let cancelled = false;
+    void listEvaluationJobItems(selectedJobKey)
+      .then((items) => {
+        if (cancelled) return;
+        setJobItems(itemsForJob(items, selectedJobKey));
+        setJobItemsKey(selectedJobKey);
+      })
+      .catch((error: unknown) => {
+        if (cancelled || isDurableEndpointUnavailable(error)) return;
+        toast({
+          title: 'Unable to load evaluation job items',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          status: 'error',
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [durableApiUnavailable, embeddedJobItems, selectedJobKey, toast]);
 
   useEffect(() => {
     if (!selectedJob || !TERMINAL_JOB_STATUSES.has(selectedJob.status)) return;
@@ -195,7 +295,7 @@ export default function EvaluationJobPanel({
   }, [onJobTerminal, selectedJob]);
 
   useEffect(() => {
-    if (!activeJob || controlledJobs !== undefined) return;
+    if (!activeJob || controlledJobs !== undefined || durableApiUnavailable) return;
     if (typeof getEvaluationJob !== 'function') return;
     let cancelled = false;
     const timer = window.setInterval(() => {
@@ -207,6 +307,10 @@ export default function EvaluationJobPanel({
         })
         .catch((error: unknown) => {
           if (!cancelled) {
+            if (isDurableEndpointUnavailable(error)) {
+              setDurableApiUnavailable(true);
+              return;
+            }
             toast({
               title: 'Unable to refresh evaluation job',
               description: error instanceof Error ? error.message : 'Unknown error',
@@ -219,24 +323,34 @@ export default function EvaluationJobPanel({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [activeJob, controlledJobs, jobs, onJobTerminal, toast, updateJobs]);
+  }, [activeJob, controlledJobs, durableApiUnavailable, jobs, onJobTerminal, toast, updateJobs]);
 
   // Keep discovering jobs created by another control (for example the
   // selected-question RAGAS button in EvaluationResults), even while an
   // older job is being polled.
   useEffect(() => {
-    if (controlledJobs !== undefined || typeof listCampaignJobs !== 'function') return;
+    if (
+      controlledJobs !== undefined
+      || durableApiUnavailable
+      || typeof listCampaignJobs !== 'function'
+    ) return;
     const timer = window.setInterval(() => {
-      void listCampaignJobs(campaignId).then(updateJobs).catch((error: unknown) => {
-        toast({
-          title: 'Unable to refresh evaluation jobs',
-          description: error instanceof Error ? error.message : 'Unknown error',
-          status: 'error',
+      void listCampaignJobs(campaignId)
+        .then(updateJobs)
+        .catch((error: unknown) => {
+          if (isDurableEndpointUnavailable(error)) {
+            setDurableApiUnavailable(true);
+            return;
+          }
+          toast({
+            title: 'Unable to refresh evaluation jobs',
+            description: error instanceof Error ? error.message : 'Unknown error',
+            status: 'error',
+          });
         });
-      });
     }, 1500);
     return () => window.clearInterval(timer);
-  }, [activeJob, campaignId, controlledJobs, toast, updateJobs]);
+  }, [activeJob, campaignId, controlledJobs, durableApiUnavailable, toast, updateJobs]);
 
   const submitRerun = async (request: EvaluationRerunRequest, label: string) => {
     if (typeof createCampaignRerun !== 'function') return;
@@ -258,33 +372,54 @@ export default function EvaluationJobPanel({
 
   const loadJobItems = async (): Promise<EvaluationJobItemSummary[]> => {
     if (!selectedJob) return [];
-    if (selectedJob.items) {
-      setJobItems(selectedJob.items);
-      return selectedJob.items;
+    if (embeddedJobItems) {
+      const items = itemsForJob(embeddedJobItems, selectedJobKey ?? jobKey(selectedJob));
+      setJobItems(items);
+      setJobItemsKey(selectedJobKey);
+      return items;
     }
+    if (selectedJobKey && jobItemsKey === selectedJobKey) return jobItems;
     if (typeof listEvaluationJobItems !== 'function') return [];
-    const items = await listEvaluationJobItems(jobKey(selectedJob));
+    const responseItems = await listEvaluationJobItems(jobKey(selectedJob));
+    const items = itemsForJob(responseItems, selectedJobKey ?? jobKey(selectedJob));
     setJobItems(items);
+    setJobItemsKey(selectedJobKey);
     return items;
   };
 
   const loadAttempts = async () => {
     if (!selectedJob) return;
     const items = await loadJobItems().catch(() => []);
-    const workItemId = items[0]?.work_item_id ?? workItemIdFromJob(selectedJob);
-    if (!workItemId) {
-      setAttempts([]);
+    const workItemIds = [...new Set(
+      items.map((item) => item.work_item_id).filter((id): id is string => Boolean(id)),
+    )];
+    const fallbackWorkItemId = workItemIdFromJob(selectedJob);
+    if (workItemIds.length === 0 && fallbackWorkItemId) workItemIds.push(fallbackWorkItemId);
+    if (typeof listWorkItemAttempts !== 'function') {
+      setAttempts(mergeAttempts(items, []));
       setShowAttempts(true);
       return;
     }
-    if (typeof listWorkItemAttempts !== 'function') {
-      setAttempts([]);
+    if (workItemIds.length === 0) {
+      setAttempts(mergeAttempts(items, []));
       setShowAttempts(true);
       return;
     }
     setAction('attempts');
     try {
-      setAttempts(await listWorkItemAttempts(workItemId));
+      const settled = await Promise.allSettled(
+        workItemIds.map((workItemId) => listWorkItemAttempts(workItemId)),
+      );
+      const successful = settled.filter(
+        (result): result is PromiseFulfilledResult<EvaluationAttempt[]> => result.status === 'fulfilled',
+      );
+      if (successful.length === 0) {
+        const rejected = settled.find(
+          (result): result is PromiseRejectedResult => result.status === 'rejected',
+        );
+        throw rejected?.reason ?? new Error('Unable to load attempt history');
+      }
+      setAttempts(mergeAttempts(items, successful.flatMap((result) => result.value)));
       setShowAttempts(true);
     } catch (error) {
       toast({
@@ -340,13 +475,17 @@ export default function EvaluationJobPanel({
 
   const disabledActions = isDisabled || activeJob !== null;
   const counts: Array<[string, number | null]> = [
-    ['Valid', countValue(selectedJob, 'valid')],
-    ['Failed', countValue(selectedJob, 'failed')],
-    ['Retrying', countValue(selectedJob, 'retrying')],
-    ['Interrupted', countValue(selectedJob, 'interrupted')],
-    ['Missing', countValue(selectedJob, 'missing')],
-    ['Cancelled', countValue(selectedJob, 'cancelled')],
+    ['Valid', countValue(selectedJob, 'valid', jobItems)],
+    ['Failed', countValue(selectedJob, 'failed', jobItems)],
+    ['Retrying', countValue(selectedJob, 'retrying', jobItems)],
+    ['Interrupted', countValue(selectedJob, 'interrupted', jobItems)],
+    ['Missing', countValue(selectedJob, 'missing', jobItems)],
+    ['Cancelled', countValue(selectedJob, 'cancelled', jobItems)],
   ];
+  const knownAttempts = mergeAttempts(jobItems, attempts);
+  const latestSafeError = newestAttempt(
+    knownAttempts.filter((attempt) => Boolean(attempt.safe_error_message)),
+  )?.safe_error_message;
 
   return (
     <Box borderWidth="1px" borderRadius="lg" p={4} bg="bg.panel">
@@ -360,9 +499,9 @@ export default function EvaluationJobPanel({
       <HStack spacing={4} flexWrap="wrap" mb={4}>
         {counts.map(([label, value]) => <Text key={label} fontSize="sm">{label}: {value ?? '—'}</Text>)}
       </HStack>
-      {(newestAttempt(attempts)?.safe_error_message ?? selectedJob.latest_safe_error_message ?? selectedJob.error_message) && (
+      {(latestSafeError ?? selectedJob.latest_safe_error_message ?? selectedJob.error_message) && (
         <Text color="orange.600" fontSize="sm" mb={3}>
-          {newestAttempt(attempts)?.safe_error_message ?? selectedJob.latest_safe_error_message ?? selectedJob.error_message}
+          {latestSafeError ?? selectedJob.latest_safe_error_message ?? selectedJob.error_message}
         </Text>
       )}
       <HStack spacing={2} flexWrap="wrap">
