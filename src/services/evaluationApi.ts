@@ -15,6 +15,10 @@ import type {
   CampaignProgressEvent,
   CampaignResultsResponse,
   CampaignStatus,
+  EvaluationAttempt,
+  EvaluationJob,
+  EvaluationJobItemSummary,
+  EvaluationRerunRequest,
   CostLatencyResponse,
   CampaignStreamEvent,
   DeleteResult,
@@ -52,6 +56,7 @@ function isCampaignStreamEventType(eventType: string): eventType is CampaignStre
     'campaign_snapshot',
     'campaign_progress',
     'campaign_completed',
+    'campaign_completed_with_errors',
     'campaign_failed',
     'campaign_cancelled',
     'run_started',
@@ -112,6 +117,8 @@ function toCampaignStreamEvent(eventType: string, rawData: string): CampaignStre
       return { type: 'campaign_progress', data: data as CampaignProgressEvent };
     case 'campaign_completed':
       return { type: 'campaign_completed', data: data as CampaignStatus };
+    case 'campaign_completed_with_errors':
+      return { type: 'campaign_completed_with_errors', data: data as CampaignStatus };
     case 'campaign_failed':
       return { type: 'campaign_failed', data: data as CampaignStatus };
     case 'campaign_cancelled':
@@ -212,6 +219,46 @@ export async function getCampaignResultTrace(
 export async function getCampaignMetrics(campaignId: string): Promise<CampaignMetricsResponse> {
   const response = await api.get<CampaignMetricsResponse>(`/api/evaluation/campaigns/${campaignId}/metrics`);
   return response.data;
+}
+
+export async function createCampaignRerun(
+  campaignId: string,
+  payload: EvaluationRerunRequest,
+): Promise<EvaluationJob> {
+  const response = await api.post<EvaluationJob>(
+    `/api/evaluation/campaigns/${campaignId}/reruns`,
+    payload,
+  );
+  return response.data;
+}
+
+export async function listCampaignJobs(campaignId: string): Promise<EvaluationJob[]> {
+  const response = await api.get<EvaluationJob[]>(`/api/evaluation/campaigns/${campaignId}/jobs`);
+  return response.data;
+}
+
+export async function getEvaluationJob(jobId: string): Promise<EvaluationJob> {
+  const response = await api.get<EvaluationJob>(`/api/evaluation/jobs/${jobId}`);
+  return response.data;
+}
+
+export async function cancelEvaluationJob(jobId: string): Promise<EvaluationJob> {
+  const response = await api.post<EvaluationJob>(`/api/evaluation/jobs/${jobId}/cancel`);
+  return response.data;
+}
+
+export async function listWorkItemAttempts(workItemId: string): Promise<EvaluationAttempt[]> {
+  const response = await api.get<EvaluationAttempt[]>(
+    `/api/evaluation/work-items/${workItemId}/attempts`,
+  );
+  return response.data;
+}
+
+export async function listEvaluationJobItems(jobId: string): Promise<EvaluationJobItemSummary[]> {
+  const response = await api.get<EvaluationJobItemSummary[] | { items: EvaluationJobItemSummary[] }>(
+    `/api/evaluation/jobs/${jobId}/items`,
+  );
+  return Array.isArray(response.data) ? response.data : response.data.items;
 }
 
 export async function getCampaignOverview(campaignId: string): Promise<CampaignOverviewResponse> {

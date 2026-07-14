@@ -45,9 +45,11 @@ import {
   FiMinus,
 } from "react-icons/fi";
 import {
+  createCampaignRerun,
   evaluateCampaign,
   getCampaignMetrics,
   listCampaigns,
+  listCampaignJobs,
 } from "../../services/evaluationApi";
 import type {
   CampaignMetricName,
@@ -61,6 +63,7 @@ import type {
   ModeMetricsSummary,
 } from "../../types/evaluation";
 import StabilityChart from "../charts/StabilityChart";
+import EvaluationJobPanel from "./EvaluationJobPanel";
 
 const MODE_LABELS: Record<CampaignMode, string> = {
   naive: "Naive",
@@ -69,6 +72,12 @@ const MODE_LABELS: Record<CampaignMode, string> = {
   agentic: "Agentic",
   router: "Router",
 };
+
+function isLegacyRerunTransportError(error: unknown): boolean {
+  if (error instanceof TypeError) return true;
+  const status = (error as { response?: { status?: number } } | null)?.response?.status;
+  return status === 404 || status === 405;
+}
 
 type EcrDirection = "positive" | "neutral" | "negative";
 
@@ -670,6 +679,7 @@ export default function EvaluationResults() {
   const [loadingCampaigns, setLoadingCampaigns] = useState(true);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [rerunning, setRerunning] = useState(false);
+  const [awaitingDurableJob, setAwaitingDurableJob] = useState(false);
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
   const [deltaTabIndex, setDeltaTabIndex] = useState(0);
   const toast = useToast();
@@ -754,10 +764,12 @@ export default function EvaluationResults() {
     }
     const timer = window.setInterval(() => {
       void reloadCampaigns();
-      void loadMetrics(selectedCampaign.id);
+      if (!awaitingDurableJob) {
+        void loadMetrics(selectedCampaign.id);
+      }
     }, 1500);
     return () => window.clearInterval(timer);
-  }, [loadMetrics, reloadCampaigns, selectedCampaign]);
+  }, [awaitingDurableJob, loadMetrics, reloadCampaigns, selectedCampaign]);
 
   useEffect(() => {
     if (!metrics) {
@@ -778,15 +790,50 @@ export default function EvaluationResults() {
       return;
     }
     setRerunning(true);
+    let usedDurableRerun = false;
     try {
-      await evaluateCampaign(
-        selectedCampaignId,
-        selectedQuestionIds.length > 0
-          ? { question_ids: selectedQuestionIds }
-          : undefined,
-      );
+      if (typeof createCampaignRerun === "function" && typeof listCampaignJobs === "function") {
+        setAwaitingDurableJob(true);
+        let durableJob;
+        try {
+          durableJob = await createCampaignRerun(selectedCampaignId, {
+            scope: selectedQuestionIds.length > 0 ? "selected" : "all",
+            stages: "ragas",
+            question_ids: selectedQuestionIds,
+            metric_names: [],
+          });
+        } catch (error) {
+          // A legacy test/client may resolve the symbol but not implement the
+          // durable transport. TypeError indicates that compatibility shape;
+          // real HTTP failures continue through the normal error toast.
+          if (!isLegacyRerunTransportError(error)) throw error;
+          durableJob = undefined;
+        }
+        usedDurableRerun = Boolean(durableJob);
+        // Older embedded clients may expose a mocked/legacy method without a
+        // durable response; retain the compatibility endpoint in that case.
+        if (!durableJob) {
+          setAwaitingDurableJob(false);
+          await evaluateCampaign(
+            selectedCampaignId,
+            selectedQuestionIds.length > 0
+              ? { question_ids: selectedQuestionIds }
+              : undefined,
+          );
+        }
+      } else {
+        setAwaitingDurableJob(false);
+        await evaluateCampaign(
+          selectedCampaignId,
+          selectedQuestionIds.length > 0
+            ? { question_ids: selectedQuestionIds }
+            : undefined,
+        );
+      }
       await reloadCampaigns();
-      await loadMetrics(selectedCampaignId);
+      if (!usedDurableRerun) {
+        await loadMetrics(selectedCampaignId);
+      }
       toast({
         title:
           selectedQuestionIds.length > 0
@@ -795,6 +842,7 @@ export default function EvaluationResults() {
         status: "success",
       });
     } catch (error) {
+      setAwaitingDurableJob(false);
       toast({
         title: "重新評估失敗",
         description: error instanceof Error ? error.message : "未知錯誤",
@@ -1056,6 +1104,8 @@ export default function EvaluationResults() {
                 color={
                   selectedCampaign.status === "failed"
                     ? "error.500"
+                    : selectedCampaign.status === "completed_with_errors"
+                      ? "warning.500"
                     : selectedCampaign.status === "evaluating"
                       ? "brand.500"
                       : "success.500"
@@ -1077,6 +1127,18 @@ export default function EvaluationResults() {
             </Button>
           </HStack>
         </HStack>
+        {selectedCampaignId && (
+            <Box mt={4}>
+              <EvaluationJobPanel
+                campaignId={selectedCampaignId}
+                onJobTerminal={() => {
+                  setAwaitingDurableJob(false);
+                  void reloadCampaigns();
+                  void loadMetrics(selectedCampaignId);
+                }}
+              />
+            </Box>
+        )}
         {metrics && (
           <Stack spacing={3} mt={4}>
             <Grid
@@ -1196,7 +1258,9 @@ export default function EvaluationResults() {
           <Text color="text.secondary">
             {selectedCampaign?.status === "evaluating"
               ? "RAGAS 評估進行中，結果會在完成後自動更新。"
-              : "此 campaign 目前尚無可視覺化的 RAGAS 指標。"}
+              : selectedCampaign?.status === "completed_with_errors"
+                ? "此 campaign 已完成但有錯誤，部分樣本可能缺少結果。"
+                : "此 campaign 目前尚無可視覺化的 RAGAS 指標。"}
           </Text>
         </Box>
       ) : (

@@ -3,22 +3,28 @@ import { cloneElement, isValidElement, type ReactNode } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
+  createCampaignRerun as createCampaignRerunFn,
   evaluateCampaign as evaluateCampaignFn,
   getCampaignMetrics as getCampaignMetricsFn,
+  listCampaignJobs as listCampaignJobsFn,
   listCampaigns as listCampaignsFn,
 } from '../../services/evaluationApi';
 import type { CampaignConfigInput, CampaignMetricsResponse, CampaignStatus } from '../../types/evaluation';
 import theme from '../../theme';
 import EvaluationResults from './EvaluationResults';
 
-const { mockListCampaigns, mockGetCampaignMetrics, mockEvaluateCampaign } = vi.hoisted(() => ({
+const { mockListCampaigns, mockGetCampaignMetrics, mockEvaluateCampaign, mockCreateCampaignRerun, mockListCampaignJobs } = vi.hoisted(() => ({
   mockListCampaigns: vi.fn<typeof listCampaignsFn>(),
   mockGetCampaignMetrics: vi.fn<typeof getCampaignMetricsFn>(),
   mockEvaluateCampaign: vi.fn<typeof evaluateCampaignFn>(),
+  mockCreateCampaignRerun: vi.fn<typeof createCampaignRerunFn>(),
+  mockListCampaignJobs: vi.fn<typeof listCampaignJobsFn>(),
 }));
 
 vi.mock('../../services/evaluationApi', () => ({
   listCampaigns: mockListCampaigns,
+  createCampaignRerun: mockCreateCampaignRerun,
+  listCampaignJobs: mockListCampaignJobs,
   getCampaignMetrics: mockGetCampaignMetrics,
   evaluateCampaign: mockEvaluateCampaign,
 }));
@@ -369,6 +375,8 @@ function renderResults() {
 describe('EvaluationResults', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCreateCampaignRerun.mockResolvedValue(undefined as never);
+    mockListCampaignJobs.mockResolvedValue([]);
   });
 
   it('renders metrics summary, selector, exports, and rerun action', async () => {
@@ -517,6 +525,19 @@ describe('EvaluationResults', () => {
         question_ids: ['Q1'],
       });
     });
+  });
+
+  it('falls back to the compatibility evaluate endpoint for durable rerun 404s', async () => {
+    mockListCampaigns.mockResolvedValue([completedCampaign]);
+    mockGetCampaignMetrics.mockResolvedValue(populatedMetrics);
+    mockCreateCampaignRerun.mockRejectedValue({ response: { status: 404 } });
+    mockEvaluateCampaign.mockResolvedValue(evaluatingCampaign);
+
+    renderResults();
+    await waitFor(() => expect(screen.getByText('模式比較總表')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: '重新執行 RAGAS' }));
+
+    await waitFor(() => expect(mockEvaluateCampaign).toHaveBeenCalledWith('cmp-1', undefined));
   });
   it('shows campaign model reasoning settings in the metrics header', async () => {
     const levelCampaign: CampaignStatus = {

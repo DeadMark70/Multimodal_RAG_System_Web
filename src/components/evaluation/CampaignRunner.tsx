@@ -51,7 +51,12 @@ const MODE_OPTIONS: Array<{ value: CampaignMode; label: string }> = [
   { value: 'agentic', label: 'Agentic RAG' },
 ];
 
-const TERMINAL_STATUSES = new Set<CampaignStatus['status']>(['completed', 'failed', 'cancelled']);
+const TERMINAL_STATUSES = new Set<CampaignStatus['status']>([
+  'completed',
+  'completed_with_errors',
+  'failed',
+  'cancelled',
+]);
 const RECONNECT_DELAYS_MS = [1000, 2000, 5000];
 
 interface ActiveCampaignState {
@@ -107,6 +112,8 @@ function formatStatus(status: CampaignStatus['status']): string {
       return '評估中';
     case 'completed':
       return '已完成';
+    case 'completed_with_errors':
+      return '完成但有錯誤';
     case 'failed':
       return '失敗';
     case 'cancelled':
@@ -139,6 +146,8 @@ function statusColor(status: CampaignStatus['status']): string {
   switch (status) {
     case 'completed':
       return 'green';
+    case 'completed_with_errors':
+      return 'orange';
     case 'failed':
       return 'red';
     case 'cancelled':
@@ -272,6 +281,7 @@ export default function CampaignRunner() {
     if (
       event.type !== 'campaign_snapshot'
       && event.type !== 'campaign_completed'
+      && event.type !== 'campaign_completed_with_errors'
       && event.type !== 'campaign_failed'
       && event.type !== 'campaign_cancelled'
     ) {

@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import api from './api';
 import {
   cancelCampaign,
+  cancelEvaluationJob,
   createCampaign,
+  createCampaignRerun,
   getCampaignResultTrace,
   getCampaignAnalyticsDashboard,
   getCampaignOverview,
@@ -35,10 +37,14 @@ import {
   importTestCases,
   listAvailableModels,
   listCampaigns,
+  listCampaignJobs,
+  listEvaluationJobItems,
+  listWorkItemAttempts,
   listCampaignTraces,
   listModelConfigs,
   listTestCases,
   streamCampaign,
+  getEvaluationJob,
   updateModelConfig,
   updateTestCase,
 } from './evaluationApi';
@@ -314,6 +320,40 @@ describe('evaluationApi', () => {
       '/api/evaluation/campaigns/cmp-1/evaluate',
       { question_ids: ['Q2', 'Q8'] }
     );
+  });
+
+  it('creates and inspects durable evaluation jobs', async () => {
+    mockedApi.post
+      .mockResolvedValueOnce({ data: { job_id: 'job-1', job_type: 'rerun' } })
+      .mockResolvedValueOnce({ data: { job_id: 'job-1', status: 'cancelled' } });
+    mockedApi.get
+      .mockResolvedValueOnce({ data: [{ job_id: 'job-1', status: 'running' }] })
+      .mockResolvedValueOnce({ data: { job_id: 'job-1', status: 'running' } })
+      .mockResolvedValueOnce({ data: [{ attempt_id: 'attempt-1', status: 'failed' }] });
+
+    const request = {
+      scope: 'failed_only' as const,
+      stages: 'execution_and_ragas' as const,
+      question_ids: [],
+      metric_names: [],
+    };
+    await createCampaignRerun('cmp-1', request);
+    expect(mockedApi.post).toHaveBeenCalledWith(
+      '/api/evaluation/campaigns/cmp-1/reruns',
+      request,
+    );
+
+    await listCampaignJobs('cmp-1');
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/evaluation/campaigns/cmp-1/jobs');
+    await getEvaluationJob('job-1');
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/evaluation/jobs/job-1');
+    await listWorkItemAttempts('work-1');
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/evaluation/work-items/work-1/attempts');
+    mockedApi.get.mockResolvedValueOnce({ data: { items: [{ job_item_id: 'item-1', work_item_id: 'work-1' }] } });
+    await listEvaluationJobItems('job-1');
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/evaluation/jobs/job-1/items');
+    await cancelEvaluationJob('job-1');
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/evaluation/jobs/job-1/cancel');
   });
 
   it('fetches campaign research analytics endpoints', async () => {

@@ -477,6 +477,41 @@ describe('CampaignRunner', () => {
     expect(screen.getByText('RAGAS evaluation failed')).toBeInTheDocument();
     expect(screen.getByText('目前階段：RAGAS 評估')).toBeInTheDocument();
   });
+
+  it('treats completed_with_errors as terminal warning status', async () => {
+    mockListTestCases.mockResolvedValue(baseTestCases);
+    mockListModelConfigs.mockResolvedValue([baseConfig]);
+    const partialCampaign = createCampaignStatus({
+      id: 'cmp-partial',
+      status: 'completed_with_errors',
+      error_message: 'One item has no compatible result',
+      updated_at: '2026-03-07T00:00:10+00:00',
+    });
+    mockListCampaigns
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([partialCampaign])
+      .mockResolvedValue([partialCampaign]);
+    mockCreateCampaign.mockResolvedValue({ campaign_id: 'cmp-partial', status: 'pending' });
+    mockStreamCampaign.mockImplementation((_campaignId, onEvent) => {
+      onEvent({
+        type: 'campaign_completed_with_errors',
+        data: createCampaignStatus({
+          id: 'cmp-partial',
+          status: 'completed_with_errors',
+          error_message: 'One item has no compatible result',
+          updated_at: '2026-03-07T00:00:10+00:00',
+        }),
+      });
+      return Promise.resolve();
+    });
+
+    renderRunner();
+    await waitFor(() => expect(screen.getByText('已選擇 1 題')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: '開始評估' }));
+    await waitFor(() => expect(screen.getByText('完成但有錯誤')).toBeInTheDocument());
+    expect(screen.getByText('One item has no compatible result')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '取消' })).not.toBeInTheDocument();
+  });
   it('shows model reasoning settings in setup, history, and raw result summaries', async () => {
     const reasoningConfig = {
       ...baseConfig,

@@ -102,6 +102,7 @@ export type CampaignLifecycleStatus =
   | 'running'
   | 'evaluating'
   | 'completed'
+  | 'completed_with_errors'
   | 'failed'
   | 'cancelled';
 
@@ -595,6 +596,7 @@ export type CampaignStreamEvent =
   | { type: 'campaign_snapshot'; data: CampaignStatus }
   | { type: 'campaign_progress'; data: CampaignProgressEvent }
   | { type: 'campaign_completed'; data: CampaignStatus }
+  | { type: 'campaign_completed_with_errors'; data: CampaignStatus }
   | { type: 'campaign_failed'; data: CampaignStatus }
   | { type: 'campaign_cancelled'; data: CampaignStatus }
   | { type: 'run_started'; data: CampaignGranularStreamEventData }
@@ -604,5 +606,103 @@ export type CampaignStreamEvent =
   | { type: 'metric_completed'; data: CampaignGranularStreamEventData }
   | { type: 'run_completed'; data: CampaignGranularStreamEventData }
   | { type: 'run_failed'; data: CampaignGranularStreamEventData };
+
+export type EvaluationJobType = 'initial' | 'rerun';
+export type EvaluationWorkType = 'dataset_execution' | 'ragas_metric';
+export type EvaluationJobItemStatus =
+  | 'pending'
+  | 'running'
+  | 'retry_wait'
+  | 'succeeded'
+  | 'failed'
+  | 'interrupted'
+  | 'cancelled';
+export type EvaluationAttemptStatus =
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'interrupted'
+  | 'cancelled';
+export type EvaluationRerunScope = 'failed_only' | 'selected' | 'all';
+export type EvaluationRerunStages = 'execution' | 'ragas' | 'execution_and_ragas';
+export type EvaluationJobStatus =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'completed_with_errors'
+  | 'failed'
+  | 'cancelled';
+
+export interface EvaluationRerunRequest {
+  scope: EvaluationRerunScope;
+  stages: EvaluationRerunStages;
+  question_ids: string[];
+  metric_names: string[];
+}
+
+export interface EvaluationJobItemCounts {
+  valid: number;
+  failed: number;
+  retrying: number;
+  interrupted: number;
+  missing: number;
+  cancelled?: number;
+}
+
+export interface EvaluationJobItemSummary {
+  job_item_id: string;
+  job_id: string;
+  work_item_id: string;
+  work_type: EvaluationWorkType;
+  status: EvaluationJobItemStatus;
+  retry_after?: string | null;
+  max_attempts?: number;
+  active_attempt_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface EvaluationJob {
+  job_id: string;
+  /** Compatibility with early clients that used database-style ids. */
+  id?: string;
+  job_type: EvaluationJobType;
+  user_id?: string | null;
+  campaign_id?: string | null;
+  selection: Record<string, unknown>;
+  config_snapshot: Record<string, unknown>;
+  rerun_request?: EvaluationRerunRequest | null;
+  status: EvaluationJobStatus;
+  total_items: number;
+  succeeded_items: number;
+  completed_items: number;
+  failed_items: number;
+  cancelled_items: number;
+  created_at: string;
+  /** Optional aggregate fields exposed by newer job-summary responses. */
+  counts?: Partial<EvaluationJobItemCounts>;
+  valid_items?: number;
+  retrying_items?: number;
+  interrupted_items?: number;
+  missing_items?: number;
+  retry_wait_items?: number;
+  items?: EvaluationJobItemSummary[];
+  latest_safe_error_message?: string | null;
+  error_message?: string | null;
+}
+
+export interface EvaluationAttempt {
+  attempt_id: string;
+  job_id: string;
+  job_item_id: string;
+  work_item_id: string;
+  attempt_number: number;
+  status: EvaluationAttemptStatus;
+  started_at: string;
+  last_heartbeat_at?: string | null;
+  finished_at?: string | null;
+  error_type?: string | null;
+  safe_error_message?: string | null;
+}
 
 
