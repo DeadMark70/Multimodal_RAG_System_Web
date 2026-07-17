@@ -93,26 +93,6 @@ function scalarString(value: unknown, fallback: string): string {
   return typeof value === 'string' || typeof value === 'number' ? String(value) : fallback;
 }
 
-function mapOverviewData(data: DashboardApiData) {
-  const researchSummary = data.researchSummary;
-  if (!researchSummary) {
-    return undefined;
-  }
-  return {
-    summary: {
-      completedRuns: researchSummary.completed_run_count,
-      totalRuns: researchSummary.total_run_count,
-      avgCorrectness: researchSummary.quality.answer_correctness?.value,
-      avgFaithfulness: researchSummary.quality.faithfulness?.value,
-      avgRelevancy: researchSummary.quality.answer_relevancy?.value,
-      avgTokens: researchSummary.tokens.total_tokens,
-      avgCostUsd: researchSummary.execution_cost.benchmark_usd,
-      avgLatencyMs: researchSummary.latency.mean_ms,
-      failedRuns: researchSummary.failed_run_count,
-    },
-  };
-}
-
 function mapQuestionRows(data: DashboardApiData) {
   return Object.entries(asRecord(data.questionComparison?.summaries)).map(([questionId, raw]) => {
     const summary = asRecord(raw);
@@ -410,7 +390,7 @@ export default function EvaluationCenter() {
   const retrievalData = mapRetrieval(dashboardData.runDetail);
   const claimData = mapClaims(dashboardData.runDetail);
   const dashboardTabs = [
-    { label: 'Campaign Overview', component: <CampaignOverviewTab data={mapOverviewData(dashboardData)} /> },
+    { label: 'Campaign Overview', component: <CampaignOverviewTab data={dashboardData.researchSummary} /> },
     { label: 'Question Analysis', component: <QuestionAnalysisTab rows={mapQuestionRows(dashboardData)} /> },
     {
       label: 'Run Trace',

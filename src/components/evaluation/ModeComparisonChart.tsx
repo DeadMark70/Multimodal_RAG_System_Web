@@ -1,74 +1,14 @@
-import {
-  Box,
-  Progress,
-  Table,
-  Tbody,
-  Td,
-  Text,
-  Th,
-  Thead,
-  Tr,
-  VStack,
-} from '@chakra-ui/react';
+import { Box, Table, Tbody, Td, Text, Th, Thead, Tr, VStack } from '@chakra-ui/react';
+import type { ModeResearchSummary, ResearchMetricObservation } from '../../types/evaluation';
 
-export interface ModeComparisonRow {
-  mode: string;
-  correctness: number;
-  faithfulness: number;
-  relevancy: number;
-  runs: number;
-  avgCostUsd?: number;
-  avgLatencyMs?: number;
-}
+export type ModeComparisonRow = ModeResearchSummary;
 
-function formatPercent(value: number) {
-  return `${(value * 100).toFixed(1)}%`;
+function MetricCell({ observation }: { observation: ResearchMetricObservation | undefined }) {
+  const metadata = observation ? `${observation.valid_samples} valid · ${observation.missing_samples} missing · ${observation.failed_samples} failed` : 'No observation';
+  return <VStack align="start" spacing={0}><Text>{observation?.value == null ? 'N/A' : `${(observation.value * 100).toFixed(1)}%`}</Text><Text fontSize="xs" color="text.secondary">{metadata}</Text></VStack>;
 }
 
 export default function ModeComparisonChart({ rows }: { rows?: ModeComparisonRow[] }) {
-  if (!rows?.length) {
-    return <Text color="text.secondary">No mode comparison data for this campaign yet.</Text>;
-  }
-
-  return (
-    <Box overflowX="auto">
-      <Table size="sm">
-        <Thead>
-          <Tr>
-            <Th>Mode</Th>
-            <Th>Correctness</Th>
-            <Th>Faithfulness</Th>
-            <Th>Relevancy</Th>
-            <Th isNumeric>Runs</Th>
-          </Tr>
-        </Thead>
-        <Tbody>
-          {rows.map((row) => (
-            <Tr key={row.mode}>
-              <Td fontWeight="medium">{row.mode}</Td>
-              <Td minW="180px">
-                <VStack align="stretch" spacing={1}>
-                  <Text fontSize="sm">{formatPercent(row.correctness)}</Text>
-                  <Progress value={row.correctness * 100} size="sm" colorScheme="green" />
-                </VStack>
-              </Td>
-              <Td minW="180px">
-                <VStack align="stretch" spacing={1}>
-                  <Text fontSize="sm">{formatPercent(row.faithfulness)}</Text>
-                  <Progress value={row.faithfulness * 100} size="sm" colorScheme="blue" />
-                </VStack>
-              </Td>
-              <Td minW="180px">
-                <VStack align="stretch" spacing={1}>
-                  <Text fontSize="sm">{formatPercent(row.relevancy)}</Text>
-                  <Progress value={row.relevancy * 100} size="sm" colorScheme="purple" />
-                </VStack>
-              </Td>
-              <Td isNumeric>{row.runs}</Td>
-            </Tr>
-          ))}
-        </Tbody>
-      </Table>
-    </Box>
-  );
+  if (!rows?.length) return <Text color="text.secondary">No mode comparison data for this campaign yet.</Text>;
+  return <Box overflowX="auto"><Table size="sm"><Thead><Tr><Th>Mode</Th><Th>Correctness</Th><Th>Faithfulness</Th><Th>Relevancy</Th><Th isNumeric>Runs</Th></Tr></Thead><Tbody>{rows.map((row) => <Tr key={row.mode}><Td fontWeight="medium">{row.mode}</Td><Td><MetricCell observation={row.quality.answer_correctness} /></Td><Td><MetricCell observation={row.quality.faithfulness} /></Td><Td><MetricCell observation={row.quality.answer_relevancy} /></Td><Td isNumeric>{row.sample_count}</Td></Tr>)}</Tbody></Table></Box>;
 }

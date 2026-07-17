@@ -14,7 +14,7 @@ import {
 } from '../services/evaluationApi';
 
 const { overviewProps, researchSummaryFixture } = vi.hoisted(() => ({ overviewProps: [] as Array<{
-  data?: { summary?: { completedRuns?: number; avgCorrectness?: number | null; avgFaithfulness?: number | null; avgRelevancy?: number | null; avgTokens?: number | null; avgCostUsd?: number | null; avgLatencyMs?: number | null } };
+  data?: CampaignResearchSummaryResponse;
 }>, researchSummaryFixture: {
   campaign_id: 'cmp-1', research_schema_version: '2', completed_run_count: 2, total_run_count: 2, failed_run_count: 0,
   quality_status: 'complete', token_accounting_status: 'complete', pricing_status: 'complete', phase_attribution_status: 'complete', sample_count: 2,
@@ -62,11 +62,11 @@ vi.mock('../components/evaluation/CampaignRunner', () => ({
 }));
 
 vi.mock('../components/evaluation/CampaignOverviewTab', () => ({
-  default: (props: { data?: { summary?: { completedRuns?: number; avgCorrectness?: number | null; avgFaithfulness?: number | null; avgRelevancy?: number | null; avgTokens?: number | null; avgCostUsd?: number | null; avgLatencyMs?: number | null } } }) => {
+  default: (props: { data?: CampaignResearchSummaryResponse }) => {
     overviewProps.push(props);
     const { data } = props;
     return (
-    <div>CampaignOverviewTab {data?.summary?.completedRuns ?? 'none'}</div>
+    <div>CampaignOverviewTab {data?.completed_run_count ?? 'none'}</div>
     );
   },
 }));
@@ -266,14 +266,12 @@ describe('EvaluationCenter UI', () => {
     await waitFor(() => expect(getCampaignResearchSummary).toHaveBeenCalledWith('cmp-1'));
     expect(getModeComparison).not.toHaveBeenCalled();
     expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
-    expect(overviewProps.at(-1)?.data?.summary).toMatchObject({
-      completedRuns: 2,
-      avgCorrectness: 0.88,
-      avgFaithfulness: 0.91,
-      avgRelevancy: 0.86,
-      avgTokens: 220,
-      avgCostUsd: 0.02,
-      avgLatencyMs: 1000,
+    expect(overviewProps.at(-1)?.data).toMatchObject({
+      completed_run_count: 2,
+      quality: { answer_correctness: { value: 0.88 }, faithfulness: { value: 0.91 }, answer_relevancy: { value: 0.86 } },
+      tokens: { total_tokens: 220 },
+      execution_cost: { benchmark_usd: 0.02 },
+      latency: { mean_ms: 1000 },
     });
     expect(exportCampaignAnalysis).not.toHaveBeenCalled();
 
@@ -315,7 +313,7 @@ describe('EvaluationCenter UI', () => {
     await screen.findByText('CampaignOverviewTab 7');
     resolveCampaignA(createResearchSummary());
 
-    await waitFor(() => expect(overviewProps.at(-1)?.data?.summary?.completedRuns).toBe(7));
+    await waitFor(() => expect(overviewProps.at(-1)?.data?.completed_run_count).toBe(7));
     expect(screen.queryByText('CampaignOverviewTab 2')).not.toBeInTheDocument();
   });
 
@@ -339,7 +337,7 @@ describe('EvaluationCenter UI', () => {
     await screen.findByText('CampaignOverviewTab 7');
     rejectErrorsA(new Error('Campaign A errors failed'));
 
-    await waitFor(() => expect(overviewProps.at(-1)?.data?.summary?.completedRuns).toBe(7));
+    await waitFor(() => expect(overviewProps.at(-1)?.data?.completed_run_count).toBe(7));
     expect(getCampaignErrors).toHaveBeenCalledWith('cmp-b');
     expect(screen.queryByText('Campaign A errors failed')).not.toBeInTheDocument();
   });
