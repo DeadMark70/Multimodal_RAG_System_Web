@@ -26,7 +26,7 @@ Describe the current evaluation UI as a first-class subsystem rather than a rele
 `Campaign Overview` is backed by `GET /api/evaluation/campaigns/{campaign_id}/research-summary`, via `getCampaignResearchSummary(...)`. It is the overview's authoritative source; the tab does not derive accounting, quality, latency, or cost from the legacy analytics payloads.
 
 - The response has `research_schema_version: "2"` and separates campaign totals, one `modes[]` summary per completed mode, and `evaluation_overhead`.
-- Every summary carries four independent statuses: `quality_status`, `token_accounting_status`, `pricing_status`, and `phase_attribution_status`. A successful campaign must not be presented as though all four dimensions are complete.
+- The campaign-level research summary carries four independent top-level statuses: `quality_status`, `token_accounting_status`, `pricing_status`, and `phase_attribution_status`. A successful campaign must not be presented as though all four dimensions are complete. Mode entries instead expose nested quality-observation, token/phase-attribution, and cost/pricing statuses.
 - Nullable measurements are intentionally rendered as `N/A`; a missing price/cost is rendered as `Unknown`. The UI does not substitute `0`, reuse an average as P50/P95, or infer a quality result from another metric.
 - Version-2 execution totals include only completed, schema-v2, official execution scopes matched to the durable campaign result/attempt. Older or incomplete accounting remains visible as `incomplete_legacy` or `partial`, with a legacy warning rather than a synthesized total.
 
@@ -71,9 +71,8 @@ The primary analytics surface is an 8-tab Chakra `Tabs` control rendered directl
 1. `Campaign Overview`
    - component: `CampaignOverviewTab.tsx`
    - page inputs:
-     - `getCampaignOverview(...)`
-     - `getModeComparison(...)`
-     - `getCampaignErrors(...)`
+     - `getCampaignResearchSummary(...)` is the sole source for Overview research metrics and rows
+     - `getCampaignErrors(...)`, when requested by page/tab orchestration, supplies background error data for other surfaces and is not an Overview research-metric source
    - mapped outputs:
      - summary cards
      - mode comparison rows
