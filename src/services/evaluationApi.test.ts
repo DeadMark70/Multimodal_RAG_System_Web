@@ -8,6 +8,7 @@ import {
   getCampaignResultTrace,
   getCampaignAnalyticsDashboard,
   getCampaignOverview,
+  getCampaignResearchSummary,
   getCampaignRuns,
   getModeComparison,
   getQuestionComparison,
@@ -49,6 +50,30 @@ import {
   updateTestCase,
 } from './evaluationApi';
 import type { AvailableModel } from '../types/evaluation';
+
+const researchSummaryFixture = {
+  campaign_id: 'cmp-1',
+  research_schema_version: '2' as const,
+  completed_run_count: 2,
+  total_run_count: 2,
+  failed_run_count: 0,
+  quality_status: 'complete' as const,
+  token_accounting_status: 'complete' as const,
+  pricing_status: 'complete' as const,
+  phase_attribution_status: 'complete' as const,
+  sample_count: 2,
+  quality: {
+    faithfulness: { value: 0.91, status: 'complete' as const, valid_samples: 2, missing_samples: 0, failed_samples: 0, evaluator_model: 'gemini-2.5-pro', metric_version: 'ragas-0.2' },
+    answer_correctness: { value: 0.88, status: 'complete' as const, valid_samples: 2, missing_samples: 0, failed_samples: 0, evaluator_model: 'gemini-2.5-pro', metric_version: 'ragas-0.2' },
+    answer_relevancy: { value: 0.86, status: 'complete' as const, valid_samples: 2, missing_samples: 0, failed_samples: 0, evaluator_model: 'gemini-2.5-pro', metric_version: 'ragas-0.2' },
+  },
+  latency: { mean_ms: 1000, p50_ms: 900, p95_ms: 1200, sample_count: 2, method: 'nearest_rank' as const, low_sample_size: true },
+  tokens: { input_tokens: 120, output_text_tokens: 80, reasoning_tokens: 20, other_tokens: 0, total_tokens: 220, by_phase: { execution: 220 }, accounting_status: 'complete' as const, phase_attribution_status: 'complete' as const },
+  execution_cost: { benchmark_usd: 0.02, operational_usd: 0.02, pricing_status: 'complete' as const, priced_call_count: 2, unpriced_call_count: 0 },
+  modes: [{ mode: 'agentic', sample_count: 2, comparable: true, not_comparable_reasons: [], quality: {}, latency: { mean_ms: 1000, p50_ms: 900, p95_ms: 1200, sample_count: 2, method: 'nearest_rank' as const, low_sample_size: true }, tokens: { input_tokens: 120, output_text_tokens: 80, reasoning_tokens: 20, other_tokens: 0, total_tokens: 220, by_phase: { execution: 220 }, accounting_status: 'complete' as const, phase_attribution_status: 'complete' as const }, execution_cost: { benchmark_usd: 0.02, operational_usd: 0.02, pricing_status: 'complete' as const, priced_call_count: 2, unpriced_call_count: 0 } }],
+  evaluation_overhead: { tokens: { input_tokens: 0, output_text_tokens: 0, reasoning_tokens: 0, other_tokens: 0, total_tokens: 0, by_phase: {}, accounting_status: 'complete' as const, phase_attribution_status: 'complete' as const }, cost_usd: 0, pricing_status: 'complete' as const, evaluator_models: ['gemini-2.5-pro'], metric_names: ['faithfulness', 'answer_correctness', 'answer_relevancy'], batch_count: 1, retry_count: 0 },
+  warnings: [],
+};
 
 vi.mock('./api', () => ({
   default: {
@@ -307,6 +332,13 @@ describe('evaluationApi', () => {
 
     await cancelCampaign('cmp-1');
     expect(mockedApi.post).toHaveBeenNthCalledWith(3, '/api/evaluation/campaigns/cmp-1/cancel');
+  });
+
+  it('fetches the strict research summary', async () => {
+    mockedApi.get.mockResolvedValueOnce({ data: researchSummaryFixture });
+
+    expect(await getCampaignResearchSummary('cmp-1')).toEqual(researchSummaryFixture);
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/evaluation/campaigns/cmp-1/research-summary');
   });
 
   it('passes question_ids payload when rerunning selected questions', async () => {

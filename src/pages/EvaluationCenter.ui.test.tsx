@@ -6,9 +6,24 @@ import theme from '../theme';
 import EvaluationCenter from './EvaluationCenter';
 import {
   exportCampaignAnalysis,
+  getCampaignResearchSummary,
   getModeComparison,
-  getCampaignOverview,
 } from '../services/evaluationApi';
+
+const { researchSummaryFixture } = vi.hoisted(() => ({ researchSummaryFixture: {
+  campaign_id: 'cmp-1', research_schema_version: '2', completed_run_count: 2, total_run_count: 2, failed_run_count: 0,
+  quality_status: 'complete', token_accounting_status: 'complete', pricing_status: 'complete', phase_attribution_status: 'complete', sample_count: 2,
+  quality: {
+    faithfulness: { value: 0.91, status: 'complete', valid_samples: 2, missing_samples: 0, failed_samples: 0, evaluator_model: 'gemini-2.5-pro', metric_version: 'ragas-0.2' },
+    answer_correctness: { value: 0.88, status: 'complete', valid_samples: 2, missing_samples: 0, failed_samples: 0, evaluator_model: 'gemini-2.5-pro', metric_version: 'ragas-0.2' },
+    answer_relevancy: { value: 0.86, status: 'complete', valid_samples: 2, missing_samples: 0, failed_samples: 0, evaluator_model: 'gemini-2.5-pro', metric_version: 'ragas-0.2' },
+  },
+  latency: { mean_ms: 1000, p50_ms: 900, p95_ms: 1200, sample_count: 2, method: 'nearest_rank', low_sample_size: true },
+  tokens: { input_tokens: 120, output_text_tokens: 80, reasoning_tokens: 20, other_tokens: 0, total_tokens: 220, by_phase: { execution: 220 }, accounting_status: 'complete', phase_attribution_status: 'complete' },
+  execution_cost: { benchmark_usd: 0.02, operational_usd: 0.02, pricing_status: 'complete', priced_call_count: 2, unpriced_call_count: 0 },
+  modes: [{ mode: 'agentic', sample_count: 2, comparable: true, not_comparable_reasons: [], quality: {}, latency: { mean_ms: 1000, p50_ms: 900, p95_ms: 1200, sample_count: 2, method: 'nearest_rank', low_sample_size: true }, tokens: { input_tokens: 120, output_text_tokens: 80, reasoning_tokens: 20, other_tokens: 0, total_tokens: 220, by_phase: { execution: 220 }, accounting_status: 'complete', phase_attribution_status: 'complete' }, execution_cost: { benchmark_usd: 0.02, operational_usd: 0.02, pricing_status: 'complete', priced_call_count: 2, unpriced_call_count: 0 } }],
+  evaluation_overhead: { tokens: { input_tokens: 0, output_text_tokens: 0, reasoning_tokens: 0, other_tokens: 0, total_tokens: 0, by_phase: {}, accounting_status: 'complete', phase_attribution_status: 'complete' }, cost_usd: 0, pricing_status: 'complete', evaluator_models: ['gemini-2.5-pro'], metric_names: ['faithfulness', 'answer_correctness', 'answer_relevancy'], batch_count: 1, retry_count: 0 }, warnings: [],
+} as const }));
 
 vi.mock('../components/layout/Layout', () => ({
   default: ({ children }: { children: ReactNode }) => <div data-testid="layout">{children}</div>,
@@ -77,21 +92,7 @@ vi.mock('../services/evaluationApi', () => ({
       updated_at: '2026-07-08T00:00:00Z',
     },
   ]),
-  getCampaignOverview: vi.fn().mockResolvedValue({
-    campaign_id: 'cmp-1',
-    sample_count: 2,
-    independent_question_count: 1,
-    repeat_count: 1,
-    sample_note: 'n = 2',
-    mode_counts: { agentic: 2 },
-    total_tokens: 200,
-    total_cost_usd: 0.02,
-    total_cost_twd: 0.64,
-    cost_status: 'complete',
-    priced_call_count: 1,
-    unpriced_call_count: 0,
-    avg_latency_ms: 1000,
-  }),
+  getCampaignResearchSummary: vi.fn().mockResolvedValue(researchSummaryFixture),
   getCampaignAnalyticsDashboard: vi.fn().mockResolvedValue({
     campaign_id: 'cmp-1',
     overview: {
@@ -233,8 +234,8 @@ describe('EvaluationCenter UI', () => {
     expect(await screen.findByRole('tab', { name: 'Claim Evidence' })).toBeInTheDocument();
     expect(await screen.findByRole('tab', { name: 'Router Lab' })).toBeInTheDocument();
     expect(await screen.findByRole('tab', { name: 'Ablation' })).toBeInTheDocument();
-    await waitFor(() => expect(getCampaignOverview).toHaveBeenCalledWith('cmp-1'));
-    await waitFor(() => expect(getModeComparison).toHaveBeenCalledWith('cmp-1'));
+    await waitFor(() => expect(getCampaignResearchSummary).toHaveBeenCalledWith('cmp-1'));
+    expect(getModeComparison).not.toHaveBeenCalled();
     expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
     expect(exportCampaignAnalysis).not.toHaveBeenCalled();
 
@@ -254,7 +255,7 @@ describe('EvaluationCenter UI', () => {
     );
 
     expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
-    expect(getCampaignOverview).toHaveBeenCalledWith('cmp-1');
+    expect(getCampaignResearchSummary).toHaveBeenCalledWith('cmp-1');
     await waitFor(() => expect(screen.queryByText('Loading evaluation analytics...')).not.toBeInTheDocument());
   });
 });

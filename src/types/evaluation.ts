@@ -216,6 +216,96 @@ export interface CampaignOverviewResponse {
   avg_latency_ms?: number | null;
 }
 
+export type ResearchQualityStatus = 'complete' | 'evaluating' | 'partial' | 'failed' | 'not_requested';
+export type TokenAccountingStatus = 'complete' | 'partial' | 'incomplete_legacy';
+export type ResearchPricingStatus = 'complete' | 'partial' | 'unknown';
+export type PhaseAttributionStatus = 'complete' | 'partial' | 'not_available';
+
+export interface ResearchMetricObservation {
+  value: number | null;
+  status: ResearchQualityStatus;
+  valid_samples: number;
+  missing_samples: number;
+  failed_samples: number;
+  evaluator_model: string | null;
+  metric_version: string | null;
+}
+
+export interface ResearchLatencySummary {
+  mean_ms: number | null;
+  p50_ms: number | null;
+  p95_ms: number | null;
+  sample_count: number;
+  method: 'nearest_rank';
+  low_sample_size: boolean;
+}
+
+export interface ResearchTokenBreakdown {
+  input_tokens: number | null;
+  output_text_tokens: number | null;
+  reasoning_tokens: number | null;
+  other_tokens: number | null;
+  total_tokens: number | null;
+  by_phase: Record<string, number>;
+  accounting_status: TokenAccountingStatus;
+  phase_attribution_status: PhaseAttributionStatus;
+}
+
+export interface ResearchCostSummary {
+  benchmark_usd: number | null;
+  operational_usd: number | null;
+  pricing_status: ResearchPricingStatus;
+  priced_call_count: number;
+  unpriced_call_count: number;
+}
+
+export interface ModeResearchSummary {
+  mode: string;
+  sample_count: number;
+  comparable: boolean;
+  not_comparable_reasons: string[];
+  quality: Record<string, ResearchMetricObservation>;
+  latency: ResearchLatencySummary;
+  tokens: ResearchTokenBreakdown;
+  execution_cost: ResearchCostSummary;
+}
+
+export interface EvaluationOverheadSummary {
+  tokens: ResearchTokenBreakdown;
+  cost_usd: number | null;
+  pricing_status: ResearchPricingStatus;
+  evaluator_models: string[];
+  metric_names: string[];
+  batch_count: number;
+  retry_count: number;
+}
+
+export interface ResearchWarning {
+  code: string;
+  message: string;
+  mode: string | null;
+}
+
+export interface CampaignResearchSummaryResponse {
+  campaign_id: string;
+  research_schema_version: '2';
+  completed_run_count: number;
+  total_run_count: number;
+  failed_run_count: number;
+  quality_status: ResearchQualityStatus;
+  token_accounting_status: TokenAccountingStatus;
+  pricing_status: ResearchPricingStatus;
+  phase_attribution_status: PhaseAttributionStatus;
+  sample_count: number;
+  quality: Record<string, ResearchMetricObservation>;
+  latency: ResearchLatencySummary;
+  tokens: ResearchTokenBreakdown;
+  execution_cost: ResearchCostSummary;
+  modes: ModeResearchSummary[];
+  evaluation_overhead: EvaluationOverheadSummary;
+  warnings: ResearchWarning[];
+}
+
 export interface AnalyticsAggregateResponse {
   campaign_id: string;
   analysis_unit: 'execution' | 'question' | 'category';

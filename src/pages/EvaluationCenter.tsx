@@ -19,11 +19,10 @@ import PageHeader from '../components/common/PageHeader';
 import {
   getAblationAnalysis,
   getCampaignErrors,
-  getCampaignOverview,
+  getCampaignResearchSummary,
   getCampaignResults,
   getHumanEvalQueue,
   getHumanVsAuto,
-  getModeComparison,
   getQuestionComparison,
   getRouterAnalysis,
   getCampaignRuns,
@@ -33,7 +32,7 @@ import {
 import type {
   AblationResponse,
   CampaignErrorsResponse,
-  CampaignOverviewResponse,
+  CampaignResearchSummaryResponse,
   CampaignResultsResponse,
   CampaignStatus,
   CostLatencyResponse,
@@ -41,7 +40,6 @@ import type {
   ExportCampaignResponse,
   HumanEvalQueueResponse,
   HumanVsAutoResponse,
-  ModeComparisonResponse,
   QuestionComparisonResponse,
   RouterAnalysisResponse,
   RunDetailResponse,
@@ -59,10 +57,9 @@ const AblationDashboardTab = lazy(() => import('../components/evaluation/Ablatio
 
 interface DashboardApiData {
   campaigns: CampaignStatus[];
-  overview?: CampaignOverviewResponse;
+  researchSummary?: CampaignResearchSummaryResponse;
   results?: CampaignResultsResponse;
   runs?: EvaluationRunListResponse;
-  modeComparison?: ModeComparisonResponse;
   questionComparison?: QuestionComparisonResponse;
   costLatency?: CostLatencyResponse;
   routerAnalysis?: RouterAnalysisResponse;
@@ -96,63 +93,23 @@ function scalarString(value: unknown, fallback: string): string {
   return typeof value === 'string' || typeof value === 'number' ? String(value) : fallback;
 }
 
-function modeLabel(mode: string): string {
-  return mode.charAt(0).toUpperCase() + mode.slice(1);
-}
-
 function mapOverviewData(data: DashboardApiData) {
-  const overview = data.overview;
-  if (!overview) {
+  const researchSummary = data.researchSummary;
+  if (!researchSummary) {
     return undefined;
   }
-  const modeSummaries = asRecord(data.modeComparison?.summaries);
-  const totalRuns = Math.max(overview.sample_count, 1);
-  const modes = Object.entries(modeSummaries).map(([mode, raw]) => {
-    const summary = asRecord(raw);
-    const unsupportedRatio = numberValue(summary.unsupported_claim_ratio_mean);
-    return {
-      mode: modeLabel(mode),
-      correctness: Math.max(0, 1 - unsupportedRatio),
-      faithfulness: Math.max(0, 1 - unsupportedRatio),
-      relevancy: numberValue(summary.evidence_coverage_mean),
-      runs: numberValue(summary.sample_count),
-      avgLatencyMs: numberValue(summary.latency_ms_mean),
-    };
-  });
   return {
     summary: {
-      completedRuns: overview.sample_count,
-      totalRuns,
-      avgCorrectness: modes.length ? modes.reduce((sum, row) => sum + row.correctness, 0) / modes.length : 0,
-      avgFaithfulness: modes.length ? modes.reduce((sum, row) => sum + row.faithfulness, 0) / modes.length : 0,
-      avgRelevancy: modes.length ? modes.reduce((sum, row) => sum + row.relevancy, 0) / modes.length : 0,
-      avgTokens: overview.sample_count ? overview.total_tokens / overview.sample_count : 0,
-      avgCostUsd: overview.total_cost_usd ?? 0,
-      avgLatencyMs: overview.avg_latency_ms ?? 0,
-      errorRate: data.errors?.rows?.length ? data.errors.rows.length / totalRuns : 0,
+      completedRuns: researchSummary.completed_run_count,
+      totalRuns: researchSummary.total_run_count,
+      avgCorrectness: researchSummary.quality.answer_correctness?.value,
+      avgFaithfulness: researchSummary.quality.faithfulness?.value,
+      avgRelevancy: researchSummary.quality.answer_relevancy?.value,
+      avgTokens: researchSummary.tokens.total_tokens,
+      avgCostUsd: researchSummary.execution_cost.benchmark_usd,
+      avgLatencyMs: researchSummary.latency.mean_ms,
+      failedRuns: researchSummary.failed_run_count,
     },
-    modes,
-    costQuality: modes.map((row) => ({
-      mode: row.mode,
-      correctness: row.correctness,
-      faithfulness: row.faithfulness,
-      costUsd: overview.sample_count ? (overview.total_cost_usd ?? 0) / overview.sample_count : 0,
-      tokens: Math.round(overview.sample_count ? overview.total_tokens / overview.sample_count : 0),
-    })),
-    latency: [
-      {
-        stage: 'Campaign',
-        p50Ms: overview.avg_latency_ms ?? 0,
-        p95Ms: overview.avg_latency_ms ?? 0,
-      },
-    ],
-    tokens: Object.entries(modeSummaries).map(([mode, raw]) => ({
-      mode: modeLabel(mode),
-      promptTokens: Math.round(numberValue(asRecord(raw).total_tokens_mean)),
-      completionTokens: 0,
-      retrievalTokens: 0,
-      reasoningTokens: 0,
-    })),
   };
 }
 
@@ -355,11 +312,11 @@ export default function EvaluationCenter() {
     const loadDashboard = async () => {
       setLoadingDashboard(true);
       try {
-        const overview = await getCampaignOverview(selectedCampaignId);
+        const researchSummary = await getCampaignResearchSummary(selectedCampaignId);
         if (!mounted) {
           return;
         }
-        setDashboardData((current) => ({ ...current, overview }));
+        setDashboardData((current) => ({ ...current, researchSummary }));
         setDashboardError(null);
         setLoadingDashboard(false);
       } catch (error) {
@@ -378,13 +335,8 @@ export default function EvaluationCenter() {
 
   const loadTabData = useCallback(async (tabIndex: number, campaignId: string) => {
     switch (tabIndex) {
-      case 0: {
-        const [modeComparison, errors] = await Promise.all([
-          getModeComparison(campaignId),
-          getCampaignErrors(campaignId),
-        ]);
-        return { modeComparison, errors };
-      }
+      case 0:
+        return { errors: await getCampaignErrors(campaignId) };
       case 1:
         return { questionComparison: await getQuestionComparison(campaignId) };
       case 2:
@@ -414,7 +366,7 @@ export default function EvaluationCenter() {
   }, []);
 
   useEffect(() => {
-    if (!selectedCampaignId || !dashboardData.overview) {
+    if (!selectedCampaignId || !dashboardData.researchSummary) {
       return;
     }
     const tabKey = `${selectedCampaignId}:${activeTabIndex}`;
@@ -447,7 +399,7 @@ export default function EvaluationCenter() {
     return () => {
       mounted = false;
     };
-  }, [activeTabIndex, dashboardData.overview, loadTabData, selectedCampaignId]);
+  }, [activeTabIndex, dashboardData.researchSummary, loadTabData, selectedCampaignId]);
 
   const selectedCampaign = useMemo(
     () => dashboardData.campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,

@@ -8,13 +8,14 @@ import TokenBreakdownChart, { type TokenBreakdownRow } from './TokenBreakdownCha
 interface CampaignOverviewSummary {
   completedRuns: number;
   totalRuns: number;
-  avgCorrectness: number;
-  avgFaithfulness: number;
-  avgRelevancy: number;
-  avgTokens: number;
-  avgCostUsd: number;
-  avgLatencyMs: number;
-  errorRate: number;
+  avgCorrectness: number | null | undefined;
+  avgFaithfulness: number | null | undefined;
+  avgRelevancy: number | null | undefined;
+  avgTokens: number | null;
+  avgCostUsd: number | null;
+  avgLatencyMs: number | null;
+  failedRuns?: number;
+  errorRate?: number;
 }
 
 interface CampaignOverviewData {
@@ -25,7 +26,9 @@ interface CampaignOverviewData {
   tokens?: TokenBreakdownRow[];
 }
 
-const formatPercent = (value: number) => `${(value * 100).toFixed(1)}%`;
+const formatPercent = (value: number | null | undefined) => value == null ? '—' : `${(value * 100).toFixed(1)}%`;
+const formatNumber = (value: number | null) => value == null ? '—' : value.toLocaleString();
+const formatCost = (value: number | null) => value == null ? '—' : `$${value.toFixed(2)}`;
 
 export default function CampaignOverviewTab({ data }: { data?: CampaignOverviewData }) {
   if (!data) {
@@ -41,10 +44,10 @@ export default function CampaignOverviewTab({ data }: { data?: CampaignOverviewD
         <MetricCard label="Average Correctness" value={formatPercent(summary.avgCorrectness)} />
         <MetricCard label="Average Faithfulness" value={formatPercent(summary.avgFaithfulness)} />
         <MetricCard label="Average Relevancy" value={formatPercent(summary.avgRelevancy)} />
-        <MetricCard label="Average Tokens" value={summary.avgTokens.toLocaleString()} />
-        <MetricCard label="Average Cost" value={`$${summary.avgCostUsd.toFixed(2)}`} />
-        <MetricCard label="Average Latency" value={`${summary.avgLatencyMs.toLocaleString()} ms`} />
-        <MetricCard label="Error Rate" value={formatPercent(summary.errorRate)} />
+        <MetricCard label="Total Tokens" value={formatNumber(summary.avgTokens)} />
+        <MetricCard label="Benchmark Cost" value={formatCost(summary.avgCostUsd)} />
+        <MetricCard label="Mean Latency" value={summary.avgLatencyMs == null ? '—' : `${summary.avgLatencyMs.toLocaleString()} ms`} />
+        <MetricCard label="Failed Runs" value={summary.failedRuns == null ? '—' : `${summary.failedRuns}`} />
       </Grid>
 
       <Stack spacing={4}>

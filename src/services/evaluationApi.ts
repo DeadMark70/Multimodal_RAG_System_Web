@@ -11,6 +11,7 @@ import type {
   CampaignCreateResponse,
   CampaignEvaluateRequest,
   CampaignOverviewResponse,
+  CampaignResearchSummaryResponse,
   CampaignMetricsResponse,
   CampaignProgressEvent,
   CampaignResultsResponse,
@@ -263,6 +264,15 @@ export async function listEvaluationJobItems(jobId: string): Promise<EvaluationJ
 
 export async function getCampaignOverview(campaignId: string): Promise<CampaignOverviewResponse> {
   const response = await api.get<CampaignOverviewResponse>(`/api/evaluation/campaigns/${campaignId}/overview`);
+  return response.data;
+}
+
+export async function getCampaignResearchSummary(
+  campaignId: string,
+): Promise<CampaignResearchSummaryResponse> {
+  const response = await api.get<CampaignResearchSummaryResponse>(
+    `/api/evaluation/campaigns/${campaignId}/research-summary`,
+  );
   return response.data;
 }
 
