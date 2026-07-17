@@ -1,16 +1,21 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
+import type { CampaignResearchSummaryResponse, ModelConfig } from '../types/evaluation';
 import theme from '../theme';
 import EvaluationCenter from './EvaluationCenter';
 import {
   exportCampaignAnalysis,
+  getCampaignErrors,
   getCampaignResearchSummary,
+  listCampaigns,
   getModeComparison,
 } from '../services/evaluationApi';
 
-const { researchSummaryFixture } = vi.hoisted(() => ({ researchSummaryFixture: {
+const { overviewProps, researchSummaryFixture } = vi.hoisted(() => ({ overviewProps: [] as Array<{
+  data?: { summary?: { completedRuns?: number; avgCorrectness?: number | null; avgFaithfulness?: number | null; avgRelevancy?: number | null; avgTokens?: number | null; avgCostUsd?: number | null; avgLatencyMs?: number | null } };
+}>, researchSummaryFixture: {
   campaign_id: 'cmp-1', research_schema_version: '2', completed_run_count: 2, total_run_count: 2, failed_run_count: 0,
   quality_status: 'complete', token_accounting_status: 'complete', pricing_status: 'complete', phase_attribution_status: 'complete', sample_count: 2,
   quality: {
@@ -21,9 +26,24 @@ const { researchSummaryFixture } = vi.hoisted(() => ({ researchSummaryFixture: {
   latency: { mean_ms: 1000, p50_ms: 900, p95_ms: 1200, sample_count: 2, method: 'nearest_rank', low_sample_size: true },
   tokens: { input_tokens: 120, output_text_tokens: 80, reasoning_tokens: 20, other_tokens: 0, total_tokens: 220, by_phase: { execution: 220 }, accounting_status: 'complete', phase_attribution_status: 'complete' },
   execution_cost: { benchmark_usd: 0.02, operational_usd: 0.02, pricing_status: 'complete', priced_call_count: 2, unpriced_call_count: 0 },
-  modes: [{ mode: 'agentic', sample_count: 2, comparable: true, not_comparable_reasons: [], quality: {}, latency: { mean_ms: 1000, p50_ms: 900, p95_ms: 1200, sample_count: 2, method: 'nearest_rank', low_sample_size: true }, tokens: { input_tokens: 120, output_text_tokens: 80, reasoning_tokens: 20, other_tokens: 0, total_tokens: 220, by_phase: { execution: 220 }, accounting_status: 'complete', phase_attribution_status: 'complete' }, execution_cost: { benchmark_usd: 0.02, operational_usd: 0.02, pricing_status: 'complete', priced_call_count: 2, unpriced_call_count: 0 } }],
+  modes: [{ mode: 'agentic', sample_count: 2, comparable: true, not_comparable_reasons: [], quality: {
+    faithfulness: { value: 0.11, status: 'complete', valid_samples: 2, missing_samples: 0, failed_samples: 0, evaluator_model: 'gemini-2.5-pro', metric_version: 'ragas-0.2' },
+    answer_correctness: { value: 0.22, status: 'complete', valid_samples: 2, missing_samples: 0, failed_samples: 0, evaluator_model: 'gemini-2.5-pro', metric_version: 'ragas-0.2' },
+    answer_relevancy: { value: 0.33, status: 'complete', valid_samples: 2, missing_samples: 0, failed_samples: 0, evaluator_model: 'gemini-2.5-pro', metric_version: 'ragas-0.2' },
+  }, latency: { mean_ms: 111, p50_ms: 100, p95_ms: 150, sample_count: 2, method: 'nearest_rank', low_sample_size: true }, tokens: { input_tokens: 12, output_text_tokens: 8, reasoning_tokens: 2, other_tokens: 0, total_tokens: 22, by_phase: { execution: 22 }, accounting_status: 'complete', phase_attribution_status: 'complete' }, execution_cost: { benchmark_usd: 0.002, operational_usd: 0.002, pricing_status: 'complete', priced_call_count: 2, unpriced_call_count: 0 } }],
   evaluation_overhead: { tokens: { input_tokens: 0, output_text_tokens: 0, reasoning_tokens: 0, other_tokens: 0, total_tokens: 0, by_phase: {}, accounting_status: 'complete', phase_attribution_status: 'complete' }, cost_usd: 0, pricing_status: 'complete', evaluator_models: ['gemini-2.5-pro'], metric_names: ['faithfulness', 'answer_correctness', 'answer_relevancy'], batch_count: 1, retry_count: 0 }, warnings: [],
 } as const }));
+
+const modelConfigFixture: ModelConfig = {
+  id: 'model-1', name: 'Test model', model_name: 'gemini-2.5-flash', temperature: 0,
+  top_p: 1, top_k: 1, max_input_tokens: 1, max_output_tokens: 1, thinking_mode: false,
+};
+
+function createResearchSummary(
+  overrides: Partial<CampaignResearchSummaryResponse> = {},
+): CampaignResearchSummaryResponse {
+  return { ...researchSummaryFixture, ...overrides } as CampaignResearchSummaryResponse;
+}
 
 vi.mock('../components/layout/Layout', () => ({
   default: ({ children }: { children: ReactNode }) => <div data-testid="layout">{children}</div>,
@@ -42,9 +62,13 @@ vi.mock('../components/evaluation/CampaignRunner', () => ({
 }));
 
 vi.mock('../components/evaluation/CampaignOverviewTab', () => ({
-  default: ({ data }: { data?: { summary?: { completedRuns?: number } } }) => (
+  default: (props: { data?: { summary?: { completedRuns?: number; avgCorrectness?: number | null; avgFaithfulness?: number | null; avgRelevancy?: number | null; avgTokens?: number | null; avgCostUsd?: number | null; avgLatencyMs?: number | null } } }) => {
+    overviewProps.push(props);
+    const { data } = props;
+    return (
     <div>CampaignOverviewTab {data?.summary?.completedRuns ?? 'none'}</div>
-  ),
+    );
+  },
 }));
 
 vi.mock('../components/evaluation/QuestionAnalysisTab', () => ({
@@ -217,6 +241,11 @@ vi.mock('../services/evaluationApi', () => ({
 }));
 
 describe('EvaluationCenter UI', () => {
+  beforeEach(() => {
+    overviewProps.length = 0;
+    vi.clearAllMocks();
+  });
+
   it('renders research dashboard tabs with setup access', async () => {
     render(
       <ChakraProvider theme={theme}>
@@ -237,6 +266,15 @@ describe('EvaluationCenter UI', () => {
     await waitFor(() => expect(getCampaignResearchSummary).toHaveBeenCalledWith('cmp-1'));
     expect(getModeComparison).not.toHaveBeenCalled();
     expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
+    expect(overviewProps.at(-1)?.data?.summary).toMatchObject({
+      completedRuns: 2,
+      avgCorrectness: 0.88,
+      avgFaithfulness: 0.91,
+      avgRelevancy: 0.86,
+      avgTokens: 220,
+      avgCostUsd: 0.02,
+      avgLatencyMs: 1000,
+    });
     expect(exportCampaignAnalysis).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Setup evaluation' }));
@@ -245,8 +283,8 @@ describe('EvaluationCenter UI', () => {
     expect(await screen.findByText('CampaignRunner')).toBeInTheDocument();
   });
 
-  it('does not keep the whole dashboard loading while deferred tab analytics are pending', async () => {
-    vi.mocked(getModeComparison).mockReturnValueOnce(new Promise(() => {}));
+  it('does not keep the whole dashboard loading while deferred overview errors are pending', async () => {
+    vi.mocked(getCampaignErrors).mockReturnValueOnce(new Promise(() => {}));
 
     render(
       <ChakraProvider theme={theme}>
@@ -257,5 +295,52 @@ describe('EvaluationCenter UI', () => {
     expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
     expect(getCampaignResearchSummary).toHaveBeenCalledWith('cmp-1');
     await waitFor(() => expect(screen.queryByText('Loading evaluation analytics...')).not.toBeInTheDocument());
+  });
+
+  it('does not render a stale campaign summary after selecting another campaign', async () => {
+    let resolveCampaignA!: (value: CampaignResearchSummaryResponse) => void;
+    const campaignASummary = new Promise<CampaignResearchSummaryResponse>((resolve) => {
+      resolveCampaignA = resolve;
+    });
+    const campaignBSummary = createResearchSummary({ campaign_id: 'cmp-b', completed_run_count: 7 });
+    vi.mocked(listCampaigns).mockResolvedValueOnce([
+      { id: 'cmp-a', name: 'Campaign A', status: 'completed', phase: 'evaluation', config: { test_case_ids: [], modes: [], model_config: modelConfigFixture, repeat_count: 1, batch_size: 1, rpm_limit: 1, ragas_batch_size: 1, ragas_parallel_batches: 1, ragas_rpm_limit: 1 }, completed_units: 1, total_units: 1, evaluation_completed_units: 1, evaluation_total_units: 1, cancel_requested: false, created_at: '2026-07-08T00:00:00Z', updated_at: '2026-07-08T00:00:00Z' },
+      { id: 'cmp-b', name: 'Campaign B', status: 'completed', phase: 'evaluation', config: { test_case_ids: [], modes: [], model_config: modelConfigFixture, repeat_count: 1, batch_size: 1, rpm_limit: 1, ragas_batch_size: 1, ragas_parallel_batches: 1, ragas_rpm_limit: 1 }, completed_units: 1, total_units: 1, evaluation_completed_units: 1, evaluation_total_units: 1, cancel_requested: false, created_at: '2026-07-08T00:00:00Z', updated_at: '2026-07-08T00:00:00Z' },
+    ]);
+    vi.mocked(getCampaignResearchSummary).mockImplementationOnce(() => campaignASummary).mockResolvedValueOnce(campaignBSummary);
+
+    render(<ChakraProvider theme={theme}><EvaluationCenter /></ChakraProvider>);
+    await screen.findByRole('option', { name: 'Campaign B' });
+    fireEvent.change(screen.getByLabelText('Campaign selector'), { target: { value: 'cmp-b' } });
+    await screen.findByText('CampaignOverviewTab 7');
+    resolveCampaignA(createResearchSummary());
+
+    await waitFor(() => expect(overviewProps.at(-1)?.data?.summary?.completedRuns).toBe(7));
+    expect(screen.queryByText('CampaignOverviewTab 2')).not.toBeInTheDocument();
+  });
+
+  it('does not render a stale overview error after selecting another campaign', async () => {
+    let rejectErrorsA!: (reason: Error) => void;
+    const campaignAErrors = new Promise<{ campaign_id: string; rows: [] }>((_resolve, reject) => {
+      rejectErrorsA = reject;
+    });
+    const campaignBSummary = createResearchSummary({ campaign_id: 'cmp-b', completed_run_count: 7 });
+    vi.mocked(listCampaigns).mockResolvedValueOnce([
+      { id: 'cmp-a', name: 'Campaign A', status: 'completed', phase: 'evaluation', config: { test_case_ids: [], modes: [], model_config: modelConfigFixture, repeat_count: 1, batch_size: 1, rpm_limit: 1, ragas_batch_size: 1, ragas_parallel_batches: 1, ragas_rpm_limit: 1 }, completed_units: 1, total_units: 1, evaluation_completed_units: 1, evaluation_total_units: 1, cancel_requested: false, created_at: '2026-07-08T00:00:00Z', updated_at: '2026-07-08T00:00:00Z' },
+      { id: 'cmp-b', name: 'Campaign B', status: 'completed', phase: 'evaluation', config: { test_case_ids: [], modes: [], model_config: modelConfigFixture, repeat_count: 1, batch_size: 1, rpm_limit: 1, ragas_batch_size: 1, ragas_parallel_batches: 1, ragas_rpm_limit: 1 }, completed_units: 1, total_units: 1, evaluation_completed_units: 1, evaluation_total_units: 1, cancel_requested: false, created_at: '2026-07-08T00:00:00Z', updated_at: '2026-07-08T00:00:00Z' },
+    ]);
+    vi.mocked(getCampaignResearchSummary).mockResolvedValueOnce(createResearchSummary({ campaign_id: 'cmp-a' })).mockResolvedValueOnce(campaignBSummary);
+    vi.mocked(getCampaignErrors).mockImplementationOnce(() => campaignAErrors).mockResolvedValueOnce({ campaign_id: 'cmp-b', rows: [] });
+
+    render(<ChakraProvider theme={theme}><EvaluationCenter /></ChakraProvider>);
+    await screen.findByText('CampaignOverviewTab 2');
+    await waitFor(() => expect(getCampaignErrors).toHaveBeenCalledWith('cmp-a'));
+    fireEvent.change(screen.getByLabelText('Campaign selector'), { target: { value: 'cmp-b' } });
+    await screen.findByText('CampaignOverviewTab 7');
+    rejectErrorsA(new Error('Campaign A errors failed'));
+
+    await waitFor(() => expect(overviewProps.at(-1)?.data?.summary?.completedRuns).toBe(7));
+    expect(getCampaignErrors).toHaveBeenCalledWith('cmp-b');
+    expect(screen.queryByText('Campaign A errors failed')).not.toBeInTheDocument();
   });
 });

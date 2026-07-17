@@ -19,7 +19,7 @@ const overviewData = {
     avgTokens: 13420,
     avgCostUsd: 0.18,
     avgLatencyMs: 4820,
-    errorRate: 0.1,
+    failedRuns: 2,
   },
   modes: [
     {
@@ -83,7 +83,7 @@ describe('CampaignOverviewTab', () => {
     expect(screen.getByText('13,420')).toBeInTheDocument();
     expect(screen.getByText('$0.18')).toBeInTheDocument();
     expect(screen.getByText('4,820 ms')).toBeInTheDocument();
-    expect(screen.getByText('10.0%')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('Mode Comparison')).toBeInTheDocument();
     expect(screen.getByText('Cost vs Quality')).toBeInTheDocument();
     expect(screen.getByText('Latency Waterfall')).toBeInTheDocument();
@@ -108,6 +108,20 @@ describe('CampaignOverviewTab', () => {
     expect(screen.getByText('No cost-quality rows are available for this campaign yet.')).toBeInTheDocument();
     expect(screen.getByText('No latency stage breakdown is available yet.')).toBeInTheDocument();
     expect(screen.getByText('No token breakdown is available yet.')).toBeInTheDocument();
+  });
+
+  it('renders nullable strict-summary metrics as an em dash instead of zero', () => {
+    renderWithTheme(
+      <CampaignOverviewTab
+        data={{
+          summary: { ...overviewData.summary, avgCorrectness: null, avgFaithfulness: null, avgRelevancy: null, avgTokens: null, avgCostUsd: null, avgLatencyMs: null },
+        }}
+      />
+    );
+
+    expect(screen.getAllByText('—')).toHaveLength(6);
+    expect(screen.queryByText('0.0%')).not.toBeInTheDocument();
+    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
   });
 });
 
