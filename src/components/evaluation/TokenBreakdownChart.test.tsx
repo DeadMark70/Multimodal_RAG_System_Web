@@ -5,11 +5,40 @@ import theme from '../../theme';
 import TokenBreakdownChart from './TokenBreakdownChart';
 import { completeFixture } from './researchSummaryFixtures';
 
-it('renders non-overlapping token categories with phase attribution and unclassified tokens', () => {
-  render(<ChakraProvider theme={theme}><TokenBreakdownChart rows={completeFixture.modes} /></ChakraProvider>);
+it('renders the authoritative explicit unclassified phase subtotal', () => {
+  const row = {
+    ...completeFixture.modes[0],
+    tokens: {
+      ...completeFixture.modes[0].tokens,
+      total_tokens: 100,
+      by_phase: { answer_generation: 80, unclassified: 20 },
+      phase_attribution_status: 'partial' as const,
+    },
+  };
+
+  render(<ChakraProvider theme={theme}><TokenBreakdownChart rows={[row]} /></ChakraProvider>);
   expect(screen.getByText('Output text')).toBeInTheDocument();
   expect(screen.getByText('Phase attribution: partial')).toBeInTheDocument();
   expect(screen.getByText('Unclassified: 20')).toBeInTheDocument();
+});
+
+it.each([
+  ['complete', 'Unclassified: 0'],
+  ['partial', 'Unclassified: N/A'],
+  ['not_available', 'Unclassified: N/A'],
+] as const)('renders %s missing unclassified phase as %s', (phaseAttributionStatus, expected) => {
+  const row = {
+    ...completeFixture.modes[0],
+    tokens: {
+      ...completeFixture.modes[0].tokens,
+      total_tokens: 100,
+      by_phase: { answer_generation: 80 },
+      phase_attribution_status: phaseAttributionStatus,
+    },
+  };
+
+  render(<ChakraProvider theme={theme}><TokenBreakdownChart rows={[row]} /></ChakraProvider>);
+  expect(screen.getByText(expected)).toBeInTheDocument();
 });
 
 it('renders all five categories and evaluation overhead separately', () => {

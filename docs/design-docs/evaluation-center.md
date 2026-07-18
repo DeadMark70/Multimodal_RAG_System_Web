@@ -40,7 +40,7 @@ Describe the current evaluation UI as a first-class subsystem rather than a rele
 ### Accounting views
 
 - `Benchmark Cost` is the price of official, strict execution calls only. `Operational Cost` is the price of all execution calls associated with the mode/campaign. `RAGAS Overhead` is evaluator-batch cost and token use, shown separately from execution cost.
-- Token rows keep input, output-text, reasoning, and other categories separate. `by_phase` is server-attributed execution/RAGAS phase data; any remainder is shown as `Unclassified`. An `unclassified` phase or incomplete measurement makes phase attribution/status explicit rather than redistributing tokens.
+- Token rows keep input, output-text, reasoning, and other categories separate. `by_phase` values are server-measured phase subtotals, and an explicit `unclassified` value is authoritative. If that key is absent, `Unclassified` is `0` only when phase attribution is `complete`; it is otherwise `N/A`. The client never derives a remainder or redistributes partial phase values. Historical evaluation-overhead retry counts may be unknown (`null`) and remain `N/A` if displayed.
 - The token panel displays RAGAS evaluation overhead independently, including its own accounting and phase-attribution state. It does not add evaluator tokens into the execution token total.
 
 ## Boundaries

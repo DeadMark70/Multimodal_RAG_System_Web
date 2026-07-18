@@ -5,9 +5,9 @@ export type TokenBreakdownRow = ModeResearchSummary;
 
 const tokens = (value: number | null) => value == null ? 'N/A' : value.toLocaleString();
 
-function unclassified(breakdown: ResearchTokenBreakdown) {
-  if (breakdown.total_tokens == null) return null;
-  return breakdown.total_tokens - Object.values(breakdown.by_phase).reduce((total, value) => total + value, 0);
+function unclassified(breakdown: ResearchTokenBreakdown): number | null {
+  if (Object.hasOwn(breakdown.by_phase, 'unclassified')) return breakdown.by_phase.unclassified;
+  return breakdown.phase_attribution_status === 'complete' ? 0 : null;
 }
 
 function PhaseDetail({ breakdown }: { breakdown: ResearchTokenBreakdown }) {

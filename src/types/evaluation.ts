@@ -277,7 +277,7 @@ export interface EvaluationOverheadSummary {
   evaluator_models: string[];
   metric_names: string[];
   batch_count: number;
-  retry_count: number;
+  retry_count: number | null;
 }
 
 export interface ResearchWarning {
