@@ -35,6 +35,7 @@ import type {
   ModelConfigInput,
   ModeComparisonResponse,
   QuestionComparisonResponse,
+  ResearchQuestionComparisonResponse,
   HumanVsAutoResponse,
   RouterAnalysisResponse,
   RunClaimsResponse,
@@ -302,8 +303,8 @@ export async function getQuestionComparison(campaignId: string): Promise<Questio
   return response.data;
 }
 
-export async function getResearchQuestionComparison(campaignId: string): Promise<QuestionComparisonResponse> {
-  const response = await api.get<QuestionComparisonResponse>(
+export async function getResearchQuestionComparison(campaignId: string): Promise<ResearchQuestionComparisonResponse> {
+  const response = await api.get<ResearchQuestionComparisonResponse>(
     `/api/evaluation/campaigns/${campaignId}/research-question-comparison`,
   );
   return response.data;

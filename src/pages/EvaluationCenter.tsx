@@ -40,8 +40,8 @@ import type {
   ExportCampaignResponse,
   HumanEvalQueueResponse,
   HumanVsAutoResponse,
-  QuestionComparisonResponse,
   QuestionComparisonRow,
+  ResearchQuestionComparisonResponse,
   RouterAnalysisResponse,
   RunDetailResponse,
 } from '../types/evaluation';
@@ -61,7 +61,7 @@ interface DashboardApiData {
   researchSummary?: CampaignResearchSummaryResponse;
   results?: CampaignResultsResponse;
   runs?: EvaluationRunListResponse;
-  questionComparison?: QuestionComparisonResponse;
+  questionComparison?: ResearchQuestionComparisonResponse;
   costLatency?: CostLatencyResponse;
   routerAnalysis?: RouterAnalysisResponse;
   ablation?: AblationResponse;

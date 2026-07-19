@@ -306,7 +306,7 @@ export interface CampaignResearchSummaryResponse {
   warnings: ResearchWarning[];
 }
 
-export interface AnalyticsAggregateResponse {
+export interface AnalyticsAggregateResponse<T = Record<string, unknown>> {
   campaign_id: string;
   analysis_unit: 'execution' | 'question' | 'category';
   sample_count: number;
@@ -314,7 +314,7 @@ export interface AnalyticsAggregateResponse {
   repeat_count: number;
   sample_note: string;
   warnings: string[];
-  rows: Array<Record<string, unknown>>;
+  rows: T[];
   summaries: Record<string, unknown>;
 }
 
@@ -330,7 +330,7 @@ export interface QuestionModeComparison {
   faithfulness: number | null;
   answer_relevancy: number | null;
   mean_latency_ms: number | null;
-  total_tokens: number | null;
+  mean_tokens: number | null;
   quality_status: QuestionMetricStatus;
   accounting_status: QuestionAccountingStatus;
 }
@@ -352,9 +352,11 @@ export interface QuestionComparisonRow {
   comparability_reason: string | null;
 }
 
-export interface QuestionComparisonResponse extends AnalyticsAggregateResponse {
+export interface ResearchQuestionComparisonResponse extends AnalyticsAggregateResponse<QuestionComparisonRow> {
   rows: QuestionComparisonRow[];
 }
+
+export type QuestionComparisonResponse = AnalyticsAggregateResponse;
 
 export type CostLatencyResponse = AnalyticsAggregateResponse;
 
