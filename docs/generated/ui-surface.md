@@ -138,7 +138,7 @@ Human-maintained inventory of the current frontend surface.
   - streams live progress through `streamCampaign(...)`, retries SSE reconnects, then falls back to `listCampaigns()` polling
   - exposes campaign history and a raw results preview table
 - `CampaignOverviewTab.tsx`
-  - composes `MetricCard`, `ModeComparisonChart`, `CostQualityScatter`, `LatencyWaterfall`, and `TokenBreakdownChart`
+  - composes `MetricCard`, `ModeComparisonChart`, `TokenQualityTable`, `LatencyWaterfall`, and `TokenBreakdownChart`
   - all panels degrade to explicit empty-copy text when the mapped dataset is missing
 - `QuestionAnalysisTab.tsx`
   - applies local category/status filters

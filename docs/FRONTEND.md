@@ -216,7 +216,7 @@
 
 - `CampaignOverviewTab.tsx`
   - summary cards + four table-driven chart panels
-  - `ModeComparisonChart`, `CostQualityScatter`, `LatencyWaterfall`, and `TokenBreakdownChart` all render empty-copy text instead of placeholder graphics when no rows are present
+  - `ModeComparisonChart`, `TokenQualityTable`, `LatencyWaterfall`, and `TokenBreakdownChart` all render empty-copy text instead of placeholder graphics when no rows are present
   - current "charts" are mostly compact tables with progress bars, not canvas/SVG charting
 - `QuestionAnalysisTab.tsx`
   - category/status filters are local-only

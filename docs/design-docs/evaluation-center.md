@@ -26,8 +26,8 @@ Describe the current evaluation UI as a first-class subsystem rather than a rele
 `Campaign Overview` is backed by `GET /api/evaluation/campaigns/{campaign_id}/research-summary`, via `getCampaignResearchSummary(...)`. It is the overview's authoritative source; the tab does not derive accounting, quality, latency, or cost from the legacy analytics payloads.
 
 - The response has `research_schema_version: "2"` and separates campaign totals, one `modes[]` summary per completed mode, and `evaluation_overhead`.
-- The campaign-level research summary carries four independent top-level statuses: `quality_status`, `token_accounting_status`, `pricing_status`, and `phase_attribution_status`. A successful campaign must not be presented as though all four dimensions are complete. Mode entries instead expose nested quality-observation, token/phase-attribution, and cost/pricing statuses.
-- Nullable measurements are intentionally rendered as `N/A`; a missing price/cost is rendered as `Unknown`. The UI does not substitute `0`, reuse an average as P50/P95, or infer a quality result from another metric.
+- The campaign-level research summary carries quality, token-accounting, pricing, and phase-attribution statuses for API compatibility. The token-only UI surfaces quality, token, and phase-attribution statuses; monetary pricing remains optional metadata and does not gate comparability.
+- Nullable measurements are intentionally rendered as `N/A`. The UI does not substitute `0`, reuse an average as P50/P95, or infer a quality result from another metric.
 - Version-2 execution totals include only completed, schema-v2, official execution scopes matched to the durable campaign result/attempt. Older or incomplete accounting remains visible as `incomplete_legacy` or `partial`, with a legacy warning rather than a synthesized total.
 
 ### Quality, latency, and comparability
@@ -35,11 +35,11 @@ Describe the current evaluation UI as a first-class subsystem rather than a rele
 - The official quality observations are RAGAS-only: `answer_correctness`, `faithfulness`, and `answer_relevancy` (with context metrics only when requested). Each observation preserves its value, status, valid/missing/failed sample counts, and evaluator metadata.
 - Quality status is independent of token, pricing, and phase-attribution status. A value may therefore be `N/A` while other accounting data is available, or be marked `partial`, `evaluating`, `failed`, or `not_requested` without implying a zero score.
 - Latency is reported from measured completed-run latencies. P50 and P95 use the deterministic nearest-rank method over observed values; they are not interpolated. `low_sample_size` is shown when there are one to four samples.
-- Cost-versus-quality displays only comparable modes with benchmark pricing and both correctness and faithfulness. Excluded modes are retained as explanatory text with their server-provided `not_comparable_reasons` plus any missing-pricing or missing-quality reason; they are not silently charted.
+- Tokens-versus-quality displays comparable modes with both correctness and faithfulness, using measured total tokens as the resource axis. Excluded modes are retained as explanatory text with their server-provided `not_comparable_reasons` plus any missing-quality reason; unknown monetary pricing never excludes a mode.
 
 ### Accounting views
 
-- `Benchmark Cost` is the price of official, strict execution calls only. `Operational Cost` is the price of all execution calls associated with the mode/campaign. `RAGAS Overhead` is evaluator-batch cost and token use, shown separately from execution cost.
+- Token breakdown is the primary resource accounting surface. RAGAS evaluation overhead token use is shown separately from execution token use. Monetary cost fields remain available in the API for deployments that opt into an audited price snapshot, but are not required by the token-only UI.
 - Token rows keep input, output-text, reasoning, and other categories separate. `by_phase` values are server-measured phase subtotals, and an explicit `unclassified` value is authoritative. If that key is absent, `Unclassified` is `0` only when phase attribution is `complete`; it is otherwise `N/A`. The client never derives a remainder or redistributes partial phase values. Historical evaluation-overhead retry counts may be unknown (`null`) and remain `N/A` if displayed.
 - The token panel displays RAGAS evaluation overhead independently, including its own accounting and phase-attribution state. It does not add evaluator tokens into the execution token total.
 
