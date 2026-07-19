@@ -1,5 +1,6 @@
 import api from './api';
 import type {
+  AgentBehaviorResponse,
   AgentTraceDetail,
   AgentTraceSummary,
   AblationResponse,
@@ -306,6 +307,13 @@ export async function getQuestionComparison(campaignId: string): Promise<Questio
 export async function getResearchQuestionComparison(campaignId: string): Promise<ResearchQuestionComparisonResponse> {
   const response = await api.get<ResearchQuestionComparisonResponse>(
     `/api/evaluation/campaigns/${campaignId}/research-question-comparison`,
+  );
+  return response.data;
+}
+
+export async function getAgentBehavior(campaignId: string): Promise<AgentBehaviorResponse> {
+  const response = await api.get<AgentBehaviorResponse>(
+    `/api/evaluation/campaigns/${campaignId}/agent-behavior`
   );
   return response.data;
 }

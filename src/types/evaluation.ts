@@ -356,6 +356,27 @@ export interface ResearchQuestionComparisonResponse extends AnalyticsAggregateRe
   rows: QuestionComparisonRow[];
 }
 
+export interface AgentBehaviorRow {
+  run_id: string;
+  campaign_id: string;
+  question_id: string;
+  mode: CampaignMode;
+  repeat_number: number;
+  trace_status: string;
+  subtasks: number | null;
+  tool_calls: number | null;
+  visual_calls: number | null;
+  graph_calls: number | null;
+  drilldown_depth: number | null;
+  correctness: number | null;
+  faithfulness: number | null;
+  total_tokens: number | null;
+}
+
+export interface AgentBehaviorResponse extends AnalyticsAggregateResponse<AgentBehaviorRow> {
+  rows: AgentBehaviorRow[];
+}
+
 export type QuestionComparisonResponse = AnalyticsAggregateResponse;
 
 export type CostLatencyResponse = AnalyticsAggregateResponse;

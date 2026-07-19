@@ -20,7 +20,7 @@ import {
   getAblationAnalysis,
   getCampaignErrors,
   getCampaignResearchSummary,
-  getCampaignResults,
+  getAgentBehavior,
   getHumanEvalQueue,
   getHumanVsAuto,
   getResearchQuestionComparison,
@@ -30,6 +30,7 @@ import {
   listCampaigns,
 } from '../services/evaluationApi';
 import type {
+  AgentBehaviorResponse,
   AblationResponse,
   CampaignErrorsResponse,
   CampaignResearchSummaryResponse,
@@ -70,6 +71,7 @@ interface DashboardApiData {
   errors?: CampaignErrorsResponse;
   exportPreview?: ExportCampaignResponse;
   runDetail?: RunDetailResponse;
+  agentBehavior?: AgentBehaviorResponse;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -181,21 +183,22 @@ function mapRetrieval(detail?: RunDetailResponse) {
 }
 
 function mapAgentRows(data: DashboardApiData) {
-  return (data.results?.results ?? []).map((result) => {
-    const metrics = asRecord(result.derived_metrics);
-    const detail = data.runDetail?.run_id === result.id ? data.runDetail : undefined;
-    return {
-      questionId: result.question_id,
-      subtasks: 0,
-      toolCalls: detail?.tool_calls?.length ?? 0,
-      visualCalls: (detail?.tool_calls ?? []).filter((call) => JSON.stringify(call).toLowerCase().includes('visual')).length,
-      graphCalls: (detail?.tool_calls ?? []).filter((call) => JSON.stringify(call).toLowerCase().includes('graph')).length,
-      drilldownDepth: numberValue(metrics.max_drilldown_depth),
-      correctness: Math.max(0, 1 - numberValue(metrics.unsupported_claim_ratio)),
-      faithfulness: numberValue(metrics.supported_claim_ratio),
-      tokens: result.total_tokens ?? result.token_usage.total_tokens ?? 0,
-    };
-  });
+  return (data.agentBehavior?.rows ?? []).map((row) => ({
+    runId: row.run_id,
+    campaignId: row.campaign_id,
+    questionId: row.question_id,
+    mode: row.mode,
+    repeat: row.repeat_number,
+    traceStatus: row.trace_status,
+    subtasks: row.subtasks,
+    toolCalls: row.tool_calls,
+    visualCalls: row.visual_calls,
+    graphCalls: row.graph_calls,
+    drilldownDepth: row.drilldown_depth,
+    correctness: row.correctness,
+    faithfulness: row.faithfulness,
+    tokens: row.total_tokens,
+  }));
 }
 
 function mapClaims(detail?: RunDetailResponse) {
@@ -346,7 +349,7 @@ export default function EvaluationCenter() {
         return { runs, runDetail };
       }
       case 4:
-        return { results: await getCampaignResults(campaignId) };
+        return { agentBehavior: await getAgentBehavior(campaignId) };
       case 6:
         return { routerAnalysis: await getRouterAnalysis(campaignId) };
       case 7: {

@@ -1,15 +1,26 @@
 import { Box, Grid, GridItem, Table, Tbody, Td, Text, Th, Thead, Tr } from '@chakra-ui/react';
+import { formatOptionalNumber, formatOptionalText, formatOptionalTokens } from './evaluationDisplay';
 
 interface AgentBehaviorRow {
+  runId: string;
+  campaignId: string;
   questionId: string;
-  subtasks: number;
-  toolCalls: number;
-  visualCalls: number;
-  graphCalls: number;
-  drilldownDepth: number;
-  correctness: number;
-  faithfulness: number;
-  tokens: number;
+  mode: string;
+  repeat: number;
+  traceStatus: string;
+  subtasks: number | null;
+  toolCalls: number | null;
+  visualCalls: number | null;
+  graphCalls: number | null;
+  drilldownDepth: number | null;
+  correctness: number | null;
+  faithfulness: number | null;
+  tokens: number | null;
+}
+
+function sumNullable(rows: AgentBehaviorRow[], key: 'subtasks' | 'toolCalls' | 'visualCalls' | 'graphCalls') {
+  const values = rows.map((row) => row[key]);
+  return values.every((value) => value != null) ? values.reduce((sum, value) => sum + (value ?? 0), 0) : null;
 }
 
 export default function AgentBehaviorTab({ rows }: { rows?: AgentBehaviorRow[] }) {
@@ -17,15 +28,12 @@ export default function AgentBehaviorTab({ rows }: { rows?: AgentBehaviorRow[] }
     return <Text color="text.secondary">Agent behavior metrics will appear after trace aggregation is available.</Text>;
   }
 
-  const totals = rows.reduce(
-    (accumulator, row) => ({
-      subtasks: accumulator.subtasks + row.subtasks,
-      toolCalls: accumulator.toolCalls + row.toolCalls,
-      visualCalls: accumulator.visualCalls + row.visualCalls,
-      graphCalls: accumulator.graphCalls + row.graphCalls,
-    }),
-    { subtasks: 0, toolCalls: 0, visualCalls: 0, graphCalls: 0 }
-  );
+  const totals = {
+    subtasks: sumNullable(rows, 'subtasks'),
+    toolCalls: sumNullable(rows, 'toolCalls'),
+    visualCalls: sumNullable(rows, 'visualCalls'),
+    graphCalls: sumNullable(rows, 'graphCalls'),
+  };
 
   return (
     <Box>
@@ -35,7 +43,7 @@ export default function AgentBehaviorTab({ rows }: { rows?: AgentBehaviorRow[] }
             Subtasks
           </Text>
           <Text fontSize="lg" fontWeight="semibold">
-            {totals.subtasks}
+            {formatOptionalTokens(totals.subtasks)}
           </Text>
         </GridItem>
         <GridItem borderWidth="1px" borderRadius="md" px={3} py={2}>
@@ -43,7 +51,7 @@ export default function AgentBehaviorTab({ rows }: { rows?: AgentBehaviorRow[] }
             Tool Calls
           </Text>
           <Text fontSize="lg" fontWeight="semibold">
-            {totals.toolCalls}
+            {formatOptionalTokens(totals.toolCalls)}
           </Text>
         </GridItem>
         <GridItem borderWidth="1px" borderRadius="md" px={3} py={2}>
@@ -51,7 +59,7 @@ export default function AgentBehaviorTab({ rows }: { rows?: AgentBehaviorRow[] }
             Visual Calls
           </Text>
           <Text fontSize="lg" fontWeight="semibold">
-            {totals.visualCalls}
+            {formatOptionalTokens(totals.visualCalls)}
           </Text>
         </GridItem>
         <GridItem borderWidth="1px" borderRadius="md" px={3} py={2}>
@@ -59,7 +67,7 @@ export default function AgentBehaviorTab({ rows }: { rows?: AgentBehaviorRow[] }
             Graph Calls
           </Text>
           <Text fontSize="lg" fontWeight="semibold">
-            {totals.graphCalls}
+            {formatOptionalTokens(totals.graphCalls)}
           </Text>
         </GridItem>
       </Grid>
@@ -68,7 +76,11 @@ export default function AgentBehaviorTab({ rows }: { rows?: AgentBehaviorRow[] }
         <Table size="sm">
           <Thead>
             <Tr>
+              <Th>Mode</Th>
+              <Th>Run ID</Th>
+              <Th isNumeric>Repeat</Th>
               <Th>Question</Th>
+              <Th>Status</Th>
               <Th isNumeric>Subtasks</Th>
               <Th isNumeric>Tool Calls</Th>
               <Th isNumeric>Visual Calls</Th>
@@ -81,16 +93,20 @@ export default function AgentBehaviorTab({ rows }: { rows?: AgentBehaviorRow[] }
           </Thead>
           <Tbody>
             {rows.map((row) => (
-              <Tr key={row.questionId}>
+              <Tr key={row.runId}>
+                <Td>{row.mode}</Td>
+                <Td fontFamily="mono" fontSize="xs">{row.runId}</Td>
+                <Td isNumeric>{row.repeat}</Td>
                 <Td fontWeight="medium">{row.questionId}</Td>
-                <Td isNumeric>{row.subtasks}</Td>
-                <Td isNumeric>{row.toolCalls}</Td>
-                <Td isNumeric>{row.visualCalls}</Td>
-                <Td isNumeric>{row.graphCalls}</Td>
-                <Td isNumeric>{row.drilldownDepth}</Td>
-                <Td isNumeric>{row.correctness.toFixed(2)}</Td>
-                <Td isNumeric>{row.faithfulness.toFixed(2)}</Td>
-                <Td isNumeric>{row.tokens.toLocaleString()}</Td>
+                <Td>{formatOptionalText(row.traceStatus)}</Td>
+                <Td isNumeric>{formatOptionalTokens(row.subtasks)}</Td>
+                <Td isNumeric>{formatOptionalTokens(row.toolCalls)}</Td>
+                <Td isNumeric>{formatOptionalTokens(row.visualCalls)}</Td>
+                <Td isNumeric>{formatOptionalTokens(row.graphCalls)}</Td>
+                <Td isNumeric>{formatOptionalTokens(row.drilldownDepth)}</Td>
+                <Td isNumeric>{formatOptionalNumber(row.correctness, 2)}</Td>
+                <Td isNumeric>{formatOptionalNumber(row.faithfulness, 2)}</Td>
+                <Td isNumeric>{formatOptionalTokens(row.tokens)}</Td>
               </Tr>
             ))}
           </Tbody>
