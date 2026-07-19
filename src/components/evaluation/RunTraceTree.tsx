@@ -22,8 +22,6 @@ export interface RunTraceEvent {
   status: string;
   startedAt: string;
   durationMs?: number;
-  tokenCount?: number;
-  costUsd?: number;
   payload?: Record<string, unknown>;
   error?: Record<string, unknown>;
 }
@@ -59,8 +57,6 @@ export default function RunTraceTree({ events }: { events?: RunTraceEvent[] }) {
             <Th>Stage</Th>
             <Th>Status</Th>
             <Th isNumeric>Duration</Th>
-            <Th isNumeric>Tokens</Th>
-            <Th isNumeric>Cost</Th>
             <Th>Details</Th>
           </Tr>
         </Thead>
@@ -78,8 +74,6 @@ export default function RunTraceTree({ events }: { events?: RunTraceEvent[] }) {
                   </Badge>
                 </Td>
                 <Td isNumeric>{event.durationMs ? `${event.durationMs.toLocaleString()} ms` : 'n/a'}</Td>
-                <Td isNumeric>{event.tokenCount?.toLocaleString() ?? '0'}</Td>
-                <Td isNumeric>{`$${(event.costUsd ?? 0).toFixed(3)}`}</Td>
                 <Td>
                   <HStack align="start" spacing={2}>
                     {event.payload ? <JsonDisclosure label="Payload" value={event.payload} /> : null}

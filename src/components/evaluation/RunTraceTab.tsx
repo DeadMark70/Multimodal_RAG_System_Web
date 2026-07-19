@@ -11,6 +11,7 @@ import {
 } from '@chakra-ui/react';
 import { useMemo } from 'react';
 import RunTraceTree, { type RunTraceEvent } from './RunTraceTree';
+import { formatOptionalTokens } from './evaluationDisplay';
 
 interface LegacyStep {
   stepId: string;
@@ -35,6 +36,8 @@ interface RunMetadata {
   finalAnswerPreview?: string;
   retrievalSummary?: string;
   claimsSummary?: string;
+  totalTokens?: number | null;
+  accountingStatus?: 'complete' | 'partial' | 'not_available';
 }
 
 function LegacyTraceTree({ steps }: { steps: LegacyStep[] }) {
@@ -62,12 +65,14 @@ function LegacyTraceTree({ steps }: { steps: LegacyStep[] }) {
 export default function RunTraceTab({
   runOptions,
   selectedRunId,
+  onSelectedRunIdChange,
   metadata,
   traceEvents,
   legacySteps,
 }: {
   runOptions?: RunOption[];
   selectedRunId?: string;
+  onSelectedRunIdChange?: (runId: string) => void;
   metadata?: RunMetadata;
   traceEvents?: RunTraceEvent[];
   legacySteps?: LegacyStep[];
@@ -77,30 +82,36 @@ export default function RunTraceTab({
     [runOptions, selectedRunId]
   );
 
-  if (legacySteps?.length) {
-    return <LegacyTraceTree steps={legacySteps} />;
-  }
-
-  if (!traceEvents?.length) {
-    return <Text color="text.secondary">Select a run to inspect trace details.</Text>;
-  }
-
   return (
     <Stack spacing={4}>
       <Grid templateColumns={{ base: '1fr', xl: 'repeat(4, 1fr)' }} gap={3}>
         <GridItem>
           <Text fontSize="sm" mb={1}>
-            Campaign
+            Run
           </Text>
-          <Select size="sm" value={selectedRun?.campaignId ?? ''} isDisabled>
-            <option value={selectedRun?.campaignId ?? ''}>{selectedRun?.campaignId ?? 'n/a'}</option>
+          <Select
+            size="sm"
+            value={selectedRun?.runId ?? ''}
+            onChange={(event) => onSelectedRunIdChange?.(event.target.value)}
+            aria-label="Run selector"
+            isDisabled={!runOptions?.length || !onSelectedRunIdChange}
+          >
+            {runOptions?.length ? (
+              runOptions.map((option) => (
+                <option key={option.runId} value={option.runId}>
+                  {`${option.questionId} · ${option.mode} · repeat ${option.repeat}`}
+                </option>
+              ))
+            ) : (
+              <option value="">No runs available</option>
+            )}
           </Select>
         </GridItem>
         <GridItem>
           <Text fontSize="sm" mb={1}>
             Question
           </Text>
-          <Select size="sm" value={selectedRun?.questionId ?? ''} isDisabled>
+          <Select size="sm" value={selectedRun?.questionId ?? ''} isDisabled aria-label="Question identity">
             <option value={selectedRun?.questionId ?? ''}>{selectedRun?.questionId ?? 'n/a'}</option>
           </Select>
         </GridItem>
@@ -108,7 +119,7 @@ export default function RunTraceTab({
           <Text fontSize="sm" mb={1}>
             Mode
           </Text>
-          <Select size="sm" value={selectedRun?.mode ?? ''} isDisabled>
+          <Select size="sm" value={selectedRun?.mode ?? ''} isDisabled aria-label="Mode identity">
             <option value={selectedRun?.mode ?? ''}>{selectedRun?.mode ?? 'n/a'}</option>
           </Select>
         </GridItem>
@@ -116,14 +127,14 @@ export default function RunTraceTab({
           <Text fontSize="sm" mb={1}>
             Repeat
           </Text>
-          <Select size="sm" value={String(selectedRun?.repeat ?? '')} isDisabled>
+          <Select size="sm" value={String(selectedRun?.repeat ?? '')} isDisabled aria-label="Repeat identity">
             <option value={String(selectedRun?.repeat ?? '')}>{selectedRun?.repeat ?? 'n/a'}</option>
           </Select>
         </GridItem>
       </Grid>
 
       {metadata ? (
-        <Grid templateColumns={{ base: '1fr', xl: 'repeat(3, 1fr)' }} gap={3}>
+        <Grid templateColumns={{ base: '1fr', xl: 'repeat(4, 1fr)' }} gap={3}>
           <GridItem borderWidth="1px" borderRadius="md" px={3} py={2}>
             <Heading size="xs" mb={2}>
               Answer
@@ -142,10 +153,19 @@ export default function RunTraceTab({
             </Heading>
             <Text fontSize="sm">{metadata.claimsSummary ?? 'No claim summary.'}</Text>
           </GridItem>
+          <GridItem borderWidth="1px" borderRadius="md" px={3} py={2}>
+            <Heading size="xs" mb={2}>
+              Tokens
+            </Heading>
+            <Text fontSize="sm">{formatOptionalTokens(metadata.totalTokens)}</Text>
+            <Text fontSize="xs" color="text.secondary">
+              Accounting: {metadata.accountingStatus ?? 'not_available'}
+            </Text>
+          </GridItem>
         </Grid>
       ) : null}
 
-      <RunTraceTree events={traceEvents} />
+      {legacySteps?.length ? <LegacyTraceTree steps={legacySteps} /> : <RunTraceTree events={traceEvents} />}
     </Stack>
   );
 }

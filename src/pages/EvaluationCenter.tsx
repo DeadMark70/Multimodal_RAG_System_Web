@@ -241,9 +241,11 @@ export default function EvaluationCenter() {
   const [loadingDashboard, setLoadingDashboard] = useState(true);
   const [loadingTab, setLoadingTab] = useState(false);
   const [activeTabIndex, setActiveTabIndex] = useState(0);
+  const [selectedRunId, setSelectedRunId] = useState('');
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const loadedTabsRef = useRef(new Set<string>());
   const requestGenerationRef = useRef(0);
+  const runDetailRequestRef = useRef(0);
 
   useEffect(() => {
     let mounted = true;
@@ -285,6 +287,7 @@ export default function EvaluationCenter() {
     requestGenerationRef.current = generation;
     loadedTabsRef.current = new Set();
     setActiveTabIndex(0);
+    setSelectedRunId('');
     setDashboardData((current) => ({ campaigns: current.campaigns }));
     const loadDashboard = async () => {
       setLoadingDashboard(true);
@@ -360,6 +363,9 @@ export default function EvaluationCenter() {
           return;
         }
         setDashboardData((current) => ({ ...current, ...partialData }));
+        if ('runs' in partialData && partialData.runs?.runs.length) {
+          setSelectedRunId((current) => current || partialData.runs?.runs[0]?.run_id || '');
+        }
         loadedTabsRef.current.add(tabKey);
       })
       .catch((error) => {
@@ -378,12 +384,35 @@ export default function EvaluationCenter() {
     };
   }, [activeTabIndex, dashboardData.researchSummary, loadTabData, selectedCampaignId]);
 
+  const handleSelectedRunIdChange = useCallback(
+    (runId: string) => {
+      if (!selectedCampaignId || !runId || runId === selectedRunId) {
+        return;
+      }
+      setSelectedRunId(runId);
+      const requestId = runDetailRequestRef.current + 1;
+      runDetailRequestRef.current = requestId;
+      void getRunDetail(selectedCampaignId, runId)
+        .then((runDetail) => {
+          if (requestId === runDetailRequestRef.current) {
+            setDashboardData((current) => ({ ...current, runDetail }));
+          }
+        })
+        .catch((error) => {
+          if (requestId === runDetailRequestRef.current) {
+            setDashboardError(error instanceof Error ? error.message : 'Failed to load selected run');
+          }
+        });
+    },
+    [selectedCampaignId, selectedRunId]
+  );
+
   const selectedCampaign = useMemo(
     () => dashboardData.campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
     [dashboardData.campaigns, selectedCampaignId]
   );
   const runOptions = mapRunOptions(dashboardData.runs);
-  const selectedRun = runOptions[0];
+  const selectedRun = runOptions.find((run) => run.runId === selectedRunId) ?? runOptions[0];
   const retrievalData = mapRetrieval(dashboardData.runDetail);
   const claimData = mapClaims(dashboardData.runDetail);
   const dashboardTabs = [
@@ -395,11 +424,14 @@ export default function EvaluationCenter() {
         <RunTraceTab
           runOptions={runOptions}
           selectedRunId={selectedRun?.runId}
+          onSelectedRunIdChange={handleSelectedRunIdChange}
           metadata={{
             questionId: selectedRun?.questionId ?? '',
             mode: selectedRun?.mode ?? '',
             repeat: selectedRun?.repeat ?? 1,
-            finalAnswerPreview: dashboardData.results?.results?.[0]?.answer,
+            finalAnswerPreview: dashboardData.runDetail?.run_summary?.answer_preview ?? undefined,
+            totalTokens: dashboardData.runDetail?.run_summary?.total_tokens,
+            accountingStatus: dashboardData.runDetail?.run_summary?.accounting_status,
           }}
           traceEvents={mapTraceEvents(dashboardData.runDetail)}
         />

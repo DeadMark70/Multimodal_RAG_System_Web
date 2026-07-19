@@ -448,6 +448,18 @@ export interface RunDiffResponse {
 export interface RunDetailResponse {
   run_id: string;
   campaign_id: string;
+  run_summary?: {
+    run_id: string;
+    campaign_id: string;
+    question_id: string;
+    mode: CampaignMode;
+    repeat_number: number;
+    answer_preview: string | null;
+    latency_ms: number | null;
+    total_tokens: number | null;
+    accounting_status: 'complete' | 'partial' | 'not_available';
+    created_at: string;
+  } | null;
   trace_events: Array<Record<string, unknown>>;
   llm_calls: Array<Record<string, unknown>>;
   retrieval_events: Array<Record<string, unknown>>;

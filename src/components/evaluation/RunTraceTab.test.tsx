@@ -1,6 +1,6 @@
 import { ChakraProvider } from '@chakra-ui/react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import theme from '../../theme';
 import RunTraceTab from './RunTraceTab';
 import RunTraceTree from './RunTraceTree';
@@ -103,7 +103,10 @@ describe('RunTraceTab', () => {
           finalAnswerPreview: 'Final answer preview',
           retrievalSummary: '8 chunks packed into 3 context blocks',
           claimsSummary: '2 unsupported claims remain',
+          totalTokens: 5700,
+          accountingStatus: 'complete',
         }}
+        onSelectedRunIdChange={vi.fn()}
         traceEvents={traceEvents}
       />
     );
@@ -115,6 +118,9 @@ describe('RunTraceTab', () => {
     expect(screen.getAllByText('Evaluation').length).toBeGreaterThan(0);
     expect(screen.getByText('120 ms')).toBeInTheDocument();
     expect(screen.getByText('2,440 ms')).toBeInTheDocument();
+    expect(screen.getByText('5,700')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Run selector' }), { target: { value: 'run-2' } });
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Payload' })[0]);
     expect(screen.getByText(/selectedMode/)).toBeInTheDocument();
@@ -134,11 +140,12 @@ describe('RunTraceTab', () => {
 });
 
 describe('RunTraceTree', () => {
-  it('renders a compact trace tree with totals', () => {
+  it('renders a compact trace tree without monetary fallbacks', () => {
     renderWithTheme(<RunTraceTree events={traceEvents} />);
 
     expect(screen.getByText('Sequence')).toBeInTheDocument();
-    expect(screen.getByText('Tokens')).toBeInTheDocument();
-    expect(screen.getByText('$0.090')).toBeInTheDocument();
+    expect(screen.queryByText('Tokens')).not.toBeInTheDocument();
+    expect(screen.queryByText('Cost')).not.toBeInTheDocument();
+    expect(screen.queryByText('$0.090')).not.toBeInTheDocument();
   });
 });
