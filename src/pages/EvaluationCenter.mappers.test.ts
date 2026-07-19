@@ -4,7 +4,16 @@ import { mapAgentRows, mapQuestionRows, mapRetrieval, mapRouterData, type Dashbo
 describe('Evaluation Center data mappers', () => {
   it('preserves missing question comparison metrics instead of inventing zeros', () => {
     const mapped = mapQuestionRows({
+      campaigns: [],
       questionComparison: {
+        campaign_id: 'cmp-1',
+        analysis_unit: 'question',
+        sample_count: 1,
+        independent_question_count: 1,
+        repeat_count: 1,
+        sample_note: 'test',
+        warnings: [],
+        summaries: {},
         rows: [{
           question_id: 'Q-1',
           category: null,
@@ -64,7 +73,15 @@ describe('Evaluation Center data mappers', () => {
 
   it('does not report retrospective router summary zeros as measured actual metrics', () => {
     const mapped = mapRouterData({
+      campaigns: [],
       routerAnalysis: {
+        campaign_id: 'cmp-1',
+        analysis_unit: 'execution',
+        sample_count: 0,
+        independent_question_count: 0,
+        repeat_count: 0,
+        sample_note: 'test',
+        warnings: [],
         analysis_type: 'retrospective',
         rows: [],
         summaries: { saved_tokens: 0, quality_loss_vs_agentic: 0, router_regret: 0 },
@@ -79,7 +96,16 @@ describe('Evaluation Center data mappers', () => {
 
   it('keeps agent behavior rows distinct by run and leaves missing fields null', () => {
     const mapped = mapAgentRows({
+      campaigns: [],
       agentBehavior: {
+        campaign_id: 'cmp-1',
+        analysis_unit: 'execution',
+        sample_count: 1,
+        independent_question_count: 1,
+        repeat_count: 2,
+        sample_note: 'test',
+        warnings: [],
+        summaries: {},
         rows: [{
           run_id: 'run-b',
           campaign_id: 'cmp-1',
@@ -87,6 +113,7 @@ describe('Evaluation Center data mappers', () => {
           mode: 'agentic',
           repeat_number: 2,
           trace_status: 'not_instrumented',
+          accounting_status: 'not_available',
           subtasks: null,
           tool_calls: null,
           visual_calls: null,
@@ -94,6 +121,8 @@ describe('Evaluation Center data mappers', () => {
           drilldown_depth: null,
           correctness: null,
           faithfulness: null,
+          unsupported_claim_ratio: null,
+          supported_claim_ratio: null,
           total_tokens: null,
         }],
       },

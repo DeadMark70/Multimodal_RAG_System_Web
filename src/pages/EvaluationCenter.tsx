@@ -100,6 +100,10 @@ function scalarString(value: unknown, fallback: string): string {
   return typeof value === 'string' || typeof value === 'number' ? String(value) : fallback;
 }
 
+function nullableBoolean(value: unknown, instrumented: boolean): boolean | null {
+  return instrumented && typeof value === 'boolean' ? value : null;
+}
+
 export function mapQuestionRows(data: DashboardApiData) {
   return (data.questionComparison?.rows ?? []).map((row: QuestionComparisonRow) => ({
     questionId: row.question_id,
@@ -152,6 +156,8 @@ export function mapRetrieval(detail?: RunDetailResponse) {
     })),
     chunks: (detail?.retrieval_chunks ?? []).map((chunk, index) => {
       const hasPage = typeof chunk.page_start === 'number' || typeof chunk.page_end === 'number';
+      const payload = asRecord(chunk.payload);
+      const instrumented = typeof payload.instrumentation_depth === 'string';
       const pageStart = scalarString(chunk.page_start, '?');
       const pageEnd = scalarString(chunk.page_end, pageStart);
       return {
@@ -162,23 +168,37 @@ export function mapRetrieval(detail?: RunDetailResponse) {
         denseScore: nullableNumber(chunk.dense_score),
         bm25Score: nullableNumber(chunk.bm25_score),
         rerankScore: nullableNumber(chunk.rerank_score),
-        inContext: Boolean(chunk.used_in_context),
-        usedInAnswer: Boolean(chunk.used_in_answer),
-        goldMatch: Boolean(chunk.expected_evidence_match),
+        inContext: nullableBoolean(chunk.used_in_context, instrumented),
+        usedInAnswer: nullableBoolean(chunk.used_in_answer, instrumented),
+        goldMatch: nullableBoolean(chunk.expected_evidence_match, instrumented),
         excerpt: stringValue(chunk.excerpt),
+        instrumentationDepth: instrumented ? String(payload.instrumentation_depth) : null,
       };
     }),
     coverage: Array.isArray(detail?.evidence_coverage)
       ? detail.evidence_coverage.map((row) => ({
           atomicFactId: stringValue(row.atomic_fact_id, 'n/a'),
           factText: stringValue(row.fact_text, 'n/a'),
-          retrieved: Boolean(row.retrieved),
-          packed: Boolean(row.packed),
-          mentioned: Boolean(row.mentioned),
-          cited: Boolean(row.cited),
+          retrieved: nullableBoolean(
+            row.retrieved,
+            detail?.evidence_coverage_status === 'complete' || detail?.evidence_coverage_status === 'partial'
+          ),
+          packed: nullableBoolean(
+            row.packed,
+            detail?.evidence_coverage_status === 'complete' || detail?.evidence_coverage_status === 'partial'
+          ),
+          mentioned: nullableBoolean(
+            row.mentioned,
+            detail?.evidence_coverage_status === 'complete' || detail?.evidence_coverage_status === 'partial'
+          ),
+          cited: nullableBoolean(
+            row.cited,
+            detail?.evidence_coverage_status === 'complete' || detail?.evidence_coverage_status === 'partial'
+          ),
           status: stringValue(row.status, 'instrumented'),
         }))
       : undefined,
+    coverageStatus: detail?.evidence_coverage_status ?? 'not_available',
   };
 }
 
@@ -190,6 +210,7 @@ export function mapAgentRows(data: DashboardApiData) {
     mode: row.mode,
     repeat: row.repeat_number,
     traceStatus: row.trace_status,
+    accountingStatus: row.accounting_status,
     subtasks: row.subtasks,
     toolCalls: row.tool_calls,
     visualCalls: row.visual_calls,
@@ -197,6 +218,8 @@ export function mapAgentRows(data: DashboardApiData) {
     drilldownDepth: row.drilldown_depth,
     correctness: row.correctness,
     faithfulness: row.faithfulness,
+    unsupportedClaimRatio: row.unsupported_claim_ratio,
+    supportedClaimRatio: row.supported_claim_ratio,
     tokens: row.total_tokens,
   }));
 }
@@ -415,6 +438,7 @@ export default function EvaluationCenter() {
         return;
       }
       setSelectedRunId(runId);
+      setDashboardData((current) => ({ ...current, runDetail: undefined }));
       const requestId = runDetailRequestRef.current + 1;
       const campaignGeneration = requestGenerationRef.current;
       runDetailRequestRef.current = requestId;
@@ -445,8 +469,10 @@ export default function EvaluationCenter() {
   );
   const runOptions = mapRunOptions(dashboardData.runs);
   const selectedRun = runOptions.find((run) => run.runId === selectedRunId) ?? runOptions[0];
-  const retrievalData = mapRetrieval(dashboardData.runDetail);
-  const claimData = mapClaims(dashboardData.runDetail);
+  const selectedRunDetail =
+    dashboardData.runDetail?.run_id === selectedRun?.runId ? dashboardData.runDetail : undefined;
+  const retrievalData = mapRetrieval(selectedRunDetail);
+  const claimData = mapClaims(selectedRunDetail);
   const dashboardTabs = [
     { label: 'Campaign Overview', component: <CampaignOverviewTab data={dashboardData.researchSummary} /> },
     { label: 'Question Analysis', component: <QuestionAnalysisTab rows={mapQuestionRows(dashboardData)} /> },
@@ -461,11 +487,11 @@ export default function EvaluationCenter() {
             questionId: selectedRun?.questionId ?? '',
             mode: selectedRun?.mode ?? '',
             repeat: selectedRun?.repeat ?? 1,
-            finalAnswerPreview: dashboardData.runDetail?.run_summary?.answer_preview ?? undefined,
-            totalTokens: dashboardData.runDetail?.run_summary?.total_tokens,
-            accountingStatus: dashboardData.runDetail?.run_summary?.accounting_status,
+            finalAnswerPreview: selectedRunDetail?.run_summary?.answer_preview ?? undefined,
+            totalTokens: selectedRunDetail?.run_summary?.total_tokens,
+            accountingStatus: selectedRunDetail?.run_summary?.accounting_status,
           }}
-          traceEvents={mapTraceEvents(dashboardData.runDetail)}
+          traceEvents={mapTraceEvents(selectedRunDetail)}
         />
       ),
     },
@@ -476,6 +502,7 @@ export default function EvaluationCenter() {
           retrievals={retrievalData.retrievals}
           chunks={retrievalData.chunks}
           coverage={retrievalData.coverage}
+          coverageStatus={retrievalData.coverageStatus}
         />
       ),
     },

@@ -3,18 +3,24 @@ import { Box, Grid, GridItem, Table, Tbody, Td, Text, Th, Thead, Tr } from '@cha
 export interface EvidenceCoverageRow {
   atomicFactId: string;
   factText: string;
-  retrieved: boolean;
-  packed: boolean;
-  mentioned: boolean;
-  cited: boolean;
+  retrieved: boolean | null;
+  packed: boolean | null;
+  mentioned: boolean | null;
+  cited: boolean | null;
   status: string;
 }
 
-const yesNo = (value: boolean) => (value ? 'yes' : 'no');
+const yesNo = (value: boolean | null) => (value == null ? 'N/A' : value ? 'yes' : 'no');
 
-export default function EvidenceCoveragePanel({ coverage }: { coverage?: EvidenceCoverageRow[] }) {
+export default function EvidenceCoveragePanel({
+  coverage,
+  coverageStatus = 'not_available',
+}: {
+  coverage?: EvidenceCoverageRow[];
+  coverageStatus?: string;
+}) {
   if (!coverage?.length) {
-    return <Text color="text.secondary">No evidence coverage rows are available for this run.</Text>;
+    return <Text color="text.secondary">Evidence coverage: {coverageStatus} (no rows recorded).</Text>;
   }
 
   const totals = {

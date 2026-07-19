@@ -114,6 +114,22 @@ describe('RetrievedChunksTable', () => {
     expect(screen.getAllByText('N/A')).toHaveLength(3);
     expect(screen.queryByText('0.00')).not.toBeInTheDocument();
   });
+
+  it('renders missing retrieval flags as N/A instead of no', () => {
+    renderWithTheme(
+      <RetrievedChunksTable
+        chunks={[{
+          ...chunks[0],
+          inContext: null,
+          usedInAnswer: null,
+          goldMatch: null,
+        }]}
+      />
+    );
+
+    expect(screen.getAllByText('N/A').length).toBe(3);
+    expect(screen.queryByText('no')).not.toBeInTheDocument();
+  });
 });
 
 describe('EvidenceCoveragePanel', () => {

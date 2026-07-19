@@ -1,5 +1,5 @@
 import { Box, Grid, GridItem, Table, Tbody, Td, Text, Th, Thead, Tr } from '@chakra-ui/react';
-import { formatOptionalNumber, formatOptionalText, formatOptionalTokens } from './evaluationDisplay';
+import { formatOptionalPercent, formatOptionalText, formatOptionalTokens } from './evaluationDisplay';
 
 interface AgentBehaviorRow {
   runId: string;
@@ -8,13 +8,14 @@ interface AgentBehaviorRow {
   mode: string;
   repeat: number;
   traceStatus: string;
+  accountingStatus: 'complete' | 'partial' | 'not_available';
   subtasks: number | null;
   toolCalls: number | null;
   visualCalls: number | null;
   graphCalls: number | null;
   drilldownDepth: number | null;
-  correctness: number | null;
-  faithfulness: number | null;
+  unsupportedClaimRatio: number | null;
+  supportedClaimRatio: number | null;
   tokens: number | null;
 }
 
@@ -86,9 +87,10 @@ export default function AgentBehaviorTab({ rows }: { rows?: AgentBehaviorRow[] }
               <Th isNumeric>Visual Calls</Th>
               <Th isNumeric>Graph Calls</Th>
               <Th isNumeric>Drilldown Depth</Th>
-              <Th isNumeric>Correctness</Th>
-              <Th isNumeric>Faithfulness</Th>
+              <Th isNumeric>Unsupported Claims</Th>
+              <Th isNumeric>Supported Claims</Th>
               <Th isNumeric>Tokens</Th>
+              <Th>Accounting</Th>
             </Tr>
           </Thead>
           <Tbody>
@@ -104,9 +106,10 @@ export default function AgentBehaviorTab({ rows }: { rows?: AgentBehaviorRow[] }
                 <Td isNumeric>{formatOptionalTokens(row.visualCalls)}</Td>
                 <Td isNumeric>{formatOptionalTokens(row.graphCalls)}</Td>
                 <Td isNumeric>{formatOptionalTokens(row.drilldownDepth)}</Td>
-                <Td isNumeric>{formatOptionalNumber(row.correctness, 2)}</Td>
-                <Td isNumeric>{formatOptionalNumber(row.faithfulness, 2)}</Td>
+                <Td isNumeric>{formatOptionalPercent(row.unsupportedClaimRatio)}</Td>
+                <Td isNumeric>{formatOptionalPercent(row.supportedClaimRatio)}</Td>
                 <Td isNumeric>{formatOptionalTokens(row.tokens)}</Td>
+                <Td>{row.accountingStatus}</Td>
               </Tr>
             ))}
           </Tbody>

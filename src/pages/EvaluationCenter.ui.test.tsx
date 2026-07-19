@@ -11,10 +11,16 @@ import {
   getCampaignResearchSummary,
   listCampaigns,
   getModeComparison,
+  getRunDetail,
 } from '../services/evaluationApi';
 
-const { overviewProps, researchSummaryFixture } = vi.hoisted(() => ({ overviewProps: [] as Array<{
+const { overviewProps, runTraceProps, researchSummaryFixture } = vi.hoisted(() => ({ overviewProps: [] as Array<{
   data?: CampaignResearchSummaryResponse;
+}>, runTraceProps: [] as Array<{
+  selectedRunId?: string;
+  runOptions?: Array<{ runId: string }>;
+  onSelectedRunIdChange?: (runId: string) => void;
+  metadata?: { finalAnswerPreview?: string };
 }>, researchSummaryFixture: {
   campaign_id: 'cmp-1', research_schema_version: '2', completed_run_count: 2, total_run_count: 2, failed_run_count: 0,
   quality_status: 'complete', token_accounting_status: 'complete', pricing_status: 'complete', phase_attribution_status: 'complete', sample_count: 2,
@@ -76,7 +82,27 @@ vi.mock('../components/evaluation/QuestionAnalysisTab', () => ({
 }));
 
 vi.mock('../components/evaluation/RunTraceTab', () => ({
-  default: () => <div>RunTraceTab</div>,
+  default: (props: {
+    runOptions?: Array<{ runId: string }>;
+    selectedRunId?: string;
+    onSelectedRunIdChange?: (runId: string) => void;
+    metadata?: { finalAnswerPreview?: string };
+  }) => {
+    runTraceProps.push(props);
+    return (
+      <div>
+        <div>RunTraceTab</div>
+        <select
+          aria-label="Mock run selector"
+          value={props.selectedRunId ?? ''}
+          onChange={(event) => props.onSelectedRunIdChange?.(event.target.value)}
+        >
+          {(props.runOptions ?? []).map((run) => <option key={run.runId} value={run.runId}>{run.runId}</option>)}
+        </select>
+        <div data-testid="mock-run-detail-preview">{props.metadata?.finalAnswerPreview ?? 'none'}</div>
+      </div>
+    );
+  },
 }));
 
 vi.mock('../components/evaluation/RetrievalEvidenceTab', () => ({
@@ -206,7 +232,10 @@ vi.mock('../services/evaluationApi', () => ({
   }),
   getCampaignRuns: vi.fn().mockResolvedValue({
     campaign_id: 'cmp-1',
-    runs: [{ run_id: 'run-1', campaign_id: 'cmp-1', question_id: 'Q1', question: 'Question?', mode: 'agentic', run_number: 1, repeat_number: 1, status: 'completed', total_tokens: 100, created_at: '2026-07-08T00:00:00Z' }],
+    runs: [
+      { run_id: 'run-1', campaign_id: 'cmp-1', question_id: 'Q1', question: 'Question?', mode: 'agentic', run_number: 1, repeat_number: 1, status: 'completed', total_tokens: 100, created_at: '2026-07-08T00:00:00Z' },
+      { run_id: 'run-2', campaign_id: 'cmp-1', question_id: 'Q1', question: 'Question?', mode: 'naive', run_number: 2, repeat_number: 1, status: 'completed', total_tokens: 200, created_at: '2026-07-08T00:00:00Z' },
+    ],
   }),
   getModeComparison: vi.fn().mockResolvedValue({
     campaign_id: 'cmp-1',
@@ -237,12 +266,26 @@ vi.mock('../services/evaluationApi', () => ({
   getHumanEvalQueue: vi.fn().mockResolvedValue({ campaign_id: 'cmp-1', rows: [] }),
   getCampaignErrors: vi.fn().mockResolvedValue({ campaign_id: 'cmp-1', rows: [] }),
   exportCampaignAnalysis: vi.fn().mockResolvedValue({ campaign: {}, redaction: { include_full_prompts: false }, runs: [], llm_calls: [] }),
-  getRunDetail: vi.fn().mockResolvedValue({ run_id: 'run-1', campaign_id: 'cmp-1', trace_events: [], llm_calls: [], retrieval_events: [], retrieval_chunks: [], context_packs: [], tool_calls: [], routing_decisions: [], claims: [], human_ratings: [] }),
+  getRunDetail: vi.fn().mockImplementation((_campaignId: string, runId: string) => Promise.resolve({
+    run_id: runId,
+    campaign_id: 'cmp-1',
+    trace_events: [],
+    llm_calls: [],
+    retrieval_events: [],
+    retrieval_chunks: [],
+    context_packs: [],
+    tool_calls: [],
+    routing_decisions: [],
+    claims: [],
+    human_ratings: [],
+    run_summary: { run_id: runId, campaign_id: 'cmp-1', answer_preview: `answer-${runId}`, total_tokens: runId === 'run-2' ? 200 : 100, accounting_status: 'complete' },
+  })),
 }));
 
 describe('EvaluationCenter UI', () => {
   beforeEach(() => {
     overviewProps.length = 0;
+    runTraceProps.length = 0;
     vi.clearAllMocks();
   });
 
@@ -279,6 +322,23 @@ describe('EvaluationCenter UI', () => {
     expect(await screen.findByText('TestCaseManager')).toBeInTheDocument();
     expect(await screen.findByText('ModelConfigPanel')).toBeInTheDocument();
     expect(await screen.findByText('CampaignRunner')).toBeInTheDocument();
+  });
+
+  it('loads detail for the run selected in the trace tab', async () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <EvaluationCenter />
+      </ChakraProvider>
+    );
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Run Trace' }));
+    const selector = await screen.findByRole('combobox', { name: 'Mock run selector' });
+    await waitFor(() => expect(selector).toHaveValue('run-1'));
+    expect(screen.getByTestId('mock-run-detail-preview')).toHaveTextContent('answer-run-1');
+
+    fireEvent.change(selector, { target: { value: 'run-2' } });
+    await waitFor(() => expect(getRunDetail).toHaveBeenLastCalledWith('cmp-1', 'run-2'));
+    await waitFor(() => expect(screen.getByTestId('mock-run-detail-preview')).toHaveTextContent('answer-run-2'));
   });
 
   it('does not keep the whole dashboard loading while deferred overview errors are pending', async () => {

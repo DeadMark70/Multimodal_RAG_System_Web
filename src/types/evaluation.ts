@@ -363,6 +363,7 @@ export interface AgentBehaviorRow {
   mode: CampaignMode;
   repeat_number: number;
   trace_status: string;
+  accounting_status: 'complete' | 'partial' | 'not_available';
   subtasks: number | null;
   tool_calls: number | null;
   visual_calls: number | null;
@@ -370,6 +371,8 @@ export interface AgentBehaviorRow {
   drilldown_depth: number | null;
   correctness: number | null;
   faithfulness: number | null;
+  unsupported_claim_ratio: number | null;
+  supported_claim_ratio: number | null;
   total_tokens: number | null;
 }
 
@@ -491,6 +494,7 @@ export interface RunDetailResponse {
   claims: Array<Record<string, unknown>>;
   human_ratings: Array<Record<string, unknown>>;
   evidence_coverage?: Array<Record<string, unknown>> | null;
+  evidence_coverage_status?: 'complete' | 'partial' | 'not_available' | 'not_instrumented';
 }
 
 export interface ExportCampaignRequest {

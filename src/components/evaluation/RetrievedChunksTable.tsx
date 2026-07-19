@@ -9,13 +9,14 @@ export interface RetrievedChunkRow {
   denseScore: number | null;
   bm25Score: number | null;
   rerankScore: number | null;
-  inContext: boolean;
-  usedInAnswer: boolean;
-  goldMatch: boolean;
+  inContext: boolean | null;
+  usedInAnswer: boolean | null;
+  goldMatch: boolean | null;
+  instrumentationDepth?: string | null;
   excerpt?: string;
 }
 
-const yesNo = (value: boolean) => (value ? 'yes' : 'no');
+const yesNo = (value: boolean | null) => (value == null ? 'N/A' : value ? 'yes' : 'no');
 
 export default function RetrievedChunksTable({ chunks }: { chunks?: RetrievedChunkRow[] }) {
   if (!chunks?.length) {

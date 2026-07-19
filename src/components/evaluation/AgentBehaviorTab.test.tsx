@@ -12,13 +12,14 @@ const rows = [
     mode: 'agentic',
     repeat: 1,
     traceStatus: 'completed',
+    accountingStatus: 'complete' as const,
     subtasks: 4,
     toolCalls: 6,
     visualCalls: 2,
     graphCalls: 1,
     drilldownDepth: 3,
-    correctness: 0.88,
-    faithfulness: 0.8,
+    unsupportedClaimRatio: 0.12,
+    supportedClaimRatio: 0.8,
     tokens: 20400,
   },
 ];
@@ -36,8 +37,8 @@ describe('AgentBehaviorTab', () => {
     expect(screen.getAllByText('Visual Calls').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Graph Calls').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Drilldown Depth').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Correctness').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Faithfulness').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Unsupported Claims').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Supported Claims').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Tokens').length).toBeGreaterThan(0);
     expect(screen.getByText('Q-17')).toBeInTheDocument();
     expect(screen.getByText('run-17')).toBeInTheDocument();
@@ -54,13 +55,14 @@ describe('AgentBehaviorTab', () => {
           mode: 'naive',
           repeat: 1,
           traceStatus: 'not_instrumented',
+          accountingStatus: 'not_available',
           subtasks: null,
           toolCalls: null,
           visualCalls: null,
           graphCalls: null,
           drilldownDepth: null,
-          correctness: null,
-          faithfulness: null,
+          unsupportedClaimRatio: null,
+          supportedClaimRatio: null,
           tokens: null,
         }]}
       />

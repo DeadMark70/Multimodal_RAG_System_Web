@@ -11,10 +11,12 @@ export default function RetrievalEvidenceTab({
   retrievals,
   chunks,
   coverage,
+  coverageStatus,
 }: {
   retrievals?: RetrievalQueryRow[];
   chunks?: RetrievedChunkRow[];
   coverage?: EvidenceCoverageRow[];
+  coverageStatus?: string;
 }) {
   if (!retrievals?.length && !chunks?.length && !coverage?.length) {
     return <Text color="text.secondary">Retrieval evidence will appear after a run records chunk-level details.</Text>;
@@ -49,7 +51,7 @@ export default function RetrievalEvidenceTab({
         <Heading size="sm" mb={3}>
           Evidence Coverage
         </Heading>
-        <EvidenceCoveragePanel coverage={coverage} />
+        <EvidenceCoveragePanel coverage={coverage} coverageStatus={coverageStatus} />
       </Box>
     </Stack>
   );
