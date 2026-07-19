@@ -31,5 +31,5 @@ export const partialFixture: CampaignResearchSummaryResponse = {
 export const mixedFixture: CampaignResearchSummaryResponse = {
   ...completeFixture,
   campaign_id: 'campaign-mixed',
-  modes: [...completeFixture.modes, { ...completeFixture.modes[0], mode: 'graph', comparable: false, not_comparable_reasons: ['unknown pricing'], execution_cost: { ...completeFixture.modes[0].execution_cost, benchmark_usd: null, operational_usd: null, pricing_status: 'unknown' } }],
+  modes: [...completeFixture.modes, { ...completeFixture.modes[0], mode: 'graph', comparable: false, not_comparable_reasons: ['incomplete_quality'], execution_cost: { ...completeFixture.modes[0].execution_cost, benchmark_usd: null, operational_usd: null, pricing_status: 'unknown' } }],
 };

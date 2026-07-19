@@ -10,11 +10,11 @@ function renderOverview(data: typeof completeFixture) {
 }
 
 describe('CampaignOverviewTab strict research accounting', () => {
-  it('renders missing RAGAS and unknown price without synthetic zero', () => {
+  it('renders missing RAGAS without requiring monetary pricing', () => {
     renderOverview(partialFixture);
     expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Unknown').length).toBeGreaterThan(0);
-    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+    expect(screen.queryByText('Pricing: unknown')).not.toBeInTheDocument();
+    expect(screen.queryByText('Benchmark Cost')).not.toBeInTheDocument();
   });
 
   it('shows measured percentiles and low sample warning', () => {
@@ -24,10 +24,17 @@ describe('CampaignOverviewTab strict research accounting', () => {
     expect(screen.getAllByText(/Low sample size/).length).toBeGreaterThan(0);
   });
 
-  it('excludes non-comparable modes from cost quality rows', () => {
-    renderOverview(mixedFixture);
-    expect(screen.getByTestId('cost-quality-agentic')).toBeInTheDocument();
-    expect(screen.queryByTestId('cost-quality-graph')).not.toBeInTheDocument();
-    expect(screen.getByText(/graph: unknown pricing/)).toBeInTheDocument();
+  it('renders token-quality rows when monetary pricing is unavailable', () => {
+    const tokenOnly = {
+      ...mixedFixture,
+      modes: [{
+        ...mixedFixture.modes[0],
+        mode: 'graph',
+        execution_cost: { ...mixedFixture.modes[0].execution_cost, benchmark_usd: null, operational_usd: null, pricing_status: 'unknown' as const },
+      }],
+    };
+    renderOverview(tokenOnly);
+    expect(screen.getByTestId('token-quality-graph')).toBeInTheDocument();
+    expect(screen.queryByText(/unknown pricing/)).not.toBeInTheDocument();
   });
 });
