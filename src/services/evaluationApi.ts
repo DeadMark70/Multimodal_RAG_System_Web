@@ -302,6 +302,13 @@ export async function getQuestionComparison(campaignId: string): Promise<Questio
   return response.data;
 }
 
+export async function getResearchQuestionComparison(campaignId: string): Promise<QuestionComparisonResponse> {
+  const response = await api.get<QuestionComparisonResponse>(
+    `/api/evaluation/campaigns/${campaignId}/research-question-comparison`,
+  );
+  return response.data;
+}
+
 export async function getCostLatency(campaignId: string): Promise<CostLatencyResponse> {
   const response = await api.get<CostLatencyResponse>(`/api/evaluation/campaigns/${campaignId}/cost-latency`);
   return response.data;

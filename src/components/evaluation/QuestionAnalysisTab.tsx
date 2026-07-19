@@ -14,20 +14,21 @@ import {
 } from '@chakra-ui/react';
 import { useMemo, useState } from 'react';
 import QuestionDeltaHeatmap, { type QuestionDeltaRow } from './QuestionDeltaHeatmap';
+import { formatOptionalNumber, formatOptionalPercent, formatOptionalText, formatOptionalTokens } from './evaluationDisplay';
 
-const formatSigned = (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(3)}`;
+const formatSigned = (value: number | null) => (value == null ? 'N/A' : `${value >= 0 ? '+' : ''}${value.toFixed(3)}`);
 
 export default function QuestionAnalysisTab({ rows }: { rows?: QuestionDeltaRow[] }) {
   const [category, setCategory] = useState('all');
   const [status, setStatus] = useState('all');
 
-  const categories = useMemo(() => ['all', ...new Set((rows ?? []).map((row) => row.category))], [rows]);
+  const categories = useMemo(() => ['all', ...new Set((rows ?? []).map((row) => row.category ?? 'n/a'))], [rows]);
   const statuses = useMemo(() => ['all', ...new Set((rows ?? []).map((row) => row.status ?? 'unknown'))], [rows]);
 
   const filteredRows = useMemo(
     () =>
       (rows ?? []).filter((row) => {
-        if (category !== 'all' && row.category !== category) return false;
+        if (category !== 'all' && (row.category ?? 'n/a') !== category) return false;
         if (status !== 'all' && (row.status ?? 'unknown') !== status) return false;
         return true;
       }),
@@ -93,18 +94,18 @@ export default function QuestionAnalysisTab({ rows }: { rows?: QuestionDeltaRow[
             {filteredRows.map((row) => (
               <Tr key={row.questionId}>
                 <Td fontWeight="medium">{row.questionId}</Td>
-                <Td>{row.category}</Td>
-                <Td>{row.difficulty}</Td>
-                <Td>{row.requiredModalities.join(', ')}</Td>
+                <Td>{formatOptionalText(row.category)}</Td>
+                <Td>{formatOptionalText(row.difficulty)}</Td>
+                <Td>{row.requiredModalities.length ? row.requiredModalities.join(', ') : 'N/A'}</Td>
                 <Td isNumeric>{formatSigned(row.deltaCorrectness)}</Td>
                 <Td isNumeric>{formatSigned(row.deltaFaithfulness)}</Td>
-                <Td isNumeric>{row.deltaTokens.toLocaleString()}</Td>
-                <Td isNumeric>{`${row.deltaLatencyMs.toLocaleString()} ms`}</Td>
-                <Td isNumeric>{row.ecrCorrectness.toFixed(6)}</Td>
-                <Td>{row.bestMode}</Td>
+                <Td isNumeric>{formatOptionalTokens(row.deltaTokens)}</Td>
+                <Td isNumeric>{row.deltaLatencyMs == null ? 'N/A' : `${row.deltaLatencyMs.toLocaleString()} ms`}</Td>
+                <Td isNumeric>{formatOptionalNumber(row.ecrCorrectness, 6)}</Td>
+                <Td>{formatOptionalText(row.bestMode)}</Td>
                 <Td>{row.routerSelectedMode}</Td>
-                <Td isNumeric>{`${(row.evidenceCoverage * 100).toFixed(1)}%`}</Td>
-                <Td isNumeric>{`${(row.unsupportedClaimRatio * 100).toFixed(1)}%`}</Td>
+                <Td isNumeric>{formatOptionalPercent(row.evidenceCoverage)}</Td>
+                <Td isNumeric>{formatOptionalPercent(row.unsupportedClaimRatio)}</Td>
                 <Td>
                   <HStack spacing={2} wrap="wrap">
                     {(row.risks ?? []).map((risk) => (

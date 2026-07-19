@@ -23,7 +23,7 @@ import {
   getCampaignResults,
   getHumanEvalQueue,
   getHumanVsAuto,
-  getQuestionComparison,
+  getResearchQuestionComparison,
   getRouterAnalysis,
   getCampaignRuns,
   getRunDetail,
@@ -41,6 +41,7 @@ import type {
   HumanEvalQueueResponse,
   HumanVsAutoResponse,
   QuestionComparisonResponse,
+  QuestionComparisonRow,
   RouterAnalysisResponse,
   RunDetailResponse,
 } from '../types/evaluation';
@@ -94,28 +95,24 @@ function scalarString(value: unknown, fallback: string): string {
 }
 
 function mapQuestionRows(data: DashboardApiData) {
-  return Object.entries(asRecord(data.questionComparison?.summaries)).map(([questionId, raw]) => {
-    const summary = asRecord(raw);
-    const modes = Array.isArray(summary.modes) ? summary.modes.map(String) : [];
-    return {
-      questionId,
-      category: 'all',
-      difficulty: 'n/a',
-      requiredModalities: [],
-      deltaCorrectness: 0,
-      deltaFaithfulness: 0,
-      deltaTokens: numberValue(summary.total_tokens_mean),
-      deltaLatencyMs: 0,
-      ecrCorrectness: 0,
-      bestMode: modes[0] ?? 'n/a',
-      routerSelectedMode: modes.includes('router') ? 'router' : 'n/a',
-      evidenceCoverage: 0,
-      unsupportedClaimRatio: 0,
-      risks: [],
-      status: 'observed',
-      ablationFlags: [],
-    };
-  });
+  return (data.questionComparison?.rows ?? []).map((row: QuestionComparisonRow) => ({
+    questionId: row.question_id,
+    category: row.category,
+    difficulty: row.difficulty,
+    requiredModalities: row.required_modalities ?? [],
+    deltaCorrectness: row.delta_correctness,
+    deltaFaithfulness: row.delta_faithfulness,
+    deltaTokens: row.delta_tokens,
+    deltaLatencyMs: row.delta_latency_ms,
+    ecrCorrectness: row.ecr_correctness,
+    bestMode: row.best_quality_mode,
+    routerSelectedMode: 'N/A',
+    evidenceCoverage: row.evidence_coverage,
+    unsupportedClaimRatio: row.unsupported_claim_ratio,
+    risks: row.comparability_reason ? [row.comparability_reason] : [],
+    status: row.comparability_reason ?? 'complete',
+    ablationFlags: [],
+  }));
 }
 
 function mapRunOptions(runs?: EvaluationRunListResponse) {
@@ -318,7 +315,7 @@ export default function EvaluationCenter() {
       case 0:
         return { errors: await getCampaignErrors(campaignId) };
       case 1:
-        return { questionComparison: await getQuestionComparison(campaignId) };
+        return { questionComparison: await getResearchQuestionComparison(campaignId) };
       case 2:
       case 3:
       case 5: {

@@ -320,7 +320,41 @@ export interface AnalyticsAggregateResponse {
 
 export type ModeComparisonResponse = AnalyticsAggregateResponse;
 
-export type QuestionComparisonResponse = AnalyticsAggregateResponse;
+export type QuestionMetricStatus = 'complete' | 'partial' | 'not_available' | 'not_instrumented';
+export type QuestionAccountingStatus = 'complete' | 'partial' | 'not_available';
+
+export interface QuestionModeComparison {
+  mode: CampaignMode;
+  sample_count: number;
+  answer_correctness: number | null;
+  faithfulness: number | null;
+  answer_relevancy: number | null;
+  mean_latency_ms: number | null;
+  total_tokens: number | null;
+  quality_status: QuestionMetricStatus;
+  accounting_status: QuestionAccountingStatus;
+}
+
+export interface QuestionComparisonRow {
+  question_id: string;
+  category: string | null;
+  difficulty: string | null;
+  required_modalities: string[] | null;
+  by_mode: QuestionModeComparison[];
+  delta_correctness: number | null;
+  delta_faithfulness: number | null;
+  delta_latency_ms: number | null;
+  delta_tokens: number | null;
+  ecr_correctness: number | null;
+  best_quality_mode: CampaignMode | null;
+  evidence_coverage: number | null;
+  unsupported_claim_ratio: number | null;
+  comparability_reason: string | null;
+}
+
+export interface QuestionComparisonResponse extends AnalyticsAggregateResponse {
+  rows: QuestionComparisonRow[];
+}
 
 export type CostLatencyResponse = AnalyticsAggregateResponse;
 
