@@ -57,7 +57,7 @@ const ClaimEvidenceTab = lazy(() => import('../components/evaluation/ClaimEviden
 const RouterLabTab = lazy(() => import('../components/evaluation/RouterLabTab'));
 const AblationDashboardTab = lazy(() => import('../components/evaluation/AblationDashboardTab'));
 
-interface DashboardApiData {
+export interface DashboardApiData {
   campaigns: CampaignStatus[];
   researchSummary?: CampaignResearchSummaryResponse;
   results?: CampaignResultsResponse;
@@ -100,7 +100,7 @@ function scalarString(value: unknown, fallback: string): string {
   return typeof value === 'string' || typeof value === 'number' ? String(value) : fallback;
 }
 
-function mapQuestionRows(data: DashboardApiData) {
+export function mapQuestionRows(data: DashboardApiData) {
   return (data.questionComparison?.rows ?? []).map((row: QuestionComparisonRow) => ({
     questionId: row.question_id,
     category: row.category,
@@ -144,7 +144,7 @@ function mapTraceEvents(detail?: RunDetailResponse) {
   }));
 }
 
-function mapRetrieval(detail?: RunDetailResponse) {
+export function mapRetrieval(detail?: RunDetailResponse) {
   return {
     retrievals: (detail?.retrieval_events ?? []).map((event, index) => ({
       queryLabel: stringValue(event.retriever_name, `query ${index + 1}`),
@@ -182,7 +182,7 @@ function mapRetrieval(detail?: RunDetailResponse) {
   };
 }
 
-function mapAgentRows(data: DashboardApiData) {
+export function mapAgentRows(data: DashboardApiData) {
   return (data.agentBehavior?.rows ?? []).map((row) => ({
     runId: row.run_id,
     campaignId: row.campaign_id,
@@ -216,7 +216,7 @@ function mapClaims(detail?: RunDetailResponse) {
   };
 }
 
-function mapRouterData(data: DashboardApiData) {
+export function mapRouterData(data: DashboardApiData) {
   const rows = asRows(data.routerAnalysis?.rows);
   const summaries = asRecord(data.routerAnalysis?.summaries);
   if (!data.routerAnalysis && rows.length === 0) {
