@@ -76,7 +76,7 @@ The primary analytics surface is an 8-tab Chakra `Tabs` control rendered directl
    - mapped outputs:
      - summary cards
      - mode comparison rows
-     - cost/quality rows
+     - token-vs-quality rows (fail-closed when accounting is incomplete)
      - latency summary rows
      - token rows
    - rendering behavior:
@@ -86,7 +86,7 @@ The primary analytics surface is an 8-tab Chakra `Tabs` control rendered directl
 2. `Question Analysis`
    - component: `QuestionAnalysisTab.tsx`
    - page inputs:
-     - `getQuestionComparison(...)`
+     - `getResearchQuestionComparison(...)`
    - rendering behavior:
      - local category/status filters only
      - `QuestionDeltaHeatmap.tsx` renders a tint-based table, not a canvas heatmap
@@ -96,10 +96,11 @@ The primary analytics surface is an 8-tab Chakra `Tabs` control rendered directl
    - component: `RunTraceTab.tsx`
    - page inputs:
      - `getCampaignRuns(...)`
-     - `getRunDetail(...)` for the first run only
+     - `getRunDetail(...)` for the currently selected run
    - rendering behavior:
-     - current page implementation shows the first run from the run list
-     - display-only selects show campaign/question/mode/repeat metadata
+     - the run selector is interactive and refetches the selected run detail
+     - question/mode/repeat selects are read-only identity metadata for that run
+     - stale detail responses are ignored and never rendered under another run ID
      - `RunTraceTree.tsx` sorts persisted events by `sequence`
      - payload and error blobs stay collapsed behind disclosure buttons
    - legacy compatibility:
@@ -114,16 +115,18 @@ The primary analytics surface is an 8-tab Chakra `Tabs` control rendered directl
      - `RetrievedChunksTable.tsx`
      - `EvidenceCoveragePanel.tsx`
    - note:
-     - `EvaluationCenter.tsx` currently maps chunk and retrieval rows, but does not yet map evidence coverage rows, so coverage usually lands on its empty state
+     - retrieval scores and boolean evidence flags are nullable
+     - `evidence_coverage_status` distinguishes complete/partial/not available/not instrumented
+     - a missing flag is `N/A`; measured `false` remains `no`
 
 5. `Agent Behavior`
    - component: `AgentBehaviorTab.tsx`
    - page inputs:
-     - `getCampaignResults(...)`
-     - `getRunDetail(...)`
+     - `getAgentBehavior(...)` bulk campaign projection
    - rendering behavior:
-     - aggregate cards are derived client-side from row totals
-     - tool-call categorization is heuristic string matching against serialized tool calls
+     - rows retain mode, repeat, question, and run identity
+     - counts and quality are rendered as `N/A` when their source instrumentation is absent
+     - quality columns use durable RAGAS/claim observations and never claim-ratio fallbacks
 
 6. `Claim Evidence`
    - component: `ClaimEvidenceTab.tsx`
@@ -237,7 +240,7 @@ The primary analytics surface is an 8-tab Chakra `Tabs` control rendered directl
 - `RetrievedChunksTable.tsx`
   - `No retrieved chunks were recorded for this run.`
 - `EvidenceCoveragePanel.tsx`
-  - `No evidence coverage rows are available for this run.`
+  - `Evidence coverage: <status> (no rows recorded).`
 - `AgentBehaviorTab.tsx`
   - `Agent behavior metrics will appear after trace aggregation is available.`
 - `ClaimEvidenceTab.tsx`
