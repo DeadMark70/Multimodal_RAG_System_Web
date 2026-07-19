@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mapAgentRows, mapQuestionRows, mapRetrieval, mapRouterData, type DashboardApiData } from './EvaluationCenter';
+import { mapAgentRows, mapQuestionRows, mapRetrieval, mapRouterData, type DashboardApiData } from './EvaluationCenter.mappers';
 
 describe('Evaluation Center data mappers', () => {
   it('preserves missing question comparison metrics instead of inventing zeros', () => {
