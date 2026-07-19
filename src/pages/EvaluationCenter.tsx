@@ -299,6 +299,7 @@ export default function EvaluationCenter() {
     let mounted = true;
     const generation = requestGenerationRef.current + 1;
     requestGenerationRef.current = generation;
+    runDetailRequestRef.current += 1;
     loadedTabsRef.current = new Set();
     setActiveTabIndex(0);
     setSelectedRunId('');
@@ -327,7 +328,7 @@ export default function EvaluationCenter() {
     };
   }, [selectedCampaignId]);
 
-  const loadTabData = useCallback(async (tabIndex: number, campaignId: string) => {
+  const loadTabData = useCallback(async (tabIndex: number, campaignId: string, preferredRunId?: string) => {
     switch (tabIndex) {
       case 0:
         return { errors: await getCampaignErrors(campaignId) };
@@ -337,8 +338,11 @@ export default function EvaluationCenter() {
       case 3:
       case 5: {
         const runs = await getCampaignRuns(campaignId);
-        const firstRunId = runs.runs[0]?.run_id;
-        const runDetail = firstRunId ? await getRunDetail(campaignId, firstRunId) : undefined;
+        const effectiveRunId =
+          (preferredRunId && runs.runs.some((run) => run.run_id === preferredRunId)
+            ? preferredRunId
+            : runs.runs[0]?.run_id) ?? '';
+        const runDetail = effectiveRunId ? await getRunDetail(campaignId, effectiveRunId) : undefined;
         return { runs, runDetail };
       }
       case 4:
@@ -371,14 +375,18 @@ export default function EvaluationCenter() {
     let mounted = true;
     const generation = requestGenerationRef.current;
     setLoadingTab(true);
-    void loadTabData(activeTabIndex, selectedCampaignId)
+    void loadTabData(activeTabIndex, selectedCampaignId, selectedRunId)
       .then((partialData) => {
         if (!mounted || generation !== requestGenerationRef.current) {
           return;
         }
         setDashboardData((current) => ({ ...current, ...partialData }));
         if ('runs' in partialData && partialData.runs?.runs.length) {
-          setSelectedRunId((current) => current || partialData.runs?.runs[0]?.run_id || '');
+          setSelectedRunId((current) =>
+            current && partialData.runs?.runs.some((run) => run.run_id === current)
+              ? current
+              : partialData.runs?.runs[0]?.run_id || ''
+          );
         }
         loadedTabsRef.current.add(tabKey);
       })
@@ -396,7 +404,7 @@ export default function EvaluationCenter() {
     return () => {
       mounted = false;
     };
-  }, [activeTabIndex, dashboardData.researchSummary, loadTabData, selectedCampaignId]);
+  }, [activeTabIndex, dashboardData.researchSummary, loadTabData, selectedCampaignId, selectedRunId]);
 
   const handleSelectedRunIdChange = useCallback(
     (runId: string) => {
@@ -405,15 +413,22 @@ export default function EvaluationCenter() {
       }
       setSelectedRunId(runId);
       const requestId = runDetailRequestRef.current + 1;
+      const campaignGeneration = requestGenerationRef.current;
       runDetailRequestRef.current = requestId;
       void getRunDetail(selectedCampaignId, runId)
         .then((runDetail) => {
-          if (requestId === runDetailRequestRef.current) {
+          if (
+            requestId === runDetailRequestRef.current &&
+            campaignGeneration === requestGenerationRef.current
+          ) {
             setDashboardData((current) => ({ ...current, runDetail }));
           }
         })
         .catch((error) => {
-          if (requestId === runDetailRequestRef.current) {
+          if (
+            requestId === runDetailRequestRef.current &&
+            campaignGeneration === requestGenerationRef.current
+          ) {
             setDashboardError(error instanceof Error ? error.message : 'Failed to load selected run');
           }
         });

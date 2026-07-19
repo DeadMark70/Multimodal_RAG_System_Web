@@ -92,6 +92,7 @@ function renderWithTheme(node: React.ReactNode) {
 
 describe('RunTraceTab', () => {
   it('renders chronological trace events, durations, payload drawer, and error drawer', () => {
+    const onSelectedRunIdChange = vi.fn();
     renderWithTheme(
       <RunTraceTab
         runOptions={runOptions}
@@ -106,7 +107,7 @@ describe('RunTraceTab', () => {
           totalTokens: 5700,
           accountingStatus: 'complete',
         }}
-        onSelectedRunIdChange={vi.fn()}
+        onSelectedRunIdChange={onSelectedRunIdChange}
         traceEvents={traceEvents}
       />
     );
@@ -121,6 +122,7 @@ describe('RunTraceTab', () => {
     expect(screen.getByText('5,700')).toBeInTheDocument();
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Run selector' }), { target: { value: 'run-2' } });
+    expect(onSelectedRunIdChange).toHaveBeenCalledWith('run-2');
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Payload' })[0]);
     expect(screen.getByText(/selectedMode/)).toBeInTheDocument();
