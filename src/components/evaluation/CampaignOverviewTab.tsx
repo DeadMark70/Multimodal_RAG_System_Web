@@ -21,6 +21,8 @@ export default function CampaignOverviewTab({ data }: { data?: CampaignResearchS
     <Stack spacing={5}>
       <Stack direction={{ base: 'column', md: 'row' }} spacing={2} aria-label="Research accounting statuses"><Badge>Quality: {data.quality_status}</Badge><Badge>Tokens: {data.token_accounting_status}</Badge><Badge>Phase attribution: {data.phase_attribution_status}</Badge></Stack>
       {data.token_accounting_status === 'incomplete_legacy' ? <Alert status="warning"><AlertIcon />Legacy accounting: token totals may be incomplete.</Alert> : null}
+      {data.token_accounting_status === 'partial' ? <Alert status="warning"><AlertIcon />Token accounting is partial; token-derived comparisons are marked N/A when incomplete.</Alert> : null}
+      {data.phase_attribution_status === 'partial' ? <Alert status="warning"><AlertIcon />Phase attribution is partial; phase breakdowns may be incomplete.</Alert> : null}
       <Grid templateColumns={{ base: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }} gap={3}>
         <MetricCard label="Completed Runs" value={`${data.completed_run_count} / ${data.total_run_count}`} />
         <MetricCard label="Failed Runs" value={data.failed_run_count.toLocaleString()} />

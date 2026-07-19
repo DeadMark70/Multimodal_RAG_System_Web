@@ -1,13 +1,13 @@
 import { Badge, Box, Grid, GridItem, Heading, Stack, Table, Tbody, Td, Text, Th, Thead, Tr } from '@chakra-ui/react';
 import RouterDecisionCard, { type RouterDecision } from './RouterDecisionCard';
+import { formatOptionalNumber, formatOptionalTokens } from './evaluationDisplay';
 
 interface RouterComparisonRow {
   label: string;
-  qualityScore: number;
-  avgCostUsd: number;
-  avgLatencyMs: number;
-  tokens: number;
-  regret: number;
+  qualityScore: number | null;
+  avgLatencyMs: number | null;
+  tokens: number | null;
+  regret: number | null;
   policyType: string;
 }
 
@@ -24,10 +24,10 @@ interface RouterLabData {
   utilityFormula: string;
   selectedDecision: RouterDecision;
   comparisonRows: RouterComparisonRow[];
-  savedTokens: number;
-  qualityLossVsAgentic: number;
-  qualityGainVsNaive: number;
-  routerRegret: number;
+  savedTokens: number | null;
+  qualityLossVsAgentic: number | null;
+  qualityGainVsNaive: number | null;
+  routerRegret: number | null;
   confusionMatrix?: ConfusionCell[];
 }
 
@@ -50,7 +50,7 @@ export default function RouterLabTab({ data }: { data?: RouterLabData }) {
             Saved Tokens
           </Text>
           <Text fontSize="lg" fontWeight="semibold">
-            {data.savedTokens.toLocaleString()}
+            {formatOptionalTokens(data.hasActualRouterRuns ? data.savedTokens : null)}
           </Text>
         </GridItem>
         <GridItem borderWidth="1px" borderRadius="md" px={3} py={2}>
@@ -58,7 +58,7 @@ export default function RouterLabTab({ data }: { data?: RouterLabData }) {
             Quality Loss vs Agentic
           </Text>
           <Text fontSize="lg" fontWeight="semibold">
-            {data.qualityLossVsAgentic.toFixed(3)}
+            {formatOptionalNumber(data.hasActualRouterRuns ? data.qualityLossVsAgentic : null)}
           </Text>
         </GridItem>
         <GridItem borderWidth="1px" borderRadius="md" px={3} py={2}>
@@ -66,7 +66,7 @@ export default function RouterLabTab({ data }: { data?: RouterLabData }) {
             Quality Gain vs Naive
           </Text>
           <Text fontSize="lg" fontWeight="semibold">
-            {data.qualityGainVsNaive.toFixed(3)}
+            {formatOptionalNumber(data.hasActualRouterRuns ? data.qualityGainVsNaive : null)}
           </Text>
         </GridItem>
         <GridItem borderWidth="1px" borderRadius="md" px={3} py={2}>
@@ -74,7 +74,7 @@ export default function RouterLabTab({ data }: { data?: RouterLabData }) {
             Router Regret
           </Text>
           <Text fontSize="lg" fontWeight="semibold">
-            {data.routerRegret.toFixed(3)}
+            {formatOptionalNumber(data.hasActualRouterRuns ? data.routerRegret : null)}
           </Text>
         </GridItem>
       </Grid>
@@ -98,7 +98,6 @@ export default function RouterLabTab({ data }: { data?: RouterLabData }) {
             <Tr>
               <Th>Policy</Th>
               <Th isNumeric>Quality</Th>
-              <Th isNumeric>Cost</Th>
               <Th isNumeric>Latency</Th>
               <Th isNumeric>Tokens</Th>
               <Th isNumeric>Regret</Th>
@@ -109,11 +108,10 @@ export default function RouterLabTab({ data }: { data?: RouterLabData }) {
             {data.comparisonRows.map((row) => (
               <Tr key={row.label}>
                 <Td fontWeight="medium">{row.label}</Td>
-                <Td isNumeric>{row.qualityScore.toFixed(2)}</Td>
-                <Td isNumeric>{`$${row.avgCostUsd.toFixed(2)}`}</Td>
-                <Td isNumeric>{`${row.avgLatencyMs.toLocaleString()} ms`}</Td>
-                <Td isNumeric>{row.tokens.toLocaleString()}</Td>
-                <Td isNumeric>{row.regret.toFixed(2)}</Td>
+                <Td isNumeric>{formatOptionalNumber(row.qualityScore, 2)}</Td>
+                <Td isNumeric>{row.avgLatencyMs == null ? 'N/A' : `${row.avgLatencyMs.toLocaleString()} ms`}</Td>
+                <Td isNumeric>{formatOptionalTokens(row.tokens)}</Td>
+                <Td isNumeric>{formatOptionalNumber(row.regret, 2)}</Td>
                 <Td>{row.policyType}</Td>
               </Tr>
             ))}

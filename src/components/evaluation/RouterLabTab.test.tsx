@@ -21,7 +21,6 @@ const routerData = {
     {
       label: 'Always Naive',
       qualityScore: 0.71,
-      avgCostUsd: 0.04,
       avgLatencyMs: 1800,
       tokens: 6200,
       regret: 0.12,
@@ -30,7 +29,6 @@ const routerData = {
     {
       label: 'Always Agentic',
       qualityScore: 0.89,
-      avgCostUsd: 0.32,
       avgLatencyMs: 7900,
       tokens: 20640,
       regret: 0,
@@ -39,7 +37,6 @@ const routerData = {
     {
       label: 'Router',
       qualityScore: 0.84,
-      avgCostUsd: 0.11,
       avgLatencyMs: 3100,
       tokens: 10120,
       regret: 0.05,
@@ -48,7 +45,6 @@ const routerData = {
     {
       label: 'Oracle',
       qualityScore: 0.91,
-      avgCostUsd: 0.14,
       avgLatencyMs: 3500,
       tokens: 11000,
       regret: 0,
@@ -78,9 +74,8 @@ describe('RouterLabTab', () => {
     expect(screen.getByText('medium')).toBeInTheDocument();
     expect(screen.getByText('Evidence need is moderate and router utility penalizes agentic latency.')).toBeInTheDocument();
     expect(screen.getByText('retrospective')).toBeInTheDocument();
-    expect(screen.getByText('10,520')).toBeInTheDocument();
-    expect(screen.getAllByText('0.050').length).toBeGreaterThan(0);
-    expect(screen.getByText('0.130')).toBeInTheDocument();
+    expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Cost')).not.toBeInTheDocument();
     expect(screen.getAllByText('Router').length).toBeGreaterThan(0);
     expect(screen.getByText('Retrospective analysis only: no actual router runs in this campaign.')).toBeInTheDocument();
     expect(screen.getByText('utility_best_mode')).toBeInTheDocument();

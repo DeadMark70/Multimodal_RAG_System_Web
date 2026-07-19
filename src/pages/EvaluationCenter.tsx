@@ -223,10 +223,11 @@ function mapRouterData(data: DashboardApiData) {
     return undefined;
   }
   const firstDecision = rows[0] ?? {};
+  const hasActualRouterRuns = rows.some((row) => row.analysis_type === 'actual');
   return {
     analysisType: data.routerAnalysis?.analysis_type ?? 'retrospective',
     oracleLabelSource: 'utility_best_mode' as const,
-    hasActualRouterRuns: rows.some((row) => row.analysis_type === 'actual'),
+    hasActualRouterRuns,
     utilityFormula: stringValue(summaries.utility_formula, 'Retrospective utility summary from recorded routing decisions.'),
     selectedDecision: {
       selectedMode: stringValue(firstDecision.selected_mode, 'n/a'),
@@ -236,17 +237,16 @@ function mapRouterData(data: DashboardApiData) {
     },
     comparisonRows: rows.map((row, index) => ({
       label: stringValue(row.selected_mode, `Decision ${index + 1}`),
-      qualityScore: numberValue(row.quality_score),
-      avgCostUsd: numberValue(row.estimated_cost_usd),
-      avgLatencyMs: numberValue(row.latency_ms),
-      tokens: numberValue(row.total_tokens),
-      regret: numberValue(row.regret),
+      qualityScore: nullableNumber(row.quality_score),
+      avgLatencyMs: nullableNumber(row.latency_ms),
+      tokens: nullableNumber(row.total_tokens),
+      regret: nullableNumber(row.regret),
       policyType: stringValue(row.analysis_type, 'retrospective'),
     })),
-    savedTokens: numberValue(summaries.saved_tokens),
-    qualityLossVsAgentic: numberValue(summaries.quality_loss_vs_agentic),
-    qualityGainVsNaive: numberValue(summaries.quality_gain_vs_naive),
-    routerRegret: numberValue(summaries.router_regret),
+    savedTokens: hasActualRouterRuns ? nullableNumber(summaries.saved_tokens) : null,
+    qualityLossVsAgentic: hasActualRouterRuns ? nullableNumber(summaries.quality_loss_vs_agentic) : null,
+    qualityGainVsNaive: hasActualRouterRuns ? nullableNumber(summaries.quality_gain_vs_naive) : null,
+    routerRegret: hasActualRouterRuns ? nullableNumber(summaries.router_regret) : null,
     confusionMatrix: [],
   };
 }

@@ -13,6 +13,7 @@ describe('CampaignOverviewTab strict research accounting', () => {
   it('renders missing RAGAS without requiring monetary pricing', () => {
     renderOverview(partialFixture);
     expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
+    expect(screen.getByText(/Token accounting is partial/)).toBeInTheDocument();
     expect(screen.queryByText('Pricing: unknown')).not.toBeInTheDocument();
     expect(screen.queryByText('Benchmark Cost')).not.toBeInTheDocument();
   });
