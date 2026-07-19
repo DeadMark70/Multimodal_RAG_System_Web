@@ -86,6 +86,10 @@ function numberValue(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
+function nullableNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 function stringValue(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
@@ -153,16 +157,26 @@ function mapRetrieval(detail?: RunDetailResponse) {
         docId: stringValue(chunk.doc_id, stringValue(chunk.chunk_id, 'n/a')),
         page: hasPage ? `${pageStart}-${pageEnd}` : 'n/a',
         modality: stringValue(chunk.modality, 'text'),
-        denseScore: numberValue(chunk.dense_score),
-        bm25Score: numberValue(chunk.bm25_score),
-        rerankScore: numberValue(chunk.rerank_score),
+        denseScore: nullableNumber(chunk.dense_score),
+        bm25Score: nullableNumber(chunk.bm25_score),
+        rerankScore: nullableNumber(chunk.rerank_score),
         inContext: Boolean(chunk.used_in_context),
         usedInAnswer: Boolean(chunk.used_in_answer),
         goldMatch: Boolean(chunk.expected_evidence_match),
         excerpt: stringValue(chunk.excerpt),
       };
     }),
-    coverage: [],
+    coverage: Array.isArray(detail?.evidence_coverage)
+      ? detail.evidence_coverage.map((row) => ({
+          atomicFactId: stringValue(row.atomic_fact_id, 'n/a'),
+          factText: stringValue(row.fact_text, 'n/a'),
+          retrieved: Boolean(row.retrieved),
+          packed: Boolean(row.packed),
+          mentioned: Boolean(row.mentioned),
+          cited: Boolean(row.cited),
+          status: stringValue(row.status, 'instrumented'),
+        }))
+      : undefined,
   };
 }
 

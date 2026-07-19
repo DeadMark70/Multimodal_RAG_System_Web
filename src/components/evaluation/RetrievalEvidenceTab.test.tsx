@@ -98,6 +98,22 @@ describe('RetrievedChunksTable', () => {
     expect(screen.getByText('Gold Match')).toBeInTheDocument();
     expect(screen.getByText('paper-a.pdf')).toBeInTheDocument();
   });
+
+  it('renders unavailable retrieval scores as N/A instead of zero', () => {
+    renderWithTheme(
+      <RetrievedChunksTable
+        chunks={[{
+          ...chunks[0],
+          denseScore: null,
+          bm25Score: null,
+          rerankScore: null,
+        }]}
+      />
+    );
+
+    expect(screen.getAllByText('N/A')).toHaveLength(3);
+    expect(screen.queryByText('0.00')).not.toBeInTheDocument();
+  });
 });
 
 describe('EvidenceCoveragePanel', () => {

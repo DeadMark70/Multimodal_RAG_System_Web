@@ -469,6 +469,7 @@ export interface RunDetailResponse {
   routing_decisions: Array<Record<string, unknown>>;
   claims: Array<Record<string, unknown>>;
   human_ratings: Array<Record<string, unknown>>;
+  evidence_coverage?: Array<Record<string, unknown>> | null;
 }
 
 export interface ExportCampaignRequest {
