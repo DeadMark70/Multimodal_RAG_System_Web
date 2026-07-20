@@ -327,6 +327,7 @@ export default function EvaluationCenter() {
             claimsSummary: mapClaimsSummary(selectedRunDetail),
             totalTokens: selectedRunDetail?.run_summary?.total_tokens,
             accountingStatus: selectedRunDetail?.run_summary?.accounting_status,
+            accountingDiagnostics: selectedRunDetail?.accounting_diagnostics,
           }}
           traceEvents={mapTraceEvents(selectedRunDetail)}
         />

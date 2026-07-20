@@ -29,6 +29,13 @@ interface RunMetadata {
   claimsSummary?: string;
   totalTokens?: number | null;
   accountingStatus?: 'complete' | 'partial' | 'not_available';
+  accountingDiagnostics?: {
+    observed_call_count: number;
+    measured_call_count: number;
+    missing_usage_call_count: number;
+    unbalanced_call_count: number;
+    unclassified_phase_call_count: number;
+  };
 }
 
 function LegacyTraceTree({ steps }: { steps: LegacyStep[] }) {
@@ -104,6 +111,11 @@ export default function RunTraceTab({
             <Text fontSize="xs" color="text.secondary">
               Accounting: {metadata.accountingStatus ?? 'not_available'}
             </Text>
+            {metadata.accountingDiagnostics ? (
+              <Text fontSize="xs" color="text.secondary">
+                {`Calls ${metadata.accountingDiagnostics.measured_call_count}/${metadata.accountingDiagnostics.observed_call_count}; missing usage ${metadata.accountingDiagnostics.missing_usage_call_count}; unbalanced ${metadata.accountingDiagnostics.unbalanced_call_count}; unclassified phase ${metadata.accountingDiagnostics.unclassified_phase_call_count}`}
+              </Text>
+            ) : null}
           </GridItem>
         </Grid>
       ) : null}

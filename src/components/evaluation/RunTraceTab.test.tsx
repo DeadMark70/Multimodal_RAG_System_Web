@@ -106,6 +106,13 @@ describe('RunTraceTab', () => {
           claimsSummary: '2 unsupported claims remain',
           totalTokens: 5700,
           accountingStatus: 'complete',
+          accountingDiagnostics: {
+            observed_call_count: 3,
+            measured_call_count: 2,
+            missing_usage_call_count: 1,
+            unbalanced_call_count: 0,
+            unclassified_phase_call_count: 0,
+          },
         }}
         onSelectedRunIdChange={onSelectedRunIdChange}
         traceEvents={traceEvents}
@@ -120,6 +127,7 @@ describe('RunTraceTab', () => {
     expect(screen.getByText('120 ms')).toBeInTheDocument();
     expect(screen.getByText('2,440 ms')).toBeInTheDocument();
     expect(screen.getByText('5,700')).toBeInTheDocument();
+    expect(screen.getByText(/Calls 2\/3; missing usage 1/)).toBeInTheDocument();
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Run selector' }), { target: { value: 'run-2' } });
     expect(onSelectedRunIdChange).toHaveBeenCalledWith('run-2');
