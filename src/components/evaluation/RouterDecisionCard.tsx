@@ -31,7 +31,7 @@ export default function RouterDecisionCard({
         </GridItem>
         <GridItem>
           <Text fontSize="xs" textTransform="uppercase" color="text.secondary">
-            Selected Mode
+            {analysisType === 'actual' ? 'Selected Mode' : 'Retrospective best-mode observation'}
           </Text>
           <Text fontWeight="semibold">{decision.selectedMode}</Text>
         </GridItem>

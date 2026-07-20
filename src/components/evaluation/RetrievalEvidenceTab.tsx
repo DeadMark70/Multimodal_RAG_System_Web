@@ -27,7 +27,14 @@ export default function RetrievalEvidenceTab({
   coverageStatus?: string;
   graph?: {
     status: 'recorded' | 'fallback' | 'not_instrumented';
-    events: Array<Record<string, unknown>>;
+    events: Array<{
+      route: string;
+      routerReason: string;
+      nodeCount: number;
+      edgeCount: number;
+      pathCount: number;
+      graphToChunkSuccessRate: number | null;
+    }>;
     evidenceItems: Array<Record<string, unknown>>;
   };
 }) {
@@ -80,11 +87,23 @@ export default function RetrievalEvidenceTab({
           {graph?.status ?? 'not_instrumented'}
         </Badge>
         {graph?.status === 'recorded' ? (
-          <Text mt={2} fontSize="sm">
-            {`${graph.events.length} graph event(s), ${graph.evidenceItems.length} graph evidence item(s) recorded.`}
-          </Text>
+          <Stack mt={2} spacing={1} fontSize="sm">
+            <Text>{`${graph.events.length} graph event(s), ${graph.evidenceItems.length} graph evidence item(s) recorded.`}</Text>
+            {graph.events.map((event, index) => (
+              <Text key={`${String(event.route)}-${index}`} color="text.secondary">
+                {`Route ${String(event.route)} · reason ${String(event.routerReason)} · nodes ${String(event.nodeCount)} · edges ${String(event.edgeCount)} · paths ${String(event.pathCount)} · graph→chunk ${event.graphToChunkSuccessRate == null ? 'N/A' : `${(event.graphToChunkSuccessRate * 100).toFixed(1)}%`}`}
+              </Text>
+            ))}
+          </Stack>
         ) : graph?.status === 'fallback' ? (
-          <Text mt={2} fontSize="sm">Graph route recorded a fallback reason; no graph traversal event was persisted.</Text>
+          <Stack mt={2} spacing={1} fontSize="sm">
+            <Text>Graph route recorded a fallback; the event remains visible for diagnosis.</Text>
+            {graph.events.map((event, index) => (
+              <Text key={`${String(event.route)}-${index}`} color="text.secondary">
+                {`Route ${String(event.route)} · reason ${String(event.routerReason)} · nodes ${String(event.nodeCount)} · edges ${String(event.edgeCount)} · paths ${String(event.pathCount)}`}
+              </Text>
+            ))}
+          </Stack>
         ) : (
           <Text mt={2} fontSize="sm" color="text.secondary">Graph traversal is not instrumented for this run; mode alone is not evidence of traversal.</Text>
         )}

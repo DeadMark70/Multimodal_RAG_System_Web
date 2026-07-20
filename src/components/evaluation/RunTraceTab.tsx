@@ -35,6 +35,9 @@ interface RunMetadata {
     missing_usage_call_count: number;
     unbalanced_call_count: number;
     unclassified_phase_call_count: number;
+    missing_usage_by_phase?: Record<string, number>;
+    missing_usage_by_purpose?: Record<string, number>;
+    missing_usage_by_provider?: Record<string, number>;
   };
 }
 
@@ -112,9 +115,16 @@ export default function RunTraceTab({
               Accounting: {metadata.accountingStatus ?? 'not_available'}
             </Text>
             {metadata.accountingDiagnostics ? (
-              <Text fontSize="xs" color="text.secondary">
-                {`Calls ${metadata.accountingDiagnostics.measured_call_count}/${metadata.accountingDiagnostics.observed_call_count}; missing usage ${metadata.accountingDiagnostics.missing_usage_call_count}; unbalanced ${metadata.accountingDiagnostics.unbalanced_call_count}; unclassified phase ${metadata.accountingDiagnostics.unclassified_phase_call_count}`}
-              </Text>
+              <>
+                <Text fontSize="xs" color="text.secondary">
+                  {`Calls ${metadata.accountingDiagnostics.measured_call_count}/${metadata.accountingDiagnostics.observed_call_count}; missing usage ${metadata.accountingDiagnostics.missing_usage_call_count}; unbalanced ${metadata.accountingDiagnostics.unbalanced_call_count}; unclassified phase ${metadata.accountingDiagnostics.unclassified_phase_call_count}`}
+                </Text>
+                {Object.keys(metadata.accountingDiagnostics.missing_usage_by_phase ?? {}).length ? (
+                  <Text fontSize="xs" color="text.secondary">
+                    {`Missing by phase: ${Object.entries(metadata.accountingDiagnostics.missing_usage_by_phase ?? {}).map(([phase, count]) => `${phase}=${count}`).join(', ')}`}
+                  </Text>
+                ) : null}
+              </>
             ) : null}
           </GridItem>
         </Grid>

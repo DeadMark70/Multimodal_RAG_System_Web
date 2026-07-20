@@ -86,6 +86,23 @@ describe('RetrievalEvidenceTab', () => {
     expect(screen.getByText('retrieved-not-packed')).toBeInTheDocument();
     expect(screen.getByText('missing')).toBeInTheDocument();
   });
+
+  it('renders GraphRAG route diagnostics and fallback-safe status', () => {
+    renderWithTheme(
+      <RetrievalEvidenceTab
+        graph={{
+          status: 'fallback',
+          events: [{ route: 'skip', routerReason: 'fallback=no_packed_graph_chunks', nodeCount: 2, edgeCount: 1, pathCount: 0, graphToChunkSuccessRate: null }],
+          evidenceItems: [],
+        }}
+      />
+    );
+
+    expect(screen.getByText('fallback')).toBeInTheDocument();
+    expect(screen.getByText(/Route skip/)).toBeInTheDocument();
+    expect(screen.getByText(/fallback=no_packed_graph_chunks/)).toBeInTheDocument();
+    expect(screen.getByText(/nodes 2 · edges 1 · paths 0/)).toBeInTheDocument();
+  });
 });
 
 describe('RetrievedChunksTable', () => {

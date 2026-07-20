@@ -137,7 +137,14 @@ export function mapRetrieval(detail?: RunDetailResponse) {
     coverageStatus: detail?.evidence_coverage_status ?? 'not_available',
     graph: {
       status: detail?.graph_observability_status ?? 'not_instrumented',
-      events: detail?.graph_events ?? [],
+      events: (detail?.graph_events ?? []).map((event) => ({
+        route: stringValue(event.graph_route, 'n/a'),
+        routerReason: stringValue(event.router_reason, 'n/a'),
+        nodeCount: numberValue(event.node_count, 0),
+        edgeCount: numberValue(event.edge_count, 0),
+        pathCount: numberValue(event.path_count, 0),
+        graphToChunkSuccessRate: nullableNumber(event.graph_to_chunk_success_rate),
+      })),
       evidenceItems: detail?.graph_evidence_items ?? [],
     },
   };

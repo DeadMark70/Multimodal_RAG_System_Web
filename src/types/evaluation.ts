@@ -247,6 +247,9 @@ export interface ResearchTokenBreakdown {
   other_tokens: number | null;
   total_tokens: number | null;
   by_phase: Record<string, number>;
+  missing_usage_by_phase?: Record<string, number>;
+  missing_usage_by_purpose?: Record<string, number>;
+  missing_usage_by_provider?: Record<string, number>;
   accounting_status: TokenAccountingStatus;
   phase_attribution_status: PhaseAttributionStatus;
 }
@@ -504,6 +507,9 @@ export interface RunDetailResponse {
     missing_usage_call_count: number;
     unbalanced_call_count: number;
     unclassified_phase_call_count: number;
+    missing_usage_by_phase?: Record<string, number>;
+    missing_usage_by_purpose?: Record<string, number>;
+    missing_usage_by_provider?: Record<string, number>;
   };
 }
 

@@ -86,7 +86,7 @@ describe('RouterDecisionCard', () => {
   it('renders router decision details', () => {
     renderWithTheme(<RouterDecisionCard decision={routerData.selectedDecision} analysisType="retrospective" />);
 
-    expect(screen.getByText('Selected Mode')).toBeInTheDocument();
+    expect(screen.getByText('Retrospective best-mode observation')).toBeInTheDocument();
     expect(screen.getByText('Tier')).toBeInTheDocument();
     expect(screen.getByText('Complexity')).toBeInTheDocument();
     expect(screen.getByText('Routing Reason')).toBeInTheDocument();
