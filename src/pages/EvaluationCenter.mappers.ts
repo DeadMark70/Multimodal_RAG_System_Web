@@ -135,6 +135,11 @@ export function mapRetrieval(detail?: RunDetailResponse) {
         }))
       : undefined,
     coverageStatus: detail?.evidence_coverage_status ?? 'not_available',
+    graph: {
+      status: detail?.graph_observability_status ?? 'not_instrumented',
+      events: detail?.graph_events ?? [],
+      evidenceItems: detail?.graph_evidence_items ?? [],
+    },
   };
 }
 

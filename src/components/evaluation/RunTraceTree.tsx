@@ -17,6 +17,7 @@ import { useState } from 'react';
 
 export interface RunTraceEvent {
   eventId: string;
+  spanId?: string;
   sequence: number;
   stageName: string;
   status: string;

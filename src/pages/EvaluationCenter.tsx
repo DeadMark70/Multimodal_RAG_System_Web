@@ -68,6 +68,7 @@ function mapRunOptions(runs?: EvaluationRunListResponse) {
 function mapTraceEvents(detail?: RunDetailResponse) {
   return (detail?.trace_events ?? []).map((event) => ({
     eventId: stringValue(event.event_id, stringValue(event.span_id, scalarString(event.sequence, 'event'))),
+    spanId: stringValue(event.span_id),
     sequence: numberValue(event.sequence),
     stageName: stringValue(event.stage_name, 'unknown'),
     status: stringValue(event.status, 'unknown'),
@@ -91,6 +92,21 @@ function mapClaims(detail?: RunDetailResponse) {
     claims,
     unsupportedReasons: claims.filter((claim) => claim.status !== 'supported').map((claim) => claim.claim),
   };
+}
+
+function mapRetrievalSummary(detail?: RunDetailResponse): string {
+  if (!detail) return 'No selected run detail.';
+  const queryCount = detail.retrieval_events?.length ?? 0;
+  const chunkCount = detail.retrieval_chunks?.length ?? 0;
+  return queryCount || chunkCount
+    ? `${queryCount} retrieval event(s), ${chunkCount} chunk(s) recorded.`
+    : 'No retrieval observability recorded.';
+}
+
+function mapClaimsSummary(detail?: RunDetailResponse): string {
+  if (!detail) return 'No selected run detail.';
+  const claimCount = detail.claims?.length ?? 0;
+  return claimCount ? `${claimCount} claim(s) extracted.` : 'No claim extraction recorded.';
 }
 
 export default function EvaluationCenter() {
@@ -307,6 +323,8 @@ export default function EvaluationCenter() {
             mode: selectedRun?.mode ?? '',
             repeat: selectedRun?.repeat ?? 1,
             finalAnswerPreview: selectedRunDetail?.run_summary?.answer_preview ?? undefined,
+            retrievalSummary: mapRetrievalSummary(selectedRunDetail),
+            claimsSummary: mapClaimsSummary(selectedRunDetail),
             totalTokens: selectedRunDetail?.run_summary?.total_tokens,
             accountingStatus: selectedRunDetail?.run_summary?.accounting_status,
           }}
@@ -318,17 +336,29 @@ export default function EvaluationCenter() {
       label: 'Retrieval Evidence',
       component: (
         <RetrievalEvidenceTab
+          runOptions={runOptions}
+          selectedRunId={selectedRun?.runId}
+          onSelectedRunIdChange={handleSelectedRunIdChange}
           retrievals={retrievalData.retrievals}
           chunks={retrievalData.chunks}
           coverage={retrievalData.coverage}
           coverageStatus={retrievalData.coverageStatus}
+          graph={retrievalData.graph}
         />
       ),
     },
     { label: 'Agent Behavior', component: <AgentBehaviorTab rows={mapAgentRows(dashboardData)} /> },
     {
       label: 'Claim Evidence',
-      component: <ClaimEvidenceTab claims={claimData.claims} unsupportedReasons={claimData.unsupportedReasons} />,
+      component: (
+        <ClaimEvidenceTab
+          runOptions={runOptions}
+          selectedRunId={selectedRun?.runId}
+          onSelectedRunIdChange={handleSelectedRunIdChange}
+          claims={claimData.claims}
+          unsupportedReasons={claimData.unsupportedReasons}
+        />
+      ),
     },
     { label: 'Router Lab', component: <RouterLabTab data={mapRouterData(dashboardData)} /> },
     {

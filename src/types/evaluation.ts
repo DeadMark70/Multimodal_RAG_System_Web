@@ -488,6 +488,9 @@ export interface RunDetailResponse {
   llm_calls: Array<Record<string, unknown>>;
   retrieval_events: Array<Record<string, unknown>>;
   retrieval_chunks: Array<Record<string, unknown>>;
+  graph_events?: Array<Record<string, unknown>>;
+  graph_evidence_items?: Array<Record<string, unknown>>;
+  graph_observability_status?: 'recorded' | 'fallback' | 'not_instrumented';
   context_packs: Array<Record<string, unknown>>;
   tool_calls: Array<Record<string, unknown>>;
   routing_decisions: Array<Record<string, unknown>>;
@@ -495,6 +498,13 @@ export interface RunDetailResponse {
   human_ratings: Array<Record<string, unknown>>;
   evidence_coverage?: Array<Record<string, unknown>> | null;
   evidence_coverage_status?: 'complete' | 'partial' | 'not_available' | 'not_instrumented';
+  accounting_diagnostics?: ResearchTokenBreakdown & {
+    observed_call_count: number;
+    measured_call_count: number;
+    missing_usage_call_count: number;
+    unbalanced_call_count: number;
+    unclassified_phase_call_count: number;
+  };
 }
 
 export interface ExportCampaignRequest {
