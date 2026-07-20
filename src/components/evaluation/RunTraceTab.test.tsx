@@ -150,4 +150,20 @@ describe('RunTraceTree', () => {
     expect(screen.queryByText('Cost')).not.toBeInTheDocument();
     expect(screen.queryByText('$0.090')).not.toBeInTheDocument();
   });
+
+  it('folds running and terminal rows for one span until requested', () => {
+    renderWithTheme(
+      <RunTraceTree
+        events={[
+          { ...traceEvents[0], eventId: 'evt-running', spanId: 'span-1', status: 'running' },
+          { ...traceEvents[0], eventId: 'evt-success', spanId: 'span-1', status: 'success', sequence: 2 },
+        ]}
+      />
+    );
+
+    expect(screen.getAllByText('Routing')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Show lifecycle (2)' }));
+    expect(screen.getAllByText(/Routing/)).toHaveLength(2);
+    expect(screen.getByText('running')).toBeInTheDocument();
+  });
 });

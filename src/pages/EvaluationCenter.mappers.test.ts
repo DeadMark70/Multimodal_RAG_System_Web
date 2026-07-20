@@ -98,6 +98,33 @@ describe('Evaluation Center data mappers', () => {
     expect(mapped?.routerRegret).toBeNull();
   });
 
+  it('keeps retrospective routing decisions tied to their run identity', () => {
+    const mapped = mapRouterData({
+      campaigns: [],
+      routerAnalysis: {
+        campaign_id: 'cmp-1',
+        analysis_unit: 'execution',
+        sample_count: 1,
+        independent_question_count: 1,
+        repeat_count: 1,
+        sample_note: 'test',
+        warnings: [],
+        analysis_type: 'retrospective',
+        rows: [{
+          run_id: 'run-7',
+          question_id: 'Q-7',
+          repeat_number: 2,
+          selected_mode: 'graph',
+          analysis_type: 'retrospective',
+        }],
+        summaries: {},
+      },
+    } as DashboardApiData);
+
+    expect(mapped?.comparisonRows[0]).toMatchObject({ questionId: 'Q-7', runId: 'run-7', repeat: 2 });
+    expect(mapped?.selectedDecision).toMatchObject({ questionId: 'Q-7', runId: 'run-7', repeat: 2 });
+  });
+
   it('keeps agent behavior rows distinct by run and leaves missing fields null', () => {
     const mapped = mapAgentRows({
       campaigns: [],

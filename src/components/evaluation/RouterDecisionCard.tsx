@@ -5,6 +5,9 @@ export interface RouterDecision {
   tier: string;
   complexity: string;
   routingReason: string;
+  questionId?: string;
+  runId?: string;
+  repeat?: number | null;
 }
 
 export default function RouterDecisionCard({
@@ -17,6 +20,15 @@ export default function RouterDecisionCard({
   return (
     <Box borderWidth="1px" borderColor="border.subtle" borderRadius="md" p={3}>
       <Grid templateColumns={{ base: '1fr', md: 'repeat(4, 1fr)' }} gap={3}>
+        <GridItem>
+          <Text fontSize="xs" textTransform="uppercase" color="text.secondary">
+            Source
+          </Text>
+          <Text fontWeight="semibold">
+            {decision.questionId ?? 'n/a'}{decision.runId ? ` · ${decision.runId}` : ''}
+            {decision.repeat != null ? ` · repeat ${decision.repeat}` : ''}
+          </Text>
+        </GridItem>
         <GridItem>
           <Text fontSize="xs" textTransform="uppercase" color="text.secondary">
             Selected Mode

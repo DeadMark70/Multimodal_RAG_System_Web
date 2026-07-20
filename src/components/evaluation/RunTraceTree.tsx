@@ -27,6 +27,27 @@ export interface RunTraceEvent {
   error?: Record<string, unknown>;
 }
 
+interface TraceEventGroup {
+  representative: RunTraceEvent;
+  lifecycle: RunTraceEvent[];
+}
+
+function groupLifecycleEvents(events: RunTraceEvent[]): TraceEventGroup[] {
+  const groups = new Map<string, RunTraceEvent[]>();
+  for (const event of events.slice().sort((left, right) => left.sequence - right.sequence)) {
+    const key = event.spanId ? `${event.spanId}:${event.stageName}` : event.eventId;
+    const current = groups.get(key) ?? [];
+    current.push(event);
+    groups.set(key, current);
+  }
+  return Array.from(groups.values()).map((lifecycle) => ({
+    representative:
+      lifecycle.find((event) => !['running', 'partial'].includes(event.status))
+      ?? lifecycle[lifecycle.length - 1],
+    lifecycle,
+  }));
+}
+
 function JsonDisclosure({ label, value }: { label: string; value: Record<string, unknown> }) {
   const [open, setOpen] = useState(false);
 
@@ -45,6 +66,8 @@ function JsonDisclosure({ label, value }: { label: string; value: Record<string,
 }
 
 export default function RunTraceTree({ events }: { events?: RunTraceEvent[] }) {
+  const [expandedSpans, setExpandedSpans] = useState<Set<string>>(new Set());
+
   if (!events?.length) {
     return <Text color="text.secondary">No trace events are available for this run yet.</Text>;
   }
@@ -62,13 +85,17 @@ export default function RunTraceTree({ events }: { events?: RunTraceEvent[] }) {
           </Tr>
         </Thead>
         <Tbody>
-          {events
-            .slice()
-            .sort((left, right) => left.sequence - right.sequence)
-            .map((event) => (
+          {groupLifecycleEvents(events).flatMap(({ representative, lifecycle }) => {
+            const lifecycleKey = representative.spanId ?? representative.eventId;
+            const expanded = expandedSpans.has(lifecycleKey);
+            const rows = [representative];
+            if (expanded) {
+              rows.push(...lifecycle.filter((event) => event.eventId !== representative.eventId));
+            }
+            return rows.map((event, index) => (
               <Tr key={event.eventId}>
                 <Td>{event.sequence}</Td>
-                <Td fontWeight="medium">{event.stageName}</Td>
+                <Td fontWeight="medium">{event.stageName}{index > 0 ? ' · lifecycle' : ''}</Td>
                 <Td>
                   <Badge colorScheme={event.status === 'success' ? 'green' : event.status === 'partial' ? 'yellow' : 'gray'}>
                     {event.status}
@@ -77,12 +104,27 @@ export default function RunTraceTree({ events }: { events?: RunTraceEvent[] }) {
                 <Td isNumeric>{event.durationMs ? `${event.durationMs.toLocaleString()} ms` : 'n/a'}</Td>
                 <Td>
                   <HStack align="start" spacing={2}>
+                    {index === 0 && lifecycle.length > 1 ? (
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        onClick={() => setExpandedSpans((current) => {
+                          const next = new Set(current);
+                          if (next.has(lifecycleKey)) next.delete(lifecycleKey);
+                          else next.add(lifecycleKey);
+                          return next;
+                        })}
+                      >
+                        {expanded ? 'Hide lifecycle' : `Show lifecycle (${lifecycle.length})`}
+                      </Button>
+                    ) : null}
                     {event.payload ? <JsonDisclosure label="Payload" value={event.payload} /> : null}
                     {event.error ? <JsonDisclosure label="Error" value={event.error} /> : null}
                   </HStack>
                 </Td>
               </Tr>
-            ))}
+            ));
+          })}
         </Tbody>
       </Table>
     </Box>

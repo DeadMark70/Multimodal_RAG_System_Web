@@ -3,6 +3,9 @@ import RouterDecisionCard, { type RouterDecision } from './RouterDecisionCard';
 import { formatOptionalNumber, formatOptionalTokens } from './evaluationDisplay';
 
 interface RouterComparisonRow {
+  questionId?: string | null;
+  runId?: string | null;
+  repeat?: number | null;
   label: string;
   qualityScore: number | null;
   avgLatencyMs: number | null;
@@ -96,7 +99,8 @@ export default function RouterLabTab({ data }: { data?: RouterLabData }) {
         <Table size="sm">
           <Thead>
             <Tr>
-              <Th>Policy</Th>
+            <Th>Policy</Th>
+            <Th>Question / Run</Th>
               <Th isNumeric>Quality</Th>
               <Th isNumeric>Latency</Th>
               <Th isNumeric>Tokens</Th>
@@ -106,8 +110,9 @@ export default function RouterLabTab({ data }: { data?: RouterLabData }) {
           </Thead>
           <Tbody>
             {data.comparisonRows.map((row) => (
-              <Tr key={row.label}>
+              <Tr key={`${row.runId ?? row.label}-${row.questionId ?? 'n/a'}-${row.repeat ?? 'n/a'}`}>
                 <Td fontWeight="medium">{row.label}</Td>
+                <Td>{`${row.questionId ?? 'n/a'} · ${row.runId ?? 'n/a'} · repeat ${row.repeat ?? 'n/a'}`}</Td>
                 <Td isNumeric>{formatOptionalNumber(row.qualityScore, 2)}</Td>
                 <Td isNumeric>{row.avgLatencyMs == null ? 'N/A' : `${row.avgLatencyMs.toLocaleString()} ms`}</Td>
                 <Td isNumeric>{formatOptionalTokens(row.tokens)}</Td>
