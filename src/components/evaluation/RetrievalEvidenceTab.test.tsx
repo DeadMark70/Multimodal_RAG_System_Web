@@ -99,9 +99,10 @@ describe('RetrievalEvidenceTab', () => {
     );
 
     expect(screen.getByText('fallback')).toBeInTheDocument();
+    expect(screen.getByText('1 graph event(s), 0 graph evidence item(s) recorded before fallback.')).toBeInTheDocument();
     expect(screen.getByText(/Route skip/)).toBeInTheDocument();
     expect(screen.getByText(/fallback=no_packed_graph_chunks/)).toBeInTheDocument();
-    expect(screen.getByText(/nodes 2 · edges 1 · paths 0/)).toBeInTheDocument();
+    expect(screen.getByText(/nodes 2 · edges 1 · paths 0 · graph→chunk N\/A/)).toBeInTheDocument();
   });
 });
 

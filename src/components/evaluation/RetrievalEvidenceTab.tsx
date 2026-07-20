@@ -98,9 +98,10 @@ export default function RetrievalEvidenceTab({
         ) : graph?.status === 'fallback' ? (
           <Stack mt={2} spacing={1} fontSize="sm">
             <Text>Graph route recorded a fallback; the event remains visible for diagnosis.</Text>
+            <Text>{`${graph.events.length} graph event(s), ${graph.evidenceItems.length} graph evidence item(s) recorded before fallback.`}</Text>
             {graph.events.map((event, index) => (
               <Text key={`${String(event.route)}-${index}`} color="text.secondary">
-                {`Route ${String(event.route)} · reason ${String(event.routerReason)} · nodes ${String(event.nodeCount)} · edges ${String(event.edgeCount)} · paths ${String(event.pathCount)}`}
+                {`Route ${String(event.route)} · reason ${String(event.routerReason)} · nodes ${String(event.nodeCount)} · edges ${String(event.edgeCount)} · paths ${String(event.pathCount)} · graph→chunk ${event.graphToChunkSuccessRate == null ? 'N/A' : `${(event.graphToChunkSuccessRate * 100).toFixed(1)}%`}`}
               </Text>
             ))}
           </Stack>
