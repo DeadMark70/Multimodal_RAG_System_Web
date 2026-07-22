@@ -9,6 +9,7 @@ import {
   getCampaignAnalyticsDashboard,
   getCampaignOverview,
   getCampaignResearchSummary,
+  getCampaignReleaseMetrics,
   getCampaignRuns,
   getModeComparison,
   getQuestionComparison,
@@ -357,6 +358,14 @@ describe('evaluationApi', () => {
       '/api/evaluation/campaigns/cmp-1/evaluate',
       { question_ids: ['Q2', 'Q8'] }
     );
+  });
+
+  it('fetches backend-authoritative release metrics without client-side derivation', async () => {
+    const releaseMetrics = { benchmark_id: 'smoke-1', benchmark_kind: 'smoke', comparable: false };
+    mockedApi.get.mockResolvedValueOnce({ data: releaseMetrics });
+
+    expect(await getCampaignReleaseMetrics('cmp-1')).toEqual(releaseMetrics);
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/evaluation/campaigns/cmp-1/release-metrics');
   });
 
   it('posts the typed v9 preflight request without a client-supplied identity', async () => {

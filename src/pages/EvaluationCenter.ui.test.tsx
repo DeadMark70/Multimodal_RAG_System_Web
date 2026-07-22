@@ -2,13 +2,14 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
-import type { CampaignResearchSummaryResponse, ModelConfig } from '../types/evaluation';
+import type { CampaignResearchSummaryResponse, ModelConfig, ReleaseMetricsReport } from '../types/evaluation';
 import theme from '../theme';
 import EvaluationCenter from './EvaluationCenter';
 import {
   exportCampaignAnalysis,
   getCampaignErrors,
   getCampaignResearchSummary,
+  getCampaignReleaseMetrics,
   listCampaigns,
   getModeComparison,
   getRunDetail,
@@ -16,6 +17,7 @@ import {
 
 const { overviewProps, runTraceProps, researchSummaryFixture } = vi.hoisted(() => ({ overviewProps: [] as Array<{
   data?: CampaignResearchSummaryResponse;
+  releaseMetrics?: ReleaseMetricsReport;
 }>, runTraceProps: [] as Array<{
   selectedRunId?: string;
   runOptions?: Array<{ runId: string }>;
@@ -69,7 +71,7 @@ vi.mock('../components/evaluation/CampaignRunner', () => ({
 }));
 
 vi.mock('../components/evaluation/CampaignOverviewTab', () => ({
-  default: (props: { data?: CampaignResearchSummaryResponse }) => {
+  default: (props: { data?: CampaignResearchSummaryResponse; releaseMetrics?: ReleaseMetricsReport }) => {
     overviewProps.push(props);
     const { data } = props;
     return (
@@ -146,6 +148,7 @@ vi.mock('../services/evaluationApi', () => ({
     },
   ]),
   getCampaignResearchSummary: vi.fn().mockResolvedValue(researchSummaryFixture),
+  getCampaignReleaseMetrics: vi.fn().mockResolvedValue(undefined),
   getCampaignAnalyticsDashboard: vi.fn().mockResolvedValue({
     campaign_id: 'cmp-1',
     overview: {
@@ -318,6 +321,7 @@ describe('EvaluationCenter UI', () => {
     expect(await screen.findByRole('tab', { name: 'Router Lab' })).toBeInTheDocument();
     expect(await screen.findByRole('tab', { name: 'Ablation' })).toBeInTheDocument();
     await waitFor(() => expect(getCampaignResearchSummary).toHaveBeenCalledWith('cmp-1'));
+    expect(getCampaignReleaseMetrics).toHaveBeenCalledWith('cmp-1');
     expect(getModeComparison).not.toHaveBeenCalled();
     expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
     expect(overviewProps.at(-1)?.data).toMatchObject({
