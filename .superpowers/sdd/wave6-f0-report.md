@@ -27,3 +27,9 @@
 ## Contract drift to resolve before F0.5
 
 The pinned backend source at `cfcf54d` has `agentic_execution_version` and `shadow_evaluation_policy` in `evaluation/campaign_schemas.py`, but the checked-in generated `openapi.json` with the pinned hash does not include them in `CampaignConfig` or `CampaignCreateRequest`. This is an OpenAPI generation/publication drift, not a frontend implementation failure. F0 keeps these fields optional for historic compatibility; do not ship F0.5 control-plane submission until backend regenerates/publishes an OpenAPI artifact containing the same fields.
+
+## Contract refresh
+
+- Refreshed the immutable pin to repaired backend commit `782755693d371737069f260d1320d914e849c606` and generated OpenAPI SHA-256 `7c9516ded44e516f6275a939e4b8f0a7836a880f7cf872aa38fc4fcfa2123486`.
+- The refreshed snapshot includes `agentic_execution_version` and `shadow_evaluation_policy` on campaign configuration, plus condition/version/identity/shadow/response-status result fields and campaign `shadow_progress`.
+- Focused regression: `npm test -- --run src/types/evaluation.contract.test.ts src/services/evaluationApi.test.ts` — 20 passed.
