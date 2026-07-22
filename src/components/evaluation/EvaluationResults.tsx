@@ -67,13 +67,29 @@ import EvaluationJobPanel from "./EvaluationJobPanel";
 
 const MODE_LABELS: Record<CampaignMode, string> = {
   naive: "Naive",
+  "naive-baseline": "Naive baseline",
   advanced: "Advanced",
   graph: "Graph",
   agentic: "Agentic",
   "agentic-v8": "Agentic v8",
+  v8: "Agentic v8",
   "agentic-v9": "Agentic v9",
+  v9: "Agentic v9",
   "agentic-v9-shadow": "Agentic v9 shadow",
   router: "Router",
+  graph_raw_current: "Graph raw current",
+  graph_provenance_gated: "Graph provenance gated",
+  graph_locator_to_chunk: "Graph locator to chunk",
+  graph_locator_claim_gate: "Graph locator claim gate",
+  always_no_graph: "Always no graph",
+  always_graph_locator: "Always graph locator",
+  router_auto_graph: "Router auto graph",
+  oracle_graph_router: "Oracle graph router",
+  graph_local_first: "Graph local first",
+  graph_global_first: "Graph global first",
+  graph_blended: "Graph blended",
+  graph_path_pruned: "Graph path pruned",
+  graph_planning_only: "Graph planning only",
 };
 
 function isLegacyRerunTransportError(error: unknown): boolean {

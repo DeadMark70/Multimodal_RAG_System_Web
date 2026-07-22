@@ -21,9 +21,9 @@ describe('agentic v9 evaluation contract', () => {
           'shadow_evaluation_policy',
           'response_status',
         ],
-        campaign_status: ['shadow_progress'],
       },
     });
+    expect(AGENTIC_V9_API_CONTRACT.control_plane_fields).not.toHaveProperty('campaign_status');
   });
 
   it('keeps historical v8 run details valid when v9 observability is absent', () => {

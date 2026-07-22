@@ -699,6 +699,30 @@ describe('CampaignRunner', () => {
     expect(screen.getByText(/v9 shadow 已建立為獨立 campaign/)).toBeInTheDocument();
   });
 
+  it('does not submit stale v9 shadow state after Agentic is deselected', async () => {
+    mockListTestCases.mockResolvedValue(baseTestCases);
+    mockListModelConfigs.mockResolvedValue([baseConfig]);
+    mockListCampaigns.mockResolvedValue([]);
+    mockCreateCampaign.mockResolvedValue({ campaign_id: 'cmp-naive-advanced', status: 'pending' });
+    mockStreamCampaign.mockResolvedValue(undefined);
+
+    renderRunner();
+
+    await waitFor(() => expect(screen.getByText('已選擇 1 題')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Agentic RAG' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: '同時執行 v9 shadow' }));
+    fireEvent.change(screen.getByLabelText('v9 shadow policy'), { target: { value: 'research' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Agentic RAG' }));
+
+    fireEvent.click(screen.getByRole('button', { name: '開始評估' }));
+
+    await waitFor(() => expect(mockCreateCampaign).toHaveBeenCalledTimes(1));
+    expect(mockCreateCampaign).toHaveBeenCalledWith(expect.objectContaining({
+      modes: ['naive', 'advanced'],
+    }));
+    expect(mockPreflightCampaign).not.toHaveBeenCalled();
+  });
+
   it('displays the stored agentic version and shadow condition from campaign history', async () => {
     const v9Campaign = createCampaignStatus({
       id: 'cmp-v9-history',

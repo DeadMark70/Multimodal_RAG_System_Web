@@ -13,7 +13,7 @@ export interface EvaluationRunOption {
 }
 
 function displayMode(option: EvaluationRunOption): string {
-  const isAgentic = option.mode === 'agentic' || option.mode.startsWith('agentic-');
+  const isAgentic = option.mode === 'agentic' || option.mode.startsWith('agentic-') || option.mode === 'v8' || option.mode === 'v9';
   if (!isAgentic) {
     return option.mode;
   }

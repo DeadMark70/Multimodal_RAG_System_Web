@@ -62,4 +62,22 @@ describe('RunContextSelector', () => {
     fireEvent.change(selector, { target: { value: 'run-v9-shadow' } });
     expect(onSelectedRunIdChange).toHaveBeenCalledWith('run-v9-shadow');
   });
+
+  it('classifies server-returned v8 and v9 aliases as their Agentic conditions', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <RunContextSelector
+          runOptions={[
+            { runId: 'alias-v8', campaignId: 'campaign-1', questionId: 'Q1', mode: 'v8', repeat: 1 },
+            { runId: 'alias-v9', campaignId: 'campaign-1', questionId: 'Q1', mode: 'v9', repeat: 1 },
+          ]}
+          selectedRunId="alias-v8"
+          onSelectedRunIdChange={vi.fn()}
+        />
+      </ChakraProvider>,
+    );
+
+    expect(screen.getByRole('option', { name: /Q1 · Agentic v8 · repeat 1/ })).toHaveValue('alias-v8');
+    expect(screen.getByRole('option', { name: /Q1 · Agentic v9 · repeat 1/ })).toHaveValue('alias-v9');
+  });
 });

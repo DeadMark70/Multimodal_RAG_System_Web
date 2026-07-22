@@ -16,6 +16,5 @@ export const AGENTIC_V9_API_CONTRACT = {
       'shadow_evaluation_policy',
       'response_status',
     ],
-    campaign_status: ['shadow_progress'],
   },
 } as const;

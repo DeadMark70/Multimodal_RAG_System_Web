@@ -421,6 +421,12 @@ export default function CampaignRunner() {
   };
 
   const toggleModeSelection = (mode: CampaignMode) => {
+    const deselectingAgentic = mode === 'agentic' && selectedModes.includes(mode);
+    if (deselectingAgentic) {
+      setAgenticV9Shadow(false);
+      setShadowEvaluationPolicy('');
+      setPreflightQuestions(null);
+    }
     setSelectedModes((prev) =>
       prev.includes(mode)
         ? prev.filter((item) => item !== mode)
@@ -454,7 +460,7 @@ export default function CampaignRunner() {
       toast({ title: '請至少選擇一種 RAG 模式', status: 'warning' });
       return;
     }
-    if (agenticV9Shadow && agenticExecutionVersion === 'v9') {
+    if (agenticSelected && agenticV9Shadow && agenticExecutionVersion === 'v9') {
       toast({
         title: '設定不相容',
         description: 'v9 Evidence-First 不能同時設定 v9 shadow。',
@@ -462,7 +468,7 @@ export default function CampaignRunner() {
       });
       return;
     }
-    if (agenticV9Shadow && !shadowEvaluationPolicy) {
+    if (agenticSelected && agenticV9Shadow && !shadowEvaluationPolicy) {
       toast({
         title: '請選擇 shadow policy',
         description: 'v9 shadow 需要明確標示 operational 或 research policy。',
@@ -520,7 +526,7 @@ export default function CampaignRunner() {
       };
       const response = await createCampaign(authoritativeRequest);
 
-      if (agenticV9Shadow && shadowEvaluationPolicy) {
+      if (agenticSelected && agenticV9Shadow && shadowEvaluationPolicy) {
         try {
           await createCampaign({
             ...authoritativeRequest,
@@ -877,18 +883,6 @@ export default function CampaignRunner() {
                     )}
                   </Stack>
                 )}
-                {activeCampaign.snapshot.shadow_progress && (
-                  <Box borderWidth="1px" borderRadius="md" p={2}>
-                    <Text fontSize="sm" fontWeight="medium">Shadow progress ({activeCampaign.snapshot.shadow_progress.policy})</Text>
-                    <Text fontSize="sm">
-                      {activeCampaign.snapshot.shadow_progress.completed_units} / {activeCampaign.snapshot.shadow_progress.total_units}
-                      {' '}({formatStatus(activeCampaign.snapshot.shadow_progress.status)})
-                    </Text>
-                    {activeCampaign.snapshot.shadow_progress.warning && (
-                      <Text fontSize="sm" color="orange.600">{activeCampaign.snapshot.shadow_progress.warning}</Text>
-                    )}
-                  </Box>
-                )}
               </Stack>
             ) : (
               <Text color="gray.500">目前沒有執行中的 campaign。</Text>
@@ -934,17 +928,6 @@ export default function CampaignRunner() {
                     <Text color="red.600" fontSize="sm" mt={1}>
                       Runtime incompatibility: {campaign.error_message}
                     </Text>
-                  )}
-                  {campaign.shadow_progress && (
-                    <Stack spacing={0} mt={1}>
-                      <Text color="orange.600" fontSize="sm">
-                        Shadow {campaign.shadow_progress.policy}: {campaign.shadow_progress.completed_units} / {campaign.shadow_progress.total_units}
-                        {' '}({formatStatus(campaign.shadow_progress.status)})
-                      </Text>
-                      {campaign.shadow_progress.warning && (
-                        <Text color="orange.600" fontSize="sm">{campaign.shadow_progress.warning}</Text>
-                      )}
-                    </Stack>
                   )}
                 </Td>
                 <Td>

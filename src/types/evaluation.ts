@@ -80,13 +80,29 @@ export interface AvailableModel {
 
 export type CampaignMode =
   | 'naive'
+  | 'naive-baseline'
   | 'advanced'
   | 'graph'
   | 'agentic'
   | 'agentic-v8'
+  | 'v8'
   | 'agentic-v9'
+  | 'v9'
   | 'agentic-v9-shadow'
-  | 'router';
+  | 'router'
+  | 'graph_raw_current'
+  | 'graph_provenance_gated'
+  | 'graph_locator_to_chunk'
+  | 'graph_locator_claim_gate'
+  | 'always_no_graph'
+  | 'always_graph_locator'
+  | 'router_auto_graph'
+  | 'oracle_graph_router'
+  | 'graph_local_first'
+  | 'graph_global_first'
+  | 'graph_blended'
+  | 'graph_path_pruned'
+  | 'graph_planning_only';
 export type CampaignEvaluationPhase = 'execution' | 'evaluation';
 export type AgenticExecutionVersion = 'v8' | 'v9';
 export type ShadowEvaluationPolicy = 'operational' | 'research';
@@ -167,7 +183,6 @@ export interface CampaignStatus {
   started_at?: string | null;
   completed_at?: string | null;
   updated_at: string;
-  shadow_progress?: CampaignShadowProgress | null;
 }
 
 export interface CampaignResult {
@@ -734,14 +749,6 @@ export interface CampaignPreflightRequest {
 
 export interface CampaignPreflightResponse {
   questions?: CampaignPreflightQuestion[];
-}
-
-export interface CampaignShadowProgress {
-  policy: ShadowEvaluationPolicy;
-  completed_units: number;
-  total_units: number;
-  status: CampaignLifecycleStatus;
-  warning?: string | null;
 }
 
 export interface RunDetailResponse {
