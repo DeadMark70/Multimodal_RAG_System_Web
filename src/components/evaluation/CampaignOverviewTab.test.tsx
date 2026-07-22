@@ -32,6 +32,28 @@ describe('CampaignOverviewTab strict research accounting', () => {
     expect(screen.queryByText('$0.000')).not.toBeInTheDocument();
   });
 
+  it('renders backend-authored category and per-question release deltas as values or reasons', () => {
+    renderOverview(completeFixture, {
+      ...smokeReleaseFixture,
+      category_quality_deltas: {
+        retrieval: { value: 0.04, reason: null },
+        synthesis: { value: null, reason: 'unpaired_quality_data' },
+      },
+      per_question_quality_deltas: {
+        Q9: { value: 0.04, reason: null },
+        Q15: { value: null, reason: 'quality_score_missing' },
+      },
+    });
+
+    expect(screen.getByRole('heading', { name: 'Category quality deltas' })).toBeInTheDocument();
+    expect(screen.getByText('retrieval')).toBeInTheDocument();
+    expect(screen.getAllByText('0.04').length).toBeGreaterThanOrEqual(3);
+    expect(screen.getByText('N/A — unpaired_quality_data')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Per-question quality deltas' })).toBeInTheDocument();
+    expect(screen.getByText('Q15')).toBeInTheDocument();
+    expect(screen.getByText('N/A — quality_score_missing')).toBeInTheDocument();
+  });
+
   it('renders missing RAGAS without requiring monetary pricing', () => {
     renderOverview(partialFixture);
     expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);

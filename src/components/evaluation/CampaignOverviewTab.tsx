@@ -27,6 +27,33 @@ function ReleaseMetricCard({ label, metric, percent: asPercent, suffix }: {
   return <MetricCard label={label} value={releaseMetric(metric, { percent: asPercent, suffix })} />;
 }
 
+function ReleaseDeltaTable({
+  heading,
+  rows,
+}: {
+  heading: string;
+  rows: Record<string, ReleaseMetric>;
+}) {
+  const entries = Object.entries(rows);
+  if (entries.length === 0) return null;
+  return (
+    <Stack spacing={1}>
+      <Heading size="xs">{heading}</Heading>
+      <Table size="sm" variant="simple">
+        <Thead><Tr><Th>Group</Th><Th isNumeric>Paired quality delta</Th></Tr></Thead>
+        <Tbody>
+          {entries.map(([name, metric]) => (
+            <Tr key={name}>
+              <Td>{name}</Td>
+              <Td isNumeric>{releaseMetric(metric)}</Td>
+            </Tr>
+          ))}
+        </Tbody>
+      </Table>
+    </Stack>
+  );
+}
+
 function ReleaseMetricsPanel({ report }: { report?: ReleaseMetricsReport }) {
   if (!report) return null;
   const benchmarkLabel = report.benchmark_kind === 'smoke'
@@ -63,6 +90,8 @@ function ReleaseMetricsPanel({ report }: { report?: ReleaseMetricsReport }) {
       <Text fontSize="sm" color="text.secondary">
         Paired confidence intervals are clustered by question; official token ratio is the ratio of summed official runtime tokens.
       </Text>
+      <ReleaseDeltaTable heading="Category quality deltas" rows={report.category_quality_deltas} />
+      <ReleaseDeltaTable heading="Per-question quality deltas" rows={report.per_question_quality_deltas} />
       <Heading size="xs">Benchmark arms</Heading>
       <Table size="sm" variant="simple">
         <Thead><Tr><Th>Arm</Th><Th>Runs</Th><Th>Status counts</Th><Th>Accounting complete</Th></Tr></Thead>
