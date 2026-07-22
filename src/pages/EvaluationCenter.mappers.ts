@@ -15,10 +15,15 @@ import type {
   RouterAnalysisResponse,
   RunDetailResponse,
   V9ContextPack,
+  V9BudgetReservation,
+  V9ConflictCandidate,
   V9EvidencePacket,
+  V9ExecutionMetrics,
   V9FinalClaim,
   V9QueryContract,
+  V9RepairPlan,
   V9SlotResolution,
+  V9SufficiencyReport,
 } from '../types/evaluation';
 
 export interface AgenticV9RunEvidence {
@@ -40,6 +45,11 @@ export interface AgenticV9RunEvidence {
     premiseEvidenceIds: string[] | undefined;
     qualifiedReason: string | null | undefined;
   }> | undefined;
+  sufficiency: V9SufficiencyReport | null | undefined;
+  budget: V9BudgetReservation[] | undefined;
+  repairs: V9RepairPlan[] | undefined;
+  conflicts: V9ConflictCandidate[] | undefined;
+  metrics: V9ExecutionMetrics | undefined;
 }
 
 export interface DashboardApiData {
@@ -100,6 +110,11 @@ export function mapAgenticV9RunEvidence(detail?: RunDetailResponse): AgenticV9Ru
       premiseEvidenceIds: claim.premise_evidence_ids,
       qualifiedReason: claim.qualified_reason,
     })),
+    sufficiency: v9.sufficiency,
+    budget: v9.budget,
+    repairs: v9.repairs,
+    conflicts: v9.conflicts,
+    metrics: v9.metrics,
   };
 }
 

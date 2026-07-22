@@ -223,6 +223,24 @@ describe('Evaluation Center data mappers', () => {
           evidence_ids: ['ev-1'],
           premise_evidence_ids: ['ev-0'],
         }],
+        sufficiency: {
+          evidence_complete: true,
+          answerable: true,
+          response_status: 'complete',
+        },
+        budget: [{
+          reservation_id: 'reserve-1',
+          phase: 'retrieval',
+          estimated_input_tokens: 100,
+          reserved_output_tokens: 200,
+        }],
+        repairs: [{ repair_round_index: 1, tasks: [] }],
+        conflicts: [],
+        metrics: {
+          provider_attempt_count: 2,
+          reserved_tokens: 200,
+          reconciled_tokens: 180,
+        },
       },
     });
 
@@ -238,6 +256,11 @@ describe('Evaluation Center data mappers', () => {
         tokenCount: null,
       },
       finalClaims: [{ claimId: 'claim-1', evidenceIds: ['ev-1'], premiseEvidenceIds: ['ev-0'] }],
+      sufficiency: { response_status: 'complete' },
+      budget: [{ reservation_id: 'reserve-1' }],
+      repairs: [{ repair_round_index: 1 }],
+      conflicts: [],
+      metrics: { provider_attempt_count: 2, reconciled_tokens: 180 },
     });
   });
 
