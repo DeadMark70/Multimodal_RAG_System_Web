@@ -19,6 +19,7 @@ import {
   exportCampaignAnalysis,
   getHumanEvalQueue,
   postRunHumanRating,
+  preflightCampaign,
   getHumanVsAuto,
   getRunDetail,
   getRunTrace,
@@ -356,6 +357,38 @@ describe('evaluationApi', () => {
       '/api/evaluation/campaigns/cmp-1/evaluate',
       { question_ids: ['Q2', 'Q8'] }
     );
+  });
+
+  it('posts the typed v9 preflight request without a client-supplied identity', async () => {
+    const request = {
+      test_case_ids: ['Q1'],
+      model_config: {
+        id: 'cfg-1',
+        name: 'Balanced',
+        model_name: 'gemini-2.5-flash',
+        temperature: 0.7,
+        top_p: 0.95,
+        top_k: 40,
+        max_input_tokens: 8192,
+        max_output_tokens: 2048,
+        thinking_mode: false,
+      },
+      runtime_token_budget: 4096,
+      max_llm_calls: 5,
+    };
+    mockedApi.post.mockReset();
+    try {
+      mockedApi.post.mockResolvedValueOnce({
+        data: { questions: [{ question_id: 'Q1', status: 'feasible', issues: [] }] },
+      });
+
+      await expect(preflightCampaign(request)).resolves.toEqual({
+        questions: [{ question_id: 'Q1', status: 'feasible', issues: [] }],
+      });
+      expect(mockedApi.post).toHaveBeenCalledWith('/api/evaluation/campaigns/preflight', request);
+    } finally {
+      mockedApi.post.mockReset();
+    }
   });
 
   it('creates and inspects durable evaluation jobs', async () => {

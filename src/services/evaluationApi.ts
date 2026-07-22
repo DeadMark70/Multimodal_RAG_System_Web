@@ -15,6 +15,8 @@ import type {
   CampaignResearchSummaryResponse,
   CampaignMetricsResponse,
   CampaignProgressEvent,
+  CampaignPreflightRequest,
+  CampaignPreflightResponse,
   CampaignResultsResponse,
   CampaignStatus,
   EvaluationAttempt,
@@ -191,6 +193,17 @@ export async function deleteModelConfig(configId: string): Promise<DeleteResult>
 
 export async function createCampaign(payload: CampaignCreateRequest): Promise<CampaignCreateResponse> {
   const response = await api.post<CampaignCreateResponse>('/api/evaluation/campaigns', payload);
+  return response.data;
+}
+
+/** Non-mutating v9 configuration admission check; authenticated identity is server-derived. */
+export async function preflightCampaign(
+  payload: CampaignPreflightRequest,
+): Promise<CampaignPreflightResponse> {
+  const response = await api.post<CampaignPreflightResponse>(
+    '/api/evaluation/campaigns/preflight',
+    payload,
+  );
   return response.data;
 }
 
