@@ -65,7 +65,9 @@ const RECONNECT_DELAYS_MS = [1000, 2000, 5000];
 // These are the backend's published v9 runtime defaults. They are admission
 // inputs only; the saved Evaluation Setup model snapshot is never rewritten.
 const V9_PREFLIGHT_RUNTIME_TOKEN_BUDGET = 50_000;
-const V9_PREFLIGHT_MAX_LLM_CALLS = 3;
+// One ambiguity route-plan plus graph route, visual extraction, evidence
+// extraction, and final answer is the largest legal v9 phase set.
+const V9_PREFLIGHT_MAX_LLM_CALLS = 5;
 
 interface ActiveCampaignState {
   snapshot: CampaignStatus | null;

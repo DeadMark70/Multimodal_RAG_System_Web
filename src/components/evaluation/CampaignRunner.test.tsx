@@ -600,7 +600,7 @@ describe('CampaignRunner', () => {
         test_case_ids: ['Q1'],
         model_config: baseConfig,
         runtime_token_budget: 50000,
-        max_llm_calls: 3,
+        max_llm_calls: 5,
       });
     });
     const request = mockCreateCampaign.mock.calls[0]?.[0];
