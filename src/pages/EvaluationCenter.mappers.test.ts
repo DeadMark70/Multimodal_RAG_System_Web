@@ -73,13 +73,17 @@ describe('Evaluation Center data mappers', () => {
       human_ratings: [],
       evidence_coverage: null,
       graph_observability_status: 'not_instrumented',
-      graph_events: [],
-      graph_evidence_items: [],
+      graph_events: [{ graph_route: null, router_reason: null, node_count: 0, edge_count: null, path_count: 0 }],
+      graph_evidence_items: [{ doc_id: 'doc-1', chunk_id: 'chunk-1' }],
     });
 
     expect(mapped.chunks[0]).toMatchObject({ denseScore: null, bm25Score: null, rerankScore: null });
     expect(mapped.coverage).toBeUndefined();
-    expect(mapped.graph).toMatchObject({ status: 'not_instrumented', events: [], evidenceItems: [] });
+    expect(mapped.graph).toMatchObject({
+      status: 'not_instrumented',
+      events: [{ route: null, routerReason: null, nodeCount: 0, edgeCount: null, pathCount: 0 }],
+      evidenceItems: [{ source: 'doc-1', locator: 'chunk-1' }],
+    });
   });
 
   it('does not report retrospective router summary zeros as measured actual metrics', () => {

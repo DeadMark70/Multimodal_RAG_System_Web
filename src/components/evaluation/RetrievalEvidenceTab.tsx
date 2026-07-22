@@ -2,6 +2,8 @@ import { Badge, Box, Heading, Stack, Text } from '@chakra-ui/react';
 import EvidenceCoveragePanel, { type EvidenceCoverageRow } from './EvidenceCoveragePanel';
 import RetrievedChunksTable, { type RetrievedChunkRow } from './RetrievedChunksTable';
 import RunContextSelector, { type EvaluationRunOption } from './RunContextSelector';
+import V9EvidenceExplorer, { type GraphObservabilityView } from './V9EvidenceExplorer';
+import type { AgenticV9RunEvidence } from '../../pages/EvaluationCenter.mappers';
 
 interface RetrievalQueryRow {
   queryLabel: string;
@@ -17,6 +19,7 @@ export default function RetrievalEvidenceTab({
   coverage,
   coverageStatus,
   graph,
+  agenticV9Evidence,
 }: {
   runOptions?: EvaluationRunOption[];
   selectedRunId?: string;
@@ -25,18 +28,9 @@ export default function RetrievalEvidenceTab({
   chunks?: RetrievedChunkRow[];
   coverage?: EvidenceCoverageRow[];
   coverageStatus?: string;
-  graph?: {
-    status: 'recorded' | 'fallback' | 'not_instrumented';
-    events: Array<{
-      route: string;
-      routerReason: string;
-      nodeCount: number;
-      edgeCount: number;
-      pathCount: number;
-      graphToChunkSuccessRate: number | null;
-    }>;
-    evidenceItems: Array<Record<string, unknown>>;
-  };
+  graph?: GraphObservabilityView;
+  /** Optional typed selected-run evidence; v8 remains readable without v9 assertions. */
+  agenticV9Evidence?: AgenticV9RunEvidence;
 }) {
   return (
     <Stack spacing={4}>
@@ -81,7 +75,7 @@ export default function RetrievalEvidenceTab({
       </Box>
         </>
       ) : null}
-      <Box borderWidth="1px" borderRadius="md" px={3} py={3}>
+      {!agenticV9Evidence ? <Box borderWidth="1px" borderRadius="md" px={3} py={3}>
         <Heading size="sm" mb={2}>Graph observability</Heading>
         <Badge colorScheme={graph?.status === 'recorded' ? 'green' : graph?.status === 'fallback' ? 'orange' : 'gray'}>
           {graph?.status ?? 'not_instrumented'}
@@ -91,7 +85,7 @@ export default function RetrievalEvidenceTab({
             <Text>{`${graph.events.length} graph event(s), ${graph.evidenceItems.length} graph evidence item(s) recorded.`}</Text>
             {graph.events.map((event, index) => (
               <Text key={`${String(event.route)}-${index}`} color="text.secondary">
-                {`Route ${String(event.route)} · reason ${String(event.routerReason)} · nodes ${String(event.nodeCount)} · edges ${String(event.edgeCount)} · paths ${String(event.pathCount)} · graph→chunk ${event.graphToChunkSuccessRate == null ? 'N/A' : `${(event.graphToChunkSuccessRate * 100).toFixed(1)}%`}`}
+                {`Route ${event.route ?? 'N/A'} · reason ${event.routerReason ?? 'N/A'} · nodes ${event.nodeCount ?? 'N/A'} · edges ${event.edgeCount ?? 'N/A'} · paths ${event.pathCount ?? 'N/A'} · graph→chunk ${event.graphToChunkSuccessRate == null ? 'N/A' : `${(event.graphToChunkSuccessRate * 100).toFixed(1)}%`}`}
               </Text>
             ))}
           </Stack>
@@ -101,14 +95,15 @@ export default function RetrievalEvidenceTab({
             <Text>{`${graph.events.length} graph event(s), ${graph.evidenceItems.length} graph evidence item(s) recorded before fallback.`}</Text>
             {graph.events.map((event, index) => (
               <Text key={`${String(event.route)}-${index}`} color="text.secondary">
-                {`Route ${String(event.route)} · reason ${String(event.routerReason)} · nodes ${String(event.nodeCount)} · edges ${String(event.edgeCount)} · paths ${String(event.pathCount)} · graph→chunk ${event.graphToChunkSuccessRate == null ? 'N/A' : `${(event.graphToChunkSuccessRate * 100).toFixed(1)}%`}`}
+                {`Route ${event.route ?? 'N/A'} · reason ${event.routerReason ?? 'N/A'} · nodes ${event.nodeCount ?? 'N/A'} · edges ${event.edgeCount ?? 'N/A'} · paths ${event.pathCount ?? 'N/A'} · graph→chunk ${event.graphToChunkSuccessRate == null ? 'N/A' : `${(event.graphToChunkSuccessRate * 100).toFixed(1)}%`}`}
               </Text>
             ))}
           </Stack>
         ) : (
           <Text mt={2} fontSize="sm" color="text.secondary">Graph traversal is not instrumented for this run; mode alone is not evidence of traversal.</Text>
         )}
-      </Box>
+      </Box> : null}
+      {agenticV9Evidence ? <V9EvidenceExplorer data={agenticV9Evidence} graph={graph} /> : null}
     </Stack>
   );
 }

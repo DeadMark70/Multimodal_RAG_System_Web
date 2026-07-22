@@ -223,14 +223,32 @@ export function mapRetrieval(detail?: RunDetailResponse) {
     graph: {
       status: detail?.graph_observability_status ?? 'not_instrumented',
       events: (detail?.graph_events ?? []).map((event) => ({
-        route: stringValue(event.graph_route, 'n/a'),
-        routerReason: stringValue(event.router_reason, 'n/a'),
-        nodeCount: numberValue(event.node_count, 0),
-        edgeCount: numberValue(event.edge_count, 0),
-        pathCount: numberValue(event.path_count, 0),
+        route: typeof event.graph_route === 'string' ? event.graph_route : null,
+        routerReason: typeof event.router_reason === 'string' ? event.router_reason : null,
+        nodeCount: nullableNumber(event.node_count),
+        edgeCount: nullableNumber(event.edge_count),
+        pathCount: nullableNumber(event.path_count),
         graphToChunkSuccessRate: nullableNumber(event.graph_to_chunk_success_rate),
       })),
-      evidenceItems: detail?.graph_evidence_items ?? [],
+      evidenceItems: (detail?.graph_evidence_items ?? []).map((item) => {
+        const record = asRecord(item);
+        return {
+          source: typeof record.doc_id === 'string'
+            ? record.doc_id
+            : typeof record.source_id === 'string'
+              ? record.source_id
+              : typeof record.source === 'string'
+                ? record.source
+                : null,
+          locator: typeof record.locator === 'string'
+            ? record.locator
+            : typeof record.chunk_id === 'string'
+              ? record.chunk_id
+              : typeof record.page_label === 'string'
+                ? record.page_label
+                : null,
+        };
+      }),
     },
   };
 }

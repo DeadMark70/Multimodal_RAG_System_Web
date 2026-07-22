@@ -367,6 +367,7 @@ export default function EvaluationCenter() {
           coverage={retrievalData.coverage}
           coverageStatus={retrievalData.coverageStatus}
           graph={retrievalData.graph}
+          agenticV9Evidence={selectedV9Evidence}
         />
       ),
     },
