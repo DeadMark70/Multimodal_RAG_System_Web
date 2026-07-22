@@ -150,6 +150,8 @@ export interface CampaignConfigInput {
   agentic_execution_version?: AgenticExecutionVersion;
   /** Only meaningful for an explicit v9 shadow condition. */
   shadow_evaluation_policy?: ShadowEvaluationPolicy | null;
+  /** Shared immutable benchmark identity for cross-campaign release comparisons. */
+  benchmark_id?: string | null;
 }
 
 export interface CampaignCreateRequest extends CampaignConfigInput {
@@ -509,6 +511,52 @@ export interface RunDiffResponse {
   answer_changed: boolean;
   answer_change_status: 'changed' | 'unchanged' | 'unknown';
   derived_metric_delta: Record<string, number>;
+}
+
+/** Backend-derived release metric. A missing measurement must stay distinguishable from zero. */
+export interface ReleaseMetric {
+  value: number | null;
+  reason: string | null;
+}
+
+export interface ReleaseArmSummary {
+  mode: string;
+  condition_id: string;
+  execution_profile: string;
+  agentic_execution_version: string | null;
+  shadow_evaluation_policy: string | null;
+  response_status_counts: Record<string, number>;
+  run_count: number;
+  complete_run_count: number;
+  accounting_complete_run_count: number;
+}
+
+/**
+ * Authoritative release decision payload. The browser formats these values but
+ * never derives gates, deltas, confidence intervals, or token ratios itself.
+ */
+export interface ReleaseMetricsReport {
+  benchmark_id: string;
+  benchmark_kind: string;
+  comparable: boolean;
+  gate_reasons: string[];
+  manifest: Record<string, unknown>;
+  arms: ReleaseArmSummary[];
+  required_slot_coverage: ReleaseMetric;
+  important_unsupported_claim_rate: ReleaseMetric;
+  provenance_failure_rate: ReleaseMetric;
+  pack_efficiency: ReleaseMetric;
+  graph_locator_success: ReleaseMetric;
+  graph_locator_fallback: ReleaseMetric;
+  final_generation_count: ReleaseMetric;
+  latency_p95_ms: ReleaseMetric;
+  token_ratio: ReleaseMetric;
+  paired_quality_delta: ReleaseMetric;
+  paired_quality_ci_lower: ReleaseMetric;
+  paired_quality_ci_upper: ReleaseMetric;
+  category_quality_deltas: Record<string, ReleaseMetric>;
+  per_question_quality_deltas: Record<string, ReleaseMetric>;
+  statistics: Record<string, unknown>;
 }
 
 export type V9Route =

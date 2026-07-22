@@ -13,6 +13,7 @@ import type {
   CampaignEvaluateRequest,
   CampaignOverviewResponse,
   CampaignResearchSummaryResponse,
+  ReleaseMetricsReport,
   CampaignMetricsResponse,
   CampaignProgressEvent,
   CampaignPreflightRequest,
@@ -288,6 +289,11 @@ export async function getCampaignResearchSummary(
   const response = await api.get<CampaignResearchSummaryResponse>(
     `/api/evaluation/campaigns/${campaignId}/research-summary`,
   );
+  return response.data;
+}
+
+export async function getCampaignReleaseMetrics(campaignId: string): Promise<ReleaseMetricsReport> {
+  const response = await api.get<ReleaseMetricsReport>(`/api/evaluation/campaigns/${campaignId}/release-metrics`);
   return response.data;
 }
 

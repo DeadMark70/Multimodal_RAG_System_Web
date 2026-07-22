@@ -32,6 +32,7 @@ import {
   getAblationAnalysis,
   getCampaignErrors,
   getCampaignResearchSummary,
+  getCampaignReleaseMetrics,
   getAgentBehavior,
   getHumanEvalQueue,
   getHumanVsAuto,
@@ -173,11 +174,16 @@ export default function EvaluationCenter() {
     const loadDashboard = async () => {
       setLoadingDashboard(true);
       try {
-        const researchSummary = await getCampaignResearchSummary(selectedCampaignId);
+        const [researchSummary, releaseMetrics] = await Promise.all([
+          getCampaignResearchSummary(selectedCampaignId),
+          // Historical deployments may not yet expose Wave 7. Do not make the
+          // established research dashboard unavailable because of that.
+          getCampaignReleaseMetrics(selectedCampaignId).catch(() => undefined),
+        ]);
         if (!mounted) {
           return;
         }
-        setDashboardData((current) => ({ ...current, researchSummary }));
+        setDashboardData((current) => ({ ...current, researchSummary, releaseMetrics }));
         setDashboardError(null);
         setLoadingDashboard(false);
       } catch (error) {
@@ -330,7 +336,7 @@ export default function EvaluationCenter() {
   const retrievalData = mapRetrieval(selectedRunDetail);
   const claimData = mapClaims(selectedRunDetail);
   const dashboardTabs = [
-    { label: 'Campaign Overview', component: <CampaignOverviewTab data={dashboardData.researchSummary} /> },
+    { label: 'Campaign Overview', component: <CampaignOverviewTab data={dashboardData.researchSummary} releaseMetrics={dashboardData.releaseMetrics} /> },
     { label: 'Question Analysis', component: <QuestionAnalysisTab rows={mapQuestionRows(dashboardData)} /> },
     {
       label: 'Run Trace',

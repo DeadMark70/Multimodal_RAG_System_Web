@@ -3,6 +3,7 @@ import type {
   AblationResponse,
   CampaignErrorsResponse,
   CampaignResearchSummaryResponse,
+  ReleaseMetricsReport,
   CampaignResultsResponse,
   CampaignStatus,
   CostLatencyResponse,
@@ -55,6 +56,7 @@ export interface AgenticV9RunEvidence {
 export interface DashboardApiData {
   campaigns: CampaignStatus[];
   researchSummary?: CampaignResearchSummaryResponse;
+  releaseMetrics?: ReleaseMetricsReport;
   results?: CampaignResultsResponse;
   runs?: EvaluationRunListResponse;
   questionComparison?: ResearchQuestionComparisonResponse;
