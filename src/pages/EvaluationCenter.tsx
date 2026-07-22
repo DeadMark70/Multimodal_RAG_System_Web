@@ -19,6 +19,7 @@ import PageHeader from '../components/common/PageHeader';
 import {
   asRecord,
   mapAgentRows,
+  mapAgenticV9RunEvidence,
   mapQuestionRows,
   mapRetrieval,
   mapRouterData,
@@ -204,7 +205,11 @@ export default function EvaluationCenter() {
             ? preferredRunId
             : runs.runs[0]?.run_id) ?? '';
         const runDetail = effectiveRunId ? await getRunDetail(campaignId, effectiveRunId) : undefined;
-        return { runs, runDetail };
+        return {
+          runs,
+          runDetail,
+          selectedV9Evidence: mapAgenticV9RunEvidence(runDetail),
+        };
       }
       case 4:
         return { agentBehavior: await getAgentBehavior(campaignId) };
@@ -273,7 +278,11 @@ export default function EvaluationCenter() {
         return;
       }
       setSelectedRunId(runId);
-      setDashboardData((current) => ({ ...current, runDetail: undefined }));
+      setDashboardData((current) => ({
+        ...current,
+        runDetail: undefined,
+        selectedV9Evidence: undefined,
+      }));
       const requestId = runDetailRequestRef.current + 1;
       const campaignGeneration = requestGenerationRef.current;
       runDetailRequestRef.current = requestId;
@@ -283,7 +292,11 @@ export default function EvaluationCenter() {
             requestId === runDetailRequestRef.current &&
             campaignGeneration === requestGenerationRef.current
           ) {
-            setDashboardData((current) => ({ ...current, runDetail }));
+            setDashboardData((current) => ({
+              ...current,
+              runDetail,
+              selectedV9Evidence: mapAgenticV9RunEvidence(runDetail),
+            }));
           }
         })
         .catch((error) => {
@@ -306,6 +319,10 @@ export default function EvaluationCenter() {
   const selectedRun = runOptions.find((run) => run.runId === selectedRunId) ?? runOptions[0];
   const selectedRunDetail =
     dashboardData.runDetail?.run_id === selectedRun?.runId ? dashboardData.runDetail : undefined;
+  const selectedV9Evidence =
+    dashboardData.selectedV9Evidence?.runId === selectedRun?.runId
+      ? dashboardData.selectedV9Evidence
+      : undefined;
   const retrievalData = mapRetrieval(selectedRunDetail);
   const claimData = mapClaims(selectedRunDetail);
   const dashboardTabs = [
@@ -330,6 +347,7 @@ export default function EvaluationCenter() {
             accountingDiagnostics: selectedRunDetail?.accounting_diagnostics,
           }}
           traceEvents={mapTraceEvents(selectedRunDetail)}
+          agenticV9Evidence={selectedV9Evidence}
         />
       ),
     },

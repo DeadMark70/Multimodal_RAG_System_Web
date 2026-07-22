@@ -70,6 +70,7 @@ export default function RunTraceTab({
   metadata,
   traceEvents,
   legacySteps,
+  agenticV9Evidence,
 }: {
   runOptions?: EvaluationRunOption[];
   selectedRunId?: string;
@@ -77,9 +78,11 @@ export default function RunTraceTab({
   metadata?: RunMetadata;
   traceEvents?: RunTraceEvent[];
   legacySteps?: LegacyStep[];
+  /** F1 passes the selected v9 projection; F2 renders its trace sections. */
+  agenticV9Evidence?: { runId: string };
 }) {
   return (
-    <Stack spacing={4}>
+    <Stack spacing={4} data-agentic-v9-run-id={agenticV9Evidence?.runId}>
       <RunContextSelector
         runOptions={runOptions}
         selectedRunId={selectedRunId}

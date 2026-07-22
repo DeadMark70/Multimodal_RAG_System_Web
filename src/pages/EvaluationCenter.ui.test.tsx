@@ -21,6 +21,7 @@ const { overviewProps, runTraceProps, researchSummaryFixture } = vi.hoisted(() =
   runOptions?: Array<{ runId: string }>;
   onSelectedRunIdChange?: (runId: string) => void;
   metadata?: { finalAnswerPreview?: string };
+  agenticV9Evidence?: { runId: string };
 }>, researchSummaryFixture: {
   campaign_id: 'cmp-1', research_schema_version: '2', completed_run_count: 2, total_run_count: 2, failed_run_count: 0,
   quality_status: 'complete', token_accounting_status: 'complete', pricing_status: 'complete', phase_attribution_status: 'complete', sample_count: 2,
@@ -87,6 +88,7 @@ vi.mock('../components/evaluation/RunTraceTab', () => ({
     selectedRunId?: string;
     onSelectedRunIdChange?: (runId: string) => void;
     metadata?: { finalAnswerPreview?: string };
+    agenticV9Evidence?: { runId: string };
   }) => {
     runTraceProps.push(props);
     return (
@@ -100,6 +102,7 @@ vi.mock('../components/evaluation/RunTraceTab', () => ({
           {(props.runOptions ?? []).map((run) => <option key={run.runId} value={run.runId}>{run.runId}</option>)}
         </select>
         <div data-testid="mock-run-detail-preview">{props.metadata?.finalAnswerPreview ?? 'none'}</div>
+        <div data-testid="mock-v9-evidence-run">{props.agenticV9Evidence?.runId ?? 'unavailable'}</div>
       </div>
     );
   },
@@ -279,6 +282,14 @@ vi.mock('../services/evaluationApi', () => ({
     claims: [],
     human_ratings: [],
     run_summary: { run_id: runId, campaign_id: 'cmp-1', answer_preview: `answer-${runId}`, total_tokens: runId === 'run-2' ? 200 : 100, accounting_status: 'complete' },
+    agentic_v9: runId === 'run-2' ? {
+      schema_version: '1',
+      contract: { route: 'single_lookup', intent: 'test selection' },
+      slot_resolutions: [],
+      evidence_packets: [],
+      context_pack: null,
+      final_claims: [],
+    } : null,
   })),
 }));
 
@@ -335,10 +346,12 @@ describe('EvaluationCenter UI', () => {
     const selector = await screen.findByRole('combobox', { name: 'Mock run selector' });
     await waitFor(() => expect(selector).toHaveValue('run-1'));
     expect(screen.getByTestId('mock-run-detail-preview')).toHaveTextContent('answer-run-1');
+    expect(screen.getByTestId('mock-v9-evidence-run')).toHaveTextContent('unavailable');
 
     fireEvent.change(selector, { target: { value: 'run-2' } });
     await waitFor(() => expect(getRunDetail).toHaveBeenLastCalledWith('cmp-1', 'run-2'));
     await waitFor(() => expect(screen.getByTestId('mock-run-detail-preview')).toHaveTextContent('answer-run-2'));
+    await waitFor(() => expect(screen.getByTestId('mock-v9-evidence-run')).toHaveTextContent('run-2'));
   });
 
   it('does not keep the whole dashboard loading while deferred overview errors are pending', async () => {

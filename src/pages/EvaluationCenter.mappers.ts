@@ -14,7 +14,33 @@ import type {
   ResearchQuestionComparisonResponse,
   RouterAnalysisResponse,
   RunDetailResponse,
+  V9ContextPack,
+  V9EvidencePacket,
+  V9FinalClaim,
+  V9QueryContract,
+  V9SlotResolution,
 } from '../types/evaluation';
+
+export interface AgenticV9RunEvidence {
+  runId: string;
+  schemaVersion: string | null;
+  queryContract: V9QueryContract | null;
+  slotResolutions: V9SlotResolution[] | undefined;
+  evidencePackets: V9EvidencePacket[] | undefined;
+  contextPack: {
+    packedEvidenceIds: string[] | undefined;
+    droppedEvidenceIds: string[] | undefined;
+    tokenCount: number | null | undefined;
+  } | null | undefined;
+  finalClaims: Array<{
+    claimId: string;
+    statement: string;
+    supportType: V9FinalClaim['support_type'];
+    evidenceIds: string[] | undefined;
+    premiseEvidenceIds: string[] | undefined;
+    qualifiedReason: string | null | undefined;
+  }> | undefined;
+}
 
 export interface DashboardApiData {
   campaigns: CampaignStatus[];
@@ -30,7 +56,51 @@ export interface DashboardApiData {
   errors?: CampaignErrorsResponse;
   exportPreview?: ExportCampaignResponse;
   runDetail?: RunDetailResponse;
+  selectedV9Evidence?: AgenticV9RunEvidence;
   agentBehavior?: AgentBehaviorResponse;
+}
+
+function mapContextPack(contextPack: V9ContextPack | null | undefined): AgenticV9RunEvidence['contextPack'] {
+  if (contextPack === null) {
+    return null;
+  }
+  if (!contextPack) {
+    return undefined;
+  }
+  return {
+    packedEvidenceIds: contextPack.packed_evidence_ids,
+    droppedEvidenceIds: contextPack.dropped_evidence_ids,
+    tokenCount: contextPack.token_count,
+  };
+}
+
+/**
+ * Projects the typed v9 payload for the currently selected run only.
+ * Undefined means the historical run has no materialized v9 observability;
+ * it is deliberately distinct from a materialized v9 payload with empty lists.
+ */
+export function mapAgenticV9RunEvidence(detail?: RunDetailResponse): AgenticV9RunEvidence | undefined {
+  const v9 = detail?.agentic_v9;
+  if (!detail || !v9) {
+    return undefined;
+  }
+
+  return {
+    runId: detail.run_id,
+    schemaVersion: v9.schema_version ?? null,
+    queryContract: v9.contract ?? null,
+    slotResolutions: v9.slot_resolutions,
+    evidencePackets: v9.evidence_packets,
+    contextPack: mapContextPack(v9.context_pack),
+    finalClaims: v9.final_claims?.map((claim) => ({
+      claimId: claim.claim_id,
+      statement: claim.statement,
+      supportType: claim.support_type,
+      evidenceIds: claim.evidence_ids,
+      premiseEvidenceIds: claim.premise_evidence_ids,
+      qualifiedReason: claim.qualified_reason,
+    })),
+  };
 }
 
 export function asRecord(value: unknown): Record<string, unknown> {

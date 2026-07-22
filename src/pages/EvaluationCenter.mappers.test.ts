@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { mapAgentRows, mapQuestionRows, mapRetrieval, mapRouterData, type DashboardApiData } from './EvaluationCenter.mappers';
+import {
+  mapAgentRows,
+  mapAgenticV9RunEvidence,
+  mapQuestionRows,
+  mapRetrieval,
+  mapRouterData,
+  type DashboardApiData,
+} from './EvaluationCenter.mappers';
 
 describe('Evaluation Center data mappers', () => {
   it('preserves missing question comparison metrics instead of inventing zeros', () => {
@@ -160,5 +167,96 @@ describe('Evaluation Center data mappers', () => {
     } as DashboardApiData);
 
     expect(mapped[0]).toMatchObject({ runId: 'run-b', mode: 'agentic', repeat: 2, toolCalls: null, tokens: null });
+  });
+
+  it('maps only a materialized selected-run v9 evidence projection without fabricating token state', () => {
+    const mapped = mapAgenticV9RunEvidence({
+      run_id: 'run-v9',
+      campaign_id: 'cmp-1',
+      trace_events: [],
+      llm_calls: [],
+      retrieval_events: [],
+      retrieval_chunks: [],
+      context_packs: [],
+      tool_calls: [],
+      routing_decisions: [],
+      claims: [],
+      human_ratings: [],
+      agentic_v9: {
+        schema_version: '1',
+        contract: {
+          route: 'bounded_compare',
+          intent: 'compare two models',
+          required_slots: [{ slot_id: 'dice', description: 'Dice score' }],
+          resolved_source_scope: { authorized_doc_ids: ['doc-a'] },
+        },
+        slot_resolutions: [{
+          slot_id: 'dice',
+          resolution_stage: 'final',
+          resolution: { slot_id: 'dice', status: 'supported', evidence_ids: ['ev-1'] },
+        }],
+        evidence_packets: [{
+          evidence_id: 'ev-1',
+          packet: {
+            schema_version: '1',
+            evidence_id: 'ev-1',
+            task_id: 'task-1',
+            round_id: 'round-1',
+            query_id: 'query-1',
+            slot_ids: ['dice'],
+            statement: 'Dice is 0.9.',
+            support_type: 'direct',
+            source: { doc_id: 'doc-a' },
+            scope: {},
+            locator: {},
+          },
+        }],
+        context_pack: {
+          packed_evidence_ids: ['ev-1'],
+          dropped_evidence_ids: ['ev-2'],
+          token_count: null,
+        },
+        final_claims: [{
+          claim_id: 'claim-1',
+          statement: 'Model A has Dice 0.9.',
+          support_type: 'direct',
+          evidence_ids: ['ev-1'],
+          premise_evidence_ids: ['ev-0'],
+        }],
+      },
+    });
+
+    expect(mapped).toMatchObject({
+      runId: 'run-v9',
+      schemaVersion: '1',
+      queryContract: { route: 'bounded_compare', required_slots: [{ slot_id: 'dice' }] },
+      slotResolutions: [{ slot_id: 'dice', resolution: { evidence_ids: ['ev-1'] } }],
+      evidencePackets: [{ evidence_id: 'ev-1', packet: { source: { doc_id: 'doc-a' } } }],
+      contextPack: {
+        packedEvidenceIds: ['ev-1'],
+        droppedEvidenceIds: ['ev-2'],
+        tokenCount: null,
+      },
+      finalClaims: [{ claimId: 'claim-1', evidenceIds: ['ev-1'], premiseEvidenceIds: ['ev-0'] }],
+    });
+  });
+
+  it('keeps historical v8 details unavailable instead of presenting empty v9 evidence', () => {
+    const mapped = mapAgenticV9RunEvidence({
+      run_id: 'run-v8',
+      campaign_id: 'cmp-1',
+      trace_events: [],
+      llm_calls: [],
+      retrieval_events: [],
+      retrieval_chunks: [],
+      context_packs: [],
+      tool_calls: [],
+      routing_decisions: [],
+      claims: [],
+      human_ratings: [],
+      agentic_v9: null,
+    });
+
+    expect(mapped).toBeUndefined();
   });
 });
