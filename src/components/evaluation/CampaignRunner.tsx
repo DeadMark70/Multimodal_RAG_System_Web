@@ -32,15 +32,19 @@ import {
   listCampaigns,
   listModelConfigs,
   listTestCases,
+  preflightCampaign,
   streamCampaign,
 } from '../../services/evaluationApi';
 import type {
+  AgenticExecutionVersion,
   CampaignMode,
+  CampaignPreflightQuestion,
   CampaignProgressEvent,
   CampaignResultsResponse,
   CampaignStatus,
   CampaignStreamEvent,
   ModelConfig,
+  ShadowEvaluationPolicy,
   TestCase,
 } from '../../types/evaluation';
 
@@ -58,6 +62,10 @@ const TERMINAL_STATUSES = new Set<CampaignStatus['status']>([
   'cancelled',
 ]);
 const RECONNECT_DELAYS_MS = [1000, 2000, 5000];
+// These are the backend's published v9 runtime defaults. They are admission
+// inputs only; the saved Evaluation Setup model snapshot is never rewritten.
+const V9_PREFLIGHT_RUNTIME_TOKEN_BUDGET = 50_000;
+const V9_PREFLIGHT_MAX_LLM_CALLS = 3;
 
 interface ActiveCampaignState {
   snapshot: CampaignStatus | null;
@@ -157,6 +165,35 @@ function statusColor(status: CampaignStatus['status']): string {
   }
 }
 
+function hasAgenticMode(modes: CampaignMode[]): boolean {
+  return modes.includes('agentic');
+}
+
+function usesAgenticIdentity(modes: CampaignMode[]): boolean {
+  return modes.some((mode) => mode === 'agentic' || mode === 'agentic-v8' || mode === 'agentic-v9' || mode === 'agentic-v9-shadow');
+}
+
+function storedAgenticIdentity(campaign: CampaignStatus): string | null {
+  const { modes, agentic_execution_version: version, shadow_evaluation_policy: policy } = campaign.config;
+  if (!usesAgenticIdentity(modes)) {
+    return null;
+  }
+  if (modes.includes('agentic-v9-shadow')) {
+    return `Agentic v9 shadow (${policy ?? 'policy N/A'})`;
+  }
+  if (modes.includes('agentic-v9')) {
+    return 'Agentic v9 Evidence-First';
+  }
+  if (modes.includes('agentic-v8')) {
+    return 'Agentic v8';
+  }
+  return version ? `Agentic ${version}${version === 'v9' ? ' Evidence-First' : ''}` : 'Agentic version N/A (not recorded)';
+}
+
+function isRuntimeIncompatibility(message?: string | null): boolean {
+  return Boolean(message && /configuration[_\s-]?incompatible/i.test(message));
+}
+
 export default function CampaignRunner() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -167,6 +204,11 @@ export default function CampaignRunner() {
   const [selectedCaseIds, setSelectedCaseIds] = useState<string[]>([]);
   const [selectedConfigId, setSelectedConfigId] = useState('');
   const [selectedModes, setSelectedModes] = useState<CampaignMode[]>(['naive', 'advanced']);
+  const [agenticExecutionVersion, setAgenticExecutionVersion] = useState<AgenticExecutionVersion>('v8');
+  const [agenticV9Shadow, setAgenticV9Shadow] = useState(false);
+  const [shadowEvaluationPolicy, setShadowEvaluationPolicy] = useState<ShadowEvaluationPolicy | ''>('');
+  const [preflightQuestions, setPreflightQuestions] = useState<CampaignPreflightQuestion[] | null>(null);
+  const [shadowNotice, setShadowNotice] = useState<string | null>(null);
   const [repeatCount, setRepeatCount] = useState(1);
   const [batchSize, setBatchSize] = useState(1);
   const [rpmLimit, setRpmLimit] = useState(60);
@@ -202,6 +244,7 @@ export default function CampaignRunner() {
     [categoryFilter, testCases]
   );
   const activeProgress = activeCampaign.progress ?? (activeCampaign.snapshot ? progressFromCampaign(activeCampaign.snapshot) : null);
+  const agenticSelected = hasAgenticMode(selectedModes);
   const progressPercent = activeProgress
     ? activeProgress.phase === 'evaluation'
       ? activeProgress.evaluation_total_units > 0
@@ -378,6 +421,12 @@ export default function CampaignRunner() {
   };
 
   const toggleModeSelection = (mode: CampaignMode) => {
+    const deselectingAgentic = mode === 'agentic' && selectedModes.includes(mode);
+    if (deselectingAgentic) {
+      setAgenticV9Shadow(false);
+      setShadowEvaluationPolicy('');
+      setPreflightQuestions(null);
+    }
     setSelectedModes((prev) =>
       prev.includes(mode)
         ? prev.filter((item) => item !== mode)
@@ -411,14 +460,55 @@ export default function CampaignRunner() {
       toast({ title: '請至少選擇一種 RAG 模式', status: 'warning' });
       return;
     }
+    if (agenticSelected && agenticV9Shadow && agenticExecutionVersion === 'v9') {
+      toast({
+        title: '設定不相容',
+        description: 'v9 Evidence-First 不能同時設定 v9 shadow。',
+        status: 'warning',
+      });
+      return;
+    }
+    if (agenticSelected && agenticV9Shadow && !shadowEvaluationPolicy) {
+      toast({
+        title: '請選擇 shadow policy',
+        description: 'v9 shadow 需要明確標示 operational 或 research policy。',
+        status: 'warning',
+      });
+      return;
+    }
 
     setCreating(true);
     setResultsView(null);
+    setShadowNotice(null);
+    setPreflightQuestions(null);
     try {
-      const response = await createCampaign({
+      const requiresV9Preflight = agenticSelected && (agenticExecutionVersion === 'v9' || agenticV9Shadow);
+      if (requiresV9Preflight) {
+        const preflight = await preflightCampaign({
+          test_case_ids: selectedCaseIds,
+          model_config: selectedConfig,
+          runtime_token_budget: V9_PREFLIGHT_RUNTIME_TOKEN_BUDGET,
+          max_llm_calls: V9_PREFLIGHT_MAX_LLM_CALLS,
+        });
+        const questions = preflight.questions ?? [];
+        setPreflightQuestions(questions);
+        if (questions.some((question) => question.status === 'configuration_incompatible')) {
+          toast({
+            title: 'v9 preflight 不相容',
+            description: '請先處理每題顯示的 configuration_incompatible 原因，再建立 campaign。',
+            status: 'warning',
+          });
+          return;
+        }
+      }
+
+      const authoritativeModes = selectedModes.map((mode) => (
+        mode === 'agentic' && agenticExecutionVersion === 'v9' ? 'agentic-v9' : mode
+      ));
+      const authoritativeRequest = {
         name: `Campaign ${new Date().toLocaleString()}`,
         test_case_ids: selectedCaseIds,
-        modes: selectedModes,
+        modes: authoritativeModes,
         model_config: selectedConfig,
         model_config_id: selectedConfig.id,
         repeat_count: repeatCount,
@@ -427,7 +517,35 @@ export default function CampaignRunner() {
         ragas_batch_size: ragasBatchSize,
         ragas_parallel_batches: ragasParallelBatches,
         ragas_rpm_limit: ragasRpmLimit,
-      });
+        ...(agenticSelected
+          ? {
+              agentic_execution_version: agenticExecutionVersion,
+              shadow_evaluation_policy: null,
+            }
+          : {}),
+      };
+      const response = await createCampaign(authoritativeRequest);
+
+      if (agenticSelected && agenticV9Shadow && shadowEvaluationPolicy) {
+        try {
+          await createCampaign({
+            ...authoritativeRequest,
+            name: `${authoritativeRequest.name} · v9 shadow`,
+            modes: ['agentic-v9-shadow'],
+            agentic_execution_version: 'v9',
+            shadow_evaluation_policy: shadowEvaluationPolicy,
+          });
+          setShadowNotice('v9 shadow 已建立為獨立 campaign；其進度、警告與 tokens 不會併入 authoritative campaign。');
+        } catch (error) {
+          const message = error instanceof Error ? error.message : '未知錯誤';
+          setShadowNotice(`authoritative campaign 已建立，但 v9 shadow 無法建立：${message}`);
+          toast({
+            title: 'v9 shadow 建立失敗',
+            description: 'authoritative campaign 仍會照常執行；shadow failure 不會替換其答案。',
+            status: 'warning',
+          });
+        }
+      }
       const history = await reloadCampaigns();
       const created = history.find((campaign) => campaign.id === response.campaign_id) ?? null;
       if (created) {
@@ -531,6 +649,80 @@ export default function CampaignRunner() {
                   ))}
                 </Stack>
               </FormControl>
+
+              {agenticSelected && (
+                <Box borderWidth="1px" borderRadius="md" p={4} bg="blue.50">
+                  <Stack spacing={3}>
+                    <FormControl>
+                      <FormLabel>Agentic 執行版本</FormLabel>
+                      <Select
+                        aria-label="Agentic 執行版本"
+                        value={agenticExecutionVersion}
+                        onChange={(event) => setAgenticExecutionVersion(event.target.value as AgenticExecutionVersion)}
+                      >
+                        <option value="v8">v8 (default)</option>
+                        <option value="v9">v9 — Evidence-First</option>
+                      </Select>
+                      {agenticExecutionVersion === 'v9' && (
+                        <Text mt={1} color="blue.700" fontSize="sm">
+                          Evidence-First：v9 會先檢查證據與 runtime feasibility，並保留版本化的 evidence trace。
+                        </Text>
+                      )}
+                    </FormControl>
+
+                    <FormControl isInvalid={agenticV9Shadow && agenticExecutionVersion === 'v9'}>
+                      <Checkbox
+                        isChecked={agenticV9Shadow}
+                        onChange={(event) => setAgenticV9Shadow(event.target.checked)}
+                      >
+                        同時執行 v9 shadow
+                      </Checkbox>
+                      {agenticV9Shadow && (
+                        <Stack mt={2} spacing={2}>
+                          <Select
+                            aria-label="v9 shadow policy"
+                            placeholder="選擇 shadow policy"
+                            value={shadowEvaluationPolicy}
+                            onChange={(event) => setShadowEvaluationPolicy(event.target.value as ShadowEvaluationPolicy | '')}
+                          >
+                            <option value="operational">operational</option>
+                            <option value="research">research</option>
+                          </Select>
+                          <Text color="orange.600" fontSize="sm">
+                            Advanced/research control：shadow 會額外消耗 runtime tokens，並建立獨立 campaign；不會替換 authoritative answer 或併入其 token ratio。
+                          </Text>
+                        </Stack>
+                      )}
+                      {agenticV9Shadow && agenticExecutionVersion === 'v9' && (
+                        <Text color="red.600" fontSize="sm" mt={1}>
+                          v9 Evidence-First 不能同時設定 v9 shadow。
+                        </Text>
+                      )}
+                    </FormControl>
+                  </Stack>
+                </Box>
+              )}
+
+              {preflightQuestions && (
+                <Box borderWidth="1px" borderRadius="md" p={3} aria-label="v9 preflight results">
+                  <Text fontWeight="medium">v9 preflight</Text>
+                  <Stack mt={2} spacing={1}>
+                    {preflightQuestions.map((question) => (
+                      <Box key={question.question_id}>
+                        <Text fontSize="sm">
+                          {question.question_id}: {question.status}
+                          {question.expected_route ? ` (${question.expected_route})` : ''}
+                        </Text>
+                        {question.issues?.map((issue, index) => (
+                          <Text key={`${issue.stage}-${index}`} fontSize="sm" color="red.600" pl={3}>
+                            {issue.stage}: {issue.reason}
+                          </Text>
+                        ))}
+                      </Box>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
 
               <Grid templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={4}>
                 <GridItem>
@@ -678,8 +870,18 @@ export default function CampaignRunner() {
                 {streamNotice && (
                   <Text color="orange.500">{streamNotice}</Text>
                 )}
+                {shadowNotice && (
+                  <Text color="orange.600">{shadowNotice}</Text>
+                )}
                 {activeCampaign.snapshot.error_message && (
-                  <Text color="red.500">{activeCampaign.snapshot.error_message}</Text>
+                  <Stack spacing={1}>
+                    <Text color="red.500">{activeCampaign.snapshot.error_message}</Text>
+                    {isRuntimeIncompatibility(activeCampaign.snapshot.error_message) && (
+                      <Text color="red.600" fontWeight="medium">
+                        Runtime incompatibility: {activeCampaign.snapshot.error_message}
+                      </Text>
+                    )}
+                  </Stack>
                 )}
               </Stack>
             ) : (
@@ -710,6 +912,9 @@ export default function CampaignRunner() {
                 </Td>
                 <Td>
                   <Text>{campaign.config.modes.join(', ')}</Text>
+                  {storedAgenticIdentity(campaign) && (
+                    <Text color="blue.600" fontSize="sm">{storedAgenticIdentity(campaign)}</Text>
+                  )}
                   <Text color="gray.500" fontSize="sm">
                     {campaign.config.model_config.model_name} - {formatThinkingConfig(campaign.config.model_config)}
                   </Text>
@@ -719,6 +924,11 @@ export default function CampaignRunner() {
                   <Badge colorScheme={statusColor(campaign.status)}>
                     {formatStatus(campaign.status)}
                   </Badge>
+                  {isRuntimeIncompatibility(campaign.error_message) && (
+                    <Text color="red.600" fontSize="sm" mt={1}>
+                      Runtime incompatibility: {campaign.error_message}
+                    </Text>
+                  )}
                 </Td>
                 <Td>
                   <HStack spacing={2}>

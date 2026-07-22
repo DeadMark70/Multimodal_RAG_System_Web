@@ -10,7 +10,9 @@ import {
 } from '@chakra-ui/react';
 import RunContextSelector, { type EvaluationRunOption } from './RunContextSelector';
 import RunTraceTree, { type RunTraceEvent } from './RunTraceTree';
+import AgenticV9Trace from './AgenticV9Trace';
 import { formatOptionalTokens } from './evaluationDisplay';
+import type { AgenticV9RunEvidence } from '../../pages/EvaluationCenter.mappers';
 
 interface LegacyStep {
   stepId: string;
@@ -70,6 +72,7 @@ export default function RunTraceTab({
   metadata,
   traceEvents,
   legacySteps,
+  agenticV9Evidence,
 }: {
   runOptions?: EvaluationRunOption[];
   selectedRunId?: string;
@@ -77,9 +80,11 @@ export default function RunTraceTab({
   metadata?: RunMetadata;
   traceEvents?: RunTraceEvent[];
   legacySteps?: LegacyStep[];
+  /** Optional for v8 and selected-run scoped for v9 evidence-first execution. */
+  agenticV9Evidence?: AgenticV9RunEvidence;
 }) {
   return (
-    <Stack spacing={4}>
+    <Stack spacing={4} data-agentic-v9-run-id={agenticV9Evidence?.runId}>
       <RunContextSelector
         runOptions={runOptions}
         selectedRunId={selectedRunId}
@@ -130,7 +135,19 @@ export default function RunTraceTab({
         </Grid>
       ) : null}
 
-      {legacySteps?.length ? <LegacyTraceTree steps={legacySteps} /> : <RunTraceTree events={traceEvents} />}
+      {agenticV9Evidence ? (
+        <AgenticV9Trace
+          data={agenticV9Evidence}
+          traceEvents={traceEvents}
+          finalAnswerPreview={metadata?.finalAnswerPreview}
+        />
+      ) : null}
+
+      {legacySteps?.length ? (
+        <LegacyTraceTree steps={legacySteps} />
+      ) : (
+        <RunTraceTree key={selectedRunId ?? 'no-selected-run'} events={traceEvents} />
+      )}
     </Stack>
   );
 }

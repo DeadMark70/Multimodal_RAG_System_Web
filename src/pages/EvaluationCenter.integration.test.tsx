@@ -9,6 +9,7 @@ import { completeFixture } from '../components/evaluation/researchSummaryFixture
 const apiMocks = vi.hoisted(() => ({
   listCampaigns: vi.fn(),
   getCampaignResearchSummary: vi.fn(),
+  getCampaignReleaseMetrics: vi.fn(),
   getCampaignErrors: vi.fn(),
   getResearchQuestionComparison: vi.fn(),
   getCampaignRuns: vi.fn(),
@@ -43,6 +44,13 @@ const campaign = {
   cancel_requested: false,
   created_at: '2026-07-19T00:00:00Z',
   updated_at: '2026-07-19T00:00:00Z',
+};
+
+const releaseMetrics = {
+  benchmark_id: 'smoke-1', benchmark_kind: 'smoke', comparable: false, gate_reasons: ['partial_accounting'], manifest: {}, arms: [],
+  required_slot_coverage: { value: null, reason: 'partial_accounting' }, important_unsupported_claim_rate: { value: null, reason: 'partial_accounting' }, provenance_failure_rate: { value: null, reason: 'partial_accounting' }, pack_efficiency: { value: null, reason: 'partial_accounting' },
+  graph_locator_success: { value: null, reason: 'graph_not_instrumented' }, graph_locator_fallback: { value: null, reason: 'graph_not_instrumented' }, final_generation_count: { value: null, reason: 'partial_accounting' }, latency_p95_ms: { value: null, reason: 'partial_accounting' }, token_ratio: { value: null, reason: 'partial_accounting' },
+  paired_quality_delta: { value: null, reason: 'missing_ragas' }, paired_quality_ci_lower: { value: null, reason: 'missing_ragas' }, paired_quality_ci_upper: { value: null, reason: 'missing_ragas' }, category_quality_deltas: {}, per_question_quality_deltas: {}, statistics: {},
 };
 
 const runs = {
@@ -138,6 +146,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   apiMocks.listCampaigns.mockResolvedValue([campaign]);
   apiMocks.getCampaignResearchSummary.mockResolvedValue({ ...completeFixture, campaign_id: 'cmp-integration', completed_run_count: 2, total_run_count: 2 });
+  apiMocks.getCampaignReleaseMetrics.mockResolvedValue(releaseMetrics);
   apiMocks.getCampaignErrors.mockResolvedValue({ campaign_id: 'cmp-integration', rows: [] });
   apiMocks.getResearchQuestionComparison.mockResolvedValue({
     campaign_id: 'cmp-integration',
@@ -215,6 +224,60 @@ function renderPage() {
 }
 
 describe('Evaluation Center real data flow', () => {
+  it('renders release-gated, unavailable values without converting them into zeros', async () => {
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'Release Metrics' })).toBeInTheDocument();
+    expect(screen.getByText('Smoke')).toBeInTheDocument();
+    expect(screen.getByText(/Release gates blocked: partial_accounting/)).toBeInTheDocument();
+    expect(screen.getAllByText('N/A — graph_not_instrumented')).toHaveLength(2);
+    expect(screen.queryByText('$0.000')).not.toBeInTheDocument();
+    expect(apiMocks.getCampaignReleaseMetrics).toHaveBeenCalledWith('cmp-integration');
+  });
+
+  it('keeps same-question agentic v8, v9, and shadow conditions selectable by run ID', async () => {
+    apiMocks.getCampaignRuns.mockResolvedValue({
+      campaign_id: 'cmp-integration',
+      runs: [
+        {
+          ...runs.runs[0],
+          run_id: 'run-v8',
+          condition_id: 'condition-v8',
+          execution_profile: 'authoritative',
+          agentic_execution_version: 'v8',
+          response_status: 'complete',
+        },
+        {
+          ...runs.runs[0],
+          run_id: 'run-v9',
+          condition_id: 'condition-v9',
+          execution_profile: 'authoritative',
+          agentic_execution_version: 'v9',
+          response_status: 'complete',
+        },
+        {
+          ...runs.runs[0],
+          run_id: 'run-v9-shadow',
+          condition_id: 'condition-v9-shadow',
+          execution_profile: 'shadow',
+          agentic_execution_version: 'v9',
+          response_status: 'qualified_partial',
+        },
+      ],
+    });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Run Trace' }));
+    const selector = await screen.findByRole('combobox', { name: 'Run selector' });
+    expect(screen.getByRole('option', { name: /Q-integrated · Agentic v8 · repeat 1/ })).toHaveValue('run-v8');
+    expect(screen.getByRole('option', { name: /Q-integrated · Agentic v9 · repeat 1/ })).toHaveValue('run-v9');
+    expect(screen.getByRole('option', { name: /Q-integrated · Agentic v9 shadow · repeat 1/ })).toHaveValue('run-v9-shadow');
+
+    fireEvent.change(selector, { target: { value: 'run-v9-shadow' } });
+    await waitFor(() => expect(apiMocks.getRunDetail).toHaveBeenLastCalledWith('cmp-integration', 'run-v9-shadow'));
+    expect(selector).toHaveValue('run-v9-shadow');
+  });
+
   it('keeps unavailable question metrics and measured zero retrieval scores distinct', async () => {
     renderPage();
 

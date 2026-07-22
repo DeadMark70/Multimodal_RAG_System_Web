@@ -3,6 +3,7 @@ import type {
   AblationResponse,
   CampaignErrorsResponse,
   CampaignResearchSummaryResponse,
+  ReleaseMetricsReport,
   CampaignResultsResponse,
   CampaignStatus,
   CostLatencyResponse,
@@ -14,11 +15,48 @@ import type {
   ResearchQuestionComparisonResponse,
   RouterAnalysisResponse,
   RunDetailResponse,
+  V9ContextPack,
+  V9BudgetReservation,
+  V9ConflictCandidate,
+  V9EvidencePacket,
+  V9ExecutionMetrics,
+  V9FinalClaim,
+  V9QueryContract,
+  V9RepairPlan,
+  V9SlotResolution,
+  V9SufficiencyReport,
 } from '../types/evaluation';
+
+export interface AgenticV9RunEvidence {
+  runId: string;
+  schemaVersion: string | null;
+  queryContract: V9QueryContract | null;
+  slotResolutions: V9SlotResolution[] | undefined;
+  evidencePackets: V9EvidencePacket[] | undefined;
+  contextPack: {
+    packedEvidenceIds: string[] | undefined;
+    droppedEvidenceIds: string[] | undefined;
+    tokenCount: number | null | undefined;
+  } | null | undefined;
+  finalClaims: Array<{
+    claimId: string;
+    statement: string;
+    supportType: V9FinalClaim['support_type'];
+    evidenceIds: string[] | undefined;
+    premiseEvidenceIds: string[] | undefined;
+    qualifiedReason: string | null | undefined;
+  }> | undefined;
+  sufficiency: V9SufficiencyReport | null | undefined;
+  budget: V9BudgetReservation[] | undefined;
+  repairs: V9RepairPlan[] | undefined;
+  conflicts: V9ConflictCandidate[] | undefined;
+  metrics: V9ExecutionMetrics | undefined;
+}
 
 export interface DashboardApiData {
   campaigns: CampaignStatus[];
   researchSummary?: CampaignResearchSummaryResponse;
+  releaseMetrics?: ReleaseMetricsReport;
   results?: CampaignResultsResponse;
   runs?: EvaluationRunListResponse;
   questionComparison?: ResearchQuestionComparisonResponse;
@@ -30,7 +68,56 @@ export interface DashboardApiData {
   errors?: CampaignErrorsResponse;
   exportPreview?: ExportCampaignResponse;
   runDetail?: RunDetailResponse;
+  selectedV9Evidence?: AgenticV9RunEvidence;
   agentBehavior?: AgentBehaviorResponse;
+}
+
+function mapContextPack(contextPack: V9ContextPack | null | undefined): AgenticV9RunEvidence['contextPack'] {
+  if (contextPack === null) {
+    return null;
+  }
+  if (!contextPack) {
+    return undefined;
+  }
+  return {
+    packedEvidenceIds: contextPack.packed_evidence_ids,
+    droppedEvidenceIds: contextPack.dropped_evidence_ids,
+    tokenCount: contextPack.token_count,
+  };
+}
+
+/**
+ * Projects the typed v9 payload for the currently selected run only.
+ * Undefined means the historical run has no materialized v9 observability;
+ * it is deliberately distinct from a materialized v9 payload with empty lists.
+ */
+export function mapAgenticV9RunEvidence(detail?: RunDetailResponse): AgenticV9RunEvidence | undefined {
+  const v9 = detail?.agentic_v9;
+  if (!detail || !v9) {
+    return undefined;
+  }
+
+  return {
+    runId: detail.run_id,
+    schemaVersion: v9.schema_version ?? null,
+    queryContract: v9.contract ?? null,
+    slotResolutions: v9.slot_resolutions,
+    evidencePackets: v9.evidence_packets,
+    contextPack: mapContextPack(v9.context_pack),
+    finalClaims: v9.final_claims?.map((claim) => ({
+      claimId: claim.claim_id,
+      statement: claim.statement,
+      supportType: claim.support_type,
+      evidenceIds: claim.evidence_ids,
+      premiseEvidenceIds: claim.premise_evidence_ids,
+      qualifiedReason: claim.qualified_reason,
+    })),
+    sufficiency: v9.sufficiency,
+    budget: v9.budget,
+    repairs: v9.repairs,
+    conflicts: v9.conflicts,
+    metrics: v9.metrics,
+  };
 }
 
 export function asRecord(value: unknown): Record<string, unknown> {
@@ -138,14 +225,32 @@ export function mapRetrieval(detail?: RunDetailResponse) {
     graph: {
       status: detail?.graph_observability_status ?? 'not_instrumented',
       events: (detail?.graph_events ?? []).map((event) => ({
-        route: stringValue(event.graph_route, 'n/a'),
-        routerReason: stringValue(event.router_reason, 'n/a'),
-        nodeCount: numberValue(event.node_count, 0),
-        edgeCount: numberValue(event.edge_count, 0),
-        pathCount: numberValue(event.path_count, 0),
+        route: typeof event.graph_route === 'string' ? event.graph_route : null,
+        routerReason: typeof event.router_reason === 'string' ? event.router_reason : null,
+        nodeCount: nullableNumber(event.node_count),
+        edgeCount: nullableNumber(event.edge_count),
+        pathCount: nullableNumber(event.path_count),
         graphToChunkSuccessRate: nullableNumber(event.graph_to_chunk_success_rate),
       })),
-      evidenceItems: detail?.graph_evidence_items ?? [],
+      evidenceItems: (detail?.graph_evidence_items ?? []).map((item) => {
+        const record = asRecord(item);
+        return {
+          source: typeof record.doc_id === 'string'
+            ? record.doc_id
+            : typeof record.source_id === 'string'
+              ? record.source_id
+              : typeof record.source === 'string'
+                ? record.source
+                : null,
+          locator: typeof record.locator === 'string'
+            ? record.locator
+            : typeof record.chunk_id === 'string'
+              ? record.chunk_id
+              : typeof record.page_label === 'string'
+                ? record.page_label
+                : null,
+        };
+      }),
     },
   };
 }

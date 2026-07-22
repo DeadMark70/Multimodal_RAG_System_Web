@@ -78,8 +78,34 @@ export interface AvailableModel {
   thinking: ThinkingCapability;
 }
 
-export type CampaignMode = 'naive' | 'advanced' | 'graph' | 'agentic' | 'router';
+export type CampaignMode =
+  | 'naive'
+  | 'naive-baseline'
+  | 'advanced'
+  | 'graph'
+  | 'agentic'
+  | 'agentic-v8'
+  | 'v8'
+  | 'agentic-v9'
+  | 'v9'
+  | 'agentic-v9-shadow'
+  | 'router'
+  | 'graph_raw_current'
+  | 'graph_provenance_gated'
+  | 'graph_locator_to_chunk'
+  | 'graph_locator_claim_gate'
+  | 'always_no_graph'
+  | 'always_graph_locator'
+  | 'router_auto_graph'
+  | 'oracle_graph_router'
+  | 'graph_local_first'
+  | 'graph_global_first'
+  | 'graph_blended'
+  | 'graph_path_pruned'
+  | 'graph_planning_only';
 export type CampaignEvaluationPhase = 'execution' | 'evaluation';
+export type AgenticExecutionVersion = 'v8' | 'v9';
+export type ShadowEvaluationPolicy = 'operational' | 'research';
 export type CampaignMetricName = string;
 export type ReferenceSource = 'ground_truth_short' | 'ground_truth_fallback_long';
 export type TokenUsage = Record<string, unknown> & {
@@ -120,6 +146,12 @@ export interface CampaignConfigInput {
   ragas_batch_size: number;
   ragas_parallel_batches: number;
   ragas_rpm_limit: number;
+  /** Stored execution identity; omitted by historical v8 campaign payloads. */
+  agentic_execution_version?: AgenticExecutionVersion;
+  /** Only meaningful for an explicit v9 shadow condition. */
+  shadow_evaluation_policy?: ShadowEvaluationPolicy | null;
+  /** Shared immutable benchmark identity for cross-campaign release comparisons. */
+  benchmark_id?: string | null;
 }
 
 export interface CampaignCreateRequest extends CampaignConfigInput {
@@ -166,6 +198,11 @@ export interface CampaignResult {
   ragas_focus: string[];
   mode: CampaignMode;
   execution_profile?: string | null;
+  condition_id?: string | null;
+  agentic_execution_version?: AgenticExecutionVersion;
+  execution_identity?: string | null;
+  shadow_evaluation_policy?: ShadowEvaluationPolicy | null;
+  response_status?: string | null;
   context_policy_version?: string | null;
   run_number: number;
   repeat_number?: number;
@@ -405,6 +442,10 @@ export interface EvaluationRunListItem {
   mode: CampaignMode;
   run_number: number;
   repeat_number?: number;
+  condition_id?: string | null;
+  execution_profile?: string | null;
+  agentic_execution_version?: AgenticExecutionVersion;
+  response_status?: string | null;
   status: CampaignResultStatus;
   total_tokens: number;
   total_latency_ms?: number | null;
@@ -472,6 +513,292 @@ export interface RunDiffResponse {
   derived_metric_delta: Record<string, number>;
 }
 
+/** Backend-derived release metric. A missing measurement must stay distinguishable from zero. */
+export interface ReleaseMetric {
+  value: number | null;
+  reason: string | null;
+}
+
+export interface ReleaseArmSummary {
+  mode: string;
+  condition_id: string;
+  execution_profile: string;
+  agentic_execution_version: string | null;
+  shadow_evaluation_policy: string | null;
+  response_status_counts: Record<string, number>;
+  run_count: number;
+  complete_run_count: number;
+  accounting_complete_run_count: number;
+}
+
+/**
+ * Authoritative release decision payload. The browser formats these values but
+ * never derives gates, deltas, confidence intervals, or token ratios itself.
+ */
+export interface ReleaseMetricsReport {
+  benchmark_id: string;
+  benchmark_kind: string;
+  comparable: boolean;
+  gate_reasons: string[];
+  manifest: Record<string, unknown>;
+  arms: ReleaseArmSummary[];
+  required_slot_coverage: ReleaseMetric;
+  important_unsupported_claim_rate: ReleaseMetric;
+  provenance_failure_rate: ReleaseMetric;
+  pack_efficiency: ReleaseMetric;
+  graph_locator_success: ReleaseMetric;
+  graph_locator_fallback: ReleaseMetric;
+  final_generation_count: ReleaseMetric;
+  latency_p95_ms: ReleaseMetric;
+  token_ratio: ReleaseMetric;
+  paired_quality_delta: ReleaseMetric;
+  paired_quality_ci_lower: ReleaseMetric;
+  paired_quality_ci_upper: ReleaseMetric;
+  category_quality_deltas: Record<string, ReleaseMetric>;
+  per_question_quality_deltas: Record<string, ReleaseMetric>;
+  statistics: Record<string, unknown>;
+}
+
+export type V9Route =
+  | 'single_lookup'
+  | 'bounded_compare'
+  | 'exact_structured'
+  | 'multi_document_exact'
+  | 'multi_hop'
+  | 'graph_relational';
+export type V9GraphPolicy = 'never' | 'locator_fallback' | 'required_locator';
+export type V9EvidenceSupportType = 'direct' | 'calculated' | 'scope_constraint' | 'contradictory';
+export type V9ClaimSupportType = 'direct' | 'calculated' | 'comparative_inference' | 'qualified';
+export type V9SlotResolutionStatus =
+  | 'supported'
+  | 'conflicted'
+  | 'explicitly_unavailable'
+  | 'not_found';
+export type V9ResponseStatus = 'complete' | 'qualified_partial' | 'insufficient';
+
+export interface V9RequiredSlot {
+  slot_id: string;
+  description: string;
+  required?: boolean;
+  entity_ids?: string[];
+  locator_hints?: string[];
+}
+
+export interface V9ResolvedSourceScope {
+  requested_doc_ids?: string[];
+  requested_source_names?: string[];
+  resolved_doc_ids?: string[];
+  authorized_doc_ids?: string[];
+  rejected_source_names?: string[];
+}
+
+export interface V9QueryContract {
+  contract_version?: string;
+  route: V9Route;
+  intent: string;
+  required_slots?: V9RequiredSlot[];
+  entities?: string[];
+  locator_hints?: string[];
+  graph_policy?: V9GraphPolicy | null;
+  visual_required?: boolean;
+  evidence_extraction_required?: boolean;
+  max_retrieval_rounds?: number;
+  max_repair_rounds?: number;
+  max_llm_calls?: number;
+  runtime_token_budget?: number;
+  resolved_source_scope?: V9ResolvedSourceScope | null;
+  strategy_tier?: string | null;
+}
+
+export interface V9EvidenceSource {
+  doc_id: string;
+  chunk_id?: string | null;
+  parent_id?: string | null;
+  asset_id?: string | null;
+  document_name?: string | null;
+  source_span_hash?: string | null;
+}
+
+export interface V9EvidenceScope {
+  dataset?: string | null;
+  split?: string | null;
+  metric?: string | null;
+  model_variant?: string | null;
+  training_protocol?: string | null;
+  prompt_setting?: string | null;
+  noise_level?: string | null;
+  publication_year?: number | null;
+}
+
+export interface V9SourceLocator {
+  pdf_page_index?: number | null;
+  printed_page_label?: string | null;
+  section?: string | null;
+  table_id?: string | null;
+  figure_id?: string | null;
+  bbox?: [number, number, number, number] | null;
+  citation_format_version?: string;
+}
+
+export interface V9EvidencePacketPayload {
+  schema_version: string;
+  evidence_id: string;
+  task_id: string;
+  round_id: string;
+  query_id: string;
+  slot_ids: string[];
+  statement: string;
+  support_type: V9EvidenceSupportType;
+  source: V9EvidenceSource;
+  scope: V9EvidenceScope;
+  locator: V9SourceLocator;
+  raw_value?: string | null;
+  normalized_value?: string | null;
+  unit?: string | null;
+  calculation_operation?: string | null;
+  premise_evidence_ids?: string[];
+  display_precision?: number | null;
+  rounding_mode?: string | null;
+  extractor_version?: string | null;
+  prompt_version?: string | null;
+  validation_status?: 'deterministic_valid' | 'quote_bound' | 'derived_non_evidence' | 'invalid';
+}
+
+export interface V9EvidencePacket {
+  evidence_id: string;
+  packet: V9EvidencePacketPayload;
+}
+
+export interface V9SlotResolutionValue {
+  slot_id: string;
+  status: V9SlotResolutionStatus;
+  evidence_ids?: string[];
+  reason?: string | null;
+  resolution_stage?: string | null;
+}
+
+export interface V9SlotResolution {
+  slot_id: string;
+  resolution_stage: string;
+  resolution: V9SlotResolutionValue;
+}
+
+export interface V9SufficiencyReport {
+  evidence_complete: boolean;
+  answerable: boolean;
+  response_status: V9ResponseStatus;
+  supported_slot_ids?: string[];
+  conflicted_slot_ids?: string[];
+  explicitly_unavailable_slot_ids?: string[];
+  not_found_slot_ids?: string[];
+  stop_reason?: string | null;
+}
+
+export interface V9BudgetReservation {
+  reservation_id: string;
+  phase: string;
+  estimated_input_tokens: number;
+  reserved_output_tokens: number;
+  reserved_reasoning_tokens?: number;
+  provider_attempt?: number;
+}
+
+export interface V9RetrievalTask {
+  task_id: string;
+  round_id: string;
+  query_id: string;
+  query: string;
+  target_slot_ids: string[];
+  source_scope: V9ResolvedSourceScope;
+  source_group_id?: string;
+  locator_hints?: string[];
+  graph_policy?: V9GraphPolicy;
+  visual_required?: boolean;
+  depends_on_task_ids?: string[];
+}
+
+export interface V9RepairPlan {
+  repair_round_index: number;
+  tasks?: V9RetrievalTask[];
+  stop_reason?: string | null;
+}
+
+export interface V9ConflictCandidate {
+  candidate_id: string;
+  slot_id: string;
+  evidence_ids: string[];
+  scope_match: 'same' | 'different' | 'unknown';
+  reason: string;
+  unresolved?: boolean;
+}
+
+export interface V9FinalClaim {
+  claim_id: string;
+  statement: string;
+  support_type: V9ClaimSupportType;
+  evidence_ids?: string[];
+  premise_evidence_ids?: string[];
+  qualified_reason?: string | null;
+}
+
+export interface V9ContextPack {
+  packed_evidence_ids?: string[];
+  dropped_evidence_ids?: string[];
+  token_count?: number | null;
+}
+
+export interface V9ExecutionMetrics {
+  provider_attempt_count?: number;
+  tool_operation_count?: number;
+  retrieval_query_count?: number;
+  final_generation_count?: number;
+  subtask_answer_count?: number;
+  prose_curator_call_count?: number;
+  arbitration_call_count?: number;
+  reserved_tokens?: number;
+  reconciled_tokens?: number;
+}
+
+/** Token-only, versioned observability; no untyped v9 payload is accepted here. */
+export interface V9ExecutionObservability {
+  schema_version?: string;
+  contract?: V9QueryContract | null;
+  slot_resolutions?: V9SlotResolution[];
+  evidence_packets?: V9EvidencePacket[];
+  sufficiency?: V9SufficiencyReport | null;
+  context_pack?: V9ContextPack | null;
+  budget?: V9BudgetReservation[];
+  repairs?: V9RepairPlan[];
+  conflicts?: V9ConflictCandidate[];
+  final_claims?: V9FinalClaim[];
+  metrics?: V9ExecutionMetrics;
+}
+
+export interface CampaignPreflightIssue {
+  status?: 'configuration_incompatible';
+  stage: 'pre_route' | 'post_contract';
+  reason: string;
+}
+
+export interface CampaignPreflightQuestion {
+  question_id: string;
+  expected_route?: string | null;
+  status: 'feasible' | 'configuration_incompatible';
+  issues?: CampaignPreflightIssue[];
+}
+
+/** Authenticated identity is inferred server-side and deliberately not part of this payload. */
+export interface CampaignPreflightRequest {
+  test_case_ids: string[];
+  model_config: ModelConfig;
+  runtime_token_budget: number;
+  max_llm_calls: number;
+}
+
+export interface CampaignPreflightResponse {
+  questions?: CampaignPreflightQuestion[];
+}
+
 export interface RunDetailResponse {
   run_id: string;
   campaign_id: string;
@@ -511,6 +838,8 @@ export interface RunDetailResponse {
     missing_usage_by_purpose?: Record<string, number>;
     missing_usage_by_provider?: Record<string, number>;
   };
+  /** Optional for historical v8 responses and nullable when v9 was not materialized. */
+  agentic_v9?: V9ExecutionObservability | null;
 }
 
 export interface ExportCampaignRequest {

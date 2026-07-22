@@ -86,6 +86,81 @@ const runOptions = [
   { runId: 'run-2', campaignId: 'cmp-1', questionId: 'Q-17', mode: 'naive', repeat: 1 },
 ];
 
+const agenticV9Evidence = {
+  runId: 'run-v9',
+  schemaVersion: '1',
+  queryContract: {
+    contract_version: '1',
+    route: 'bounded_compare' as const,
+    intent: 'Compare segmentation models with evidence.',
+    required_slots: [{ slot_id: 'dice', description: 'Dice score', required: true }],
+    resolved_source_scope: { authorized_doc_ids: ['doc-authorized'] },
+    max_retrieval_rounds: 2,
+    max_repair_rounds: 1,
+  },
+  slotResolutions: [{
+    slot_id: 'dice',
+    resolution_stage: 'final',
+    resolution: { slot_id: 'dice', status: 'supported' as const, evidence_ids: ['ev-1'] },
+  }],
+  evidencePackets: [{
+    evidence_id: 'ev-1',
+    packet: {
+      schema_version: '1',
+      evidence_id: 'ev-1',
+      task_id: 'task-1',
+      round_id: 'round-1',
+      query_id: 'query-1',
+      slot_ids: ['dice'],
+      statement: 'Raw-only evidence payload.',
+      support_type: 'direct' as const,
+      source: { doc_id: 'doc-authorized' },
+      scope: {},
+      locator: {},
+    },
+  }],
+  contextPack: { packedEvidenceIds: ['ev-1'], droppedEvidenceIds: ['ev-2'], tokenCount: 512 },
+  finalClaims: [{
+    claimId: 'claim-1',
+    statement: 'The evidence supports the comparison.',
+    supportType: 'direct' as const,
+    evidenceIds: ['ev-1'],
+    premiseEvidenceIds: [],
+    qualifiedReason: null,
+  }],
+  sufficiency: {
+    evidence_complete: true,
+    answerable: true,
+    response_status: 'complete' as const,
+    supported_slot_ids: ['dice'],
+  },
+  budget: [{
+    reservation_id: 'reserve-1',
+    phase: 'retrieval',
+    estimated_input_tokens: 800,
+    reserved_output_tokens: 4096,
+  }],
+  repairs: [{
+    repair_round_index: 1,
+    tasks: [{
+      task_id: 'repair-1',
+      round_id: 'round-1',
+      query_id: 'query-1',
+      query: 'find Dice comparison',
+      target_slot_ids: ['dice'],
+      source_scope: { authorized_doc_ids: ['doc-authorized'] },
+    }],
+  }],
+  conflicts: [],
+  metrics: {
+    provider_attempt_count: 3,
+    final_generation_count: 1,
+    prose_curator_call_count: 1,
+    reserved_tokens: 4096,
+    reconciled_tokens: 3840,
+  },
+};
+
 function renderWithTheme(node: React.ReactNode) {
   return render(<ChakraProvider theme={theme}>{node}</ChakraProvider>);
 }
@@ -146,6 +221,61 @@ describe('RunTraceTab', () => {
     expect(screen.getByText('legacy trace')).toBeInTheDocument();
     expect(screen.getByText('Plan subtasks')).toBeInTheDocument();
     expect(screen.getByText('Synthesize answer')).toBeInTheDocument();
+  });
+
+  it('clears expanded trace disclosure when the selected run ID changes', () => {
+    const lifecycle = [
+      { ...traceEvents[0], eventId: 'run-1-running', spanId: 'span-1', status: 'running' },
+      { ...traceEvents[0], eventId: 'run-1-success', spanId: 'span-1', status: 'success', sequence: 2 },
+    ];
+    const rendered = renderWithTheme(
+      <RunTraceTab selectedRunId="run-1" traceEvents={lifecycle} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show lifecycle (2)' }));
+    expect(screen.getByRole('button', { name: 'Hide lifecycle' })).toBeInTheDocument();
+
+    rendered.rerender(
+      <ChakraProvider theme={theme}>
+        <RunTraceTab selectedRunId="run-2" traceEvents={lifecycle} />
+      </ChakraProvider>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Show lifecycle (2)' })).toBeInTheDocument();
+  });
+
+  it('renders the selected typed v9 evidence-first trace without inventing timeout or monetary data', () => {
+    renderWithTheme(
+      <RunTraceTab
+        selectedRunId="run-v9"
+        traceEvents={traceEvents}
+        agenticV9Evidence={agenticV9Evidence}
+      />,
+    );
+
+    expect(screen.getByText('Evidence-first execution trace')).toBeInTheDocument();
+    expect(screen.getByText('Contract & route')).toBeInTheDocument();
+    expect(screen.getByText(/Route: bounded_compare/)).toBeInTheDocument();
+    expect(screen.getByText('Authorized source scope')).toBeInTheDocument();
+    expect(screen.getByText('doc-authorized')).toBeInTheDocument();
+    expect(screen.getByText('Required slots')).toBeInTheDocument();
+    expect(screen.getByText(/dice.*supported/)).toBeInTheDocument();
+    expect(screen.getByText('Retrieval & repair')).toBeInTheDocument();
+    expect(screen.getByText(/Repair rounds: 1/)).toBeInTheDocument();
+    expect(screen.getByText('Final prose batch')).toBeInTheDocument();
+    expect(screen.getByText('Sufficiency, conflicts & context pack')).toBeInTheDocument();
+    expect(screen.getByText('Final answer & verification')).toBeInTheDocument();
+    expect(screen.getByText(/Provider attempts: 3/)).toBeInTheDocument();
+    expect(screen.getByText(/Reserved tokens: 4,096/)).toBeInTheDocument();
+    expect(screen.getByText(/Reconciled tokens: 3,840/)).toBeInTheDocument();
+    expect(screen.getByText(/Cancellation \/ timeout: N\/A/)).toBeInTheDocument();
+    expect(screen.getByText(/Final generations: 1/)).toBeInTheDocument();
+    expect(screen.queryByText('Cost')).not.toBeInTheDocument();
+    expect(screen.queryByText(/\$/)).not.toBeInTheDocument();
+
+    expect(screen.queryByText(/Raw-only evidence payload/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Show raw v9 trace' }));
+    expect(screen.getByText(/Raw-only evidence payload/)).toBeInTheDocument();
   });
 });
 

@@ -8,6 +8,7 @@ import type {
   listCampaigns as listCampaignsFn,
   listModelConfigs as listModelConfigsFn,
   listTestCases as listTestCasesFn,
+  preflightCampaign as preflightCampaignFn,
   streamCampaign as streamCampaignFn,
 } from '../../services/evaluationApi';
 import type { CampaignConfigInput, CampaignStatus } from '../../types/evaluation';
@@ -22,6 +23,7 @@ const {
   mockStreamCampaign,
   mockGetCampaignResults,
   mockCancelCampaign,
+  mockPreflightCampaign,
 } = vi.hoisted(() => ({
   mockListTestCases: vi.fn<typeof listTestCasesFn>(),
   mockListModelConfigs: vi.fn<typeof listModelConfigsFn>(),
@@ -30,6 +32,7 @@ const {
   mockStreamCampaign: vi.fn<typeof streamCampaignFn>(),
   mockGetCampaignResults: vi.fn<typeof getCampaignResultsFn>(),
   mockCancelCampaign: vi.fn<typeof cancelCampaignFn>(),
+  mockPreflightCampaign: vi.fn<typeof preflightCampaignFn>(),
 }));
 
 vi.mock('../../services/evaluationApi', () => ({
@@ -40,6 +43,7 @@ vi.mock('../../services/evaluationApi', () => ({
   streamCampaign: mockStreamCampaign,
   getCampaignResults: mockGetCampaignResults,
   cancelCampaign: mockCancelCampaign,
+  preflightCampaign: mockPreflightCampaign,
 }));
 
 const baseTestCases = [
@@ -568,5 +572,186 @@ describe('CampaignRunner', () => {
     await waitFor(() => {
       expect(screen.getByText('Reasoning tokens: 7')).toBeInTheDocument();
     });
+  });
+
+  it('preflights selected v9 Agentic cases before creating the Evidence-First campaign', async () => {
+    mockListTestCases.mockResolvedValue(baseTestCases);
+    mockListModelConfigs.mockResolvedValue([baseConfig]);
+    mockListCampaigns.mockResolvedValue([]);
+    mockPreflightCampaign.mockResolvedValue({
+      questions: [{ question_id: 'Q1', status: 'feasible', issues: [] }],
+    });
+    mockCreateCampaign.mockResolvedValue({ campaign_id: 'cmp-v9', status: 'pending' });
+    mockStreamCampaign.mockResolvedValue(undefined);
+
+    renderRunner();
+
+    await waitFor(() => expect(screen.getByText('已選擇 1 題')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Agentic RAG' }));
+    expect(screen.getByLabelText('Agentic 執行版本')).toHaveValue('v8');
+
+    fireEvent.change(screen.getByLabelText('Agentic 執行版本'), { target: { value: 'v9' } });
+    expect(screen.getByText(/^Evidence-First：/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '開始評估' }));
+
+    await waitFor(() => {
+      expect(mockPreflightCampaign).toHaveBeenCalledWith({
+        test_case_ids: ['Q1'],
+        model_config: baseConfig,
+        runtime_token_budget: 50000,
+        max_llm_calls: 3,
+      });
+    });
+    const request = mockCreateCampaign.mock.calls[0]?.[0];
+    expect(request?.modes).toContain('agentic-v9');
+    expect(request?.agentic_execution_version).toBe('v9');
+    expect(request?.shadow_evaluation_policy).toBeNull();
+  });
+
+  it('rejects a v9 authoritative selection combined with a v9 shadow', async () => {
+    mockListTestCases.mockResolvedValue(baseTestCases);
+    mockListModelConfigs.mockResolvedValue([baseConfig]);
+    mockListCampaigns.mockResolvedValue([]);
+
+    renderRunner();
+
+    await waitFor(() => expect(screen.getByText('已選擇 1 題')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Agentic RAG' }));
+    fireEvent.change(screen.getByLabelText('Agentic 執行版本'), { target: { value: 'v9' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: '同時執行 v9 shadow' }));
+    fireEvent.click(screen.getByRole('button', { name: '開始評估' }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('v9 Evidence-First 不能同時設定 v9 shadow。').length).toBeGreaterThan(0);
+    });
+    expect(mockPreflightCampaign).not.toHaveBeenCalled();
+    expect(mockCreateCampaign).not.toHaveBeenCalled();
+  });
+
+  it('renders per-question v9 preflight incompatibilities and does not submit', async () => {
+    mockListTestCases.mockResolvedValue(baseTestCases);
+    mockListModelConfigs.mockResolvedValue([baseConfig]);
+    mockListCampaigns.mockResolvedValue([]);
+    mockPreflightCampaign.mockResolvedValue({
+      questions: [{
+        question_id: 'Q1',
+        status: 'configuration_incompatible',
+        issues: [{ status: 'configuration_incompatible', stage: 'post_contract', reason: 'output_cap_too_small' }],
+      }],
+    });
+
+    renderRunner();
+
+    await waitFor(() => expect(screen.getByText('已選擇 1 題')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Agentic RAG' }));
+    fireEvent.change(screen.getByLabelText('Agentic 執行版本'), { target: { value: 'v9' } });
+    fireEvent.click(screen.getByRole('button', { name: '開始評估' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Q1: configuration_incompatible')).toBeInTheDocument();
+    });
+    expect(screen.getByText('post_contract: output_cap_too_small')).toBeInTheDocument();
+    expect(mockCreateCampaign).not.toHaveBeenCalled();
+  });
+
+  it('creates an independent v9 shadow after the authoritative v8 campaign', async () => {
+    const authoritative = createCampaignStatus({ id: 'cmp-authoritative' });
+    const shadow = createCampaignStatus({
+      id: 'cmp-shadow',
+      config: {
+        ...baseCampaignConfig,
+        modes: ['agentic-v9-shadow'],
+        agentic_execution_version: 'v9',
+        shadow_evaluation_policy: 'research',
+      },
+    });
+    mockListTestCases.mockResolvedValue(baseTestCases);
+    mockListModelConfigs.mockResolvedValue([baseConfig]);
+    mockListCampaigns
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([authoritative, shadow]);
+    mockPreflightCampaign.mockResolvedValue({
+      questions: [{ question_id: 'Q1', status: 'feasible', issues: [] }],
+    });
+    mockCreateCampaign
+      .mockResolvedValueOnce({ campaign_id: 'cmp-authoritative', status: 'pending' })
+      .mockResolvedValueOnce({ campaign_id: 'cmp-shadow', status: 'pending' });
+    mockStreamCampaign.mockResolvedValue(undefined);
+
+    renderRunner();
+
+    await waitFor(() => expect(screen.getByText('已選擇 1 題')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Agentic RAG' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: '同時執行 v9 shadow' }));
+    fireEvent.change(screen.getByLabelText('v9 shadow policy'), { target: { value: 'research' } });
+    fireEvent.click(screen.getByRole('button', { name: '開始評估' }));
+
+    await waitFor(() => expect(mockCreateCampaign).toHaveBeenCalledTimes(2));
+    const authoritativeRequest = mockCreateCampaign.mock.calls[0]?.[0];
+    const shadowRequest = mockCreateCampaign.mock.calls[1]?.[0];
+    expect(authoritativeRequest?.modes).toContain('agentic');
+    expect(authoritativeRequest?.agentic_execution_version).toBe('v8');
+    expect(authoritativeRequest?.shadow_evaluation_policy).toBeNull();
+    expect(shadowRequest?.modes).toEqual(['agentic-v9-shadow']);
+    expect(shadowRequest?.agentic_execution_version).toBe('v9');
+    expect(shadowRequest?.shadow_evaluation_policy).toBe('research');
+    expect(screen.getByText(/v9 shadow 已建立為獨立 campaign/)).toBeInTheDocument();
+  });
+
+  it('does not submit stale v9 shadow state after Agentic is deselected', async () => {
+    mockListTestCases.mockResolvedValue(baseTestCases);
+    mockListModelConfigs.mockResolvedValue([baseConfig]);
+    mockListCampaigns.mockResolvedValue([]);
+    mockCreateCampaign.mockResolvedValue({ campaign_id: 'cmp-naive-advanced', status: 'pending' });
+    mockStreamCampaign.mockResolvedValue(undefined);
+
+    renderRunner();
+
+    await waitFor(() => expect(screen.getByText('已選擇 1 題')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Agentic RAG' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: '同時執行 v9 shadow' }));
+    fireEvent.change(screen.getByLabelText('v9 shadow policy'), { target: { value: 'research' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Agentic RAG' }));
+
+    fireEvent.click(screen.getByRole('button', { name: '開始評估' }));
+
+    await waitFor(() => expect(mockCreateCampaign).toHaveBeenCalledTimes(1));
+    expect(mockCreateCampaign).toHaveBeenCalledWith(expect.objectContaining({
+      modes: ['naive', 'advanced'],
+    }));
+    expect(mockPreflightCampaign).not.toHaveBeenCalled();
+  });
+
+  it('displays the stored agentic version and shadow condition from campaign history', async () => {
+    const v9Campaign = createCampaignStatus({
+      id: 'cmp-v9-history',
+      config: {
+        ...baseCampaignConfig,
+        modes: ['agentic-v9'],
+        agentic_execution_version: 'v9',
+        shadow_evaluation_policy: null,
+      },
+    });
+    const shadowCampaign = createCampaignStatus({
+      id: 'cmp-shadow-history',
+      config: {
+        ...baseCampaignConfig,
+        modes: ['agentic-v9-shadow'],
+        agentic_execution_version: 'v9',
+        shadow_evaluation_policy: 'operational',
+      },
+    });
+    mockListTestCases.mockResolvedValue(baseTestCases);
+    mockListModelConfigs.mockResolvedValue([baseConfig]);
+    mockListCampaigns.mockResolvedValue([v9Campaign, shadowCampaign]);
+    mockStreamCampaign.mockResolvedValue(undefined);
+
+    renderRunner();
+
+    await waitFor(() => {
+      expect(screen.getByText('Agentic v9 Evidence-First')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Agentic v9 shadow (operational)')).toBeInTheDocument();
   });
 });

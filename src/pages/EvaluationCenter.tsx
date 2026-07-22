@@ -19,6 +19,7 @@ import PageHeader from '../components/common/PageHeader';
 import {
   asRecord,
   mapAgentRows,
+  mapAgenticV9RunEvidence,
   mapQuestionRows,
   mapRetrieval,
   mapRouterData,
@@ -31,6 +32,7 @@ import {
   getAblationAnalysis,
   getCampaignErrors,
   getCampaignResearchSummary,
+  getCampaignReleaseMetrics,
   getAgentBehavior,
   getHumanEvalQueue,
   getHumanVsAuto,
@@ -62,6 +64,10 @@ function mapRunOptions(runs?: EvaluationRunListResponse) {
     questionId: run.question_id,
     mode: run.mode,
     repeat: run.repeat_number ?? run.run_number,
+    conditionId: run.condition_id,
+    executionProfile: run.execution_profile,
+    agenticExecutionVersion: run.agentic_execution_version,
+    responseStatus: run.response_status,
   }));
 }
 
@@ -168,11 +174,16 @@ export default function EvaluationCenter() {
     const loadDashboard = async () => {
       setLoadingDashboard(true);
       try {
-        const researchSummary = await getCampaignResearchSummary(selectedCampaignId);
+        const [researchSummary, releaseMetrics] = await Promise.all([
+          getCampaignResearchSummary(selectedCampaignId),
+          // Historical deployments may not yet expose Wave 7. Do not make the
+          // established research dashboard unavailable because of that.
+          getCampaignReleaseMetrics(selectedCampaignId).catch(() => undefined),
+        ]);
         if (!mounted) {
           return;
         }
-        setDashboardData((current) => ({ ...current, researchSummary }));
+        setDashboardData((current) => ({ ...current, researchSummary, releaseMetrics }));
         setDashboardError(null);
         setLoadingDashboard(false);
       } catch (error) {
@@ -204,7 +215,11 @@ export default function EvaluationCenter() {
             ? preferredRunId
             : runs.runs[0]?.run_id) ?? '';
         const runDetail = effectiveRunId ? await getRunDetail(campaignId, effectiveRunId) : undefined;
-        return { runs, runDetail };
+        return {
+          runs,
+          runDetail,
+          selectedV9Evidence: mapAgenticV9RunEvidence(runDetail),
+        };
       }
       case 4:
         return { agentBehavior: await getAgentBehavior(campaignId) };
@@ -273,7 +288,11 @@ export default function EvaluationCenter() {
         return;
       }
       setSelectedRunId(runId);
-      setDashboardData((current) => ({ ...current, runDetail: undefined }));
+      setDashboardData((current) => ({
+        ...current,
+        runDetail: undefined,
+        selectedV9Evidence: undefined,
+      }));
       const requestId = runDetailRequestRef.current + 1;
       const campaignGeneration = requestGenerationRef.current;
       runDetailRequestRef.current = requestId;
@@ -283,7 +302,11 @@ export default function EvaluationCenter() {
             requestId === runDetailRequestRef.current &&
             campaignGeneration === requestGenerationRef.current
           ) {
-            setDashboardData((current) => ({ ...current, runDetail }));
+            setDashboardData((current) => ({
+              ...current,
+              runDetail,
+              selectedV9Evidence: mapAgenticV9RunEvidence(runDetail),
+            }));
           }
         })
         .catch((error) => {
@@ -306,10 +329,14 @@ export default function EvaluationCenter() {
   const selectedRun = runOptions.find((run) => run.runId === selectedRunId) ?? runOptions[0];
   const selectedRunDetail =
     dashboardData.runDetail?.run_id === selectedRun?.runId ? dashboardData.runDetail : undefined;
+  const selectedV9Evidence =
+    dashboardData.selectedV9Evidence?.runId === selectedRun?.runId
+      ? dashboardData.selectedV9Evidence
+      : undefined;
   const retrievalData = mapRetrieval(selectedRunDetail);
   const claimData = mapClaims(selectedRunDetail);
   const dashboardTabs = [
-    { label: 'Campaign Overview', component: <CampaignOverviewTab data={dashboardData.researchSummary} /> },
+    { label: 'Campaign Overview', component: <CampaignOverviewTab data={dashboardData.researchSummary} releaseMetrics={dashboardData.releaseMetrics} /> },
     { label: 'Question Analysis', component: <QuestionAnalysisTab rows={mapQuestionRows(dashboardData)} /> },
     {
       label: 'Run Trace',
@@ -330,6 +357,7 @@ export default function EvaluationCenter() {
             accountingDiagnostics: selectedRunDetail?.accounting_diagnostics,
           }}
           traceEvents={mapTraceEvents(selectedRunDetail)}
+          agenticV9Evidence={selectedV9Evidence}
         />
       ),
     },
@@ -345,6 +373,7 @@ export default function EvaluationCenter() {
           coverage={retrievalData.coverage}
           coverageStatus={retrievalData.coverageStatus}
           graph={retrievalData.graph}
+          agenticV9Evidence={selectedV9Evidence}
         />
       ),
     },

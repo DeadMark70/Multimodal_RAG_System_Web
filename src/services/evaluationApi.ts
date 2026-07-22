@@ -13,8 +13,11 @@ import type {
   CampaignEvaluateRequest,
   CampaignOverviewResponse,
   CampaignResearchSummaryResponse,
+  ReleaseMetricsReport,
   CampaignMetricsResponse,
   CampaignProgressEvent,
+  CampaignPreflightRequest,
+  CampaignPreflightResponse,
   CampaignResultsResponse,
   CampaignStatus,
   EvaluationAttempt,
@@ -194,6 +197,17 @@ export async function createCampaign(payload: CampaignCreateRequest): Promise<Ca
   return response.data;
 }
 
+/** Non-mutating v9 configuration admission check; authenticated identity is server-derived. */
+export async function preflightCampaign(
+  payload: CampaignPreflightRequest,
+): Promise<CampaignPreflightResponse> {
+  const response = await api.post<CampaignPreflightResponse>(
+    '/api/evaluation/campaigns/preflight',
+    payload,
+  );
+  return response.data;
+}
+
 export async function listCampaigns(): Promise<CampaignStatus[]> {
   const response = await api.get<CampaignStatus[]>('/api/evaluation/campaigns');
   return response.data;
@@ -275,6 +289,11 @@ export async function getCampaignResearchSummary(
   const response = await api.get<CampaignResearchSummaryResponse>(
     `/api/evaluation/campaigns/${campaignId}/research-summary`,
   );
+  return response.data;
+}
+
+export async function getCampaignReleaseMetrics(campaignId: string): Promise<ReleaseMetricsReport> {
+  const response = await api.get<ReleaseMetricsReport>(`/api/evaluation/campaigns/${campaignId}/release-metrics`);
   return response.data;
 }
 
