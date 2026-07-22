@@ -133,7 +133,11 @@ export default function RunTraceTab({
         </Grid>
       ) : null}
 
-      {legacySteps?.length ? <LegacyTraceTree steps={legacySteps} /> : <RunTraceTree events={traceEvents} />}
+      {legacySteps?.length ? (
+        <LegacyTraceTree steps={legacySteps} />
+      ) : (
+        <RunTraceTree key={selectedRunId ?? 'no-selected-run'} events={traceEvents} />
+      )}
     </Stack>
   );
 }

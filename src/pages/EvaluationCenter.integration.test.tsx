@@ -215,6 +215,49 @@ function renderPage() {
 }
 
 describe('Evaluation Center real data flow', () => {
+  it('keeps same-question agentic v8, v9, and shadow conditions selectable by run ID', async () => {
+    apiMocks.getCampaignRuns.mockResolvedValue({
+      campaign_id: 'cmp-integration',
+      runs: [
+        {
+          ...runs.runs[0],
+          run_id: 'run-v8',
+          condition_id: 'condition-v8',
+          execution_profile: 'authoritative',
+          agentic_execution_version: 'v8',
+          response_status: 'complete',
+        },
+        {
+          ...runs.runs[0],
+          run_id: 'run-v9',
+          condition_id: 'condition-v9',
+          execution_profile: 'authoritative',
+          agentic_execution_version: 'v9',
+          response_status: 'complete',
+        },
+        {
+          ...runs.runs[0],
+          run_id: 'run-v9-shadow',
+          condition_id: 'condition-v9-shadow',
+          execution_profile: 'shadow',
+          agentic_execution_version: 'v9',
+          response_status: 'qualified_partial',
+        },
+      ],
+    });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Run Trace' }));
+    const selector = await screen.findByRole('combobox', { name: 'Run selector' });
+    expect(screen.getByRole('option', { name: /Q-integrated · Agentic v8 · repeat 1/ })).toHaveValue('run-v8');
+    expect(screen.getByRole('option', { name: /Q-integrated · Agentic v9 · repeat 1/ })).toHaveValue('run-v9');
+    expect(screen.getByRole('option', { name: /Q-integrated · Agentic v9 shadow · repeat 1/ })).toHaveValue('run-v9-shadow');
+
+    fireEvent.change(selector, { target: { value: 'run-v9-shadow' } });
+    await waitFor(() => expect(apiMocks.getRunDetail).toHaveBeenLastCalledWith('cmp-integration', 'run-v9-shadow'));
+    expect(selector).toHaveValue('run-v9-shadow');
+  });
+
   it('keeps unavailable question metrics and measured zero retrieval scores distinct', async () => {
     renderPage();
 

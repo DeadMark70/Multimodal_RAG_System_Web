@@ -6,6 +6,21 @@ export interface EvaluationRunOption {
   questionId: string;
   mode: string;
   repeat: number;
+  conditionId?: string | null;
+  executionProfile?: string | null;
+  agenticExecutionVersion?: 'v8' | 'v9';
+  responseStatus?: string | null;
+}
+
+function displayMode(option: EvaluationRunOption): string {
+  const isAgentic = option.mode === 'agentic' || option.mode.startsWith('agentic-');
+  if (!isAgentic) {
+    return option.mode;
+  }
+
+  const isShadow = option.executionProfile === 'shadow' || option.mode === 'agentic-v9-shadow';
+  const version = option.agenticExecutionVersion ?? (option.mode.includes('v9') ? 'v9' : 'v8');
+  return `Agentic ${version}${isShadow ? ' shadow' : ''}`;
 }
 
 export default function RunContextSelector({
@@ -32,7 +47,7 @@ export default function RunContextSelector({
         >
           {runOptions?.length ? runOptions.map((option) => (
             <option key={option.runId} value={option.runId}>
-              {`${option.questionId} · ${option.mode} · repeat ${option.repeat}`}
+              {`${option.questionId} · ${displayMode(option)} · repeat ${option.repeat}`}
             </option>
           )) : <option value="">No runs available</option>}
         </Select>

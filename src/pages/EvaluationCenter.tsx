@@ -63,6 +63,10 @@ function mapRunOptions(runs?: EvaluationRunListResponse) {
     questionId: run.question_id,
     mode: run.mode,
     repeat: run.repeat_number ?? run.run_number,
+    conditionId: run.condition_id,
+    executionProfile: run.execution_profile,
+    agenticExecutionVersion: run.agentic_execution_version,
+    responseStatus: run.response_status,
   }));
 }
 

@@ -147,6 +147,27 @@ describe('RunTraceTab', () => {
     expect(screen.getByText('Plan subtasks')).toBeInTheDocument();
     expect(screen.getByText('Synthesize answer')).toBeInTheDocument();
   });
+
+  it('clears expanded trace disclosure when the selected run ID changes', () => {
+    const lifecycle = [
+      { ...traceEvents[0], eventId: 'run-1-running', spanId: 'span-1', status: 'running' },
+      { ...traceEvents[0], eventId: 'run-1-success', spanId: 'span-1', status: 'success', sequence: 2 },
+    ];
+    const rendered = renderWithTheme(
+      <RunTraceTab selectedRunId="run-1" traceEvents={lifecycle} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show lifecycle (2)' }));
+    expect(screen.getByRole('button', { name: 'Hide lifecycle' })).toBeInTheDocument();
+
+    rendered.rerender(
+      <ChakraProvider theme={theme}>
+        <RunTraceTab selectedRunId="run-2" traceEvents={lifecycle} />
+      </ChakraProvider>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Show lifecycle (2)' })).toBeInTheDocument();
+  });
 });
 
 describe('RunTraceTree', () => {
