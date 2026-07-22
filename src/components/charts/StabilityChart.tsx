@@ -26,6 +26,9 @@ const MODE_COLORS: Record<CampaignMode, string> = {
   advanced: '#2F855A',
   graph: '#DD6B20',
   agentic: '#C53030',
+  'agentic-v8': '#C53030',
+  'agentic-v9': '#805AD5',
+  'agentic-v9-shadow': '#B7791F',
   router: '#6B46C1',
 };
 
@@ -34,6 +37,9 @@ const MODE_LABELS: Record<CampaignMode, string> = {
   advanced: 'Advanced',
   graph: 'Graph',
   agentic: 'Agentic',
+  'agentic-v8': 'Agentic v8',
+  'agentic-v9': 'Agentic v9',
+  'agentic-v9-shadow': 'Agentic v9 shadow',
   router: 'Router',
 };
 

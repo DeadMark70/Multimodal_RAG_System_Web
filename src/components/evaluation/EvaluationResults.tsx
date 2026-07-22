@@ -70,6 +70,9 @@ const MODE_LABELS: Record<CampaignMode, string> = {
   advanced: "Advanced",
   graph: "Graph",
   agentic: "Agentic",
+  "agentic-v8": "Agentic v8",
+  "agentic-v9": "Agentic v9",
+  "agentic-v9-shadow": "Agentic v9 shadow",
   router: "Router",
 };
 

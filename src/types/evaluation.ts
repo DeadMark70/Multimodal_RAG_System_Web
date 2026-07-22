@@ -78,7 +78,15 @@ export interface AvailableModel {
   thinking: ThinkingCapability;
 }
 
-export type CampaignMode = 'naive' | 'advanced' | 'graph' | 'agentic' | 'router';
+export type CampaignMode =
+  | 'naive'
+  | 'advanced'
+  | 'graph'
+  | 'agentic'
+  | 'agentic-v8'
+  | 'agentic-v9'
+  | 'agentic-v9-shadow'
+  | 'router';
 export type CampaignEvaluationPhase = 'execution' | 'evaluation';
 export type AgenticExecutionVersion = 'v8' | 'v9';
 export type ShadowEvaluationPolicy = 'operational' | 'research';
