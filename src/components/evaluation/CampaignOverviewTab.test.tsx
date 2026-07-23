@@ -11,7 +11,7 @@ function renderOverview(data: typeof completeFixture, releaseMetrics?: ReleaseMe
 }
 
 const smokeReleaseFixture: ReleaseMetricsReport = {
-  benchmark_id: 'smoke-1', benchmark_kind: 'smoke', comparable: true, gate_reasons: [], manifest: { kind: 'smoke' },
+  benchmark_id: 'smoke-1', benchmark_kind: 'smoke', comparable: true, availability: 'available', not_applicable_reason: null, gate_reasons: [], manifest: { kind: 'smoke' },
   arms: [{ mode: 'agentic', condition_id: 'agentic-v9-official', execution_profile: 'agentic_eval_v9', agentic_execution_version: 'v9', shadow_evaluation_policy: null, response_status_counts: { complete: 3 }, run_count: 3, complete_run_count: 3, accounting_complete_run_count: 3 }],
   required_slot_coverage: { value: 1, reason: null }, important_unsupported_claim_rate: { value: 0, reason: null }, provenance_failure_rate: { value: 0, reason: null }, pack_efficiency: { value: 0.75, reason: null },
   graph_locator_success: { value: null, reason: 'graph_not_instrumented' }, graph_locator_fallback: { value: null, reason: 'graph_not_instrumented' }, final_generation_count: { value: 1, reason: null }, latency_p95_ms: { value: 1200, reason: null }, token_ratio: { value: 2.2, reason: null },
@@ -52,6 +52,29 @@ describe('CampaignOverviewTab strict research accounting', () => {
     expect(screen.getByRole('heading', { name: 'Per-question quality deltas' })).toBeInTheDocument();
     expect(screen.getByText('Q15')).toBeInTheDocument();
     expect(screen.getByText('N/A — quality_score_missing')).toBeInTheDocument();
+  });
+
+  it('uses the backend not-applicable release report even when the local campaign config is marked applicable', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <CampaignOverviewTab
+          data={completeFixture}
+          releaseMetrics={{
+            ...smokeReleaseFixture,
+            availability: 'not_applicable',
+            not_applicable_reason: 'benchmark_not_configured',
+            comparable: false,
+            gate_reasons: ['missing_benchmark'],
+          }}
+          releaseMetricsNotApplicable={false}
+        />
+      </ChakraProvider>,
+    );
+
+    expect(screen.getByText('Release Metrics 不適用：尚未設定 benchmark。')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Release Metrics' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Comparable: no')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Release gates blocked/)).not.toBeInTheDocument();
   });
 
   it('renders missing RAGAS without requiring monetary pricing', () => {
