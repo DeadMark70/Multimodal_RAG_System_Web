@@ -321,7 +321,7 @@ describe('EvaluationCenter UI', () => {
     expect(await screen.findByRole('tab', { name: 'Router Lab' })).toBeInTheDocument();
     expect(await screen.findByRole('tab', { name: 'Ablation' })).toBeInTheDocument();
     await waitFor(() => expect(getCampaignResearchSummary).toHaveBeenCalledWith('cmp-1'));
-    expect(getCampaignReleaseMetrics).toHaveBeenCalledWith('cmp-1');
+    expect(getCampaignReleaseMetrics).not.toHaveBeenCalled();
     expect(getModeComparison).not.toHaveBeenCalled();
     expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
     expect(overviewProps.at(-1)?.data).toMatchObject({
