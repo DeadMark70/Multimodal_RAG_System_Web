@@ -115,7 +115,15 @@ function QualityCard({ label, observation }: { label: string; observation?: Rese
   return <MetricCard label={label} value={percent(observation.value)} helper={`${observation.status}: ${observation.valid_samples} valid, ${observation.missing_samples} missing, ${observation.failed_samples} failed`} />;
 }
 
-export default function CampaignOverviewTab({ data, releaseMetrics }: { data?: CampaignResearchSummaryResponse; releaseMetrics?: ReleaseMetricsReport }) {
+export default function CampaignOverviewTab({
+  data,
+  releaseMetrics,
+  releaseMetricsNotApplicable = false,
+}: {
+  data?: CampaignResearchSummaryResponse;
+  releaseMetrics?: ReleaseMetricsReport;
+  releaseMetricsNotApplicable?: boolean;
+}) {
   if (!data) return <Text color="text.secondary">Select a campaign to view overview metrics.</Text>;
 
   return (
@@ -124,7 +132,7 @@ export default function CampaignOverviewTab({ data, releaseMetrics }: { data?: C
       {data.token_accounting_status === 'incomplete_legacy' ? <Alert status="warning"><AlertIcon />Legacy accounting: token totals may be incomplete.</Alert> : null}
       {data.token_accounting_status === 'partial' ? <Alert status="warning"><AlertIcon />Token accounting is partial; token-derived comparisons are marked N/A when incomplete.</Alert> : null}
       {data.phase_attribution_status === 'partial' ? <Alert status="warning"><AlertIcon />Phase attribution is partial; phase breakdowns may be incomplete.</Alert> : null}
-      <ReleaseMetricsPanel report={releaseMetrics} />
+      {releaseMetricsNotApplicable ? <Alert status="info"><AlertIcon />Release Metrics 不適用：尚未設定 benchmark。</Alert> : <ReleaseMetricsPanel report={releaseMetrics} />}
       <Grid templateColumns={{ base: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }} gap={3}>
         <MetricCard label="Completed Runs" value={`${data.completed_run_count} / ${data.total_run_count}`} />
         <MetricCard label="Failed Runs" value={data.failed_run_count.toLocaleString()} />

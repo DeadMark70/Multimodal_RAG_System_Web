@@ -36,7 +36,7 @@ const campaign = {
   name: 'Integration campaign',
   status: 'completed',
   phase: 'evaluation',
-  config: { test_case_ids: ['Q-integrated'], modes: ['naive', 'agentic'] },
+  config: { test_case_ids: ['Q-integrated'], modes: ['naive', 'agentic'], benchmark_id: 'smoke-1' },
   completed_units: 2,
   total_units: 2,
   evaluation_completed_units: 2,
@@ -233,6 +233,18 @@ describe('Evaluation Center real data flow', () => {
     expect(screen.getAllByText('N/A — graph_not_instrumented')).toHaveLength(2);
     expect(screen.queryByText('$0.000')).not.toBeInTheDocument();
     expect(apiMocks.getCampaignReleaseMetrics).toHaveBeenCalledWith('cmp-integration');
+  });
+
+  it('does not request release metrics when the selected campaign has no benchmark', async () => {
+    apiMocks.listCampaigns.mockResolvedValue([
+      { ...campaign, config: { ...campaign.config, benchmark_id: null } },
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText('Release Metrics 不適用：尚未設定 benchmark。')).toBeInTheDocument();
+    expect(apiMocks.getCampaignResearchSummary).toHaveBeenCalledWith('cmp-integration');
+    expect(apiMocks.getCampaignReleaseMetrics).not.toHaveBeenCalled();
   });
 
   it('keeps same-question agentic v8, v9, and shadow conditions selectable by run ID', async () => {

@@ -174,11 +174,16 @@ export default function EvaluationCenter() {
     const loadDashboard = async () => {
       setLoadingDashboard(true);
       try {
+        const selectedCampaign = dashboardData.campaigns.find(
+          (campaign) => campaign.id === selectedCampaignId
+        );
         const [researchSummary, releaseMetrics] = await Promise.all([
           getCampaignResearchSummary(selectedCampaignId),
           // Historical deployments may not yet expose Wave 7. Do not make the
           // established research dashboard unavailable because of that.
-          getCampaignReleaseMetrics(selectedCampaignId).catch(() => undefined),
+          selectedCampaign?.config.benchmark_id
+            ? getCampaignReleaseMetrics(selectedCampaignId).catch(() => undefined)
+            : Promise.resolve(undefined),
         ]);
         if (!mounted) {
           return;
@@ -198,7 +203,7 @@ export default function EvaluationCenter() {
     return () => {
       mounted = false;
     };
-  }, [selectedCampaignId]);
+  }, [dashboardData.campaigns, selectedCampaignId]);
 
   const loadTabData = useCallback(async (tabIndex: number, campaignId: string, preferredRunId?: string) => {
     switch (tabIndex) {
@@ -336,7 +341,16 @@ export default function EvaluationCenter() {
   const retrievalData = mapRetrieval(selectedRunDetail);
   const claimData = mapClaims(selectedRunDetail);
   const dashboardTabs = [
-    { label: 'Campaign Overview', component: <CampaignOverviewTab data={dashboardData.researchSummary} releaseMetrics={dashboardData.releaseMetrics} /> },
+    {
+      label: 'Campaign Overview',
+      component: (
+        <CampaignOverviewTab
+          data={dashboardData.researchSummary}
+          releaseMetrics={dashboardData.releaseMetrics}
+          releaseMetricsNotApplicable={!selectedCampaign?.config.benchmark_id}
+        />
+      ),
+    },
     { label: 'Question Analysis', component: <QuestionAnalysisTab rows={mapQuestionRows(dashboardData)} /> },
     {
       label: 'Run Trace',

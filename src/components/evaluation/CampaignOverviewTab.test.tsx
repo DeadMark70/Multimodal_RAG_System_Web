@@ -11,7 +11,7 @@ function renderOverview(data: typeof completeFixture, releaseMetrics?: ReleaseMe
 }
 
 const smokeReleaseFixture: ReleaseMetricsReport = {
-  benchmark_id: 'smoke-1', benchmark_kind: 'smoke', comparable: true, gate_reasons: [], manifest: { kind: 'smoke' },
+  benchmark_id: 'smoke-1', benchmark_kind: 'smoke', comparable: true, availability: 'available', not_applicable_reason: null, gate_reasons: [], manifest: { kind: 'smoke' },
   arms: [{ mode: 'agentic', condition_id: 'agentic-v9-official', execution_profile: 'agentic_eval_v9', agentic_execution_version: 'v9', shadow_evaluation_policy: null, response_status_counts: { complete: 3 }, run_count: 3, complete_run_count: 3, accounting_complete_run_count: 3 }],
   required_slot_coverage: { value: 1, reason: null }, important_unsupported_claim_rate: { value: 0, reason: null }, provenance_failure_rate: { value: 0, reason: null }, pack_efficiency: { value: 0.75, reason: null },
   graph_locator_success: { value: null, reason: 'graph_not_instrumented' }, graph_locator_fallback: { value: null, reason: 'graph_not_instrumented' }, final_generation_count: { value: 1, reason: null }, latency_p95_ms: { value: 1200, reason: null }, token_ratio: { value: 2.2, reason: null },

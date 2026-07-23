@@ -539,6 +539,8 @@ export interface ReleaseMetricsReport {
   benchmark_id: string;
   benchmark_kind: string;
   comparable: boolean;
+  availability: 'available' | 'not_applicable';
+  not_applicable_reason: string | null;
   gate_reasons: string[];
   manifest: Record<string, unknown>;
   arms: ReleaseArmSummary[];
