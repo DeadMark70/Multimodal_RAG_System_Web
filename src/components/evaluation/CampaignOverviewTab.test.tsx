@@ -54,6 +54,29 @@ describe('CampaignOverviewTab strict research accounting', () => {
     expect(screen.getByText('N/A — quality_score_missing')).toBeInTheDocument();
   });
 
+  it('uses the backend not-applicable release report even when the local campaign config is marked applicable', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <CampaignOverviewTab
+          data={completeFixture}
+          releaseMetrics={{
+            ...smokeReleaseFixture,
+            availability: 'not_applicable',
+            not_applicable_reason: 'benchmark_not_configured',
+            comparable: false,
+            gate_reasons: ['missing_benchmark'],
+          }}
+          releaseMetricsNotApplicable={false}
+        />
+      </ChakraProvider>,
+    );
+
+    expect(screen.getByText('Release Metrics 不適用：尚未設定 benchmark。')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Release Metrics' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Comparable: no')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Release gates blocked/)).not.toBeInTheDocument();
+  });
+
   it('renders missing RAGAS without requiring monetary pricing', () => {
     renderOverview(partialFixture);
     expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);

@@ -125,6 +125,7 @@ export default function CampaignOverviewTab({
   releaseMetricsNotApplicable?: boolean;
 }) {
   if (!data) return <Text color="text.secondary">Select a campaign to view overview metrics.</Text>;
+  const releaseMetricsAreNotApplicable = releaseMetricsNotApplicable || releaseMetrics?.availability === 'not_applicable';
 
   return (
     <Stack spacing={5}>
@@ -132,7 +133,7 @@ export default function CampaignOverviewTab({
       {data.token_accounting_status === 'incomplete_legacy' ? <Alert status="warning"><AlertIcon />Legacy accounting: token totals may be incomplete.</Alert> : null}
       {data.token_accounting_status === 'partial' ? <Alert status="warning"><AlertIcon />Token accounting is partial; token-derived comparisons are marked N/A when incomplete.</Alert> : null}
       {data.phase_attribution_status === 'partial' ? <Alert status="warning"><AlertIcon />Phase attribution is partial; phase breakdowns may be incomplete.</Alert> : null}
-      {releaseMetricsNotApplicable ? <Alert status="info"><AlertIcon />Release Metrics 不適用：尚未設定 benchmark。</Alert> : <ReleaseMetricsPanel report={releaseMetrics} />}
+      {releaseMetricsAreNotApplicable ? <Alert status="info"><AlertIcon />Release Metrics 不適用：尚未設定 benchmark。</Alert> : <ReleaseMetricsPanel report={releaseMetrics} />}
       <Grid templateColumns={{ base: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }} gap={3}>
         <MetricCard label="Completed Runs" value={`${data.completed_run_count} / ${data.total_run_count}`} />
         <MetricCard label="Failed Runs" value={data.failed_run_count.toLocaleString()} />
