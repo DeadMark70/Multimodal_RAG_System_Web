@@ -8,6 +8,8 @@ interface AgentBehaviorRow {
   mode: string;
   repeat: number;
   traceStatus: string;
+  behaviorSchema?: 'v8' | 'v9' | 'not_applicable' | null;
+  failureReason?: string | null;
   accountingStatus: 'complete' | 'partial' | 'not_available';
   subtasks: number | null;
   toolCalls: number | null;
@@ -17,6 +19,14 @@ interface AgentBehaviorRow {
   unsupportedClaimRatio: number | null;
   supportedClaimRatio: number | null;
   tokens: number | null;
+  v9?: {
+    route: string | null;
+    graphExecution: string;
+    visualExecution: string;
+    evidencePacketCount: number | null;
+    supportedSlotCount: number | null;
+    requiredSlotCount: number | null;
+  } | null;
 }
 
 function sumNullable(rows: AgentBehaviorRow[], key: 'subtasks' | 'toolCalls' | 'visualCalls' | 'graphCalls') {
@@ -82,6 +92,12 @@ export default function AgentBehaviorTab({ rows }: { rows?: AgentBehaviorRow[] }
               <Th isNumeric>Repeat</Th>
               <Th>Question</Th>
               <Th>Status</Th>
+              <Th>Schema</Th>
+              <Th>Route</Th>
+              <Th>Graph</Th>
+              <Th>Visual</Th>
+              <Th isNumeric>Evidence</Th>
+              <Th isNumeric>Slots</Th>
               <Th isNumeric>Subtasks</Th>
               <Th isNumeric>Tool Calls</Th>
               <Th isNumeric>Visual Calls</Th>
@@ -101,6 +117,16 @@ export default function AgentBehaviorTab({ rows }: { rows?: AgentBehaviorRow[] }
                 <Td isNumeric>{row.repeat}</Td>
                 <Td fontWeight="medium">{row.questionId}</Td>
                 <Td>{formatOptionalText(row.traceStatus)}</Td>
+                <Td>{formatOptionalText(row.behaviorSchema ?? null)}</Td>
+                <Td>{formatOptionalText(row.v9?.route ?? null)}</Td>
+                <Td>{formatOptionalText(row.v9?.graphExecution ?? null)}</Td>
+                <Td>{formatOptionalText(row.v9?.visualExecution ?? null)}</Td>
+                <Td isNumeric>{formatOptionalTokens(row.v9?.evidencePacketCount ?? null)}</Td>
+                <Td isNumeric>
+                  {row.v9
+                    ? `${formatOptionalTokens(row.v9.supportedSlotCount)} / ${formatOptionalTokens(row.v9.requiredSlotCount)}`
+                    : 'N/A'}
+                </Td>
                 <Td isNumeric>{formatOptionalTokens(row.subtasks)}</Td>
                 <Td isNumeric>{formatOptionalTokens(row.toolCalls)}</Td>
                 <Td isNumeric>{formatOptionalTokens(row.visualCalls)}</Td>

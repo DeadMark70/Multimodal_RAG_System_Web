@@ -71,4 +71,27 @@ describe('AgentBehaviorTab', () => {
     expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
     expect(screen.getByText('not_instrumented')).toBeInTheDocument();
   });
+
+  it('renders v9 evidence-first stage state instead of legacy zero counters', () => {
+    renderWithTheme(
+      <AgentBehaviorTab
+        rows={[{
+          runId: 'run-v9', campaignId: 'cmp-1', questionId: 'Q-14', mode: 'agentic', repeat: 1,
+          traceStatus: 'partial', behaviorSchema: 'v9', accountingStatus: 'complete',
+          subtasks: null, toolCalls: null, visualCalls: null, graphCalls: null, drilldownDepth: null,
+          unsupportedClaimRatio: null, supportedClaimRatio: null, tokens: 1200,
+          v9: {
+            route: 'graph_relational', graphExecution: 'required_but_not_satisfied',
+            visualExecution: 'not_requested', evidencePacketCount: 13,
+            supportedSlotCount: 1, requiredSlotCount: 2,
+          },
+        }]}
+      />
+    );
+
+    expect(screen.getByText('graph_relational')).toBeInTheDocument();
+    expect(screen.getByText('required_but_not_satisfied')).toBeInTheDocument();
+    expect(screen.getByText('13')).toBeInTheDocument();
+    expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
+  });
 });

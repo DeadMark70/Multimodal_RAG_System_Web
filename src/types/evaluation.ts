@@ -402,7 +402,9 @@ export interface AgentBehaviorRow {
   question_id: string;
   mode: CampaignMode;
   repeat_number: number;
+  behavior_schema?: 'v8' | 'v9' | 'not_applicable';
   trace_status: string;
+  failure_reason?: string | null;
   accounting_status: 'complete' | 'partial' | 'not_available';
   subtasks: number | null;
   tool_calls: number | null;
@@ -414,9 +416,43 @@ export interface AgentBehaviorRow {
   unsupported_claim_ratio: number | null;
   supported_claim_ratio: number | null;
   total_tokens: number | null;
+  legacy?: LegacyAgentBehaviorMetrics | null;
+  v9?: V9AgentBehaviorMetrics | null;
+}
+
+export interface LegacyAgentBehaviorMetrics {
+  subtasks: number | null;
+  tool_calls: number | null;
+  visual_calls: number | null;
+  graph_calls: number | null;
+  drilldown_depth: number | null;
+}
+
+export type BehaviorExecutionState = 'not_requested' | 'not_triggered' | 'executed' | 'failed' | 'required_but_not_satisfied' | 'not_instrumented';
+
+export interface V9AgentBehaviorMetrics {
+  route: string | null;
+  graph_policy: string | null;
+  visual_required: boolean | null;
+  evidence_extraction_required: boolean | null;
+  retrieval_query_count: number | null;
+  provider_attempt_count: number | null;
+  final_generation_count: number | null;
+  evidence_packet_count: number | null;
+  packed_evidence_count: number | null;
+  slot_resolution_count: number | null;
+  required_slot_count: number | null;
+  supported_slot_count: number | null;
+  repair_count: number | null;
+  final_claim_count: number | null;
+  reserved_tokens: number | null;
+  reconciled_tokens: number | null;
+  graph_execution: BehaviorExecutionState;
+  visual_execution: BehaviorExecutionState;
 }
 
 export interface AgentBehaviorResponse extends AnalyticsAggregateResponse<AgentBehaviorRow> {
+  behavior_schema_version?: '2';
   rows: AgentBehaviorRow[];
 }
 

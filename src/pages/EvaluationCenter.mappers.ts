@@ -263,6 +263,8 @@ export function mapAgentRows(data: DashboardApiData) {
     mode: row.mode,
     repeat: row.repeat_number,
     traceStatus: row.trace_status,
+    behaviorSchema: row.behavior_schema ?? null,
+    failureReason: row.failure_reason ?? null,
     accountingStatus: row.accounting_status,
     subtasks: row.subtasks,
     toolCalls: row.tool_calls,
@@ -274,6 +276,15 @@ export function mapAgentRows(data: DashboardApiData) {
     unsupportedClaimRatio: row.unsupported_claim_ratio,
     supportedClaimRatio: row.supported_claim_ratio,
     tokens: row.total_tokens,
+    legacy: row.legacy ?? null,
+    v9: row.v9 ? {
+      route: row.v9.route,
+      graphExecution: row.v9.graph_execution,
+      visualExecution: row.v9.visual_execution,
+      evidencePacketCount: row.v9.evidence_packet_count,
+      supportedSlotCount: row.v9.supported_slot_count,
+      requiredSlotCount: row.v9.required_slot_count,
+    } : null,
   }));
 }
 
