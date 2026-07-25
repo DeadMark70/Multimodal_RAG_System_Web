@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Badge,
   Box,
@@ -117,6 +117,7 @@ export default function AblationDashboardTab({
   const [exportOptions, setExportOptions] = useState(defaultExportOptions);
   const [exportPreview, setExportPreview] = useState<ExportCampaignResponse | undefined>();
   const [exporting, setExporting] = useState(false);
+  const exportGenerationRef = useRef(0);
   const ablationRows = conditionRows(data?.ablation);
   const graphFamilies = graphFamilyRows(data?.ablation);
   const humanSummaries = asRecord(data?.humanVsAuto?.summaries);
@@ -128,22 +129,32 @@ export default function AblationDashboardTab({
   const humanQueueRows = data?.humanQueue?.rows ?? [];
 
   useEffect(() => {
+    exportGenerationRef.current += 1;
     setExportPreview(undefined);
+    setExporting(false);
   }, [campaignId]);
 
   const handleExport = async () => {
     if (!campaignId || exporting) {
       return;
     }
+    const exportGeneration = exportGenerationRef.current;
     setExporting(true);
     try {
       const response = await exportCampaignAnalysis(campaignId, exportOptions);
+      if (exportGeneration !== exportGenerationRef.current) {
+        return;
+      }
       downloadExport(campaignId, response);
       setExportPreview(response);
     } catch (error) {
-      onExportError?.(error instanceof Error ? error.message : 'Failed to export campaign JSON.');
+      if (exportGeneration === exportGenerationRef.current) {
+        onExportError?.(error instanceof Error ? error.message : 'Failed to export campaign JSON.');
+      }
     } finally {
-      setExporting(false);
+      if (exportGeneration === exportGenerationRef.current) {
+        setExporting(false);
+      }
     }
   };
 

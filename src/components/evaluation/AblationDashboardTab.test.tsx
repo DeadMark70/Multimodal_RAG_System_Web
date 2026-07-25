@@ -188,4 +188,36 @@ describe('AblationDashboardTab', () => {
 
     expect(screen.getByText('Preview: not generated')).toBeInTheDocument();
   });
+
+  it('ignores an export response that resolves after switching campaigns', async () => {
+    let resolveExport: (value: Awaited<ReturnType<typeof exportCampaignAnalysis>>) => void;
+    vi.mocked(exportCampaignAnalysis).mockReturnValue(
+      new Promise((resolve) => {
+        resolveExport = resolve;
+      })
+    );
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:campaign-export'),
+      revokeObjectURL: vi.fn(),
+    });
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const rendered = renderWithTheme(<AblationDashboardTab campaignId="cmp-1" data={dashboardData} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export redacted JSON' }));
+    rendered.rerender(
+      <ChakraProvider theme={theme}>
+        <AblationDashboardTab campaignId="cmp-2" data={dashboardData} />
+      </ChakraProvider>
+    );
+    resolveExport!({
+      campaign: { id: 'cmp-1' },
+      redaction: { include_full_prompts: false },
+      runs: [{ run_id: 'run-1' }],
+      llm_calls: [],
+    });
+
+    await waitFor(() => expect(exportCampaignAnalysis).toHaveBeenCalledOnce());
+    expect(screen.getByText('Preview: not generated')).toBeInTheDocument();
+    expect(anchorClick).not.toHaveBeenCalled();
+  });
 });
