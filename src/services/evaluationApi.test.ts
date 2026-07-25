@@ -17,6 +17,7 @@ import {
   getRouterAnalysis,
   getAblationAnalysis,
   getCampaignErrors,
+  getCampaignStageWarnings,
   exportCampaignAnalysis,
   getHumanEvalQueue,
   postRunHumanRating,
@@ -532,6 +533,18 @@ describe('evaluationApi', () => {
       rows: [{ run_id: 'run-1', message: 'Provider error details were redacted.' }],
     });
     expect(mockedApi.get).toHaveBeenNthCalledWith(10, '/api/evaluation/campaigns/cmp-1/errors');
+
+    mockedApi.get.mockResolvedValueOnce({
+      data: {
+        campaign_id: 'cmp-1',
+        rows: [{ run_id: 'run-1', stage_name: 'agentic_v9_graph_locator', status: 'partial' }],
+      },
+    });
+    expect(await getCampaignStageWarnings('cmp-1')).toEqual({
+      campaign_id: 'cmp-1',
+      rows: [{ run_id: 'run-1', stage_name: 'agentic_v9_graph_locator', status: 'partial' }],
+    });
+    expect(mockedApi.get).toHaveBeenNthCalledWith(11, '/api/evaluation/campaigns/cmp-1/stage-warnings');
   });
 
   it('posts export and human-evaluation requests to the new endpoints', async () => {

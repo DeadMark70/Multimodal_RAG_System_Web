@@ -2,13 +2,13 @@ import type {
   AgentBehaviorResponse,
   AblationResponse,
   CampaignErrorsResponse,
+  CampaignStageWarningsResponse,
   CampaignResearchSummaryResponse,
   ReleaseMetricsReport,
   CampaignResultsResponse,
   CampaignStatus,
   CostLatencyResponse,
   EvaluationRunListResponse,
-  ExportCampaignResponse,
   HumanEvalQueueResponse,
   HumanVsAutoResponse,
   QuestionComparisonRow,
@@ -66,7 +66,7 @@ export interface DashboardApiData {
   humanVsAuto?: HumanVsAutoResponse;
   humanQueue?: HumanEvalQueueResponse;
   errors?: CampaignErrorsResponse;
-  exportPreview?: ExportCampaignResponse;
+  stageWarnings?: CampaignStageWarningsResponse;
   runDetail?: RunDetailResponse;
   selectedV9Evidence?: AgenticV9RunEvidence;
   agentBehavior?: AgentBehaviorResponse;

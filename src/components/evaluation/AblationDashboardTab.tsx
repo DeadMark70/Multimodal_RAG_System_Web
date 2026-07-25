@@ -19,11 +19,13 @@ import {
 import type {
   AblationResponse,
   CampaignErrorsResponse,
+  CampaignStageWarningsResponse,
   ExportCampaignRequest,
   ExportCampaignResponse,
   HumanEvalQueueResponse,
   HumanVsAutoResponse,
 } from '../../types/evaluation';
+import { exportCampaignAnalysis } from '../../services/evaluationApi';
 import MetricCard from './MetricCard';
 
 interface AblationDashboardData {
@@ -31,7 +33,7 @@ interface AblationDashboardData {
   humanVsAuto?: HumanVsAutoResponse;
   humanQueue?: HumanEvalQueueResponse;
   errors?: CampaignErrorsResponse;
-  exportPreview?: ExportCampaignResponse;
+  stageWarnings?: CampaignStageWarningsResponse;
 }
 
 const defaultExportOptions: Required<ExportCampaignRequest> = {
@@ -89,16 +91,57 @@ function toggleOption(
   };
 }
 
-export default function AblationDashboardTab({ data }: { data?: AblationDashboardData }) {
+function downloadExport(campaignId: string, response: ExportCampaignResponse) {
+  const blob = new Blob([JSON.stringify(response, null, 2)], { type: 'application/json' });
+  const href = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = href;
+  anchor.download = `${campaignId}-redacted.json`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(href);
+}
+
+interface AblationDashboardTabProps {
+  campaignId?: string;
+  data?: AblationDashboardData;
+  onExportError?: (message: string) => void;
+}
+
+export default function AblationDashboardTab({
+  campaignId,
+  data,
+  onExportError,
+}: AblationDashboardTabProps) {
   const [exportOptions, setExportOptions] = useState(defaultExportOptions);
+  const [exportPreview, setExportPreview] = useState<ExportCampaignResponse | undefined>();
+  const [exporting, setExporting] = useState(false);
   const ablationRows = conditionRows(data?.ablation);
   const graphFamilies = graphFamilyRows(data?.ablation);
   const humanSummaries = asRecord(data?.humanVsAuto?.summaries);
-  const exportRedaction = asRecord(data?.exportPreview?.redaction);
-  const exportRuns = Array.isArray(data?.exportPreview?.runs) ? data.exportPreview.runs.length : 0;
-  const exportLlmCalls = Array.isArray(data?.exportPreview?.llm_calls) ? data.exportPreview.llm_calls.length : 0;
+  const exportRedaction = asRecord(exportPreview?.redaction);
+  const exportRuns = Array.isArray(exportPreview?.runs) ? exportPreview.runs.length : 0;
+  const exportLlmCalls = Array.isArray(exportPreview?.llm_calls) ? exportPreview.llm_calls.length : 0;
   const errorRows = data?.errors?.rows ?? [];
+  const stageWarningRows = data?.stageWarnings?.rows ?? [];
   const humanQueueRows = data?.humanQueue?.rows ?? [];
+
+  const handleExport = async () => {
+    if (!campaignId || exporting) {
+      return;
+    }
+    setExporting(true);
+    try {
+      const response = await exportCampaignAnalysis(campaignId, exportOptions);
+      downloadExport(campaignId, response);
+      setExportPreview(response);
+    } catch (error) {
+      onExportError?.(error instanceof Error ? error.message : 'Failed to export campaign JSON.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (!data) {
     return (
@@ -255,17 +298,71 @@ export default function AblationDashboardTab({ data }: { data?: AblationDashboar
             ))}
           </HStack>
           <HStack wrap="wrap" gap={3}>
-            <Button size="sm" colorScheme="blue">
+            <Button
+              size="sm"
+              colorScheme="blue"
+              isLoading={exporting}
+              isDisabled={!campaignId}
+              onClick={() => void handleExport()}
+            >
               Export redacted JSON
             </Button>
-            <Badge colorScheme={exportRedaction.include_full_prompts ? 'orange' : 'green'}>
-              full prompts {exportRedaction.include_full_prompts ? 'included' : 'redacted'}
-            </Badge>
-            <Text color="text.secondary">
-              Preview: {exportRuns.toLocaleString()} runs, {exportLlmCalls.toLocaleString()} LLM calls
-            </Text>
+            {exportPreview ? (
+              <>
+                <Badge colorScheme={exportRedaction.include_full_prompts ? 'orange' : 'green'}>
+                  full prompts {exportRedaction.include_full_prompts ? 'included' : 'redacted'}
+                </Badge>
+                <Text color="text.secondary">
+                  Preview: {exportRuns.toLocaleString()} runs, {exportLlmCalls.toLocaleString()} LLM calls
+                </Text>
+              </>
+            ) : (
+              <Text color="text.secondary">Preview: not generated</Text>
+            )}
           </HStack>
         </Stack>
+      </Box>
+
+      <Box>
+        <Heading size="sm" mb={3}>
+          Stage Warnings / Capability Gaps
+        </Heading>
+        <Box overflowX="auto">
+          <Table size="sm">
+            <Thead>
+              <Tr>
+                <Th>Run</Th>
+                <Th>Question</Th>
+                <Th>Mode</Th>
+                <Th>Stage</Th>
+                <Th>Status</Th>
+                <Th>Failure reason</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {stageWarningRows.length ? (
+                stageWarningRows.map((row) => (
+                  <Tr key={`${row.run_id}-${row.stage_name}-${row.created_at}`}>
+                    <Td fontWeight="medium">{row.run_id}</Td>
+                    <Td>{row.question_id}</Td>
+                    <Td>{row.mode}</Td>
+                    <Td>{row.stage_name}</Td>
+                    <Td>
+                      <Badge colorScheme={row.status === 'partial' ? 'yellow' : 'orange'}>
+                        {row.status}
+                      </Badge>
+                    </Td>
+                    <Td>{row.failure_reason}</Td>
+                  </Tr>
+                ))
+              ) : (
+                <Tr>
+                  <Td colSpan={6}>No stage warnings or capability gaps.</Td>
+                </Tr>
+              )}
+            </Tbody>
+          </Table>
+        </Box>
       </Box>
 
       <Box>

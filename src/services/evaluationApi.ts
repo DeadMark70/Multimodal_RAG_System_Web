@@ -7,6 +7,7 @@ import type {
   AvailableModel,
   CampaignGranularStreamEventData,
   CampaignErrorsResponse,
+  CampaignStageWarningsResponse,
   CampaignAnalyticsDashboardResponse,
   CampaignCreateRequest,
   CampaignCreateResponse,
@@ -384,6 +385,15 @@ export async function getHumanVsAuto(campaignId: string): Promise<HumanVsAutoRes
 
 export async function getCampaignErrors(campaignId: string): Promise<CampaignErrorsResponse> {
   const response = await api.get<CampaignErrorsResponse>(`/api/evaluation/campaigns/${campaignId}/errors`);
+  return response.data;
+}
+
+export async function getCampaignStageWarnings(
+  campaignId: string
+): Promise<CampaignStageWarningsResponse> {
+  const response = await api.get<CampaignStageWarningsResponse>(
+    `/api/evaluation/campaigns/${campaignId}/stage-warnings`
+  );
   return response.data;
 }
 
