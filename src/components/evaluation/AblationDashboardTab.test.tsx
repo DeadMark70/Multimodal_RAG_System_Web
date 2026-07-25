@@ -162,4 +162,30 @@ describe('AblationDashboardTab', () => {
     expect(await screen.findByText('Preview: 2 runs, 1 LLM calls')).toBeInTheDocument();
     expect(anchorClick).toHaveBeenCalledOnce();
   });
+
+  it('clears a prior export preview when the selected campaign changes', async () => {
+    vi.mocked(exportCampaignAnalysis).mockResolvedValue({
+      campaign: { id: 'cmp-1' },
+      redaction: { include_full_prompts: false },
+      runs: [{ run_id: 'run-1' }],
+      llm_calls: [],
+    });
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:campaign-export'),
+      revokeObjectURL: vi.fn(),
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const rendered = renderWithTheme(<AblationDashboardTab campaignId="cmp-1" data={dashboardData} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export redacted JSON' }));
+    expect(await screen.findByText('Preview: 1 runs, 0 LLM calls')).toBeInTheDocument();
+
+    rendered.rerender(
+      <ChakraProvider theme={theme}>
+        <AblationDashboardTab campaignId="cmp-2" data={dashboardData} />
+      </ChakraProvider>
+    );
+
+    expect(screen.getByText('Preview: not generated')).toBeInTheDocument();
+  });
 });

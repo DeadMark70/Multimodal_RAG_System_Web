@@ -978,7 +978,6 @@ export interface CampaignAnalyticsDashboardResponse {
   human_vs_auto: HumanVsAutoResponse;
   human_queue: HumanEvalQueueResponse;
   errors: CampaignErrorsResponse;
-  stage_warnings: CampaignStageWarningsResponse;
 }
 
 export interface CampaignProgressEvent {

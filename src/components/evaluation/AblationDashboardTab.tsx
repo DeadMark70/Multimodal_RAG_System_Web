@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Badge,
   Box,
@@ -126,6 +126,10 @@ export default function AblationDashboardTab({
   const errorRows = data?.errors?.rows ?? [];
   const stageWarningRows = data?.stageWarnings?.rows ?? [];
   const humanQueueRows = data?.humanQueue?.rows ?? [];
+
+  useEffect(() => {
+    setExportPreview(undefined);
+  }, [campaignId]);
 
   const handleExport = async () => {
     if (!campaignId || exporting) {
