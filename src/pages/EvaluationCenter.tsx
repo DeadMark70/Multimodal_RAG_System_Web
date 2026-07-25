@@ -31,6 +31,7 @@ import type { DashboardApiData } from './EvaluationCenter.mappers';
 import {
   getAblationAnalysis,
   getCampaignErrors,
+  getCampaignStageWarnings,
   getCampaignResearchSummary,
   getCampaignReleaseMetrics,
   getAgentBehavior,
@@ -231,13 +232,14 @@ export default function EvaluationCenter() {
       case 6:
         return { routerAnalysis: await getRouterAnalysis(campaignId) };
       case 7: {
-        const [ablation, humanVsAuto, humanQueue, errors] = await Promise.all([
+        const [ablation, humanVsAuto, humanQueue, errors, stageWarnings] = await Promise.all([
           getAblationAnalysis(campaignId),
           getHumanVsAuto(campaignId),
           getHumanEvalQueue(campaignId),
           getCampaignErrors(campaignId),
+          getCampaignStageWarnings(campaignId),
         ]);
-        return { ablation, humanVsAuto, humanQueue, errors };
+        return { ablation, humanVsAuto, humanQueue, errors, stageWarnings };
       }
       default:
         return {};
@@ -409,12 +411,14 @@ export default function EvaluationCenter() {
       label: 'Ablation',
       component: (
         <AblationDashboardTab
+          campaignId={selectedCampaignId}
+          onExportError={setDashboardError}
           data={{
             ablation: dashboardData.ablation,
             humanVsAuto: dashboardData.humanVsAuto,
             humanQueue: dashboardData.humanQueue,
             errors: dashboardData.errors,
-            exportPreview: dashboardData.exportPreview,
+            stageWarnings: dashboardData.stageWarnings,
           }}
         />
       ),

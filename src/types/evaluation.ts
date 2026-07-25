@@ -950,6 +950,22 @@ export interface CampaignErrorsResponse {
   rows: SanitizedErrorRow[];
 }
 
+export interface StageWarningRow extends Record<string, unknown> {
+  run_id: string;
+  campaign_id: string;
+  question_id: string;
+  mode: CampaignMode;
+  stage_name: string;
+  status: 'partial' | 'required_but_not_satisfied';
+  failure_reason: string;
+  created_at: string;
+}
+
+export interface CampaignStageWarningsResponse {
+  campaign_id: string;
+  rows: StageWarningRow[];
+}
+
 export interface CampaignAnalyticsDashboardResponse {
   campaign_id: string;
   overview: CampaignOverviewResponse;

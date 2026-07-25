@@ -211,6 +211,7 @@ vi.mock('../services/evaluationApi', () => ({
     human_vs_auto: { campaign_id: 'cmp-1', analysis_unit: 'execution', sample_count: 0, independent_question_count: 0, repeat_count: 0, sample_note: 'none', warnings: [], rows: [], summaries: {} },
     human_queue: { campaign_id: 'cmp-1', rows: [] },
     errors: { campaign_id: 'cmp-1', rows: [] },
+    stage_warnings: { campaign_id: 'cmp-1', rows: [] },
   }),
   getCampaignResults: vi.fn().mockResolvedValue({
     campaign: {},
@@ -271,6 +272,7 @@ vi.mock('../services/evaluationApi', () => ({
   getHumanVsAuto: vi.fn().mockResolvedValue({ campaign_id: 'cmp-1', analysis_unit: 'execution', sample_count: 0, independent_question_count: 0, repeat_count: 0, sample_note: 'none', warnings: [], rows: [], summaries: {} }),
   getHumanEvalQueue: vi.fn().mockResolvedValue({ campaign_id: 'cmp-1', rows: [] }),
   getCampaignErrors: vi.fn().mockResolvedValue({ campaign_id: 'cmp-1', rows: [] }),
+  getCampaignStageWarnings: vi.fn().mockResolvedValue({ campaign_id: 'cmp-1', rows: [] }),
   exportCampaignAnalysis: vi.fn().mockResolvedValue({ campaign: {}, redaction: { include_full_prompts: false }, runs: [], llm_calls: [] }),
   getRunDetail: vi.fn().mockImplementation((_campaignId: string, runId: string) => Promise.resolve({
     run_id: runId,
