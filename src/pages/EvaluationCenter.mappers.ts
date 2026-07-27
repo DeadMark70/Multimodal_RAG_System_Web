@@ -22,6 +22,7 @@ import type {
   V9ExecutionMetrics,
   V9FinalClaim,
   V9QueryContract,
+  V9PromptCaptureAvailability,
   V9RepairPlan,
   V9SlotResolution,
   V9SufficiencyReport,
@@ -51,6 +52,11 @@ export interface AgenticV9RunEvidence {
   repairs: V9RepairPlan[] | undefined;
   conflicts: V9ConflictCandidate[] | undefined;
   metrics: V9ExecutionMetrics | undefined;
+  promptCapture: {
+    hash: string | null | undefined;
+    preview: string | null | undefined;
+    fullPrompt: string | null | undefined;
+  } | null | undefined;
 }
 
 export interface DashboardApiData {
@@ -117,6 +123,17 @@ export function mapAgenticV9RunEvidence(detail?: RunDetailResponse): AgenticV9Ru
     repairs: v9.repairs,
     conflicts: v9.conflicts,
     metrics: v9.metrics,
+    promptCapture: mapPromptCapture(v9.prompt_capture),
+  };
+}
+
+function mapPromptCapture(capture: V9PromptCaptureAvailability | null | undefined): AgenticV9RunEvidence['promptCapture'] {
+  if (capture === null) return null;
+  if (!capture) return undefined;
+  return {
+    hash: capture.hash,
+    preview: capture.preview,
+    fullPrompt: capture.full_prompt,
   };
 }
 
@@ -277,8 +294,13 @@ export function mapAgentRows(data: DashboardApiData) {
     supportedClaimRatio: row.supported_claim_ratio,
     tokens: row.total_tokens,
     legacy: row.legacy ?? null,
+    atomicCompleteness: row.v9?.atomic_completeness ?? null,
+    atomicCompletenessReason: row.v9?.atomic_completeness_reason ?? null,
     v9: row.v9 ? {
       route: row.v9.route,
+      contractVersion: row.v9.contract_version ?? null,
+      slotPlanStatus: row.v9.slot_plan_status ?? null,
+      slotSemantics: row.v9.slot_semantics ?? null,
       graphExecution: row.v9.graph_execution,
       visualExecution: row.v9.visual_execution,
       evidencePacketCount: row.v9.evidence_packet_count,

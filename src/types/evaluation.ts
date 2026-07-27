@@ -152,6 +152,15 @@ export interface CampaignConfigInput {
   shadow_evaluation_policy?: ShadowEvaluationPolicy | null;
   /** Shared immutable benchmark identity for cross-campaign release comparisons. */
   benchmark_id?: string | null;
+  /** Execution-time-authoritative observability policy; exports cannot recover uncaptured prompts. */
+  prompt_capture_policy?: PromptCapturePolicy;
+}
+
+export interface PromptCapturePolicy {
+  hash?: boolean;
+  preview?: boolean;
+  full_prompt?: boolean;
+  preview_max_chars?: number;
 }
 
 export interface CampaignCreateRequest extends CampaignConfigInput {
@@ -432,7 +441,14 @@ export type BehaviorExecutionState = 'not_requested' | 'not_triggered' | 'execut
 
 export interface V9AgentBehaviorMetrics {
   route: string | null;
+  contract_version?: string | null;
+  slot_plan_status?: string | null;
+  slot_semantics?: string | null;
+  /** Experimental/unknown remains nullable; the UI must never infer it from generic slots. */
+  atomic_completeness?: boolean | null;
+  atomic_completeness_reason?: string | null;
   graph_policy: string | null;
+  visual_requested?: boolean | null;
   visual_required: boolean | null;
   evidence_extraction_required: boolean | null;
   retrieval_query_count: number | null;
@@ -646,6 +662,28 @@ export interface V9QueryContract {
   runtime_token_budget?: number;
   resolved_source_scope?: V9ResolvedSourceScope | null;
   strategy_tier?: string | null;
+  route_decision?: V9RouteDecision | null;
+  slot_plan_status?: string | null;
+  slot_semantics?: string | null;
+  atomic_completeness?: boolean | null;
+  atomic_completeness_reason?: string | null;
+}
+
+export interface V9RouteDecision {
+  selected_route: V9Route;
+  decision_source: 'deterministic' | 'llm_planner' | 'safe_fallback';
+  matched_rules?: string[];
+  candidate_routes?: V9Route[];
+  route_reason: string;
+  planner_call_used?: boolean;
+  fallback_reason?: string | null;
+  confidence?: number | null;
+}
+
+export interface V9PromptCaptureAvailability {
+  hash?: string | null;
+  preview?: string | null;
+  full_prompt?: string | null;
 }
 
 export interface V9EvidenceSource {
@@ -810,6 +848,7 @@ export interface V9ExecutionObservability {
   conflicts?: V9ConflictCandidate[];
   final_claims?: V9FinalClaim[];
   metrics?: V9ExecutionMetrics;
+  prompt_capture?: V9PromptCaptureAvailability | null;
 }
 
 export interface CampaignPreflightIssue {
@@ -898,6 +937,15 @@ export interface ExportCampaignResponse extends Record<string, unknown> {
   llm_calls?: Array<Record<string, unknown>>;
   retrieval_summary?: Array<Record<string, unknown>>;
   claim_summary?: Array<Record<string, unknown>>;
+  summary?: {
+    run_count?: number;
+    llm_call_count?: number;
+    per_phase_counts?: Record<string, number>;
+    prompt_hash_availability?: Record<string, number>;
+    prompt_preview_availability?: Record<string, number>;
+    full_prompt_availability?: Record<string, number>;
+  };
+  availability_warnings?: string[];
 }
 
 export interface HumanRatingRequest {
