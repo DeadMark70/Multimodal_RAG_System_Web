@@ -77,6 +77,12 @@ function exportAvailabilityWarnings(
   return Array.from(warnings);
 }
 
+function availabilityText(label: string, availability: Record<string, number> | undefined): string {
+  if (!availability) return `${label}: N/A`;
+  const counts = Object.entries(availability).map(([status, count]) => `${status}: ${formatCount(count)}`);
+  return `${label}: ${counts.length ? counts.join(' · ') : 'N/A'}`;
+}
+
 function conditionRows(data?: AblationResponse) {
   const summaries = asRecord(data?.summaries);
   const counts = asRecord(summaries.condition_counts);
@@ -357,6 +363,9 @@ export default function AblationDashboardTab({
                     {phase}: {formatCount(count)}
                   </Text>
                 ))}
+                <Text color="text.secondary" fontSize="sm">{availabilityText('Prompt hash availability', exportPreview.summary?.prompt_hash_availability)}</Text>
+                <Text color="text.secondary" fontSize="sm">{availabilityText('Prompt preview availability', exportPreview.summary?.prompt_preview_availability)}</Text>
+                <Text color="text.secondary" fontSize="sm">{availabilityText('Full prompt availability', exportPreview.summary?.full_prompt_availability)}</Text>
                 {exportWarnings.map((warning) => (
                   <Text key={warning} color="orange.600" fontSize="sm">
                     {warning}

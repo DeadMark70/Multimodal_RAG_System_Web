@@ -41,6 +41,8 @@ export interface AgenticV9RunEvidence {
   } | null | undefined;
   finalClaims: Array<{
     claimId: string;
+    /** The authoritative persisted claim → slot relation; undefined for historical payloads. */
+    slotId?: string | null;
     statement: string;
     supportType: V9FinalClaim['support_type'];
     evidenceIds: string[] | undefined;
@@ -54,9 +56,9 @@ export interface AgenticV9RunEvidence {
   metrics: V9ExecutionMetrics | undefined;
   /** Omitted by historical v9 payloads; consumers must render it N/A-safe. */
   promptCapture?: {
-    hash: string | null | undefined;
-    preview: string | null | undefined;
-    fullPrompt: string | null | undefined;
+    hashAvailability: string | null | undefined;
+    previewAvailability: string | null | undefined;
+    fullPromptAvailability: string | null | undefined;
   } | null | undefined;
 }
 
@@ -113,6 +115,7 @@ export function mapAgenticV9RunEvidence(detail?: RunDetailResponse): AgenticV9Ru
     contextPack: mapContextPack(v9.context_pack),
     finalClaims: v9.final_claims?.map((claim) => ({
       claimId: claim.claim_id,
+      slotId: claim.slot_id,
       statement: claim.statement,
       supportType: claim.support_type,
       evidenceIds: claim.evidence_ids,
@@ -132,10 +135,20 @@ function mapPromptCapture(capture: V9PromptCaptureAvailability | null | undefine
   if (capture === null) return null;
   if (!capture) return undefined;
   return {
-    hash: capture.hash,
-    preview: capture.preview,
-    fullPrompt: capture.full_prompt,
+    hashAvailability: promptCaptureAvailability(capture.hash),
+    previewAvailability: promptCaptureAvailability(capture.preview),
+    // Never project raw full-prompt text into frontend evidence. A non-status
+    // persisted value means capture occurred, not that UI may disclose it.
+    fullPromptAvailability: promptCaptureAvailability(capture.full_prompt),
   };
+}
+
+function promptCaptureAvailability(value: string | null | undefined): string | null | undefined {
+  if (value == null) return value;
+  if (['captured', 'not_captured_at_execution', 'not_available', 'redacted'].includes(value)) {
+    return value;
+  }
+  return 'captured';
 }
 
 export function asRecord(value: unknown): Record<string, unknown> {

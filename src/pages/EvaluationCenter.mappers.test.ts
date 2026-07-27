@@ -308,15 +308,24 @@ describe('Evaluation Center data mappers', () => {
             fallback_reason: null, confidence: 1,
           },
         },
-        prompt_capture: { hash: 'captured', preview: 'captured', full_prompt: 'not_captured_at_execution' },
+        final_claims: [{
+          claim_id: 'claim-v2', slot_id: 'S1', statement: 'first fact', support_type: 'direct', evidence_ids: [],
+        }],
+        prompt_capture: {
+          hash: 'captured',
+          preview: 'captured',
+          full_prompt: 'FULL_PROMPT_SECRET_SENTINEL',
+        },
       },
     } as unknown as RunDetailResponse);
 
     expect(v2).toMatchObject({
       schemaVersion: '2',
       queryContract: { slot_plan_status: 'complete', slot_semantics: 'atomic', atomic_completeness: true },
-      promptCapture: { fullPrompt: 'not_captured_at_execution' },
+      promptCapture: { fullPromptAvailability: 'captured' },
+      finalClaims: [{ claimId: 'claim-v2', slotId: 'S1' }],
     });
+    expect(JSON.stringify(v2)).not.toContain('FULL_PROMPT_SECRET_SENTINEL');
 
     const legacy = mapAgentRows({
       campaigns: [],

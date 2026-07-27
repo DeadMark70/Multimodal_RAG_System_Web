@@ -636,6 +636,12 @@ export interface V9RequiredSlot {
   required?: boolean;
   entity_ids?: string[];
   locator_hints?: string[];
+  /** Additive v2 fields; absent historical values must remain N/A. */
+  source_name_hints?: string[];
+  authorized_source_doc_ids?: string[];
+  expected_answer_type?: string | null;
+  depends_on_slot_ids?: string[];
+  visual_policy?: string | null;
 }
 
 export interface V9ResolvedSourceScope {
@@ -810,6 +816,8 @@ export interface V9ConflictCandidate {
 
 export interface V9FinalClaim {
   claim_id: string;
+  /** Optional for historical payloads; only this persisted relation may bind a claim to a slot. */
+  slot_id?: string | null;
   statement: string;
   support_type: V9ClaimSupportType;
   evidence_ids?: string[];

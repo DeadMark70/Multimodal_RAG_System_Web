@@ -53,6 +53,7 @@ function terminationStatus(events?: Array<{ status: string; stageName: string }>
 
 function RawV9Disclosure({ data }: { data: AgenticV9RunEvidence }) {
   const [open, setOpen] = useState(false);
+  const redactedTrace = redactRawPromptFields(data);
   return (
     <Stack spacing={2}>
       <Button size="xs" variant="outline" alignSelf="start" onClick={() => setOpen((current) => !current)}>
@@ -60,10 +61,21 @@ function RawV9Disclosure({ data }: { data: AgenticV9RunEvidence }) {
       </Button>
       {open ? (
         <Code display="block" whiteSpace="pre-wrap" overflowX="auto" p={2} borderRadius="md">
-          {JSON.stringify(data, null, 2)}
+          {JSON.stringify(redactedTrace, null, 2)}
         </Code>
       ) : null}
     </Stack>
+  );
+}
+
+/** Defense in depth for future projections: raw disclosures never serialize full prompts. */
+function redactRawPromptFields(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactRawPromptFields);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([key]) => key !== 'fullPrompt' && key !== 'full_prompt')
+      .map(([key, child]) => [key, redactRawPromptFields(child)])
   );
 }
 
@@ -134,6 +146,12 @@ export default function AgenticV9Trace({
             <MetricLine label="Repair rounds" value={formatCount(data.repairs)} />
             <MetricLine label="Repair tasks" value={repairTaskCount} />
             <MetricLine label="Retrieval queries" value={metrics?.retrieval_query_count == null ? 'N/A' : String(metrics.retrieval_query_count)} />
+            {data.repairs === undefined ? <Text fontSize="sm">Repair detail: N/A</Text> : data.repairs.map((repair) => (
+              <Stack key={repair.repair_round_index} spacing={0} fontSize="sm">
+                <Text fontWeight="medium">Repair round {repair.repair_round_index} · stop {formatOptionalText(repair.stop_reason)}</Text>
+                {repair.tasks?.length ? repair.tasks.map((task) => <Text key={task.task_id}>{`Task ${task.task_id} · query ${task.query_id} · targets ${task.target_slot_ids.join(', ') || 'N/A'}`}</Text>) : <Text>Task/query identity: N/A</Text>}
+              </Stack>
+            ))}
           </Stack>
         </TraceSection>
 
