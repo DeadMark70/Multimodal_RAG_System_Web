@@ -57,6 +57,26 @@ function formatCount(value: unknown): string {
   return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : '0';
 }
 
+function summaryCount(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function exportAvailabilityWarnings(
+  response: ExportCampaignResponse | undefined,
+  fullPromptsRequested: boolean
+): string[] {
+  if (!response) {
+    return [];
+  }
+  const warnings = new Set(response.availability_warnings ?? []);
+  const fullPromptAvailability = response.summary?.full_prompt_availability ?? {};
+  const missingAtExecution = fullPromptAvailability.not_captured_at_execution ?? 0;
+  if (fullPromptsRequested && missingAtExecution > 0) {
+    warnings.add('full_prompts_not_captured_at_execution');
+  }
+  return Array.from(warnings);
+}
+
 function conditionRows(data?: AblationResponse) {
   const summaries = asRecord(data?.summaries);
   const counts = asRecord(summaries.condition_counts);
@@ -122,8 +142,10 @@ export default function AblationDashboardTab({
   const graphFamilies = graphFamilyRows(data?.ablation);
   const humanSummaries = asRecord(data?.humanVsAuto?.summaries);
   const exportRedaction = asRecord(exportPreview?.redaction);
-  const exportRuns = Array.isArray(exportPreview?.runs) ? exportPreview.runs.length : 0;
-  const exportLlmCalls = Array.isArray(exportPreview?.llm_calls) ? exportPreview.llm_calls.length : 0;
+  const exportRuns = summaryCount(exportPreview?.summary?.run_count, Array.isArray(exportPreview?.runs) ? exportPreview.runs.length : 0);
+  const exportLlmCalls = summaryCount(exportPreview?.summary?.llm_call_count, Array.isArray(exportPreview?.llm_calls) ? exportPreview.llm_calls.length : 0);
+  const exportPhaseCounts = exportPreview?.summary?.per_phase_counts ?? {};
+  const exportWarnings = exportAvailabilityWarnings(exportPreview, exportOptions.include_full_prompts);
   const errorRows = data?.errors?.rows ?? [];
   const stageWarningRows = data?.stageWarnings?.rows ?? [];
   const humanQueueRows = data?.humanQueue?.rows ?? [];
@@ -323,14 +345,24 @@ export default function AblationDashboardTab({
               Export redacted JSON
             </Button>
             {exportPreview ? (
-              <>
+              <Stack spacing={1} align="flex-start">
                 <Badge colorScheme={exportRedaction.include_full_prompts ? 'orange' : 'green'}>
-                  full prompts {exportRedaction.include_full_prompts ? 'included' : 'redacted'}
+                  export option: full prompts {exportRedaction.include_full_prompts ? 'requested' : 'redacted'}
                 </Badge>
                 <Text color="text.secondary">
                   Preview: {exportRuns.toLocaleString()} runs, {exportLlmCalls.toLocaleString()} LLM calls
                 </Text>
-              </>
+                {Object.entries(exportPhaseCounts).map(([phase, count]) => (
+                  <Text key={phase} color="text.secondary" fontSize="sm">
+                    {phase}: {formatCount(count)}
+                  </Text>
+                ))}
+                {exportWarnings.map((warning) => (
+                  <Text key={warning} color="orange.600" fontSize="sm">
+                    {warning}
+                  </Text>
+                ))}
+              </Stack>
             ) : (
               <Text color="text.secondary">Preview: not generated</Text>
             )}

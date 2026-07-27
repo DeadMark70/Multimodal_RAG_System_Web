@@ -609,6 +609,38 @@ describe('CampaignRunner', () => {
     expect(request?.shadow_evaluation_policy).toBeNull();
   });
 
+  it('persists the execution-time prompt capture policy with the campaign snapshot', async () => {
+    mockListTestCases.mockResolvedValue(baseTestCases);
+    mockListModelConfigs.mockResolvedValue([baseConfig]);
+    mockListCampaigns.mockResolvedValue([]);
+    mockPreflightCampaign.mockResolvedValue({
+      questions: [{ question_id: 'Q1', status: 'feasible', issues: [] }],
+    });
+    mockCreateCampaign.mockResolvedValue({ campaign_id: 'cmp-v9-capture', status: 'pending' });
+    mockStreamCampaign.mockResolvedValue(undefined);
+
+    renderRunner();
+
+    await waitFor(() => expect(screen.getByText('已選擇 1 題')).toBeInTheDocument());
+    expect(screen.getByText('Prompt capture at execution')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Agentic RAG' }));
+    fireEvent.change(screen.getByLabelText('Agentic 執行版本'), { target: { value: 'v9' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Capture full prompts' }));
+    expect(screen.getByText(/Privacy warning: full prompts are captured at execution/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '開始評估' }));
+
+    await waitFor(() => expect(mockCreateCampaign).toHaveBeenCalledTimes(1));
+    expect(mockCreateCampaign).toHaveBeenCalledWith(expect.objectContaining({
+      prompt_capture_policy: {
+        hash: true,
+        preview: true,
+        full_prompt: true,
+        preview_max_chars: 512,
+      },
+    }));
+  });
+
   it('rejects a v9 authoritative selection combined with a v9 shadow', async () => {
     mockListTestCases.mockResolvedValue(baseTestCases);
     mockListModelConfigs.mockResolvedValue([baseConfig]);

@@ -163,6 +163,35 @@ describe('AblationDashboardTab', () => {
     expect(anchorClick).toHaveBeenCalledOnce();
   });
 
+  it('reports execution-time prompt availability rather than implying export can recover uncaptured full prompts', async () => {
+    vi.mocked(exportCampaignAnalysis).mockResolvedValue({
+      campaign: { id: 'cmp-1' },
+      redaction: { include_full_prompts: true },
+      summary: {
+        run_count: 2,
+        llm_call_count: 3,
+        per_phase_counts: { final_generation: 2 },
+        full_prompt_availability: { not_captured_at_execution: 3 },
+      },
+      availability_warnings: [],
+      runs: [],
+      llm_calls: [],
+    });
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:campaign-export'),
+      revokeObjectURL: vi.fn(),
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    renderWithTheme(<AblationDashboardTab campaignId="cmp-1" data={dashboardData} />);
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Full prompts' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Export redacted JSON' }));
+
+    expect(await screen.findByText('Preview: 2 runs, 3 LLM calls')).toBeInTheDocument();
+    expect(screen.getByText('final_generation: 2')).toBeInTheDocument();
+    expect(screen.getByText('full_prompts_not_captured_at_execution')).toBeInTheDocument();
+  });
+
   it('clears a prior export preview when the selected campaign changes', async () => {
     vi.mocked(exportCampaignAnalysis).mockResolvedValue({
       campaign: { id: 'cmp-1' },

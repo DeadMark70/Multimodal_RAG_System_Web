@@ -44,6 +44,7 @@ import type {
   CampaignStatus,
   CampaignStreamEvent,
   ModelConfig,
+  PromptCapturePolicy,
   ShadowEvaluationPolicy,
   TestCase,
 } from '../../types/evaluation';
@@ -68,6 +69,12 @@ const V9_PREFLIGHT_RUNTIME_TOKEN_BUDGET = 50_000;
 // One ambiguity route-plan plus graph route, visual extraction, evidence
 // extraction, and final answer is the largest legal v9 phase set.
 const V9_PREFLIGHT_MAX_LLM_CALLS = 5;
+const DEFAULT_PROMPT_CAPTURE_POLICY: Required<PromptCapturePolicy> = {
+  hash: true,
+  preview: true,
+  full_prompt: false,
+  preview_max_chars: 512,
+};
 
 interface ActiveCampaignState {
   snapshot: CampaignStatus | null;
@@ -209,6 +216,9 @@ export default function CampaignRunner() {
   const [agenticExecutionVersion, setAgenticExecutionVersion] = useState<AgenticExecutionVersion>('v8');
   const [agenticV9Shadow, setAgenticV9Shadow] = useState(false);
   const [shadowEvaluationPolicy, setShadowEvaluationPolicy] = useState<ShadowEvaluationPolicy | ''>('');
+  const [promptCapturePolicy, setPromptCapturePolicy] = useState<Required<PromptCapturePolicy>>(
+    DEFAULT_PROMPT_CAPTURE_POLICY
+  );
   const [preflightQuestions, setPreflightQuestions] = useState<CampaignPreflightQuestion[] | null>(null);
   const [shadowNotice, setShadowNotice] = useState<string | null>(null);
   const [repeatCount, setRepeatCount] = useState(1);
@@ -519,6 +529,9 @@ export default function CampaignRunner() {
         ragas_batch_size: ragasBatchSize,
         ragas_parallel_batches: ragasParallelBatches,
         ragas_rpm_limit: ragasRpmLimit,
+        // This is an execution-time snapshot. Export can only report what the
+        // run captured; it cannot recover a prompt omitted here.
+        prompt_capture_policy: { ...promptCapturePolicy },
         ...(agenticSelected
           ? {
               agentic_execution_version: agenticExecutionVersion,
@@ -649,6 +662,47 @@ export default function CampaignRunner() {
                       {option.label}
                     </Checkbox>
                   ))}
+                </Stack>
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>Prompt capture at execution</FormLabel>
+                <Stack spacing={2}>
+                  <Checkbox
+                    isChecked={promptCapturePolicy.hash}
+                    onChange={(event) => setPromptCapturePolicy((current) => ({
+                      ...current,
+                      hash: event.target.checked,
+                    }))}
+                  >
+                    Capture prompt hashes
+                  </Checkbox>
+                  <Checkbox
+                    isChecked={promptCapturePolicy.preview}
+                    onChange={(event) => setPromptCapturePolicy((current) => ({
+                      ...current,
+                      preview: event.target.checked,
+                    }))}
+                  >
+                    Capture sanitized prompt previews
+                  </Checkbox>
+                  <Checkbox
+                    isChecked={promptCapturePolicy.full_prompt}
+                    onChange={(event) => setPromptCapturePolicy((current) => ({
+                      ...current,
+                      full_prompt: event.target.checked,
+                    }))}
+                  >
+                    Capture full prompts
+                  </Checkbox>
+                  {promptCapturePolicy.full_prompt && (
+                    <Text color="orange.600" fontSize="sm">
+                      Privacy warning: full prompts are captured at execution and can include sensitive question/context content. Export cannot capture them after a run finishes.
+                    </Text>
+                  )}
+                  <Text color="gray.600" fontSize="sm">
+                    Hashes and previews are execution-time observability records. A later export only reports their recorded availability.
+                  </Text>
                 </Stack>
               </FormControl>
 
