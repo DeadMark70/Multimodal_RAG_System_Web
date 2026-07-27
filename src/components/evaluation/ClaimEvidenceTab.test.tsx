@@ -63,6 +63,25 @@ describe('ClaimEvidenceTab', () => {
     expect(screen.getByText('retrieval miss')).toBeInTheDocument();
     expect(screen.getByText('gold evidence missing')).toBeInTheDocument();
   });
+
+  it('shows v9 claim to atomic-slot evidence alignment without exposing prompts', () => {
+    renderWithTheme(<ClaimEvidenceTab
+      claims={[]}
+      agenticV9Evidence={{
+        runId: 'run-v2', schemaVersion: '2', queryContract: {
+          route: 'single_lookup', intent: 'verify one fact', required_slots: [{ slot_id: 'S1', description: 'score' }],
+        }, slotResolutions: [{ slot_id: 'S1', resolution_stage: 'final', resolution: { slot_id: 'S1', status: 'supported', evidence_ids: ['ev-1'] } }],
+        evidencePackets: [], contextPack: undefined, sufficiency: null, budget: undefined, repairs: [{ repair_round_index: 1, stop_reason: 'evidence_complete' }], conflicts: undefined,
+        finalClaims: [{ claimId: 'claim-1', statement: 'The score is supported.', supportType: 'direct', evidenceIds: ['ev-1'], premiseEvidenceIds: undefined, qualifiedReason: undefined }], metrics: undefined,
+        promptCapture: { hash: 'captured', preview: 'captured', fullPrompt: 'not_captured_at_execution' },
+      }}
+    />);
+
+    expect(screen.getByText('Atomic Slot Alignment')).toBeInTheDocument();
+    expect(screen.getByText('S1')).toBeInTheDocument();
+    expect(screen.getByText(/evidence_complete/)).toBeInTheDocument();
+    expect(screen.queryByText('full_prompt')).not.toBeInTheDocument();
+  });
 });
 
 describe('ClaimEvidenceTable', () => {

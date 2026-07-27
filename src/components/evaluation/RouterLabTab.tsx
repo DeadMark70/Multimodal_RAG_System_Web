@@ -34,7 +34,16 @@ interface RouterLabData {
   confusionMatrix?: ConfusionCell[];
 }
 
-export default function RouterLabTab({ data }: { data?: RouterLabData }) {
+export interface ExecutionRouteView {
+  route: string;
+  decisionSource: string;
+  routeReason: string;
+  matchedRules?: string[];
+  candidateRoutes?: string[];
+  fallbackReason?: string | null;
+}
+
+export default function RouterLabTab({ data, executionRoute }: { data?: RouterLabData; executionRoute?: ExecutionRouteView }) {
   if (!data) {
     return <Text color="text.secondary">Router lab metrics will appear after router analysis is available.</Text>;
   }
@@ -46,6 +55,20 @@ export default function RouterLabTab({ data }: { data?: RouterLabData }) {
       ) : null}
 
       <RouterDecisionCard decision={data.selectedDecision} analysisType={data.analysisType} />
+
+      {executionRoute ? (
+        <Box borderWidth="1px" borderRadius="md" p={3}>
+          <Heading size="sm" mb={2}>Execution Route</Heading>
+          <Stack spacing={1} fontSize="sm">
+            <Text>Route: {executionRoute.route}</Text>
+            <Text>Decision source: {executionRoute.decisionSource}</Text>
+            <Text>Reason: {executionRoute.routeReason}</Text>
+            <Text>Matched rules: {executionRoute.matchedRules?.length ? executionRoute.matchedRules.join(', ') : 'N/A'}</Text>
+            <Text>Candidate routes: {executionRoute.candidateRoutes?.length ? executionRoute.candidateRoutes.join(', ') : 'N/A'}</Text>
+            <Text>Fallback: {executionRoute.fallbackReason ?? 'N/A'}</Text>
+          </Stack>
+        </Box>
+      ) : null}
 
       <Grid templateColumns={{ base: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }} gap={3}>
         <GridItem borderWidth="1px" borderRadius="md" px={3} py={2}>
