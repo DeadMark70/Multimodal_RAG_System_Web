@@ -52,7 +52,8 @@ export interface AgenticV9RunEvidence {
   repairs: V9RepairPlan[] | undefined;
   conflicts: V9ConflictCandidate[] | undefined;
   metrics: V9ExecutionMetrics | undefined;
-  promptCapture: {
+  /** Omitted by historical v9 payloads; consumers must render it N/A-safe. */
+  promptCapture?: {
     hash: string | null | undefined;
     preview: string | null | undefined;
     fullPrompt: string | null | undefined;
