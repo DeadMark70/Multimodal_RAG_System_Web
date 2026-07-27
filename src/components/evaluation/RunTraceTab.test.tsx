@@ -245,11 +245,23 @@ describe('RunTraceTab', () => {
   });
 
   it('renders the selected typed v9 evidence-first trace without inventing timeout or monetary data', () => {
+    const evidenceWithNestedPrompt = {
+      ...agenticV9Evidence,
+      promptCapture: {
+        hashAvailability: 'captured',
+        previewAvailability: 'captured',
+        fullPromptAvailability: 'captured',
+      },
+      nestedDiagnostic: {
+        full_prompt: 'FULL_PROMPT_SECRET_SENTINEL',
+        deeper: { fullPrompt: 'FULL_PROMPT_SECRET_SENTINEL' },
+      },
+    } as unknown as typeof agenticV9Evidence;
     renderWithTheme(
       <RunTraceTab
         selectedRunId="run-v9"
         traceEvents={traceEvents}
-        agenticV9Evidence={agenticV9Evidence}
+        agenticV9Evidence={evidenceWithNestedPrompt}
       />,
     );
 
@@ -274,8 +286,10 @@ describe('RunTraceTab', () => {
     expect(screen.queryByText(/\$/)).not.toBeInTheDocument();
 
     expect(screen.queryByText(/Raw-only evidence payload/)).not.toBeInTheDocument();
+    expect(screen.queryByText('FULL_PROMPT_SECRET_SENTINEL')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Show raw v9 trace' }));
     expect(screen.getByText(/Raw-only evidence payload/)).toBeInTheDocument();
+    expect(screen.queryByText('FULL_PROMPT_SECRET_SENTINEL')).not.toBeInTheDocument();
   });
 });
 

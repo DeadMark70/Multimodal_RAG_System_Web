@@ -403,10 +403,24 @@ export default function EvaluationCenter() {
           onSelectedRunIdChange={handleSelectedRunIdChange}
           claims={claimData.claims}
           unsupportedReasons={claimData.unsupportedReasons}
+          agenticV9Evidence={selectedV9Evidence}
         />
       ),
     },
-    { label: 'Router Lab', component: <RouterLabTab data={mapRouterData(dashboardData)} /> },
+    {
+      label: 'Router Lab',
+      component: <RouterLabTab
+        data={mapRouterData(dashboardData)}
+        executionRoute={selectedV9Evidence?.queryContract?.route_decision ? {
+          route: selectedV9Evidence.queryContract.route_decision.selected_route,
+          decisionSource: selectedV9Evidence.queryContract.route_decision.decision_source,
+          routeReason: selectedV9Evidence.queryContract.route_decision.route_reason,
+          matchedRules: selectedV9Evidence.queryContract.route_decision.matched_rules,
+          candidateRoutes: selectedV9Evidence.queryContract.route_decision.candidate_routes,
+          fallbackReason: selectedV9Evidence.queryContract.route_decision.fallback_reason,
+        } : undefined}
+      />,
+    },
     {
       label: 'Ablation',
       component: (

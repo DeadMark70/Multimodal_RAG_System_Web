@@ -80,6 +80,22 @@ describe('RouterLabTab', () => {
     expect(screen.getByText('Retrospective analysis only: no actual router runs in this campaign.')).toBeInTheDocument();
     expect(screen.getByText('utility_best_mode')).toBeInTheDocument();
   });
+
+  it('keeps a materialized v9 execution route separate from retrospective router analysis', () => {
+    renderWithTheme(<RouterLabTab
+      data={routerData}
+      executionRoute={{
+        route: 'multi_hop', decisionSource: 'deterministic',
+        routeReason: 'Matched cross-document dependency.',
+        matchedRules: ['cross_document'], candidateRoutes: ['multi_hop'], fallbackReason: null,
+      }}
+    />);
+
+    expect(screen.getByText('Execution Route')).toBeInTheDocument();
+    expect(screen.getByText(/Matched cross-document dependency/)).toBeInTheDocument();
+    expect(screen.getByText(/Decision source: deterministic/)).toBeInTheDocument();
+    expect(screen.getByText('Retrospective analysis only: no actual router runs in this campaign.')).toBeInTheDocument();
+  });
 });
 
 describe('RouterDecisionCard', () => {

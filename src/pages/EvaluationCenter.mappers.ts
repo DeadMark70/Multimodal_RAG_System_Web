@@ -22,6 +22,7 @@ import type {
   V9ExecutionMetrics,
   V9FinalClaim,
   V9QueryContract,
+  V9PromptCaptureAvailability,
   V9RepairPlan,
   V9SlotResolution,
   V9SufficiencyReport,
@@ -40,6 +41,8 @@ export interface AgenticV9RunEvidence {
   } | null | undefined;
   finalClaims: Array<{
     claimId: string;
+    /** The authoritative persisted claim → slot relation; undefined for historical payloads. */
+    slotId?: string | null;
     statement: string;
     supportType: V9FinalClaim['support_type'];
     evidenceIds: string[] | undefined;
@@ -51,6 +54,12 @@ export interface AgenticV9RunEvidence {
   repairs: V9RepairPlan[] | undefined;
   conflicts: V9ConflictCandidate[] | undefined;
   metrics: V9ExecutionMetrics | undefined;
+  /** Omitted by historical v9 payloads; consumers must render it N/A-safe. */
+  promptCapture?: {
+    hashAvailability: string | null | undefined;
+    previewAvailability: string | null | undefined;
+    fullPromptAvailability: string | null | undefined;
+  } | null | undefined;
 }
 
 export interface DashboardApiData {
@@ -106,6 +115,7 @@ export function mapAgenticV9RunEvidence(detail?: RunDetailResponse): AgenticV9Ru
     contextPack: mapContextPack(v9.context_pack),
     finalClaims: v9.final_claims?.map((claim) => ({
       claimId: claim.claim_id,
+      slotId: claim.slot_id,
       statement: claim.statement,
       supportType: claim.support_type,
       evidenceIds: claim.evidence_ids,
@@ -117,7 +127,28 @@ export function mapAgenticV9RunEvidence(detail?: RunDetailResponse): AgenticV9Ru
     repairs: v9.repairs,
     conflicts: v9.conflicts,
     metrics: v9.metrics,
+    promptCapture: mapPromptCapture(v9.prompt_capture),
   };
+}
+
+function mapPromptCapture(capture: V9PromptCaptureAvailability | null | undefined): AgenticV9RunEvidence['promptCapture'] {
+  if (capture === null) return null;
+  if (!capture) return undefined;
+  return {
+    hashAvailability: promptCaptureAvailability(capture.hash),
+    previewAvailability: promptCaptureAvailability(capture.preview),
+    // Never project raw full-prompt text into frontend evidence. A non-status
+    // persisted value means capture occurred, not that UI may disclose it.
+    fullPromptAvailability: promptCaptureAvailability(capture.full_prompt),
+  };
+}
+
+function promptCaptureAvailability(value: string | null | undefined): string | null | undefined {
+  if (value == null) return value;
+  if (['captured', 'not_captured_at_execution', 'not_available', 'redacted'].includes(value)) {
+    return value;
+  }
+  return 'captured';
 }
 
 export function asRecord(value: unknown): Record<string, unknown> {
@@ -277,8 +308,13 @@ export function mapAgentRows(data: DashboardApiData) {
     supportedClaimRatio: row.supported_claim_ratio,
     tokens: row.total_tokens,
     legacy: row.legacy ?? null,
+    atomicCompleteness: row.v9?.atomic_completeness ?? null,
+    atomicCompletenessReason: row.v9?.atomic_completeness_reason ?? null,
     v9: row.v9 ? {
       route: row.v9.route,
+      contractVersion: row.v9.contract_version ?? null,
+      slotPlanStatus: row.v9.slot_plan_status ?? null,
+      slotSemantics: row.v9.slot_semantics ?? null,
       graphExecution: row.v9.graph_execution,
       visualExecution: row.v9.visual_execution,
       evidencePacketCount: row.v9.evidence_packet_count,

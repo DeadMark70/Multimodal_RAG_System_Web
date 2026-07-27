@@ -94,4 +94,23 @@ describe('AgentBehaviorTab', () => {
     expect(screen.getByText('13')).toBeInTheDocument();
     expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
   });
+
+  it('renders v9 slot-plan metadata without inferring atomic completeness for legacy rows', () => {
+    renderWithTheme(<AgentBehaviorTab rows={[{
+      runId: 'run-v2', campaignId: 'cmp-1', questionId: 'Q16', mode: 'agentic', repeat: 1,
+      traceStatus: 'completed', behaviorSchema: 'v9', accountingStatus: 'complete',
+      subtasks: null, toolCalls: null, visualCalls: null, graphCalls: null, drilldownDepth: null,
+      unsupportedClaimRatio: null, supportedClaimRatio: null, tokens: 42,
+      atomicCompleteness: null, atomicCompletenessReason: 'experimental_not_scored',
+      v9: {
+        route: 'multi_document_exact', contractVersion: '2', slotPlanStatus: 'complete',
+        slotSemantics: 'atomic', graphExecution: 'not_triggered', visualExecution: 'not_requested',
+        evidencePacketCount: 6, supportedSlotCount: 4, requiredSlotCount: 6,
+      },
+    }]} />);
+
+    expect(screen.getByText('Slot Plan')).toBeInTheDocument();
+    expect(screen.getByText(/atomic/)).toBeInTheDocument();
+    expect(screen.getByText('experimental_not_scored')).toBeInTheDocument();
+  });
 });

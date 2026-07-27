@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { RunDetailResponse } from '../types/evaluation';
 import {
   mapAgentRows,
   mapAgenticV9RunEvidence,
@@ -285,5 +286,61 @@ describe('Evaluation Center data mappers', () => {
     });
 
     expect(mapped).toBeUndefined();
+  });
+
+  it('projects v2 contract and capture metadata without inventing atomic completion for legacy runs', () => {
+    const v2 = mapAgenticV9RunEvidence({
+      run_id: 'run-v2',
+      campaign_id: 'cmp-1',
+      trace_events: [], llm_calls: [], retrieval_events: [], retrieval_chunks: [],
+      context_packs: [], tool_calls: [], routing_decisions: [], claims: [], human_ratings: [],
+      agentic_v9: {
+        schema_version: '2',
+        contract: {
+          route: 'multi_document_exact', intent: 'resolve independent facts',
+          required_slots: [{ slot_id: 'S1', description: 'first fact' }],
+          slot_plan_status: 'complete', slot_semantics: 'atomic',
+          atomic_completeness: true,
+          route_decision: {
+            selected_route: 'multi_document_exact', decision_source: 'deterministic',
+            matched_rules: ['multi_document'], candidate_routes: ['multi_document_exact'],
+            route_reason: 'Two source scopes are required.', planner_call_used: false,
+            fallback_reason: null, confidence: 1,
+          },
+        },
+        final_claims: [{
+          claim_id: 'claim-v2', slot_id: 'S1', statement: 'first fact', support_type: 'direct', evidence_ids: [],
+        }],
+        prompt_capture: {
+          hash: 'captured',
+          preview: 'captured',
+          full_prompt: 'FULL_PROMPT_SECRET_SENTINEL',
+        },
+      },
+    } as unknown as RunDetailResponse);
+
+    expect(v2).toMatchObject({
+      schemaVersion: '2',
+      queryContract: { slot_plan_status: 'complete', slot_semantics: 'atomic', atomic_completeness: true },
+      promptCapture: { fullPromptAvailability: 'captured' },
+      finalClaims: [{ claimId: 'claim-v2', slotId: 'S1' }],
+    });
+    expect(JSON.stringify(v2)).not.toContain('FULL_PROMPT_SECRET_SENTINEL');
+
+    const legacy = mapAgentRows({
+      campaigns: [],
+      agentBehavior: {
+        campaign_id: 'cmp-1', analysis_unit: 'execution', sample_count: 1,
+        independent_question_count: 1, repeat_count: 1, sample_note: 'legacy', warnings: [], summaries: {},
+        rows: [{
+          run_id: 'run-v1', campaign_id: 'cmp-1', question_id: 'Q1', mode: 'agentic', repeat_number: 1,
+          behavior_schema: 'v8', trace_status: 'completed', accounting_status: 'complete',
+          subtasks: 1, tool_calls: 1, visual_calls: 0, graph_calls: 0, drilldown_depth: 1,
+          correctness: null, faithfulness: null, unsupported_claim_ratio: null, supported_claim_ratio: null,
+          total_tokens: 5,
+        }],
+      },
+    } as DashboardApiData);
+    expect(legacy[0]).toMatchObject({ atomicCompleteness: null, atomicCompletenessReason: null });
   });
 });
