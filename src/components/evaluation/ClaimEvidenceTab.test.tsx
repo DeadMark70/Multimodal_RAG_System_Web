@@ -137,6 +137,7 @@ describe('ClaimEvidenceTab', () => {
     expect(screen.getByText('Expected answer type')).toBeInTheDocument();
     expect(screen.getByTestId('slot-source-S1')).toHaveTextContent('Paper A · doc-a');
     expect(screen.getByTestId('slot-locator-S1')).toHaveTextContent('Table 3');
+    expect(screen.getByTestId('slot-dependencies-S1')).toHaveTextContent('S0');
     expect(screen.getByTestId('slot-visual-S1')).toHaveTextContent('asset-1');
     expect(screen.getByText('Repair round 1')).toBeInTheDocument();
     expect(screen.getByText('Repair round 2')).toBeInTheDocument();
@@ -155,6 +156,7 @@ describe('ClaimEvidenceTab', () => {
 
     expect(screen.getByTestId('slot-source-legacy')).toHaveTextContent('N/A');
     expect(screen.getByTestId('slot-locator-legacy')).toHaveTextContent('N/A');
+    expect(screen.getByTestId('slot-dependencies-legacy')).toHaveTextContent('N/A');
     expect(screen.getByTestId('slot-visual-legacy')).toHaveTextContent('N/A');
     expect(screen.getByText('Repair rounds: N/A')).toBeInTheDocument();
   });

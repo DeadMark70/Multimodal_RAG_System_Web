@@ -69,7 +69,7 @@ function V9ClaimSlotAlignment({ data }: { data: AgenticV9RunEvidence }) {
       <Heading size="sm" mb={3}>Atomic Slot Alignment</Heading>
       {slots === undefined ? <Text color="text.secondary">N/A — atomic slot plan was not instrumented.</Text> : !slots.length ? <Text color="text.secondary">No atomic slots recorded.</Text> : (
         <Box overflowX="auto"><Table size="sm">
-          <Thead><Tr><Th>Slot</Th><Th>Requirement</Th><Th>Expected answer type</Th><Th>Source / authorized docs</Th><Th>Locator</Th><Th>Visual policy</Th><Th>Status / reason</Th><Th>Linked evidence source / locator</Th><Th>Graph</Th><Th>Visual</Th><Th>Claims</Th></Tr></Thead>
+          <Thead><Tr><Th>Slot</Th><Th>Requirement</Th><Th>Expected answer type</Th><Th>Source / authorized docs</Th><Th>Locator</Th><Th>Dependencies</Th><Th>Visual policy</Th><Th>Status / reason</Th><Th>Linked evidence source / locator</Th><Th>Graph</Th><Th>Visual</Th><Th>Claims</Th></Tr></Thead>
           <Tbody>{slots.map((slot) => {
             const resolution = resolutionBySlot.get(slot.slot_id);
             const claimIds = (data.finalClaims ?? [])
@@ -93,6 +93,7 @@ function V9ClaimSlotAlignment({ data }: { data: AgenticV9RunEvidence }) {
               <Td>{slot.slot_id}</Td><Td>{slot.description}</Td><Td>{slot.expected_answer_type ?? 'N/A'}</Td>
               <Td data-testid={`slot-source-${slot.slot_id}`}>{source.join(' · ') || 'N/A'}</Td>
               <Td data-testid={`slot-locator-${slot.slot_id}`}>{locators.join(' · ') || 'N/A'}</Td>
+              <Td data-testid={`slot-dependencies-${slot.slot_id}`}>{slot.depends_on_slot_ids?.join(', ') || 'N/A'}</Td>
               <Td>{slot.visual_policy ?? 'N/A'}</Td>
               <Td>{resolution ? `${resolution.status}${resolution.reason ? ` · ${resolution.reason}` : ''}` : 'N/A'}</Td>
               <Td>{linkedEvidence.join(' · ') || 'N/A'}</Td><Td>N/A — not instrumented per slot</Td>
