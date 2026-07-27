@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { RunDetailResponse } from '../types/evaluation';
 import {
   mapAgentRows,
   mapAgenticV9RunEvidence,
@@ -309,7 +310,7 @@ describe('Evaluation Center data mappers', () => {
         },
         prompt_capture: { hash: 'captured', preview: 'captured', full_prompt: 'not_captured_at_execution' },
       },
-    } as unknown as import('../types/evaluation').RunDetailResponse);
+    } as unknown as RunDetailResponse);
 
     expect(v2).toMatchObject({
       schemaVersion: '2',
