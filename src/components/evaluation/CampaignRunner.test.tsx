@@ -247,6 +247,43 @@ describe('CampaignRunner', () => {
     expect(screen.getByText('agentic_eval_v1')).toBeInTheDocument();
   }, 15000);
 
+  it('creates a labelled Naive k=4 ablation without changing the selected modes', async () => {
+    mockListTestCases.mockResolvedValue(baseTestCases);
+    mockListModelConfigs.mockResolvedValue([baseConfig]);
+    mockListCampaigns.mockResolvedValue([]);
+    mockCreateCampaign.mockResolvedValue({ campaign_id: 'cmp-naive-k4', status: 'pending' });
+    mockStreamCampaign.mockResolvedValue(undefined);
+
+    renderRunner();
+
+    await waitFor(() => expect(screen.getByText('已選擇 1 題')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Naive RAG k=4 experiment' }));
+    fireEvent.click(screen.getByRole('button', { name: '開始評估' }));
+
+    await waitFor(() => expect(mockCreateCampaign).toHaveBeenCalledTimes(1));
+    const submittedRequest = mockCreateCampaign.mock.calls[0]?.[0];
+    expect(submittedRequest?.name).toContain('Naive k=4 ablation');
+    expect(mockCreateCampaign).toHaveBeenCalledWith(expect.objectContaining({
+      modes: ['naive', 'advanced'],
+      ablation_conditions: [
+        {
+          condition_id: 'naive-k4',
+          label: 'Naive RAG · k=4',
+          mode: 'naive',
+          ablation_flags: {
+            retrieval_policy: { retrieval_k: 4, target_k: 4 },
+          },
+        },
+        {
+          condition_id: 'advanced-default',
+          label: 'Advanced RAG · default',
+          mode: 'advanced',
+          ablation_flags: {},
+        },
+      ],
+    }));
+  });
+
   it('falls back to polling when SSE reconnects are exhausted and stops after terminal status', async () => {
     mockListTestCases.mockResolvedValue(baseTestCases);
     mockListModelConfigs.mockResolvedValue([baseConfig]);

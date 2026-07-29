@@ -36,6 +36,7 @@ import {
   streamCampaign,
 } from '../../services/evaluationApi';
 import type {
+  AblationCondition,
   AgenticExecutionVersion,
   CampaignMode,
   CampaignPreflightQuestion,
@@ -178,6 +179,13 @@ function hasAgenticMode(modes: CampaignMode[]): boolean {
   return modes.includes('agentic');
 }
 
+function modeLabel(mode: CampaignMode): string {
+  if (mode === 'agentic-v9') {
+    return 'Agentic v9';
+  }
+  return MODE_OPTIONS.find((option) => option.value === mode)?.label ?? mode;
+}
+
 function usesAgenticIdentity(modes: CampaignMode[]): boolean {
   return modes.some((mode) => mode === 'agentic' || mode === 'agentic-v8' || mode === 'agentic-v9' || mode === 'agentic-v9-shadow');
 }
@@ -213,6 +221,7 @@ export default function CampaignRunner() {
   const [selectedCaseIds, setSelectedCaseIds] = useState<string[]>([]);
   const [selectedConfigId, setSelectedConfigId] = useState('');
   const [selectedModes, setSelectedModes] = useState<CampaignMode[]>(['naive', 'advanced']);
+  const [naiveK4Ablation, setNaiveK4Ablation] = useState(false);
   const [agenticExecutionVersion, setAgenticExecutionVersion] = useState<AgenticExecutionVersion>('v8');
   const [agenticV9Shadow, setAgenticV9Shadow] = useState(false);
   const [shadowEvaluationPolicy, setShadowEvaluationPolicy] = useState<ShadowEvaluationPolicy | ''>('');
@@ -257,6 +266,7 @@ export default function CampaignRunner() {
   );
   const activeProgress = activeCampaign.progress ?? (activeCampaign.snapshot ? progressFromCampaign(activeCampaign.snapshot) : null);
   const agenticSelected = hasAgenticMode(selectedModes);
+  const naiveSelected = selectedModes.includes('naive');
   const progressPercent = activeProgress
     ? activeProgress.phase === 'evaluation'
       ? activeProgress.evaluation_total_units > 0
@@ -433,6 +443,9 @@ export default function CampaignRunner() {
   };
 
   const toggleModeSelection = (mode: CampaignMode) => {
+    if (mode === 'naive' && selectedModes.includes(mode)) {
+      setNaiveK4Ablation(false);
+    }
     const deselectingAgentic = mode === 'agentic' && selectedModes.includes(mode);
     if (deselectingAgentic) {
       setAgenticV9Shadow(false);
@@ -517,10 +530,30 @@ export default function CampaignRunner() {
       const authoritativeModes = selectedModes.map((mode) => (
         mode === 'agentic' && agenticExecutionVersion === 'v9' ? 'agentic-v9' : mode
       ));
+      const ablationConditions: AblationCondition[] | undefined = naiveK4Ablation
+        ? authoritativeModes.map((mode) => (
+          mode === 'naive'
+            ? {
+                condition_id: 'naive-k4',
+                label: 'Naive RAG · k=4',
+                mode,
+                ablation_flags: {
+                  retrieval_policy: { retrieval_k: 4, target_k: 4 },
+                },
+              }
+            : {
+                condition_id: `${mode}-default`,
+                label: `${modeLabel(mode)} · default`,
+                mode,
+                ablation_flags: {},
+              }
+        ))
+        : undefined;
       const authoritativeRequest = {
-        name: `Campaign ${new Date().toLocaleString()}`,
+        name: `Campaign ${new Date().toLocaleString()}${naiveK4Ablation ? ' · Naive k=4 ablation' : ''}`,
         test_case_ids: selectedCaseIds,
         modes: authoritativeModes,
+        ...(ablationConditions ? { ablation_conditions: ablationConditions } : {}),
         model_config: selectedConfig,
         model_config_id: selectedConfig.id,
         repeat_count: repeatCount,
@@ -543,8 +576,10 @@ export default function CampaignRunner() {
 
       if (agenticSelected && agenticV9Shadow && shadowEvaluationPolicy) {
         try {
+          const { ablation_conditions: _ablationConditions, ...shadowRequest } = authoritativeRequest;
+          void _ablationConditions;
           await createCampaign({
-            ...authoritativeRequest,
+            ...shadowRequest,
             name: `${authoritativeRequest.name} · v9 shadow`,
             modes: ['agentic-v9-shadow'],
             agentic_execution_version: 'v9',
@@ -664,6 +699,21 @@ export default function CampaignRunner() {
                   ))}
                 </Stack>
               </FormControl>
+
+              {naiveSelected && (
+                <FormControl>
+                  <Checkbox
+                    aria-label="Naive RAG k=4 experiment"
+                    isChecked={naiveK4Ablation}
+                    onChange={(event) => setNaiveK4Ablation(event.target.checked)}
+                  >
+                    Naive RAG k=4 experiment
+                  </Checkbox>
+                  <Text color="gray.600" fontSize="sm" mt={1}>
+                    實驗條件：僅將 Naive 的 retrieval 與 generation context 上限由 6 改為 4；不啟用 reranker 或 query expansion，既有 Naive 預設不會被修改。
+                  </Text>
+                </FormControl>
+              )}
 
               <FormControl>
                 <FormLabel>Prompt capture at execution</FormLabel>
