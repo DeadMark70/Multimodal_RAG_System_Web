@@ -222,7 +222,7 @@ export default function CampaignRunner() {
   const [selectedConfigId, setSelectedConfigId] = useState('');
   const [selectedModes, setSelectedModes] = useState<CampaignMode[]>(['naive', 'advanced']);
   const [naiveK4Ablation, setNaiveK4Ablation] = useState(false);
-  const [agenticExecutionVersion, setAgenticExecutionVersion] = useState<AgenticExecutionVersion>('v8');
+  const [agenticExecutionVersion, setAgenticExecutionVersion] = useState<AgenticExecutionVersion>('v9');
   const [agenticV9Shadow, setAgenticV9Shadow] = useState(false);
   const [shadowEvaluationPolicy, setShadowEvaluationPolicy] = useState<ShadowEvaluationPolicy | ''>('');
   const [promptCapturePolicy, setPromptCapturePolicy] = useState<Required<PromptCapturePolicy>>(
