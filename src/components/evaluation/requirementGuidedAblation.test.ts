@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import * as requirementGuidedAblation from './requirementGuidedAblation';
 import {
   buildRequirementGuidedConditions,
   getExpectedExecutionUnits,
@@ -25,6 +26,10 @@ describe('requirement-guided ablation helpers', () => {
     first[0].ablation_flags!.requirement_guided_runtime = true;
 
     expect(buildRequirementGuidedConditions()[0].ablation_flags!.requirement_guided_runtime).toBe(false);
+  });
+
+  it('keeps the preset definitions private to the helper module', () => {
+    expect(requirementGuidedAblation).not.toHaveProperty('REQUIREMENT_GUIDED_CONDITIONS');
   });
 
   it('counts two condition arms instead of selected modes', () => {

@@ -662,7 +662,7 @@ describe('CampaignRunner', () => {
 
     expect(screen.getByText('Requirement guidance off')).toBeInTheDocument();
     expect(screen.getByText('Requirement guidance on')).toBeInTheDocument();
-    expect(screen.getByTestId('campaign-execution-estimate')).toHaveTextContent('2 個條件');
+    expect(screen.getByTestId('campaign-execution-estimate')).toHaveTextContent('預估執行數：2（2 個條件）');
 
     fireEvent.click(screen.getByRole('button', { name: '開始評估' }));
 
@@ -682,6 +682,24 @@ describe('CampaignRunner', () => {
         }),
       ],
     }));
+  });
+
+  it('clears the Naive k=4 ablation when requirement-guided A/B is enabled', async () => {
+    mockListTestCases.mockResolvedValue(baseTestCases);
+    mockListModelConfigs.mockResolvedValue([baseConfig]);
+    mockListCampaigns.mockResolvedValue([]);
+
+    renderRunner();
+
+    await waitFor(() => expect(screen.getByText('已選擇 1 題')).toBeInTheDocument());
+    const naiveK4 = screen.getByRole('checkbox', { name: 'Naive RAG k=4 experiment' });
+    fireEvent.click(naiveK4);
+    expect(naiveK4).toBeChecked();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Requirement-guided v9 A/B' }));
+
+    expect(screen.queryByRole('checkbox', { name: 'Naive RAG k=4 experiment' })).not.toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Requirement-guided v9 A/B' })).toBeChecked();
   });
 
   it('persists the execution-time prompt capture policy with the campaign snapshot', async () => {

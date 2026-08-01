@@ -1,6 +1,6 @@
 import type { AblationCondition } from '../../types/evaluation';
 
-export const REQUIREMENT_GUIDED_CONDITIONS: readonly AblationCondition[] = [
+const REQUIREMENT_GUIDED_CONDITIONS: readonly AblationCondition[] = [
   {
     condition_id: 'v9-baseline',
     label: 'Requirement guidance off',
