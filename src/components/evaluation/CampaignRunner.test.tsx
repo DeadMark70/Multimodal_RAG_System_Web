@@ -642,6 +642,46 @@ describe('CampaignRunner', () => {
     expect(request?.modes).toContain('agentic-v9');
     expect(request?.agentic_execution_version).toBe('v9');
     expect(request?.shadow_evaluation_policy).toBeNull();
+    expect(request?.ablation_conditions).toBeUndefined();
+  });
+
+  it('creates a fixed requirement-guided v9 off/on ablation campaign', async () => {
+    mockListTestCases.mockResolvedValue(baseTestCases);
+    mockListModelConfigs.mockResolvedValue([baseConfig]);
+    mockListCampaigns.mockResolvedValue([]);
+    mockPreflightCampaign.mockResolvedValue({
+      questions: [{ question_id: 'Q1', status: 'feasible', issues: [] }],
+    });
+    mockCreateCampaign.mockResolvedValue({ campaign_id: 'cmp-requirement-ablation', status: 'pending' });
+    mockStreamCampaign.mockResolvedValue(undefined);
+
+    renderRunner();
+
+    await waitFor(() => expect(screen.getByText('已選擇 1 題')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Requirement-guided v9 A/B' }));
+
+    expect(screen.getByText('Requirement guidance off')).toBeInTheDocument();
+    expect(screen.getByText('Requirement guidance on')).toBeInTheDocument();
+    expect(screen.getByTestId('campaign-execution-estimate')).toHaveTextContent('2 個條件');
+
+    fireEvent.click(screen.getByRole('button', { name: '開始評估' }));
+
+    await waitFor(() => expect(mockCreateCampaign).toHaveBeenCalledTimes(1));
+    expect(mockCreateCampaign).toHaveBeenCalledWith(expect.objectContaining({
+      modes: ['agentic-v9'],
+      ablation_conditions: [
+        expect.objectContaining({
+          condition_id: 'v9-baseline',
+          mode: 'agentic-v9',
+          ablation_flags: { requirement_guided_runtime: false },
+        }),
+        expect.objectContaining({
+          condition_id: 'v9-guided',
+          mode: 'agentic-v9',
+          ablation_flags: { requirement_guided_runtime: true },
+        }),
+      ],
+    }));
   });
 
   it('persists the execution-time prompt capture policy with the campaign snapshot', async () => {

@@ -49,6 +49,10 @@ import type {
   ShadowEvaluationPolicy,
   TestCase,
 } from '../../types/evaluation';
+import {
+  buildRequirementGuidedConditions,
+  getExpectedExecutionUnits,
+} from './requirementGuidedAblation';
 
 const MODE_OPTIONS: Array<{ value: CampaignMode; label: string }> = [
   { value: 'naive', label: 'Naive RAG' },
@@ -222,6 +226,7 @@ export default function CampaignRunner() {
   const [selectedConfigId, setSelectedConfigId] = useState('');
   const [selectedModes, setSelectedModes] = useState<CampaignMode[]>(['naive', 'advanced']);
   const [naiveK4Ablation, setNaiveK4Ablation] = useState(false);
+  const [requirementGuidedAblation, setRequirementGuidedAblation] = useState(false);
   const [agenticExecutionVersion, setAgenticExecutionVersion] = useState<AgenticExecutionVersion>('v9');
   const [agenticV9Shadow, setAgenticV9Shadow] = useState(false);
   const [shadowEvaluationPolicy, setShadowEvaluationPolicy] = useState<ShadowEvaluationPolicy | ''>('');
@@ -267,6 +272,12 @@ export default function CampaignRunner() {
   const activeProgress = activeCampaign.progress ?? (activeCampaign.snapshot ? progressFromCampaign(activeCampaign.snapshot) : null);
   const agenticSelected = hasAgenticMode(selectedModes);
   const naiveSelected = selectedModes.includes('naive');
+  const expectedExecutionUnits = getExpectedExecutionUnits(
+    selectedCaseIds.length,
+    repeatCount,
+    selectedModes.length,
+    requirementGuidedAblation,
+  );
   const progressPercent = activeProgress
     ? activeProgress.phase === 'evaluation'
       ? activeProgress.evaluation_total_units > 0
@@ -443,6 +454,9 @@ export default function CampaignRunner() {
   };
 
   const toggleModeSelection = (mode: CampaignMode) => {
+    if (requirementGuidedAblation && mode !== 'agentic') {
+      return;
+    }
     if (mode === 'naive' && selectedModes.includes(mode)) {
       setNaiveK4Ablation(false);
     }
@@ -457,6 +471,18 @@ export default function CampaignRunner() {
         ? prev.filter((item) => item !== mode)
         : [...prev, mode]
     );
+  };
+
+  const toggleRequirementGuidedAblation = (enabled: boolean) => {
+    setRequirementGuidedAblation(enabled);
+    if (enabled) {
+      setSelectedModes(['agentic']);
+      setAgenticExecutionVersion('v9');
+      setNaiveK4Ablation(false);
+      setAgenticV9Shadow(false);
+      setShadowEvaluationPolicy('');
+      setPreflightQuestions(null);
+    }
   };
 
   const selectVisibleCases = () => {
@@ -483,6 +509,22 @@ export default function CampaignRunner() {
     }
     if (selectedModes.length === 0) {
       toast({ title: '請至少選擇一種 RAG 模式', status: 'warning' });
+      return;
+    }
+    if (requirementGuidedAblation && (!agenticSelected || agenticExecutionVersion !== 'v9')) {
+      toast({
+        title: '設定不相容',
+        description: 'Requirement-guided A/B 只支援 Agentic v9。',
+        status: 'warning',
+      });
+      return;
+    }
+    if (requirementGuidedAblation && naiveK4Ablation) {
+      toast({
+        title: '設定不相容',
+        description: 'Requirement-guided A/B 不能同時設定 Naive RAG k=4。',
+        status: 'warning',
+      });
       return;
     }
     if (agenticSelected && agenticV9Shadow && agenticExecutionVersion === 'v9') {
@@ -527,30 +569,34 @@ export default function CampaignRunner() {
         }
       }
 
-      const authoritativeModes = selectedModes.map((mode) => (
-        mode === 'agentic' && agenticExecutionVersion === 'v9' ? 'agentic-v9' : mode
-      ));
-      const ablationConditions: AblationCondition[] | undefined = naiveK4Ablation
-        ? authoritativeModes.map((mode) => (
-          mode === 'naive'
-            ? {
-                condition_id: 'naive-k4',
-                label: 'Naive RAG · k=4',
-                mode,
-                ablation_flags: {
-                  retrieval_policy: { retrieval_k: 4, target_k: 4 },
-                },
-              }
-            : {
-                condition_id: `${mode}-default`,
-                label: `${modeLabel(mode)} · default`,
-                mode,
-                ablation_flags: {},
-              }
-        ))
-        : undefined;
+      const authoritativeModes: CampaignMode[] = requirementGuidedAblation
+        ? ['agentic-v9']
+        : selectedModes.map((mode) => (
+          mode === 'agentic' && agenticExecutionVersion === 'v9' ? 'agentic-v9' : mode
+        ));
+      const ablationConditions: AblationCondition[] | undefined = requirementGuidedAblation
+        ? buildRequirementGuidedConditions()
+        : naiveK4Ablation
+          ? authoritativeModes.map((mode) => (
+            mode === 'naive'
+              ? {
+                  condition_id: 'naive-k4',
+                  label: 'Naive RAG · k=4',
+                  mode,
+                  ablation_flags: {
+                    retrieval_policy: { retrieval_k: 4, target_k: 4 },
+                  },
+                }
+              : {
+                  condition_id: `${mode}-default`,
+                  label: `${modeLabel(mode)} · default`,
+                  mode,
+                  ablation_flags: {},
+                }
+          ))
+          : undefined;
       const authoritativeRequest = {
-        name: `Campaign ${new Date().toLocaleString()}${naiveK4Ablation ? ' · Naive k=4 ablation' : ''}`,
+        name: `Campaign ${new Date().toLocaleString()}${requirementGuidedAblation ? ' · Requirement-guided A/B' : naiveK4Ablation ? ' · Naive k=4 ablation' : ''}`,
         test_case_ids: selectedCaseIds,
         modes: authoritativeModes,
         ...(ablationConditions ? { ablation_conditions: ablationConditions } : {}),
@@ -692,12 +738,41 @@ export default function CampaignRunner() {
                     <Checkbox
                       key={option.value}
                       isChecked={selectedModes.includes(option.value)}
+                      isDisabled={requirementGuidedAblation && option.value !== 'agentic'}
                       onChange={() => toggleModeSelection(option.value)}
                     >
                       {option.label}
                     </Checkbox>
                   ))}
                 </Stack>
+              </FormControl>
+
+              <FormControl>
+                <Checkbox
+                  aria-label="Requirement-guided v9 A/B"
+                  isChecked={requirementGuidedAblation}
+                  onChange={(event) => toggleRequirementGuidedAblation(event.target.checked)}
+                >
+                  Requirement-guided v9 A/B
+                </Checkbox>
+                <Text color="gray.600" fontSize="sm" mt={1}>
+                  固定比較 Agentic v9 的 requirement guidance off/on；不開放任意 ablation JSON。
+                </Text>
+                {requirementGuidedAblation && (
+                  <Box borderWidth="1px" borderRadius="md" p={3} mt={2} bg="purple.50">
+                    <Text fontWeight="medium" fontSize="sm">A/B 條件</Text>
+                    <Stack spacing={1} mt={2}>
+                      {buildRequirementGuidedConditions().map((condition) => (
+                        <HStack key={condition.condition_id} justify="space-between" fontSize="sm">
+                          <Text>{condition.label}</Text>
+                          <Text color="gray.600">
+                            {condition.mode} · requirement_guided_runtime={String(condition.ablation_flags?.requirement_guided_runtime)}
+                          </Text>
+                        </HStack>
+                      ))}
+                    </Stack>
+                  </Box>
+                )}
               </FormControl>
 
               {naiveSelected && (
@@ -862,6 +937,9 @@ export default function CampaignRunner() {
                   </FormControl>
                 </GridItem>
               </Grid>
+              <Text data-testid="campaign-execution-estimate" color="gray.600" fontSize="sm">
+                預估執行數：{expectedExecutionUnits}（{requirementGuidedAblation ? 2 : selectedModes.length} 個條件）
+              </Text>
               <Grid templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={4}>
                 <GridItem>
                   <FormControl>
