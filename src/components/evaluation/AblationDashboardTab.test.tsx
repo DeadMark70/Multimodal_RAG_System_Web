@@ -92,6 +92,71 @@ const dashboardData: NonNullable<Parameters<typeof AblationDashboardTab>[0]['dat
   },
 };
 
+const conditionDashboardData: NonNullable<Parameters<typeof AblationDashboardTab>[0]['data']> = {
+  ...dashboardData,
+  ablation: {
+    ...dashboardData.ablation!,
+    summaries: {
+      ...dashboardData.ablation?.summaries,
+      condition_comparison: {
+        conditions: {
+          'v9-baseline': {
+            condition_id: 'v9-baseline',
+            label: 'Requirement guidance off',
+            ablation_flags: { requirement_guidance: false },
+            execution_count: 2,
+            completed_count: 1,
+            failed_count: 1,
+            quality: {
+              answer_correctness: { mean: 0.6, valid_count: 1, missing_count: 1 },
+              faithfulness: { mean: null, valid_count: 0, missing_count: 2 },
+              answer_relevancy: { mean: 0.7, valid_count: 1, missing_count: 1 },
+            },
+            mean_tokens: 100,
+            mean_latency_ms: 10,
+          },
+          'v9-guided': {
+            condition_id: 'v9-guided',
+            label: 'Requirement guidance on',
+            ablation_flags: { requirement_guidance: true },
+            execution_count: 2,
+            completed_count: 2,
+            failed_count: 0,
+            quality: {
+              answer_correctness: { mean: 0.8, valid_count: 2, missing_count: 0 },
+              faithfulness: { mean: null, valid_count: 0, missing_count: 2 },
+              answer_relevancy: { mean: 0.9, valid_count: 2, missing_count: 0 },
+            },
+            mean_tokens: 120,
+            mean_latency_ms: 20,
+          },
+        },
+        paired: {
+          baseline_condition_id: 'v9-baseline',
+          guided_condition_id: 'v9-guided',
+          completed_pair_count: 1,
+          metric_pair_counts: {
+            answer_correctness: 1,
+            faithfulness: 0,
+            answer_relevancy: 1,
+          },
+          delta: {
+            answer_correctness: { mean: 0.2, valid_count: 1, missing_count: 0 },
+            faithfulness: { mean: null, valid_count: 0, missing_count: 1 },
+            answer_relevancy: { mean: 0.2, valid_count: 1, missing_count: 0 },
+          },
+          excluded_pairs: { run_not_completed: 1 },
+        },
+        availability: {
+          ragas_rows_found: true,
+          valid_metric_row_count: 6,
+          warning: null,
+        },
+      },
+    },
+  },
+};
+
 function renderWithTheme(node: React.ReactNode) {
   return render(<ChakraProvider theme={theme}>{node}</ChakraProvider>);
 }
@@ -122,6 +187,17 @@ describe('AblationDashboardTab', () => {
     expect(screen.getByText('graph_capability_not_available')).toBeInTheDocument();
     expect(screen.getByText('Sanitized Errors')).toBeInTheDocument();
     expect(screen.getByText('Provider error details were redacted.')).toBeInTheDocument();
+  });
+
+  it('renders condition quality metrics, paired deltas, and N/A for missing scores', () => {
+    renderWithTheme(<AblationDashboardTab campaignId="cmp-1" data={conditionDashboardData} />);
+
+    expect(screen.getByText('Condition Metrics')).toBeInTheDocument();
+    expect(screen.getByText('Requirement guidance on')).toBeInTheDocument();
+    expect(screen.getByText('Paired Delta (guided - baseline)')).toBeInTheDocument();
+    expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
+    expect(screen.getByText('0.80')).toBeInTheDocument();
+    expect(screen.getByText('run_not_completed: 1')).toBeInTheDocument();
   });
 
   it('allows export redaction options to be toggled locally', () => {

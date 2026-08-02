@@ -20,6 +20,9 @@ import type {
   AblationResponse,
   CampaignErrorsResponse,
   CampaignStageWarningsResponse,
+  ConditionAggregate,
+  ConditionComparisonSummary,
+  ConditionMetricName,
   ExportCampaignRequest,
   ExportCampaignResponse,
   HumanEvalQueueResponse,
@@ -94,6 +97,126 @@ function conditionRows(data?: AblationResponse) {
   }));
 }
 
+const conditionMetricColumns: Array<{ key: ConditionMetricName; label: string }> = [
+  { key: 'answer_correctness', label: 'Correctness' },
+  { key: 'faithfulness', label: 'Faithfulness' },
+  { key: 'answer_relevancy', label: 'Relevancy' },
+];
+
+function conditionComparison(data?: AblationResponse): ConditionComparisonSummary | undefined {
+  const comparison = asRecord(data?.summaries?.condition_comparison);
+  return Object.keys(comparison).length ? (comparison as unknown as ConditionComparisonSummary) : undefined;
+}
+
+function formatConditionMetric(value: number | null | undefined): string {
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : 'N/A';
+}
+
+function formatConditionFlags(flags: Record<string, unknown>): string {
+  const entries = Object.entries(flags);
+  return entries.length ? entries.map(([key, value]) => `${key}=${String(value)}`).join(', ') : 'none';
+}
+
+function conditionMetricValue(condition: ConditionAggregate, metric: ConditionMetricName): number | null {
+  return condition.quality?.[metric]?.mean ?? null;
+}
+
+function ConditionMetricsSection({ comparison }: { comparison: ConditionComparisonSummary }) {
+  const conditions = Object.values(comparison.conditions);
+  const paired = comparison.paired;
+  return (
+    <Box mb={5}>
+      <Heading size="sm" mb={3}>
+        Condition Metrics
+      </Heading>
+      {comparison.availability.warning ? (
+        <Text color="orange.600" fontSize="sm" mb={3}>
+          {comparison.availability.warning}
+        </Text>
+      ) : null}
+      <Box overflowX="auto">
+        <Table size="sm">
+          <Thead>
+            <Tr>
+              <Th>Condition</Th>
+              <Th>Label</Th>
+              <Th>Flags</Th>
+              <Th isNumeric>Completed</Th>
+              <Th isNumeric>Failed</Th>
+              {conditionMetricColumns.map((column) => <Th key={column.key} isNumeric>{column.label}</Th>)}
+              <Th isNumeric>Tokens</Th>
+              <Th isNumeric>Latency ms</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {conditions.length ? conditions.map((condition) => (
+              <Tr key={condition.condition_id}>
+                <Td fontWeight="medium">{condition.condition_id}</Td>
+                <Td>{condition.label}</Td>
+                <Td>{formatConditionFlags(condition.ablation_flags ?? {})}</Td>
+                <Td isNumeric>{formatCount(condition.completed_count)}</Td>
+                <Td isNumeric>{formatCount(condition.failed_count)}</Td>
+                {conditionMetricColumns.map((column) => (
+                  <Td key={column.key} isNumeric>
+                    {formatConditionMetric(conditionMetricValue(condition, column.key))}
+                  </Td>
+                ))}
+                <Td isNumeric>{formatConditionMetric(condition.mean_tokens)}</Td>
+                <Td isNumeric>{formatConditionMetric(condition.mean_latency_ms)}</Td>
+              </Tr>
+            )) : (
+              <Tr>
+                <Td colSpan={9}>No condition metrics recorded.</Td>
+              </Tr>
+            )}
+          </Tbody>
+        </Table>
+      </Box>
+
+      {paired ? (
+        <Box mt={5}>
+          <Heading size="sm" mb={3}>
+            Paired Delta (guided - baseline)
+          </Heading>
+          <Text color="text.secondary" fontSize="sm" mb={3}>
+            {paired.guided_condition_id} − {paired.baseline_condition_id}; completed pairs: {formatCount(paired.completed_pair_count)}
+          </Text>
+          <Box overflowX="auto">
+            <Table size="sm">
+              <Thead>
+                <Tr>
+                  <Th>Metric</Th>
+                  <Th isNumeric>Delta</Th>
+                  <Th isNumeric>Valid pairs</Th>
+                  <Th isNumeric>Missing pairs</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {conditionMetricColumns.map((column) => {
+                  const delta = paired.delta?.[column.key];
+                  return (
+                    <Tr key={column.key}>
+                      <Td>{column.label}</Td>
+                      <Td isNumeric>{formatConditionMetric(delta?.mean)}</Td>
+                      <Td isNumeric>{formatCount(paired.metric_pair_counts?.[column.key])}</Td>
+                      <Td isNumeric>{formatCount(delta?.missing_count)}</Td>
+                    </Tr>
+                  );
+                })}
+              </Tbody>
+            </Table>
+          </Box>
+          {Object.entries(paired.excluded_pairs ?? {}).map(([reason, count]) => (
+            <Text key={reason} color="text.secondary" fontSize="sm" mt={1}>
+              {reason}: {formatCount(count)}
+            </Text>
+          ))}
+        </Box>
+      ) : null}
+    </Box>
+  );
+}
+
 function graphFamilyRows(data?: AblationResponse) {
   const summaries = asRecord(data?.summaries);
   const conditions = asRecord(summaries.conditions_by_ablation_family);
@@ -145,6 +268,7 @@ export default function AblationDashboardTab({
   const [exporting, setExporting] = useState(false);
   const exportGenerationRef = useRef(0);
   const ablationRows = conditionRows(data?.ablation);
+  const conditionMetrics = conditionComparison(data?.ablation);
   const graphFamilies = graphFamilyRows(data?.ablation);
   const humanSummaries = asRecord(data?.humanVsAuto?.summaries);
   const exportRedaction = asRecord(exportPreview?.redaction);
@@ -197,6 +321,7 @@ export default function AblationDashboardTab({
   return (
     <Stack spacing={5}>
       <Box>
+        {conditionMetrics ? <ConditionMetricsSection comparison={conditionMetrics} /> : null}
         <Heading size="sm" mb={3}>
           Ablation Conditions
         </Heading>

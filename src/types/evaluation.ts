@@ -480,7 +480,52 @@ export interface RouterAnalysisResponse extends AnalyticsAggregateResponse {
   analysis_type: 'retrospective' | 'actual';
 }
 
-export type AblationResponse = AnalyticsAggregateResponse;
+export type ConditionMetricName = 'answer_correctness' | 'faithfulness' | 'answer_relevancy';
+
+export interface ConditionMetricSummary {
+  mean: number | null;
+  valid_count: number;
+  missing_count: number;
+}
+
+export interface ConditionAggregate {
+  condition_id: string;
+  label: string;
+  ablation_flags: Record<string, unknown>;
+  execution_count: number;
+  completed_count: number;
+  failed_count: number;
+  quality: Record<ConditionMetricName, ConditionMetricSummary>;
+  mean_tokens: number | null;
+  mean_latency_ms: number | null;
+}
+
+export interface ConditionPairedComparison {
+  baseline_condition_id: string;
+  guided_condition_id: string;
+  completed_pair_count: number;
+  metric_pair_counts: Record<ConditionMetricName, number>;
+  delta: Record<ConditionMetricName, ConditionMetricSummary>;
+  excluded_pairs: Record<string, number>;
+}
+
+export interface ConditionMetricAvailability {
+  ragas_rows_found: boolean;
+  valid_metric_row_count: number;
+  warning: string | null;
+}
+
+export interface ConditionComparisonSummary {
+  conditions: Record<string, ConditionAggregate>;
+  paired: ConditionPairedComparison | null;
+  availability: ConditionMetricAvailability;
+}
+
+export interface AblationResponse extends AnalyticsAggregateResponse {
+  summaries: Record<string, unknown> & {
+    condition_comparison?: ConditionComparisonSummary | null;
+  };
+}
 
 export type HumanVsAutoResponse = AnalyticsAggregateResponse;
 
