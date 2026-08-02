@@ -157,6 +157,10 @@ Human-maintained inventory of the current frontend surface.
   - shows retrospective-only warning copy when a campaign lacks actual router runs
   - renders a decision summary, KPI cards, policy comparison table, and optional confusion-matrix table
 - `AblationDashboardTab.tsx`
+  - renders the backend `condition_comparison` projection as `Condition Metrics` before generic ablation counts when at least two persisted condition IDs are present
+  - displays condition ID/label/flags, completed and failed runs, finite quality means, tokens, latency, and `N/A` for missing metrics
+  - displays `Paired Delta (guided - baseline)`, completed and metric-pair counts, and numeric exclusion reasons; it does not aggregate metrics or read runtime flags
+  - preserves the legacy ablation sections when condition comparison data is absent; `Mode Comparison` remains a separate mode-level surface
   - groups ablation counts, human-eval queue, export preview options, and sanitized errors into separate sections
   - current export button is presentational; the page uses a prefetched `exportCampaignAnalysis(...)` preview rather than issuing a new request from the button
 - Standalone legacy evaluation surfaces still in the codebase:

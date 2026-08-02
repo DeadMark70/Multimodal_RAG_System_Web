@@ -29,3 +29,10 @@ The Campaign Overview is a strict, read-only view of `GET /api/evaluation/campai
 - Token output preserves the input, output-text, reasoning, and other categories, plus measured phase attribution. An explicit `by_phase.unclassified` subtotal is authoritative; when that key is absent, `Unclassified` is `0` only for complete phase attribution and otherwise `N/A`. The client must not derive a remainder or fold partial values into another phase/category. Historical evaluation-overhead retry counts can be unknown (`null`) and must remain unknown rather than becoming zero.
 - A mode is eligible for the cost/quality comparison only when the backend marks it comparable and it has benchmark pricing plus correctness and faithfulness. Excluded modes remain visible with not-comparable/missing-data reasons.
 - Legacy accounting is supported as a display condition only: `incomplete_legacy` warns that totals may be incomplete. The overview must not reconstruct legacy totals or imply schema-v2 completeness.
+
+## Ablation Condition Metrics
+
+- The Ablation tab consumes `AblationResponse.summaries.condition_comparison` when a campaign records at least two condition IDs. It is the only condition-level quality/token/latency view; Mode Comparison remains a mode-level view.
+- Each condition row displays the persisted condition ID, label, flags, completed/failed run counts, and backend-provided finite means for answer correctness, faithfulness, answer relevancy, tokens, and latency.
+- A compatible two-arm campaign also displays `Paired Delta (guided - baseline)`, matching `(question_id, repeat_number)` and showing completed-pair count, per-metric valid pairs, guided-minus-baseline deltas, and exclusion reasons for failed, unpaired, or missing-metric rows.
+- Missing or non-finite measurements render as `N/A`; the client never treats them as zero or recomputes the paired statistics. Campaigns without condition comparison data retain the existing generic ablation display.

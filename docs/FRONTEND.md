@@ -238,6 +238,10 @@
   - shows a retrospective-only warning if the campaign has no actual router runs
   - policy comparison and optional confusion-matrix tables both use horizontal overflow wrappers
 - `AblationDashboardTab.tsx`
+  - renders the server-provided `condition_comparison` projection as a `Condition Metrics` section ahead of the generic condition-count table when two or more persisted conditions exist
+  - shows each condition ID, immutable label/flags, completed/failed counts, correctness/faithfulness/relevancy, mean tokens, and mean latency; nullable metrics render as `N/A`, never zero
+  - renders `Paired Delta (guided - baseline)` with completed-pair count, metric-pair counts, finite guided-minus-baseline deltas, and explicit exclusion reasons
+  - leaves the existing generic ablation display unchanged when no condition comparison is returned; `Mode Comparison` remains mode-level and is not recomputed in the client
   - groups ablation conditions, human calibration queue, export preview, and sanitized errors into separate table sections
   - export controls are UI-only toggles plus preview metadata; the button does not currently trigger a new export request
 - `EvaluationResults.tsx` legacy surface
