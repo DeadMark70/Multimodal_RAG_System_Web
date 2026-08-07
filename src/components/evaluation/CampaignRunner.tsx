@@ -325,10 +325,10 @@ export default function CampaignRunner() {
       } catch (error) {
         setStreamNotice(error instanceof Error ? `輪詢失敗：${error.message}` : '輪詢失敗');
       }
-      pollingTimerRef.current = window.setTimeout(poll, 4000);
+      pollingTimerRef.current = window.setTimeout(() => void poll(), 4000);
     };
 
-    pollingTimerRef.current = window.setTimeout(poll, 0);
+    pollingTimerRef.current = window.setTimeout(() => void poll(), 0);
   }, [stopPollingFallback]);
 
   const handleStreamEvent = useCallback((event: CampaignStreamEvent) => {
