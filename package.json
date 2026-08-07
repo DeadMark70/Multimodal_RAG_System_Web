@@ -9,7 +9,13 @@
     "lint": "eslint .",
     "lint:ci": "eslint . --max-warnings 0",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest --exclude scripts/**/*.test.mjs",
+    "contract:check": "node scripts/check-backend-openapi.mjs --check",
+    "contract:pin": "node scripts/check-backend-openapi.mjs --write-pin",
+    "docs:sync": "node scripts/sync-ui-surface.mjs --write",
+    "docs:check": "node scripts/sync-ui-surface.mjs --check",
+    "docs:links": "node scripts/check-markdown-links.mjs",
+    "test:scripts": "node --test scripts/*.test.mjs"
   },
   "dependencies": {
     "@chakra-ui/react": "^2.10.9",

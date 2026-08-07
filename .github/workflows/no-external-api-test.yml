@@ -5,9 +5,13 @@ on:
     branches: [master, main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   frontend-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       VITE_TEST_MODE: "true"
       VITE_MOCK_MODE: "true"
@@ -16,7 +20,7 @@ jobs:
       VITE_SUPABASE_ANON_KEY: "test-anon-key"
       CI_BLOCK_EXTERNAL_NETWORK: "true"
     steps:
-      - name: Checkout
+      - name: Checkout frontend
         uses: actions/checkout@v4
 
       - name: Setup Node
@@ -34,5 +38,27 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
-      - name: Run unit tests
-        run: npx vitest run
+      - name: Test Node scripts
+        run: npm run test:scripts
+
+      - name: Run Vitest
+        run: npm test -- --run
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Check generated UI docs
+        run: npm run docs:check
+
+      - name: Check Markdown links
+        run: npm run docs:links
+
+      - name: Checkout backend contract
+        uses: actions/checkout@v4
+        with:
+          repository: DeadMark70/multimodal-rag-translate
+          ref: main
+          path: contract-backend
+
+      - name: Check backend OpenAPI contract
+        run: npm run contract:check -- --backend contract-backend

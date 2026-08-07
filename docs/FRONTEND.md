@@ -68,15 +68,9 @@
 
 ## Bundle Strategy
 
-- `src/App.tsx` now uses route-level `lazy(...)` + `Suspense`, so heavyweight pages (`/chat`, `/evaluation`, `/graph-demo`, and other non-auth routes) leave the initial entry bundle.
-- `vite.config.ts` now pins `manualChunks` for stable browser caching and smaller first-load work:
-  - `react-vendor`: React, Router, TanStack Query, Zustand
-  - `ui-vendor`: Chakra, Emotion, Framer Motion, React Icons
-  - `graph-vendor`: ForceGraph, Three.js, XYFlow
-  - `markdown-vendor`: React Markdown, GFM, sanitize pipeline
-  - `vendor`: remaining `node_modules`
-- Route-level lazy boundaries now align with those manual chunks instead of relying on vendor splitting alone.
-- `KnowledgeGraph.tsx` still lazy-loads 3D mode, so the heavy 3D graph path remains out of the default route bundle even with explicit vendor chunking.
+- `src/App.tsx` uses route-level `lazy(...)` + `Suspense`, so heavyweight pages (`/chat`, `/evaluation`, `/graph-demo`, and other non-auth routes) leave the initial entry bundle.
+- `vite.config.ts` does not configure `manualChunks`; production builds use Vite's default chunking.
+- `KnowledgeGraph.tsx` still lazy-loads 3D mode, so the heavy 3D graph path remains out of the default route path without a named graph vendor chunk.
 
 ## Chat UI Contract
 
@@ -128,7 +122,7 @@
 - `KnowledgeGraph.tsx` applies zoom-based level-of-detail rendering in 2D mode: low zoom suppresses labels and simplifies nodes, labels only appear at close zoom, and dense graphs disable arrowheads plus shorten force-simulation cooldown to reduce drag/zoom stutter.
 - `KnowledgeGraph.tsx` 3D mode uses orbit controls plus hover labels and node selection, but does not yet add camera fly-to or dedicated `+/-` zoom buttons.
 - `GraphDemo.tsx` now lazy-mounts graph tabs so `ResearchFlow` does not initialize during first paint unless the user opens that tab.
-- `vite.config.ts` keeps manual vendor chunking for `react-vendor`, `ui-vendor`, and `markdown-vendor`, but no longer forces a separate `graph-vendor` chunk. The previous graph-specific split created a circular import between `vendor` and `graph-vendor`, which can crash the app before React mounts with `ReferenceError: Cannot access ... before initialization`.
+- `vite.config.ts` uses Vite's default chunking and does not define `manualChunks`; no named `react-vendor`, `ui-vendor`, `markdown-vendor`, or `graph-vendor` chunk is promised by the current configuration.
 
 ## Evaluation UI Contract
 
@@ -208,10 +202,6 @@
     - `getCampaignResults`
     - `streamCampaign`
   - resumes the first non-terminal campaign on load and reconnects automatically
-- Standalone evaluation surfaces that still exist in the repo but are not mounted on `/evaluation`:
-  - `EvaluationResults.tsx`: older metrics/results analysis surface driven by `listCampaigns`, `getCampaignMetrics`, and `evaluateCampaign`
-  - `AgentTraceViewer.tsx`: older trace comparison surface driven by `listCampaigns`, `listCampaignTraces`, and `getCampaignResultTrace`
-
 ### Evaluation Chart / Table Behavior
 
 - `CampaignOverviewTab.tsx`
@@ -244,13 +234,6 @@
   - leaves the existing generic ablation display unchanged when no condition comparison is returned; `Mode Comparison` remains mode-level and is not recomputed in the client
   - groups ablation conditions, human calibration queue, export preview, and sanitized errors into separate table sections
   - export controls are UI-only toggles plus preview metadata; the button does not currently trigger a new export request
-- `EvaluationResults.tsx` legacy surface
-  - reads `available_metrics`
-  - uses a runtime metric selector instead of assuming only two fixed metrics
-  - renders wide results tables inside horizontal scroll containers
-  - consolidates `Category / Difficulty / Question Delta` into a tabbed Delta / ECR card and keeps ECR notes behind tooltip triggers
-  - surfaces `reference_source` to distinguish `ground_truth_short` from `ground_truth_fallback_long`
-
 ### Evaluation Empty-State / Legacy Compatibility Notes
 
 - Dashboard tabs are defensive when analytics are missing or partial:
@@ -264,13 +247,6 @@
   - no running campaign -> `目前沒有執行中的 campaign。`
   - no campaign history -> `尚未建立任何 campaign。`
   - no raw results selected -> `選擇一個 campaign 以查看逐題結果。`
-- `EvaluationResults.tsx` legacy metrics surface:
-  - no campaigns -> `尚未建立任何 campaign，因此目前沒有可分析的結果。`
-  - completed/evaluating campaigns without visualizable RAGAS rows -> `此 campaign 目前尚無可視覺化的 RAGAS 指標。`
-- `AgentTraceViewer.tsx` legacy trace surface:
-  - no campaigns -> `尚未建立任何 campaign，因此目前沒有可檢視的 trace。`
-  - execution profile labels fall back to `legacy` when traces predate newer profiling fields
-
 ### Evaluation SSE Compatibility
 
 - `src/services/evaluationApi.ts::streamCampaign(...)`

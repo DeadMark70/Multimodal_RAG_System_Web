@@ -4,19 +4,22 @@ Human-maintained inventory of the current frontend surface.
 
 ## Routes
 
-| Route | Page | Main hooks / stores | Main services |
-|---|---|---|---|
-| `/login` | `Login.tsx` | `AuthProvider` context | `supabase` |
-| `/signup` | `Signup.tsx` | `AuthProvider` context | `supabase` |
-| `/forgot-password` | `ForgotPassword.tsx` | `AuthProvider` context | `supabase` |
-| `/reset-password` | `ResetPassword.tsx` | `AuthProvider` context | `supabase` |
-| `/change-password` | `ChangePassword.tsx` | `AuthProvider` context | `supabase` |
-| `/dashboard` | `Dashboard.tsx` | `useDashboardStats`, `useDocumentList`, `useGraphStatus`, `useGraphDocuments` | `statsApi.ts`, `pdfApi.ts`, `graphApi.ts` |
-| `/knowledge` | `KnowledgeBase.tsx` | `useDocuments`, `useUploadProgressStore` | `pdfApi.ts` |
-| `/chat` | `Chat.tsx` | `useChat`, `useDeepResearch`, `useAgenticBenchmarkResearch`, `useConversationMutations`, selector-based `useSettingsStore` hooks, selector-based `useSessionStore` hooks | `ragApi.ts`, `conversationApi.ts` |
-| `/experiment` | `Experiment.tsx` | page-local state | `ragApi.ts` |
-| `/evaluation` | `EvaluationCenter.tsx` | page-local `useState`/`useEffect`, `useDisclosure`, evaluation presentation components | `evaluationApi.ts` |
-| `/graph-demo` | `GraphDemo.tsx` | `useGraphData`, `useFullGraphRebuildStatus`, `useResumeFullGraphRebuild` | `graphApi.ts` |
+<!-- BEGIN GENERATED UI ROUTES -->
+| Route | Page import | Access |
+|---|---|---|
+| `/login` | `./pages/Login` | public |
+| `/signup` | `./pages/Signup` | public |
+| `/forgot-password` | `./pages/ForgotPassword` | public |
+| `/reset-password` | `./pages/ResetPassword` | public |
+| `/change-password` | `./pages/ChangePassword` | protected |
+| `/dashboard` | `./pages/Dashboard` | protected |
+| `/knowledge` | `./pages/KnowledgeBase` | protected |
+| `/chat` | `./pages/Chat` | protected |
+| `/experiment` | `./pages/Experiment` | protected |
+| `/evaluation` | `./pages/EvaluationCenter` | protected |
+| `/graph-demo` | `./pages/GraphDemo` | protected |
+| `/` | `redirect → /dashboard` | redirect |
+<!-- END GENERATED UI ROUTES -->
 
 ## Shared Stores
 
@@ -38,10 +41,10 @@ Human-maintained inventory of the current frontend surface.
 
 ## Build / Delivery Surface
 
-- `vite.config.ts`
-  - assigns stable `manualChunks` for `react-vendor`, `ui-vendor`, `graph-vendor`, `markdown-vendor`, and fallback `vendor`
-  - now works with route-level lazy page boundaries from `App.tsx`, not only vendor splitting
-  - keeps the existing 3D graph lazy chunk separate from the default chat/graph route path
+<!-- BEGIN GENERATED BUILD FACTS -->
+- Route-level lazy loading is enabled by `lazy(...)` page imports in `src/App.tsx`.
+- Vite default chunking is active because `vite.config.ts` does not configure `manualChunks`.
+<!-- END GENERATED BUILD FACTS -->
 - `nginx.conf`
   - now emits a CSP response header that constrains browser image/connect sources and forbids object embedding plus framing
 
@@ -163,19 +166,8 @@ Human-maintained inventory of the current frontend surface.
   - preserves the legacy ablation sections when condition comparison data is absent; `Mode Comparison` remains a separate mode-level surface
   - groups ablation counts, human-eval queue, export preview options, and sanitized errors into separate sections
   - current export button is presentational; the page uses a prefetched `exportCampaignAnalysis(...)` preview rather than issuing a new request from the button
-- Standalone legacy evaluation surfaces still in the codebase:
-  - `EvaluationResults.tsx`
-    - reads `available_metrics`
-    - lets the user switch the active metric at runtime
-    - renders grouped summaries by mode, category, and ragas focus
-    - wraps dense tables in horizontal scroll containers
-    - groups `Category / Difficulty / Question Delta` into a tabbed Delta / ECR explorer
-    - hides ECR notes behind tooltip triggers
-    - surfaces `reference_source` for correctness-debug workflows
-  - `AgentTraceViewer.tsx`
-    - compares one or two stored traces for a selected campaign using `listCampaignTraces(...)` + `getCampaignResultTrace(...)`
-  - `StabilityChart.tsx`
-    - reads generic `metric_values` instead of only two hard-coded metrics
+- `StabilityChart.tsx`
+  - reads generic `metric_values` instead of only two hard-coded metrics
 
 ## Graph Rendering Snapshot
 

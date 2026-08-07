@@ -241,7 +241,13 @@ npm run build     # tsc -b + vite build
 npm run preview   # 預覽 build 結果
 npm run lint      # eslint .
 npm run lint:ci   # eslint . --max-warnings 0
-npm run test      # vitest
+npm run test      # Vitest（排除 Node script tests）
+npm run test:scripts # Node script tests
+npm run docs:sync # 更新路由與 build facts 文件
+npm run docs:check # 檢查產生文件 drift
+npm run docs:links # 檢查追蹤中的 Markdown 本機連結
+npm run contract:check -- --backend ../pdftopng # 檢查後端 OpenAPI pin
+npm run contract:pin -- --backend ../pdftopng   # 更新已審查的 backend pin
 ```
 
 ---
@@ -253,8 +259,12 @@ npm run test      # vitest
 ```bash
 npm run lint:ci
 npx tsc --noEmit
-npx vitest run
+npm run test:scripts
+npm test -- --run
 npm run build
+npm run docs:check
+npm run docs:links
+npm run contract:check -- --backend ../pdftopng
 ```
 
 Vitest 設定：`vitest.config.ts`

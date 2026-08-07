@@ -74,7 +74,7 @@ Persistence for chat history.
 For technical details on individual modules, refer to:
 - [Agents Implementation](agents_implementation_guide.md)
 - [Core Services](core_service_guide.md)
-- [RAG Database](database_guide.md) (Checklist)
-- [Graph RAG](graph_rag_guide.md) (Checklist)
-- [Multi-modal RAG](multimodal_rag_guide.md) (Checklist)
-- [PDF Service](pdfservice_md_guide.md) (Checklist)
+- [RAG Database](../checklist/database_guide.md) (Checklist)
+- [Graph RAG](../checklist/graph_rag_guide.md) (Checklist)
+- [Multi-modal RAG](../checklist/multimodal_rag_guide.md) (Checklist)
+- [PDF Service](../checklist/pdfservice_md_guide.md) (Checklist)

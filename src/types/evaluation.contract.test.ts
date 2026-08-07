@@ -8,32 +8,16 @@ import type {
 
 describe('agentic v9 evaluation contract', () => {
   it('pins the backend OpenAPI source and frontend baseline', () => {
-    expect(AGENTIC_V9_API_CONTRACT).toEqual({
-      backend_commit: 'fa064545a06bf3915eb5ac77c57a7a7b30203c17',
-      openapi_sha256: '231f287c6a3ffb3075158ee735897a4ed68d42e24e3abb97fd52efb09bac5548',
-      frontend_baseline_commit: '1ab15449af756886039614fab6b6cc64781d1d23',
-      control_plane_fields: {
-        campaign_config: ['agentic_execution_version', 'shadow_evaluation_policy'],
-        campaign_result: [
-          'condition_id',
-          'agentic_execution_version',
-          'execution_identity',
-          'shadow_evaluation_policy',
-          'response_status',
-        ],
-      },
-      release_metrics: {
-        path: '/api/evaluation/campaigns/{campaign_id}/release-metrics',
-        response_schema: 'ReleaseMetricsReport',
-        required_fields: [
-          'benchmark_id',
-          'benchmark_kind',
-          'comparable',
-          'gate_reasons',
-          'category_quality_deltas',
-          'per_question_quality_deltas',
-        ],
-      },
+    expect(AGENTIC_V9_API_CONTRACT.backend_commit).toMatch(/^[a-f0-9]{40}$/);
+    expect(AGENTIC_V9_API_CONTRACT.openapi_sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(AGENTIC_V9_API_CONTRACT.frontend_baseline_commit).toMatch(/^[a-f0-9]{40}$/);
+    expect(AGENTIC_V9_API_CONTRACT.control_plane_fields.campaign_config).toEqual([
+      'agentic_execution_version',
+      'shadow_evaluation_policy',
+    ]);
+    expect(AGENTIC_V9_API_CONTRACT.release_metrics).toMatchObject({
+      path: '/api/evaluation/campaigns/{campaign_id}/release-metrics',
+      response_schema: 'ReleaseMetricsReport',
     });
     expect(AGENTIC_V9_API_CONTRACT.control_plane_fields).not.toHaveProperty('campaign_status');
     expect(AGENTIC_V9_API_CONTRACT.release_metrics.required_fields).toContain('benchmark_id');
