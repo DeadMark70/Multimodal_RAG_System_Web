@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -13,14 +13,18 @@ import {
   readPinnedContract,
   replacePinnedContract,
   semanticSha256,
-  semanticSha256Source,
 } from './check-backend-openapi.mjs';
 
-function makeBackend({ schema = { paths: { '/z': {} }, info: { title: 'API' } }, manifest } = {}) {
+function makeBackend({
+  schema = { paths: { '/z': {} }, info: { title: 'API' } },
+  manifest,
+  trackArtifacts = true,
+} = {}) {
   const root = mkdtempSync(path.join(tmpdir(), 'frontend-openapi-check-'));
   mkdirSync(path.join(root, 'contracts'));
-  writeFileSync(path.join(root, 'openapi.json'), `${JSON.stringify(schema, null, 2)}\n`);
-  const sha256 = semanticSha256(schema);
+  const schemaSource = `${JSON.stringify(schema, null, 2)}\n`;
+  writeFileSync(path.join(root, 'openapi.json'), schemaSource);
+  const sha256 = semanticSha256(schemaSource);
   writeFileSync(
     path.join(root, 'contracts', 'openapi-contract.json'),
     `${JSON.stringify(manifest ?? { schema_version: 1, sha256, snapshot: 'openapi.json' }, null, 2)}\n`,
@@ -29,8 +33,12 @@ function makeBackend({ schema = { paths: { '/z': {} }, info: { title: 'API' } },
   execFileSync('git', ['config', 'core.autocrlf', 'false'], { cwd: root });
   execFileSync('git', ['config', 'user.email', 'tests@example.com'], { cwd: root });
   execFileSync('git', ['config', 'user.name', 'Contract Tests'], { cwd: root });
-  execFileSync('git', ['add', 'openapi.json', 'contracts/openapi-contract.json'], { cwd: root });
-  execFileSync('git', ['commit', '-qm', 'fixture'], { cwd: root });
+  if (trackArtifacts) {
+    execFileSync('git', ['add', 'openapi.json', 'contracts/openapi-contract.json'], { cwd: root });
+    execFileSync('git', ['commit', '-qm', 'fixture'], { cwd: root });
+  } else {
+    execFileSync('git', ['commit', '--allow-empty', '-qm', 'fixture'], { cwd: root });
+  }
   const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
   return { root, sha256, commit };
 }
@@ -43,24 +51,28 @@ test('canonicalizeJson recursively sorts object keys and preserves array order',
 });
 
 test('semanticSha256 ignores JSON formatting and object key order', () => {
-  const compact = JSON.parse('{"paths":{"/b":{},"/a":{}},"openapi":"3.1.0"}');
-  const formatted = JSON.parse(`{
+  const compact = '{"paths":{"/b":{},"/a":{}},"openapi":"3.1.0"}';
+  const formatted = `{
     "openapi": "3.1.0",
     "paths": { "/a": {}, "/b": {} }
-  }`);
+  }`;
   assert.equal(semanticSha256(compact), semanticSha256(formatted));
   assert.match(semanticSha256(compact), /^[a-f0-9]{64}$/);
 });
 
-test('semanticSha256Source matches Python canonical JSON for float-valued OpenAPI constraints', () => {
+test('semanticSha256 matches Python canonical JSON for floats, exponents, and non-BMP key order', () => {
   const source = `{
-    "nested": { "maximum": 2.0 },
-    "minimum": 1.0
+    "𐀀": "astral",
+    "negative_zero": -0.0,
+    "float": 1.0,
+    "": "bmp",
+    "exponent": 1e-07
   }`;
-  const pythonCanonical = '{"minimum":1.0,"nested":{"maximum":2.0}}';
+  const pythonCanonical =
+    '{"exponent":1e-07,"float":1.0,"negative_zero":-0.0,"":"bmp","𐀀":"astral"}';
   const expected = createHash('sha256').update(pythonCanonical, 'utf8').digest('hex');
 
-  assert.equal(semanticSha256Source(source), expected);
+  assert.equal(semanticSha256(source), expected);
 });
 
 test('readBackendContract validates the manifest and returns the checked-out revision', () => {
@@ -86,7 +98,41 @@ test('readBackendContract rejects malformed or semantically mismatched manifests
 
 test('readBackendContract reports missing backend artifacts', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'frontend-openapi-missing-'));
+  execFileSync('git', ['init', '-q'], { cwd: root });
+  execFileSync('git', ['config', 'user.email', 'tests@example.com'], { cwd: root });
+  execFileSync('git', ['config', 'user.name', 'Contract Tests'], { cwd: root });
+  execFileSync('git', ['commit', '--allow-empty', '-qm', 'fixture'], { cwd: root });
   assert.throws(() => readBackendContract(root), /openapi\.json/i);
+});
+
+test('readBackendContract rejects dirty tracked contract artifacts', () => {
+  const dirtySchema = makeBackend();
+  writeFileSync(
+    path.join(dirtySchema.root, 'openapi.json'),
+    '{"info":{"title":"API"},"paths":{"/z":{}}}\n',
+  );
+  assert.throws(
+    () => readBackendContract(dirtySchema.root),
+    /(?:openapi\.json.*HEAD|HEAD.*openapi\.json|clean|dirty)/i,
+  );
+
+  const dirtyManifest = makeBackend();
+  const manifestPath = path.join(dirtyManifest.root, 'contracts', 'openapi-contract.json');
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  writeFileSync(manifestPath, JSON.stringify(manifest));
+  assert.throws(
+    () => readBackendContract(dirtyManifest.root),
+    /(?:openapi-contract\.json.*HEAD|HEAD.*openapi-contract\.json|clean|dirty)/i,
+  );
+});
+
+test('readBackendContract rejects untracked contract artifacts', () => {
+  const backend = makeBackend({ trackArtifacts: false });
+
+  assert.throws(
+    () => readBackendContract(backend.root),
+    /openapi\.json.*tracked|openapi\.json.*HEAD|contract artifact/i,
+  );
 });
 
 test('readPinnedContract extracts the two reviewed pin fields', () => {

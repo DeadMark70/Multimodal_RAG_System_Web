@@ -13,7 +13,11 @@ const IGNORED_DIRECTORIES = new Set([
   'build',
   'out',
 ]);
-const EXPLICIT_SIBLING_BACKEND_LINK = /^(?:\.\.\/){4}pdftopng\//;
+const APPROVED_SIBLING_BACKEND_LINK = {
+  source: 'docs/exec-plans/completed/index.md',
+  target:
+    '../../../../pdftopng/docs/exec-plans/completed/2026-07-evaluation-chat-loading-performance.md',
+};
 
 function normalizeGitPath(value) {
   return value.replaceAll('\\', '/');
@@ -88,7 +92,7 @@ export function extractLocalLinks(markdown) {
     if (
       !target ||
       target.startsWith('#') ||
-      /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(target)
+      /^(?:https?:|mailto:)/i.test(target)
     ) {
       continue;
     }
@@ -97,26 +101,61 @@ export function extractLocalLinks(markdown) {
   return links;
 }
 
+function isWindowsAbsolute(value) {
+  return /^[a-zA-Z]:[\\/]/.test(value);
+}
+
+function assertInsideRepository(resolved, root, pathApi, target) {
+  const relative = pathApi.relative(root, resolved);
+  if (
+    relative === '..' ||
+    relative.startsWith(`..${pathApi.sep}`) ||
+    pathApi.isAbsolute(relative)
+  ) {
+    throw new Error(`Markdown target escapes repository: ${target}`);
+  }
+  return resolved;
+}
+
 export function resolveLocalLink(source, target, root) {
-  const repositoryRoot = path.resolve(root);
   const withoutAnchor = target.split('#', 1)[0];
+  if (/^file:/i.test(withoutAnchor)) {
+    let filePath;
+    try {
+      filePath = fileURLToPath(withoutAnchor);
+    } catch (error) {
+      throw new Error(`Invalid file URL in Markdown target: ${target}`, { cause: error });
+    }
+    const pathApi = isWindowsAbsolute(filePath) || isWindowsAbsolute(root) ? path.win32 : path;
+    const repositoryRoot = pathApi.resolve(root);
+    return assertInsideRepository(
+      pathApi.resolve(filePath),
+      repositoryRoot,
+      pathApi,
+      target,
+    );
+  }
   let decoded;
   try {
     decoded = decodeURIComponent(withoutAnchor);
   } catch (error) {
     throw new Error(`Invalid URL escape in Markdown target: ${target}`, { cause: error });
   }
-  if (path.win32.isAbsolute(decoded) && !decoded.startsWith('/')) {
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(decoded) && !isWindowsAbsolute(decoded)) {
+    throw new Error(`Unsupported URL scheme in Markdown target: ${target}`);
+  }
+  if (isWindowsAbsolute(decoded) && !isWindowsAbsolute(root)) {
     throw new Error(`Markdown target escapes repository: ${target}`);
   }
+  const pathApi = isWindowsAbsolute(root) ? path.win32 : path;
+  const repositoryRoot = pathApi.resolve(root);
   const resolved = decoded.startsWith('/')
-    ? path.resolve(repositoryRoot, decoded.replace(/^[/\\]+/, ''))
-    : path.resolve(path.dirname(source), decoded);
-  const relative = path.relative(repositoryRoot, resolved);
-  if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    ? pathApi.resolve(repositoryRoot, decoded.replace(/^[/\\]+/, ''))
+    : pathApi.resolve(pathApi.dirname(source), decoded);
+  if (/^\\\\/.test(decoded)) {
     throw new Error(`Markdown target escapes repository: ${target}`);
   }
-  return resolved;
+  return assertInsideRepository(resolved, repositoryRoot, pathApi, target);
 }
 
 export function findBrokenLinks(root) {
@@ -125,7 +164,10 @@ export function findBrokenLinks(root) {
   for (const source of walkMarkdown(repositoryRoot)) {
     const sourceLabel = normalizeGitPath(path.relative(repositoryRoot, source));
     for (const target of extractLocalLinks(readFileSync(source, 'utf8'))) {
-      if (EXPLICIT_SIBLING_BACKEND_LINK.test(target)) {
+      if (
+        sourceLabel === APPROVED_SIBLING_BACKEND_LINK.source &&
+        target === APPROVED_SIBLING_BACKEND_LINK.target
+      ) {
         continue;
       }
       let resolved;

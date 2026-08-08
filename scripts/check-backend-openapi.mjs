@@ -23,11 +23,6 @@ export function canonicalizeJson(value) {
   return value;
 }
 
-export function semanticSha256(schema) {
-  const canonical = JSON.stringify(canonicalizeJson(schema));
-  return createHash('sha256').update(canonical, 'utf8').digest('hex');
-}
-
 class JsonNumber {
   constructor(source) {
     this.source = source;
@@ -185,7 +180,7 @@ function renderCanonicalJson(value) {
   return JSON.stringify(value);
 }
 
-export function semanticSha256Source(source) {
+export function semanticSha256(source) {
   const canonical = renderCanonicalJson(parseJsonPreservingNumbers(source));
   return createHash('sha256').update(canonical, 'utf8').digest('hex');
 }
@@ -208,6 +203,46 @@ function readJson(filePath, label) {
   return readJsonSource(filePath, label).value;
 }
 
+function readBackendRevision(resolvedBackend) {
+  let backendCommit;
+  try {
+    backendCommit = execFileSync('git', ['-C', resolvedBackend, 'rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+  } catch (error) {
+    throw new Error(`Unable to read backend git revision: ${resolvedBackend}`, { cause: error });
+  }
+  if (!/^[a-f0-9]{40}$/.test(backendCommit)) {
+    throw new Error(`Backend git revision is not a full 40-character commit: ${backendCommit}`);
+  }
+  return backendCommit;
+}
+
+function assertArtifactMatchesHead(resolvedBackend, relativePath) {
+  let headBlob;
+  try {
+    headBlob = execFileSync('git', ['-C', resolvedBackend, 'show', `HEAD:${relativePath}`], {
+      encoding: 'buffer',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (error) {
+    throw new Error(`Contract artifact is not tracked at backend HEAD: ${relativePath}`, {
+      cause: error,
+    });
+  }
+  const workingPath = path.join(resolvedBackend, ...relativePath.split('/'));
+  let workingBytes;
+  try {
+    workingBytes = readFileSync(workingPath);
+  } catch (error) {
+    throw new Error(`Contract artifact is missing or unreadable: ${workingPath}`, { cause: error });
+  }
+  if (!workingBytes.equals(headBlob)) {
+    throw new Error(`Contract artifact does not match backend HEAD: ${relativePath}`);
+  }
+}
+
 function validateManifest(manifest) {
   const keys =
     manifest !== null && typeof manifest === 'object' && !Array.isArray(manifest)
@@ -228,6 +263,9 @@ function validateManifest(manifest) {
 
 export function readBackendContract(backendPath) {
   const resolvedBackend = path.resolve(backendPath);
+  const backendCommit = readBackendRevision(resolvedBackend);
+  assertArtifactMatchesHead(resolvedBackend, 'openapi.json');
+  assertArtifactMatchesHead(resolvedBackend, 'contracts/openapi-contract.json');
   const schema = readJsonSource(
     path.join(resolvedBackend, 'openapi.json'),
     'Backend openapi.json',
@@ -237,25 +275,13 @@ export function readBackendContract(backendPath) {
     'Backend OpenAPI manifest',
   );
   validateManifest(manifest);
-  const recomputed = semanticSha256Source(schema.source);
+  const recomputed = semanticSha256(schema.source);
   if (manifest.sha256 !== recomputed) {
     throw new Error(
       `OpenAPI manifest sha256 ${manifest.sha256} does not match recomputed sha256 ${recomputed}`,
     );
   }
 
-  let backendCommit;
-  try {
-    backendCommit = execFileSync('git', ['-C', resolvedBackend, 'rev-parse', 'HEAD'], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    }).trim();
-  } catch (error) {
-    throw new Error(`Unable to read backend git revision: ${resolvedBackend}`, { cause: error });
-  }
-  if (!/^[a-f0-9]{40}$/.test(backendCommit)) {
-    throw new Error(`Backend git revision is not a full 40-character commit: ${backendCommit}`);
-  }
   return {
     backend_commit: backendCommit,
     openapi_sha256: recomputed,

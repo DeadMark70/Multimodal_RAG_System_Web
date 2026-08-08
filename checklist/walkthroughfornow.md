@@ -286,12 +286,12 @@ pytest tests/ -v
 
 | 模組     | 測試檔案                                                                                       |
 | -------- | ---------------------------------------------------------------------------------------------- |
-| Self-RAG | [test_evaluator.py](file:///d:/flutterserver/pdftopng/tests/test_evaluator.py)                 |
-| 任務規劃 | [test_planner.py](file:///d:/flutterserver/pdftopng/tests/test_planner.py)                     |
-| 結果合成 | [test_synthesizer.py](file:///d:/flutterserver/pdftopng/tests/test_synthesizer.py)             |
-| 語義分塊 | [test_semantic_chunker.py](file:///d:/flutterserver/pdftopng/tests/test_semantic_chunker.py)   |
-| 查詢轉換 | [test_query_transformer.py](file:///d:/flutterserver/pdftopng/tests/test_query_transformer.py) |
-| 重排序   | [test_reranker.py](file:///d:/flutterserver/pdftopng/tests/test_reranker.py)                   |
+| Self-RAG | Backend sibling: `../pdftopng/tests/test_evaluator.py`                 |
+| 任務規劃 | Backend sibling: `../pdftopng/tests/test_planner.py`                   |
+| 結果合成 | Backend sibling: `../pdftopng/tests/test_synthesizer.py`               |
+| 語義分塊 | Backend sibling: `../pdftopng/tests/test_semantic_chunker.py`         |
+| 查詢轉換 | Backend sibling: `../pdftopng/tests/test_query_transformer.py`       |
+| 重排序   | Backend sibling: `../pdftopng/tests/test_reranker.py`                 |
 
 ---
 

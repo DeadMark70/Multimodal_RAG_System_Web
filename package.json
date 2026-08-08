@@ -15,7 +15,7 @@
     "docs:sync": "node scripts/sync-ui-surface.mjs --write",
     "docs:check": "node scripts/sync-ui-surface.mjs --check",
     "docs:links": "node scripts/check-markdown-links.mjs",
-    "test:scripts": "node --test scripts/*.test.mjs"
+    "test:scripts": "node scripts/run-node-tests.mjs"
   },
   "dependencies": {
     "@chakra-ui/react": "^2.10.9",

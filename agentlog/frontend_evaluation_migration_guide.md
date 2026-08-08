@@ -186,5 +186,5 @@ const legacyCompleteness = Math.round(completeness / 2); // 1-10 → 1-5
 
 如有問題，請參考：
 
-- [API 文件](file:///d:/flutterserver/pdftopng/agentlog/api_documentation.json)
-- [Codebase Overview](file:///d:/flutterserver/pdftopng/agentlog/codebase_overview.md)
+- Backend sibling path: `../pdftopng/agentlog/api_documentation.json`
+- Backend sibling path: `../pdftopng/agentlog/codebase_overview.md`

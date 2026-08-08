@@ -22,32 +22,72 @@ export function extractLazyPages(appSource) {
   return pages;
 }
 
+function extractRouteTags(appSource) {
+  const tags = [];
+  for (const match of appSource.matchAll(/<\/?Route\b/g)) {
+    const start = match.index;
+    let braceDepth = 0;
+    let quote = null;
+    let end = -1;
+    for (let offset = start + match[0].length; offset < appSource.length; offset += 1) {
+      const character = appSource[offset];
+      if (quote !== null) {
+        if (character === '\\') {
+          offset += 1;
+        } else if (character === quote) {
+          quote = null;
+        }
+        continue;
+      }
+      if (character === '"' || character === "'" || character === '`') {
+        quote = character;
+      } else if (character === '{') {
+        braceDepth += 1;
+      } else if (character === '}') {
+        braceDepth -= 1;
+        if (braceDepth < 0) {
+          throw new Error(`Unbalanced Route expression near offset ${start}`);
+        }
+      } else if (character === '>' && braceDepth === 0) {
+        end = offset + 1;
+        break;
+      }
+    }
+    if (end === -1) {
+      throw new Error(`Unterminated Route tag near offset ${start}`);
+    }
+    tags.push({ source: appSource.slice(start, end), index: start });
+  }
+  return tags;
+}
+
 export function extractRoutes(appSource) {
   const lazyPages = extractLazyPages(appSource);
   const routes = [];
   let protectedGroup = false;
-  for (const line of appSource.split(/\r?\n/)) {
-    if (/<Route\s+element=\{<ProtectedRoute\s*\/>\}>/.test(line)) {
-      protectedGroup = true;
-      continue;
-    }
-    if (protectedGroup && /<\/Route>/.test(line)) {
+  for (const routeTag of extractRouteTags(appSource)) {
+    const tag = routeTag.source;
+    if (/^<\/Route\b/.test(tag)) {
       protectedGroup = false;
       continue;
     }
-    if (!/<Route\b/.test(line)) {
+    if (/\bProtectedRoute\b/.test(tag) && !/\bpath\s*=/.test(tag)) {
+      protectedGroup = true;
       continue;
     }
-    const pathMatch = line.match(/\bpath\s*=\s*['"]([^'"]+)['"]/);
+    if (!/\bpath\s*=/.test(tag)) {
+      continue;
+    }
+    const pathMatch = tag.match(/\bpath\s*=\s*['"]([^'"]+)['"]/);
     if (!pathMatch) {
-      continue;
+      throw new Error(`Unable to parse path-bearing Route near offset ${routeTag.index}`);
     }
-    const redirect = line.match(/<Navigate\s+[^>]*\bto\s*=\s*['"]([^'"]+)['"]/);
+    const redirect = tag.match(/<Navigate\b[\s\S]*?\bto\s*=\s*['"]([^'"]+)['"]/);
     if (redirect) {
       routes.push({ path: pathMatch[1], page: `redirect → ${redirect[1]}`, access: 'redirect' });
       continue;
     }
-    const component = line.match(/\belement\s*=\s*\{<([A-Za-z_$][\w$]*)\s*\/>\}/)?.[1];
+    const component = tag.match(/\belement\s*=\s*\{\s*<([A-Za-z_$][\w$]*)\s*\/>/)?.[1];
     if (!component || !lazyPages[component]) {
       throw new Error(`Route ${pathMatch[1]} does not reference a known lazy page`);
     }

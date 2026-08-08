@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
 
 import {
   extractLocalLinks,
@@ -27,7 +28,7 @@ function makeRepo(files, tracked = Object.keys(files)) {
   return root;
 }
 
-test('extractLocalLinks skips fences, images, external URLs, mail, file URIs, and bare anchors', () => {
+test('extractLocalLinks skips only fences, images, HTTP(S), mail, and bare anchors', () => {
   const markdown = `
 [relative](docs/guide.md#setup)
 [root](/README.md)
@@ -35,12 +36,18 @@ test('extractLocalLinks skips fences, images, external URLs, mail, file URIs, an
 [web](https://example.com)
 [mail](mailto:team@example.com)
 [local file](file:///d:/workspace/note.md)
+[windows drive](D:/workspace/note.md)
 [anchor](#section)
 \`\`\`
 [fenced](missing.md)
 \`\`\`
 `;
-  assert.deepEqual(extractLocalLinks(markdown), ['docs/guide.md#setup', '/README.md']);
+  assert.deepEqual(extractLocalLinks(markdown), [
+    'docs/guide.md#setup',
+    '/README.md',
+    'file:///d:/workspace/note.md',
+    'D:/workspace/note.md',
+  ]);
 });
 
 test('resolveLocalLink handles relative, repository-root, anchors, and escaped spaces', () => {
@@ -53,6 +60,27 @@ test('resolveLocalLink handles relative, repository-root, anchors, and escaped s
   assert.equal(resolveLocalLink(source, 'guide%20one.md#intro', root), path.join(root, 'docs', 'guide one.md'));
   assert.equal(resolveLocalLink(source, '/README.md', root), path.join(root, 'README.md'));
   assert.throws(() => resolveLocalLink(source, '../../outside.md', root), /escapes repository/i);
+});
+
+test('resolveLocalLink validates file URLs and Windows drive paths against the repository boundary', () => {
+  const root = makeRepo({
+    'docs/source.md': '# Source',
+    'docs/guide.md': '# Guide',
+  });
+  const source = path.join(root, 'docs', 'source.md');
+  const insideFileUrl = pathToFileURL(path.join(root, 'docs', 'guide.md')).href;
+  const outsideFileUrl = pathToFileURL(path.join(path.dirname(root), 'outside.md')).href;
+
+  assert.equal(resolveLocalLink(source, insideFileUrl, root), path.join(root, 'docs', 'guide.md'));
+  assert.throws(() => resolveLocalLink(source, outsideFileUrl, root), /escapes repository/i);
+  assert.equal(
+    resolveLocalLink('D:\\repo\\docs\\source.md', 'D:\\repo\\guide.md', 'D:\\repo'),
+    'D:\\repo\\guide.md',
+  );
+  assert.throws(
+    () => resolveLocalLink('D:\\repo\\docs\\source.md', 'E:\\outside.md', 'D:\\repo'),
+    /escapes repository/i,
+  );
 });
 
 test('walkMarkdown returns only tracked Markdown outside ignored build directories', () => {
@@ -86,9 +114,20 @@ test('findBrokenLinks reports missing files and repository escapes in sorted ord
 test('findBrokenLinks leaves the explicitly documented sibling backend lifecycle link to its owning repository', () => {
   const root = makeRepo({
     'docs/exec-plans/completed/index.md':
-      '[Backend repository — completed plan](../../../../pdftopng/docs/exec-plans/completed/plan.md)',
+      '[Backend repository — completed plan](../../../../pdftopng/docs/exec-plans/completed/2026-07-evaluation-chat-loading-performance.md)',
   });
   assert.deepEqual(findBrokenLinks(root), []);
+});
+
+test('findBrokenLinks rejects a typo near the one approved sibling backend lifecycle target', () => {
+  const root = makeRepo({
+    'docs/exec-plans/completed/index.md':
+      '[Backend repository — completed plan](../../../../pdftopng/docs/exec-plans/completed/2026-07-evaluation-chat-loading-performanc.md)',
+  });
+
+  assert.deepEqual(findBrokenLinks(root), [
+    'docs/exec-plans/completed/index.md: ../../../../pdftopng/docs/exec-plans/completed/2026-07-evaluation-chat-loading-performanc.md (target escapes repository)',
+  ]);
 });
 
 test('real execution-plan indexes keep the cross-repository performance plan under completed', () => {

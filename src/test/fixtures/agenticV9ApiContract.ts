@@ -4,7 +4,7 @@
  * are intentionally advanced together.
  */
 export const AGENTIC_V9_API_CONTRACT = {
-  backend_commit: 'ccd2e912a60b71b357396a08689dc34ff7a1fa5e',
+  backend_commit: '2a759c1899feb35b4e315f79c52452f2b3164304',
   openapi_sha256: '1da4a8bc4a409e5a33b4cb3dd542fd143ab6f8dde3b0946e9e2c4ae640060e82',
   frontend_baseline_commit: '1ab15449af756886039614fab6b6cc64781d1d23',
   control_plane_fields: {

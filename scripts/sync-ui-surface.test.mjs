@@ -44,6 +44,49 @@ test('extractRoutes preserves source order and classifies public, protected, and
   ]);
 });
 
+test('extractRoutes supports multiline public, protected, and redirect JSX', () => {
+  const multiline = `
+const Login = lazy(() => import('./pages/Login'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+<Routes>
+  <Route
+    element={<Login />}
+    path="/login"
+  />
+  <Route
+    element={<ProtectedRoute />}
+  >
+    <Route
+      path="/dashboard"
+      element={<Dashboard />}
+    />
+  </Route>
+  <Route
+    path="/"
+    element={
+      <Navigate
+        to="/dashboard"
+        replace
+      />
+    }
+  />
+</Routes>`;
+
+  assert.deepEqual(extractRoutes(multiline), [
+    { path: '/login', page: './pages/Login', access: 'public' },
+    { path: '/dashboard', page: './pages/Dashboard', access: 'protected' },
+    { path: '/', page: 'redirect → /dashboard', access: 'redirect' },
+  ]);
+});
+
+test('extractRoutes fails closed when a path-bearing Route cannot be consumed', () => {
+  const dynamicPath = `
+const Login = lazy(() => import('./pages/Login'));
+<Routes><Route path={loginPath} element={<Login />} /></Routes>`;
+
+  assert.throws(() => extractRoutes(dynamicPath), /path-bearing Route|parse route path|unconsumed/i);
+});
+
 test('detectBuildFacts distinguishes default Vite chunking from explicit manualChunks', () => {
   assert.deepEqual(detectBuildFacts('export default defineConfig({ plugins: [react()] })', APP_FIXTURE), {
     routeLevelLazyLoading: true,
