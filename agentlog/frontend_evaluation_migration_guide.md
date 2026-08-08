@@ -186,5 +186,5 @@ const legacyCompleteness = Math.round(completeness / 2); // 1-10 → 1-5
 
 如有問題，請參考：
 
-- Backend sibling path: `../pdftopng/agentlog/api_documentation.json`
+- [API 文件](../../pdftopng/agentlog/api_documentation.md)
 - Backend sibling path: `../pdftopng/agentlog/codebase_overview.md`

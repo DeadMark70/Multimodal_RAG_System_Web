@@ -14,7 +14,9 @@ import {
 } from './check-markdown-links.mjs';
 
 function makeRepo(files, tracked = Object.keys(files)) {
-  const root = mkdtempSync(path.join(tmpdir(), 'frontend-markdown-links-'));
+  const workspace = mkdtempSync(path.join(tmpdir(), 'frontend-markdown-links-'));
+  const root = path.join(workspace, 'Multimodal_RAG_System');
+  mkdirSync(root, { recursive: true });
   for (const [relativePath, contents] of Object.entries(files)) {
     const filePath = path.join(root, relativePath);
     mkdirSync(path.dirname(filePath), { recursive: true });
@@ -26,6 +28,12 @@ function makeRepo(files, tracked = Object.keys(files)) {
     execFileSync('git', ['add', '--', ...tracked], { cwd: root });
   }
   return root;
+}
+
+function writeSiblingBackendFile(root, relativePath, contents = '# Backend documentation') {
+  const filePath = path.join(path.dirname(root), 'pdftopng', relativePath);
+  mkdirSync(path.dirname(filePath), { recursive: true });
+  writeFileSync(filePath, contents);
 }
 
 test('extractLocalLinks skips only fences, images, HTTP(S), mail, and bare anchors', () => {
@@ -119,6 +127,39 @@ test('findBrokenLinks leaves the explicitly documented sibling backend lifecycle
   assert.deepEqual(findBrokenLinks(root), []);
 });
 
+test('findBrokenLinks validates the exact sibling backend API target exists', () => {
+  const root = makeRepo({
+    'agentlog/frontend_evaluation_migration_guide.md':
+      '[API 文件](../../pdftopng/agentlog/api_documentation.md)',
+  });
+
+  assert.deepEqual(findBrokenLinks(root), [
+    'agentlog/frontend_evaluation_migration_guide.md: ../../pdftopng/agentlog/api_documentation.md',
+  ]);
+});
+
+test('findBrokenLinks accepts the exact sibling backend API target when it exists', () => {
+  const root = makeRepo({
+    'agentlog/frontend_evaluation_migration_guide.md':
+      '[API 文件](../../pdftopng/agentlog/api_documentation.md)',
+  });
+  writeSiblingBackendFile(root, 'agentlog/api_documentation.md');
+
+  assert.deepEqual(findBrokenLinks(root), []);
+});
+
+test('findBrokenLinks rejects a typo near the approved sibling backend API target', () => {
+  const root = makeRepo({
+    'agentlog/frontend_evaluation_migration_guide.md':
+      '[API 文件](../../pdftopng/agentlog/api_documentation.mdx)',
+  });
+  writeSiblingBackendFile(root, 'agentlog/api_documentation.md');
+
+  assert.deepEqual(findBrokenLinks(root), [
+    'agentlog/frontend_evaluation_migration_guide.md: ../../pdftopng/agentlog/api_documentation.mdx (target escapes repository)',
+  ]);
+});
+
 test('findBrokenLinks rejects a typo near the one approved sibling backend lifecycle target', () => {
   const root = makeRepo({
     'docs/exec-plans/completed/index.md':
@@ -146,4 +187,16 @@ test('real execution-plan indexes keep the cross-repository performance plan und
   assert.doesNotMatch(activeIndex, new RegExp(planName.replaceAll('.', '\\.')));
   assert.match(completedIndex, new RegExp(completedTarget.replaceAll('.', '\\.')));
   assert.match(completedIndex, /Backend repository[^\n]*completed plan/i);
+});
+
+test('real migration guide exposes the backend API documentation link to validation', () => {
+  const repositoryRoot = path.resolve(import.meta.dirname, '..');
+  const guide = readFileSync(
+    path.join(repositoryRoot, 'agentlog', 'frontend_evaluation_migration_guide.md'),
+    'utf8',
+  );
+
+  assert.ok(
+    extractLocalLinks(guide).includes('../../pdftopng/agentlog/api_documentation.md'),
+  );
 });

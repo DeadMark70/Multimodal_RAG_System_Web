@@ -18,6 +18,10 @@ const APPROVED_SIBLING_BACKEND_LINK = {
   target:
     '../../../../pdftopng/docs/exec-plans/completed/2026-07-evaluation-chat-loading-performance.md',
 };
+const VALIDATED_SIBLING_BACKEND_LINK = {
+  source: 'agentlog/frontend_evaluation_migration_guide.md',
+  target: '../../pdftopng/agentlog/api_documentation.md',
+};
 
 function normalizeGitPath(value) {
   return value.replaceAll('\\', '/');
@@ -170,9 +174,14 @@ export function findBrokenLinks(root) {
       ) {
         continue;
       }
+      const isValidatedSiblingLink =
+        sourceLabel === VALIDATED_SIBLING_BACKEND_LINK.source &&
+        target === VALIDATED_SIBLING_BACKEND_LINK.target;
       let resolved;
       try {
-        resolved = resolveLocalLink(source, target, repositoryRoot);
+        resolved = isValidatedSiblingLink
+          ? path.resolve(path.dirname(source), target)
+          : resolveLocalLink(source, target, repositoryRoot);
       } catch (error) {
         const reason = error instanceof Error && /escapes repository/i.test(error.message)
           ? ' (target escapes repository)'
