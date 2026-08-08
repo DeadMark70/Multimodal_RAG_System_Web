@@ -30,12 +30,6 @@ function makeRepo(files, tracked = Object.keys(files)) {
   return root;
 }
 
-function writeSiblingBackendFile(root, relativePath, contents = '# Backend documentation') {
-  const filePath = path.join(path.dirname(root), 'pdftopng', relativePath);
-  mkdirSync(path.dirname(filePath), { recursive: true });
-  writeFileSync(filePath, contents);
-}
-
 test('extractLocalLinks skips only fences, images, HTTP(S), mail, and bare anchors', () => {
   const markdown = `
 [relative](docs/guide.md#setup)
@@ -127,23 +121,11 @@ test('findBrokenLinks leaves the explicitly documented sibling backend lifecycle
   assert.deepEqual(findBrokenLinks(root), []);
 });
 
-test('findBrokenLinks validates the exact sibling backend API target exists', () => {
+test('findBrokenLinks leaves the exact sibling backend API link to its owning repository', () => {
   const root = makeRepo({
     'agentlog/frontend_evaluation_migration_guide.md':
       '[API 文件](../../pdftopng/agentlog/api_documentation.md)',
   });
-
-  assert.deepEqual(findBrokenLinks(root), [
-    'agentlog/frontend_evaluation_migration_guide.md: ../../pdftopng/agentlog/api_documentation.md',
-  ]);
-});
-
-test('findBrokenLinks accepts the exact sibling backend API target when it exists', () => {
-  const root = makeRepo({
-    'agentlog/frontend_evaluation_migration_guide.md':
-      '[API 文件](../../pdftopng/agentlog/api_documentation.md)',
-  });
-  writeSiblingBackendFile(root, 'agentlog/api_documentation.md');
 
   assert.deepEqual(findBrokenLinks(root), []);
 });
@@ -153,7 +135,6 @@ test('findBrokenLinks rejects a typo near the approved sibling backend API targe
     'agentlog/frontend_evaluation_migration_guide.md':
       '[API 文件](../../pdftopng/agentlog/api_documentation.mdx)',
   });
-  writeSiblingBackendFile(root, 'agentlog/api_documentation.md');
 
   assert.deepEqual(findBrokenLinks(root), [
     'agentlog/frontend_evaluation_migration_guide.md: ../../pdftopng/agentlog/api_documentation.mdx (target escapes repository)',

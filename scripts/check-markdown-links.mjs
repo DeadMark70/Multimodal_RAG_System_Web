@@ -13,15 +13,17 @@ const IGNORED_DIRECTORIES = new Set([
   'build',
   'out',
 ]);
-const APPROVED_SIBLING_BACKEND_LINK = {
-  source: 'docs/exec-plans/completed/index.md',
-  target:
-    '../../../../pdftopng/docs/exec-plans/completed/2026-07-evaluation-chat-loading-performance.md',
-};
-const VALIDATED_SIBLING_BACKEND_LINK = {
-  source: 'agentlog/frontend_evaluation_migration_guide.md',
-  target: '../../pdftopng/agentlog/api_documentation.md',
-};
+const APPROVED_SIBLING_BACKEND_LINKS = [
+  {
+    source: 'docs/exec-plans/completed/index.md',
+    target:
+      '../../../../pdftopng/docs/exec-plans/completed/2026-07-evaluation-chat-loading-performance.md',
+  },
+  {
+    source: 'agentlog/frontend_evaluation_migration_guide.md',
+    target: '../../pdftopng/agentlog/api_documentation.md',
+  },
+];
 
 function normalizeGitPath(value) {
   return value.replaceAll('\\', '/');
@@ -168,20 +170,14 @@ export function findBrokenLinks(root) {
   for (const source of walkMarkdown(repositoryRoot)) {
     const sourceLabel = normalizeGitPath(path.relative(repositoryRoot, source));
     for (const target of extractLocalLinks(readFileSync(source, 'utf8'))) {
-      if (
-        sourceLabel === APPROVED_SIBLING_BACKEND_LINK.source &&
-        target === APPROVED_SIBLING_BACKEND_LINK.target
-      ) {
+      if (APPROVED_SIBLING_BACKEND_LINKS.some(
+        (link) => sourceLabel === link.source && target === link.target,
+      )) {
         continue;
       }
-      const isValidatedSiblingLink =
-        sourceLabel === VALIDATED_SIBLING_BACKEND_LINK.source &&
-        target === VALIDATED_SIBLING_BACKEND_LINK.target;
       let resolved;
       try {
-        resolved = isValidatedSiblingLink
-          ? path.resolve(path.dirname(source), target)
-          : resolveLocalLink(source, target, repositoryRoot);
+        resolved = resolveLocalLink(source, target, repositoryRoot);
       } catch (error) {
         const reason = error instanceof Error && /escapes repository/i.test(error.message)
           ? ' (target escapes repository)'

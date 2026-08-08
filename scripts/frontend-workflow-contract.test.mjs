@@ -23,14 +23,20 @@ function assertInOrder(source, snippets) {
 
 test('frontend workflow enforces local gates before checking the backend contract', () => {
   const workflow = readFileSync(workflowPath, 'utf8');
+  const checkoutAction = 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1';
+  const setupNodeAction = 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020';
 
   assert.match(workflow, /^permissions:\s*\n\s+contents:\s*read\s*$/m);
   assert.match(workflow, /^\s+timeout-minutes:\s*\d+\s*$/m);
-  assert.match(workflow, /uses:\s*actions\/setup-node@v4[\s\S]*node-version:\s*["']?20["']?[\s\S]*cache:\s*npm/);
+  assert.match(
+    workflow,
+    new RegExp(`uses:\\s*${setupNodeAction}[\\s\\S]*node-version:\\s*["']?24["']?[\\s\\S]*cache:\\s*npm`),
+  );
+  assert.equal(workflow.match(new RegExp(`uses:\\s*${checkoutAction}`, 'g'))?.length, 2);
 
   assertInOrder(workflow, [
-    'uses: actions/checkout@v4',
-    'uses: actions/setup-node@v4',
+    `uses: ${checkoutAction}`,
+    `uses: ${setupNodeAction}`,
     'run: npm ci',
     'run: npm run lint:ci',
     'run: npx tsc --noEmit',
