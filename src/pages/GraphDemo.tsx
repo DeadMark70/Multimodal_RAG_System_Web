@@ -39,10 +39,11 @@ import {
   AlertDialogHeader,
   AlertDialogOverlay,
 } from '@chakra-ui/react';
-import { lazy, Suspense, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { FiChevronDown, FiChevronUp, FiCpu, FiRefreshCw, FiRotateCcw, FiTrash2, FiZap } from 'react-icons/fi';
 import { KnowledgeGraph } from '../components/graph/KnowledgeGraph';
 import { EvidenceDrawer } from '../components/evidence/EvidenceDrawer';
+import { LazySourceViewerBoundary } from '../components/evidence/LazySourceViewerBoundary';
 import { GraphRebuildProgress } from '../components/graph/GraphRebuildProgress';
 import { ResearchFlow } from '../components/graph/ResearchFlow';
 import Layout from '../components/layout/Layout';
@@ -78,7 +79,6 @@ const STATUS_META: Record<GraphDocumentStatusItem['status'], { colorScheme: stri
   skipped: { colorScheme: 'gray', label: '未建圖' },
 };
 const EMPTY_GRAPH_DOCUMENTS: GraphDocumentStatusItem[] = [];
-const SourceViewerOverlay = lazy(() => import('../components/evidence/SourceViewerOverlay'));
 
 export function GraphDemo() {
   const textColor = useColorModeValue('surface.700', 'white');
@@ -93,6 +93,8 @@ export function GraphDemo() {
   const highPrecisionCancelRef = useRef<HTMLButtonElement>(null);
   const evidenceNavigation = useEvidenceNavigation();
   const selectedNodeKeyRef = useRef<string | null>(null);
+  const graphEvidenceControlRef = useRef<HTMLButtonElement>(null);
+  const evidenceNavigationFinalFocusRef = useRef<HTMLElement | null>(null);
 
   // Queries
   const { data: graphData, isLoading: isGraphLoading, error: graphError } = useGraphData();
@@ -220,7 +222,8 @@ export function GraphDemo() {
     });
   };
 
-  const handleGraphNodeClick = (node: GraphNode) => {
+  const handleGraphNodeClick = (node: GraphNode, origin?: HTMLElement) => {
+    evidenceNavigationFinalFocusRef.current = origin ?? graphEvidenceControlRef.current;
     selectedNodeKeyRef.current = node.node_key;
     evidenceNavigation.open(node.id, [], true);
     graphNodeEvidenceMutation.mutate(node.node_key, {
@@ -758,6 +761,7 @@ export function GraphDemo() {
                         height={600}
                         isLoading={isGraphLoading}
                         onNodeClick={handleGraphNodeClick}
+                        evidenceControlRef={graphEvidenceControlRef}
                       />
                     </Box>
                   </TabPanel>
@@ -799,14 +803,13 @@ export function GraphDemo() {
         state={evidenceNavigation.state}
         onClose={evidenceNavigation.close}
         onOpenSource={evidenceNavigation.openViewer}
+        finalFocusRef={evidenceNavigationFinalFocusRef}
       />
       {evidenceNavigation.state.viewerEvidence && (
-        <Suspense fallback={null}>
-          <SourceViewerOverlay
-            evidence={evidenceNavigation.state.viewerEvidence}
-            onClose={evidenceNavigation.closeViewer}
-          />
-        </Suspense>
+        <LazySourceViewerBoundary
+          evidence={evidenceNavigation.state.viewerEvidence}
+          onClose={evidenceNavigation.closeViewer}
+        />
       )}
     </Layout>
   );

@@ -11,6 +11,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import type { MouseEvent } from 'react';
 import {
   Box,
   Text,
@@ -40,7 +41,7 @@ interface MessageBubbleProps {
   content: string;
   sources?: Citation[];
   metrics?: EvaluationMetrics;
-  onCitationClick?: (citation: Citation) => void;
+  onCitationClick?: (citation: Citation, trigger: HTMLElement) => void;
 }
 
 // ========== 輔助函數 ==========
@@ -225,7 +226,9 @@ export default function MessageBubble({
                         key={`${source.doc_id}-${idx}`}
                         as="button"
                         type="button"
-                        onClick={() => onCitationClick?.(source)}
+                        onClick={(event: MouseEvent<HTMLButtonElement>) => (
+                          onCitationClick?.(source, event.currentTarget)
+                        )}
                         fontSize="xs"
                         fontWeight="bold"
                         bg={chipBg}

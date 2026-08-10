@@ -206,7 +206,9 @@ describe('SourceViewerOverlay', () => {
   });
 
   it('reports an expired session while keeping the selected quote visible', async () => {
-    vi.mocked(downloadPdf).mockRejectedValueOnce({ response: { status: 401 } });
+    vi.mocked(downloadPdf).mockRejectedValueOnce(
+      Object.assign(new Error('Session expired'), { status: 401 }),
+    );
     renderViewer({ page: 3, bbox: null, quote: 'Keep this quote visible.' });
 
     expect(await screen.findByText('登入狀態已失效，請重新登入。')).toBeInTheDocument();

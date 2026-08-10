@@ -53,8 +53,9 @@ describe('MessageBubble', () => {
       onCitationClick={onCitationClick}
     /></ChakraProvider>);
     fireEvent.click(screen.getByRole('button', { name: '切換來源顯示' }));
-    fireEvent.click(await screen.findByRole('button', { name: /paper\.pdf/i }));
-    expect(onCitationClick).toHaveBeenCalledWith(citation);
+    const citationButton = await screen.findByRole('button', { name: /paper\.pdf/i });
+    fireEvent.click(citationButton);
+    expect(onCitationClick).toHaveBeenCalledWith(citation, citationButton);
   });
 
   it('renders markdown images and opens preview with preserved alt text', () => {

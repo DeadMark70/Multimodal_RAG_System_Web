@@ -41,6 +41,7 @@ import {
 
 import SurfaceCard from '../components/common/SurfaceCard';
 import { EvidenceDrawer } from '../components/evidence/EvidenceDrawer';
+import { LazySourceViewerBoundary } from '../components/evidence/LazySourceViewerBoundary';
 import MessageBubble from '../components/rag/MessageBubble';
 import DocumentSelector from '../components/rag/DocumentSelector';
 import ConversationSidebar from '../components/rag/ConversationSidebar';
@@ -68,7 +69,6 @@ import type { Citation } from '../types/rag';
 const DeepResearchPanel = lazy(() => import('../components/rag/DeepResearchPanel'));
 const AgenticBenchmarkPanel = lazy(() => import('../components/rag/AgenticBenchmarkPanel'));
 const SettingsPanel = lazy(() => import('../components/settings/SettingsPanel'));
-const SourceViewerOverlay = lazy(() => import('../components/evidence/SourceViewerOverlay'));
 
 function getChatStageLabel(stage: ReturnType<typeof useChat>['currentStage']): string | null {
   switch (stage) {
@@ -210,7 +210,7 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const mainLayoutRef = useRef<HTMLDivElement>(null);
   const messageScrollRegionRef = useRef<HTMLDivElement>(null);
-  const evidenceNavigationFinalFocusRef = useRef<HTMLDivElement>(null);
+  const evidenceNavigationFinalFocusRef = useRef<HTMLElement | null>(null);
   const leftRailPreference = useChatRailPreference(LEFT_RAIL_STORAGE_KEY);
   const rightRailPreference = useChatRailPreference(RIGHT_RAIL_STORAGE_KEY);
 
@@ -334,7 +334,8 @@ export default function Chat() {
     settingsActions.setChatMode(presetId);
   };
 
-  const handleCitationClick = (citation: Citation) => {
+  const handleCitationClick = (citation: Citation, trigger: HTMLElement) => {
+    evidenceNavigationFinalFocusRef.current = trigger;
     const item = mapCitationToSourceEvidence(citation);
     evidenceNavigation.open(item.filename ?? '來源文件', [item]);
   };
@@ -363,13 +364,11 @@ export default function Chat() {
   return (
     <Layout>
       <Flex
-        ref={evidenceNavigationFinalFocusRef}
         direction="column"
         flex={1}
         h="100%"
         minH={0}
         overflow="hidden"
-        tabIndex={-1}
         data-testid="chat-shell"
       >
         <Box flexShrink={0}>
@@ -830,12 +829,10 @@ export default function Chat() {
         finalFocusRef={evidenceNavigationFinalFocusRef}
       />
       {evidenceNavigation.state.viewerEvidence && (
-        <Suspense fallback={null}>
-          <SourceViewerOverlay
-            evidence={evidenceNavigation.state.viewerEvidence}
-            onClose={evidenceNavigation.closeViewer}
-          />
-        </Suspense>
+        <LazySourceViewerBoundary
+          evidence={evidenceNavigation.state.viewerEvidence}
+          onClose={evidenceNavigation.closeViewer}
+        />
       )}
     </Layout>
   );

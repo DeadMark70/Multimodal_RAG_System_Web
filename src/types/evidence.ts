@@ -19,10 +19,10 @@ export interface SourceEvidencePayload {
 export function mapCitationToSourceEvidence(citation: Citation): SourceEvidence {
   return {
     docId: citation.doc_id,
-    filename: citation.filename,
-    page: citation.page,
-    quote: citation.snippet,
+    filename: citation.filename ?? null,
+    page: citation.page ?? null,
+    quote: null,
     bbox: null,
-    provenanceStatus: 'full',
+    provenanceStatus: 'source_only',
   };
 }

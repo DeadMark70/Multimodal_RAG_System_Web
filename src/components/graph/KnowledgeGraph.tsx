@@ -18,10 +18,14 @@ import {
   useMemo,
   useState,
   useEffect,
+  type RefObject,
 } from "react";
 import ForceGraph2D, { type ForceGraphMethods } from "react-force-graph-2d";
 import {
   Box,
+  Button,
+  HStack,
+  Select,
   useColorModeValue,
   Text,
   VStack,
@@ -225,7 +229,8 @@ const ForceGraph3D = lazy(() => import("react-force-graph-3d"));
 
 export interface KnowledgeGraphProps {
   data?: GraphData;
-  onNodeClick?: (node: GraphNode) => void;
+  onNodeClick?: (node: GraphNode, origin?: HTMLElement) => void;
+  evidenceControlRef?: RefObject<HTMLButtonElement>;
   isLoading?: boolean;
   width?: number;
   height?: number;
@@ -316,6 +321,7 @@ function GraphLoadingOverlay({ message, zIndex }: GraphLoadingOverlayProps) {
 export function KnowledgeGraph({
   data,
   onNodeClick,
+  evidenceControlRef,
   isLoading = false,
   width: propWidth,
   height: propHeight = 600,
@@ -326,6 +332,7 @@ export function KnowledgeGraph({
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [is3D, setIs3D] = useState(false);
+  const [evidenceNodeKey, setEvidenceNodeKey] = useState<string | null>(null);
   const actions = useSessionActions();
 
   // Theme colors
@@ -334,6 +341,10 @@ export function KnowledgeGraph({
   const linkColor = useColorModeValue("#2C5282", "#63B3ED");
 
   const graphData = useMemo(() => data ?? MOCK_GRAPH_DATA, [data]);
+  const evidenceNode = useMemo(
+    () => graphData.nodes.find((node) => node.node_key === evidenceNodeKey) ?? graphData.nodes[0] ?? null,
+    [evidenceNodeKey, graphData.nodes],
+  );
   const isLargeGraph = graphData.nodes.length >= LARGE_GRAPH_NODE_THRESHOLD;
   const forceGraphData2D = useMemo(
     () => ({
@@ -424,6 +435,7 @@ export function KnowledgeGraph({
   const handle2DNodeClick = useCallback(
     (node: ForceNode) => {
       selectNode(node);
+      setEvidenceNodeKey(node.node_key);
       if (
         graphRef.current &&
         typeof node.x === "number" &&
@@ -440,6 +452,9 @@ export function KnowledgeGraph({
   const handle3DNodeClick = useCallback(
     (node: ForceNode3D) => {
       selectNode(node);
+      if (node.node_key) {
+        setEvidenceNodeKey(node.node_key);
+      }
       onNodeClick?.(node as GraphNode);
     },
     [onNodeClick, selectNode],
@@ -563,6 +578,43 @@ export function KnowledgeGraph({
       {isLoading && (
         <GraphLoadingOverlay message="Building Graph..." zIndex={20} />
       )}
+
+      <GlassPane
+        position="absolute"
+        bottom="4"
+        left="4"
+        p="2"
+        borderRadius="lg"
+        zIndex="10"
+      >
+        <HStack spacing="2">
+          <Select
+            aria-label="選擇圖譜節點"
+            size="sm"
+            maxW="200px"
+            value={evidenceNode?.node_key ?? ""}
+            onChange={(event) => setEvidenceNodeKey(event.target.value)}
+          >
+            {graphData.nodes.map((node) => (
+              <option key={node.node_key} value={node.node_key}>
+                {node.id}
+              </option>
+            ))}
+          </Select>
+          <Button
+            ref={evidenceControlRef}
+            size="sm"
+            isDisabled={!evidenceNode}
+            onClick={(event) => {
+              if (!evidenceNode) return;
+              selectNode(evidenceNode);
+              onNodeClick?.(evidenceNode, event.currentTarget);
+            }}
+          >
+            開啟節點來源
+          </Button>
+        </HStack>
+      </GlassPane>
 
       {/* Glass Controls */}
       <GlassPane

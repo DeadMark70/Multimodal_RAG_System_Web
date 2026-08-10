@@ -1,5 +1,6 @@
 import { ChakraProvider } from '@chakra-ui/react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useRef, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { EvidenceNavigationState } from '../../hooks/useEvidenceNavigation';
@@ -91,5 +92,52 @@ describe('EvidenceDrawer', () => {
     } finally {
       consoleError.mockRestore();
     }
+  });
+
+  it('shows a supplied navigation page with neutral copy for source-only evidence', () => {
+    renderDrawer({
+      ...openState,
+      items: [{ ...sourceOnly, page: 7 }],
+    });
+
+    expect(screen.getByText('第 7 頁')).toBeInTheDocument();
+    expect(screen.getByText('僅確認文件關聯，沒有可驗證的原文片段')).toBeInTheDocument();
+    expect(screen.queryByText('原文')).not.toBeInTheDocument();
+    expect(screen.queryByText('已驗證')).not.toBeInTheDocument();
+  });
+
+  it('restores focus to the exact origin after close and Escape', async () => {
+    function FocusHarness() {
+      const [isOpen, setIsOpen] = useState(false);
+      const triggerRef = useRef<HTMLButtonElement>(null);
+      return (
+        <>
+          <button ref={triggerRef} type="button" onClick={() => setIsOpen(true)}>
+            Citation origin
+          </button>
+          <EvidenceDrawer
+            state={{ ...openState, isOpen }}
+            onClose={() => setIsOpen(false)}
+            onOpenSource={vi.fn()}
+            finalFocusRef={triggerRef}
+          />
+        </>
+      );
+    }
+
+    render(
+      <ChakraProvider theme={theme}>
+        <FocusHarness />
+      </ChakraProvider>,
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Citation origin' });
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+
+    fireEvent.click(trigger);
+    fireEvent.keyDown(screen.getByRole('dialog').parentElement!, { key: 'Escape' });
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
   });
 });

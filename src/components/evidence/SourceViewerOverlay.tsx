@@ -97,8 +97,8 @@ export default function SourceViewerOverlay({ evidence, onClose }: SourceViewerO
       .catch((error: unknown) => {
         if (cancelled) return;
 
-        const status = typeof error === 'object' && error !== null && 'response' in error
-          ? (error as { response?: { status?: number } }).response?.status
+        const status = typeof error === 'object' && error !== null && 'status' in error
+          ? (error as { status?: number }).status
           : undefined;
         setDownloadError(status === 401 ? '登入狀態已失效，請重新登入。' : '無法載入 PDF。');
       });

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import api from './api';
+import { downloadPdf } from './pdfApi';
 
 const { getSessionMock, refreshSessionMock } = vi.hoisted(() => ({
   getSessionMock: vi.fn(),
@@ -133,5 +134,31 @@ describe('api interceptors', () => {
         message: 'Service unavailable',
       })
     ).rejects.toThrow('Service unavailable');
+  });
+
+  it('preserves a 401 status through the real PDF download service', async () => {
+    getSessionMock.mockResolvedValue({
+      data: { session: { access_token: 'token-123' } },
+      error: null,
+    } as never);
+    const originalAdapter = api.defaults.adapter;
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    api.defaults.adapter = vi.fn().mockRejectedValue({
+      response: {
+        status: 401,
+        data: { error: { code: 'UNAUTHORIZED', message: 'Session expired' } },
+      },
+      message: 'Request failed with status code 401',
+    });
+
+    try {
+      await expect(downloadPdf('doc-1', 'original')).rejects.toMatchObject({
+        message: 'Session expired',
+        status: 401,
+      });
+    } finally {
+      api.defaults.adapter = originalAdapter;
+      consoleError.mockRestore();
+    }
   });
 });

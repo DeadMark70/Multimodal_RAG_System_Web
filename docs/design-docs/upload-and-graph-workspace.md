@@ -20,14 +20,14 @@ Describe the shared operational model behind Knowledge Base and Graph Workspace.
 
 ### Source Evidence Navigation
 
-- A Graph node click loads `GET /graph/nodes/{node_key}/evidence` for the current user and opens a page-local shared evidence drawer. The latest click wins, so a late response for an earlier node cannot replace the currently selected node's evidence or reset Graph zoom/simulation state.
-- The drawer renders verified evidence first with its filename, page, quote, and provenance status. Documents associated with a node but lacking a verified quote appear separately as `相關來源文件`, with explicit copy that only the document relationship is confirmed; they must not be labelled or implied to be original evidence.
-- Chat citations and Graph node evidence share the same controlled drawer and lazy source-viewer presentation, while each page owns its own navigation state.
-- The source viewer downloads PDFs through the authenticated API, opens the cited page, and highlights a valid normalized evidence rectangle when supplied. It keeps the selected quote visible on download/session errors and offers a browser fallback for a rendered authenticated blob when PDF previewing fails.
+- A Graph node click loads `GET /graph/nodes/{node_key}/evidence` for the current user and opens a page-local shared evidence drawer. The latest click wins, so a late response for an earlier node cannot replace the currently selected node's evidence or reset Graph zoom/simulation state. A compact native node selector and button provide the same operation to keyboard users without duplicating the graph UI.
+- The drawer renders verified evidence first with its filename, page, quote, and provenance status. Only an owned anchor with `quote_match` verification may supply quoted evidence. An owned `not_checked` anchor or another owned node document may appear only as `相關來源文件`; stale, deleted, and foreign-user documents are excluded.
+- Chat citations and Graph node evidence share the same controlled drawer and lazy source-viewer presentation, while each page owns its own navigation state. Closing the drawer returns focus to the exact Chat citation or Graph evidence control that opened it.
+- The source viewer downloads PDFs through the authenticated API, opens the cited page, and highlights a valid normalized evidence rectangle when supplied. It keeps the selected quote visible on download/session errors and offers a browser fallback for a rendered authenticated blob when PDF previewing fails. Its eager page-local boundary contains lazy-module failures and offers close/retry without unmounting Graph state.
 
 ### Out Of Scope
 
-- This feature does not alter global session-resilience behavior or SSE connection/recovery behavior. Those remain owned by their existing application-level flows.
+- This feature preserves HTTP status on normalized API errors so the viewer can distinguish an expired session locally, but it does not alter global session-resilience behavior or SSE connection/recovery behavior. Those remain owned by their existing application-level flows.
 
 ## Design Rules
 

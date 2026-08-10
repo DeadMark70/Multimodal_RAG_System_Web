@@ -37,9 +37,9 @@ function EvidenceItem({ item, onOpenSource }: Pick<EvidenceDrawerProps, 'onOpenS
     <Box borderWidth="1px" borderRadius="md" p={4}>
       <Stack spacing={3} align="start">
         <Text fontWeight="semibold">{item.filename ?? '未命名文件'}</Text>
+        {item.page !== null && <Text fontSize="sm">第 {item.page} 頁</Text>}
         {!isSourceOnly && (
           <>
-            {item.page !== null && <Text fontSize="sm">第 {item.page} 頁</Text>}
             {item.quote && (
               <Box>
                 <Text fontSize="sm" fontWeight="medium">原文</Text>

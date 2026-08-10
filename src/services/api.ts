@@ -18,6 +18,16 @@ import {
 const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 let inFlightTokenRefresh: Promise<string | null> | null = null;
 
+export class ApiError extends Error {
+  readonly status: number | undefined;
+
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 async function getRequestAccessToken(): Promise<string | null> {
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.access_token) {
@@ -93,7 +103,7 @@ api.interceptors.response.use(
       error.message ||
       '發生未知錯誤';
     
-    return Promise.reject(new Error(message));
+    return Promise.reject(new ApiError(message, error.response?.status));
   }
 );
 

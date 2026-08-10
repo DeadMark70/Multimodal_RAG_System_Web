@@ -1,6 +1,6 @@
 import { ChakraProvider } from '@chakra-ui/react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import theme from '../theme';
@@ -16,6 +16,8 @@ const {
   retryMutateMock,
   graphNodeEvidenceMutateMock,
   graphNodeEvidenceCallbacks,
+  evidenceDrawerFinalFocusMock,
+  lazyViewerBoundaryMock,
 } = vi.hoisted(() => ({
   rebuildMutateMock: vi.fn(),
   rebuildFullMutateMock: vi.fn(),
@@ -25,6 +27,11 @@ const {
   purgeMutateMock: vi.fn(),
   retryMutateMock: vi.fn(),
   graphNodeEvidenceMutateMock: vi.fn(),
+  evidenceDrawerFinalFocusMock: vi.fn(),
+  lazyViewerBoundaryMock: vi.fn<(props: {
+    evidence: { docId: string };
+    onClose: () => void;
+  }) => void>(),
   graphNodeEvidenceCallbacks: [] as Array<{
     onSuccess?: (payload: {
       title: string;
@@ -54,29 +61,33 @@ vi.mock('../components/common/SurfaceCard', () => ({
 }));
 
 vi.mock('../components/graph/KnowledgeGraph', () => ({
-  KnowledgeGraph: ({ onNodeClick }: { onNodeClick?: (node: {
+  KnowledgeGraph: ({ onNodeClick, evidenceControlRef }: {
+    onNodeClick?: (node: {
     id: string;
     node_key: string;
     source_docs: string[];
     group: number;
     val: number;
     desc: string;
-  }) => void }) => (
+    }, origin: HTMLElement) => void;
+    evidenceControlRef?: RefObject<HTMLButtonElement>;
+  }) => (
     <>
       <button
-        onClick={() => onNodeClick?.({
+        ref={evidenceControlRef}
+        onClick={(event) => onNodeClick?.({
           id: 'Transformer', node_key: 'node-transformer', source_docs: ['doc-1'],
           group: 1, val: 2, desc: 'Method',
-        })}
+        }, event.currentTarget)}
         type="button"
       >
         Transformer node
       </button>
       <button
-        onClick={() => onNodeClick?.({
+        onClick={(event) => onNodeClick?.({
           id: 'BERT', node_key: 'node-bert', source_docs: ['doc-2'],
           group: 1, val: 2, desc: 'Method',
-        })}
+        }, event.currentTarget)}
         type="button"
       >
         BERT node
@@ -86,19 +97,40 @@ vi.mock('../components/graph/KnowledgeGraph', () => ({
 }));
 
 vi.mock('../components/evidence/EvidenceDrawer', () => ({
-  EvidenceDrawer: ({ state }: { state: {
+  EvidenceDrawer: ({ state, finalFocusRef, onOpenSource }: { state: {
     isOpen: boolean;
     title: string;
-    items: Array<{ filename: string | null; page: number | null; quote: string | null }>;
-  } }) => state.isOpen ? (
-    <div data-testid="evidence-drawer">
-      {state.title} {state.items.map((item) => `${item.filename} 第 ${item.page} 頁 ${item.quote}`).join(' ')}
-    </div>
-  ) : null,
+    items: Array<{
+      docId: string;
+      filename: string | null;
+      page: number | null;
+      quote: string | null;
+      bbox: [number, number, number, number] | null;
+      provenanceStatus: 'full' | 'partial' | 'source_only';
+    }>;
+  };
+    finalFocusRef?: RefObject<HTMLElement | null>;
+    onOpenSource: (item: typeof state.items[number]) => void;
+  }) => {
+    evidenceDrawerFinalFocusMock(finalFocusRef);
+    return state.isOpen ? (
+      <div data-testid="evidence-drawer">
+        {state.title} {state.items.map((item) => `${item.filename} 第 ${item.page} 頁 ${item.quote}`).join(' ')}
+        {state.items[0] && (
+          <button type="button" onClick={() => onOpenSource(state.items[0])}>
+            Open graph source
+          </button>
+        )}
+      </div>
+    ) : null;
+  },
 }));
 
-vi.mock('../components/evidence/SourceViewerOverlay', () => ({
-  default: () => <div>Source viewer</div>,
+vi.mock('../components/evidence/LazySourceViewerBoundary', () => ({
+  LazySourceViewerBoundary: (props: { evidence: { docId: string }; onClose: () => void }) => {
+    lazyViewerBoundaryMock(props);
+    return <div>Protected source viewer</div>;
+  },
 }));
 
 vi.mock('../components/graph/ResearchFlow', () => ({
@@ -300,6 +332,26 @@ describe('GraphDemo', () => {
     expect(screen.getByTestId('evidence-drawer')).toHaveTextContent('paper.pdf');
     expect(screen.getByTestId('evidence-drawer')).toHaveTextContent('第 3 頁');
     expect(screen.getByTestId('evidence-drawer')).toHaveTextContent('Transformer uses self-attention.');
+  });
+
+  it('preserves the exact graph trigger and mounts the protected source viewer', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <GraphDemo />
+      </ChakraProvider>
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Transformer node' });
+    fireEvent.click(trigger);
+
+    const finalFocusRef = evidenceDrawerFinalFocusMock.mock.calls.at(-1)?.[0] as
+      | RefObject<HTMLElement | null>
+      | undefined;
+    expect(finalFocusRef?.current).toBe(trigger);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open graph source' }));
+    expect(lazyViewerBoundaryMock).toHaveBeenCalled();
+    expect(lazyViewerBoundaryMock.mock.calls.at(-1)?.[0].evidence.docId).toBe('doc-1');
   });
 
   it('keeps evidence from an earlier node click out of the drawer after a newer click', () => {

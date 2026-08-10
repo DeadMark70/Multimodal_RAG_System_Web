@@ -8,7 +8,14 @@ import Chat from './Chat';
 import theme from '../theme';
 import { useSettingsStore } from '../stores';
 
-const { chatCitation, messageBubbleMock, evidenceDrawerMock, useChatMock } = vi.hoisted(() => ({
+const {
+  chatCitation,
+  messageBubbleMock,
+  evidenceDrawerMock,
+  evidenceDrawerFinalFocusMock,
+  lazyViewerBoundaryMock,
+  useChatMock,
+} = vi.hoisted(() => ({
   chatCitation: {
     doc_id: 'doc-1',
     filename: 'paper.pdf',
@@ -18,6 +25,11 @@ const { chatCitation, messageBubbleMock, evidenceDrawerMock, useChatMock } = vi.
   },
   messageBubbleMock: vi.fn(),
   evidenceDrawerMock: vi.fn(),
+  evidenceDrawerFinalFocusMock: vi.fn(),
+  lazyViewerBoundaryMock: vi.fn<(props: {
+    evidence: { docId: string };
+    onClose: () => void;
+  }) => void>(),
   useChatMock: vi.fn(),
 }));
 
@@ -62,15 +74,48 @@ vi.mock('../components/rag/ConversationSidebar', () => ({
 }));
 vi.mock('../components/rag/DocumentSelector', () => ({ default: () => <div>DocSelector</div> }));
 vi.mock('../components/rag/MessageBubble', () => ({
-  default: ({ onCitationClick }: { onCitationClick?: (citation: typeof chatCitation) => void }) => {
+  default: ({ onCitationClick }: {
+    onCitationClick?: (citation: typeof chatCitation, trigger: HTMLElement) => void;
+  }) => {
     messageBubbleMock(onCitationClick);
-    return <button onClick={() => onCitationClick?.(chatCitation)}>Open citation</button>;
+    return (
+      <button onClick={(event) => onCitationClick?.(chatCitation, event.currentTarget)}>
+        Open citation
+      </button>
+    );
   },
 }));
 vi.mock('../components/evidence/EvidenceDrawer', () => ({
-  EvidenceDrawer: ({ state }: { state: { title: string; items: Array<{ filename: string | null; page: number | null }> } }) => {
+  EvidenceDrawer: ({ state, finalFocusRef, onOpenSource }: {
+    state: {
+      title: string;
+      items: Array<{
+        docId: string;
+        filename: string | null;
+        page: number | null;
+        quote: string | null;
+        provenanceStatus: string;
+      }>;
+    };
+    finalFocusRef?: React.RefObject<HTMLElement | null>;
+    onOpenSource: (item: typeof state.items[number]) => void;
+  }) => {
     evidenceDrawerMock(state);
-    return <div data-testid="evidence-drawer">{state.title} {state.items[0]?.filename} {state.items[0]?.page}</div>;
+    evidenceDrawerFinalFocusMock(finalFocusRef);
+    return (
+      <div data-testid="evidence-drawer">
+        {state.title} {state.items[0]?.filename} {state.items[0]?.page}
+        {state.items[0] && (
+          <button onClick={() => onOpenSource(state.items[0])}>Open source evidence</button>
+        )}
+      </div>
+    );
+  },
+}));
+vi.mock('../components/evidence/LazySourceViewerBoundary', () => ({
+  LazySourceViewerBoundary: (props: { evidence: { docId: string }; onClose: () => void }) => {
+    lazyViewerBoundaryMock(props);
+    return <div data-testid="protected-source-viewer">Protected source viewer</div>;
   },
 }));
 vi.mock('../components/rag/DeepResearchPanel', () => ({ default: () => <div>DeepResearch</div> }));
@@ -172,6 +217,8 @@ describe('Chat Page Integration', () => {
     mockSetCurrentChatId.mockReset();
     messageBubbleMock.mockReset();
     evidenceDrawerMock.mockReset();
+    evidenceDrawerFinalFocusMock.mockReset();
+    lazyViewerBoundaryMock.mockReset();
     useChatMock.mockReturnValue({
       messages: [],
       sendMessage: vi.fn(),
@@ -305,12 +352,54 @@ describe('Chat Page Integration', () => {
       </QueryClientProvider>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open citation' }));
+    const citationButton = screen.getByRole('button', { name: 'Open citation' });
+    fireEvent.click(citationButton);
 
     expect(messageBubbleMock).toHaveBeenCalledWith(expect.any(Function));
     expect(evidenceDrawerMock).toHaveBeenLastCalledWith(expect.objectContaining({
       title: 'paper.pdf',
-      items: [expect.objectContaining({ filename: 'paper.pdf', page: 3 })],
+      items: [expect.objectContaining({
+        filename: 'paper.pdf',
+        page: 3,
+        quote: null,
+        provenanceStatus: 'source_only',
+      })],
     }));
+    const finalFocusRef = evidenceDrawerFinalFocusMock.mock.calls.at(-1)?.[0] as
+      | React.RefObject<HTMLElement | null>
+      | undefined;
+    expect(finalFocusRef?.current).toBe(citationButton);
+  });
+
+  it('mounts the protected lazy viewer boundary after opening a Chat source', () => {
+    useChatMock.mockReturnValue({
+      messages: [{
+        id: 'assistant-1',
+        role: 'assistant',
+        content: 'Answer',
+        sources: [chatCitation],
+      }],
+      sendMessage: vi.fn(),
+      clearMessages: vi.fn(),
+      isLoading: false,
+      isLoadingHistory: false,
+      selectedDocIds: [],
+      setSelectedDocIds: vi.fn(),
+      currentStage: null,
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChakraProvider theme={theme}>
+          <Chat />
+        </ChakraProvider>
+      </QueryClientProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open citation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open source evidence' }));
+
+    expect(lazyViewerBoundaryMock).toHaveBeenCalled();
+    expect(lazyViewerBoundaryMock.mock.calls.at(-1)?.[0].evidence.docId).toBe('doc-1');
   });
 });

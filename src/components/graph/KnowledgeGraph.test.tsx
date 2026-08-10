@@ -1,5 +1,5 @@
 import { render, screen, act, waitFor, fireEvent } from '@testing-library/react';
-import { forwardRef, type Ref } from 'react';
+import { createRef, forwardRef, type Ref } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import KnowledgeGraph from './KnowledgeGraph';
 import { ChakraProvider } from '@chakra-ui/react';
@@ -212,6 +212,43 @@ describe('KnowledgeGraph', () => {
       node_key: 'node-1-key',
       source_docs: ['doc-1'],
     }));
+  });
+
+  it('offers a keyboard-operable evidence control and reports its exact trigger', () => {
+    const onNodeClick = vi.fn();
+    const evidenceControlRef = createRef<HTMLButtonElement>();
+    const graphData = {
+      nodes: [
+        { id: 'Node 1', node_key: 'node:one', source_docs: ['doc-1'], group: 1, val: 2 },
+        { id: 'Node 2', node_key: 'node:two', source_docs: ['doc-2'], group: 1, val: 2 },
+      ],
+      links: [],
+    };
+
+    render(
+      <ChakraProvider theme={theme}>
+        <KnowledgeGraph
+          data={graphData}
+          onNodeClick={onNodeClick}
+          evidenceControlRef={evidenceControlRef}
+        />
+      </ChakraProvider>
+    );
+
+    fireEvent.change(screen.getByRole('combobox', { name: '選擇圖譜節點' }), {
+      target: { value: 'node:two' },
+    });
+    const trigger = screen.getByRole('button', { name: '開啟節點來源' });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    expect(document.activeElement).toBe(trigger);
+    expect(evidenceControlRef.current).toBe(trigger);
+    expect(setSelectedNodeIdMock).toHaveBeenCalledWith('Node 2');
+    expect(onNodeClick).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'Node 2', node_key: 'node:two' }),
+      trigger,
+    );
   });
 
   it('applies large-graph render degradation settings for dense graphs', async () => {
