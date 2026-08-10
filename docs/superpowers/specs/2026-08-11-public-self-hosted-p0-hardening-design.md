@@ -1,7 +1,7 @@
 # Public Self-Hosted P0 Hardening
 
-**Status:** Design approved; implementation pending final confirmation  
-**Date:** 2026-08-11  
+**Status:** Design approved; implementation pending final confirmation
+**Date:** 2026-08-11
 **Scope:** `Multimodal_RAG_System` frontend, `pdftopng` backend, and the shared root Docker Compose deployment
 
 ## Objective
