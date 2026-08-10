@@ -13,6 +13,7 @@ const rendererState = vi.hoisted(() => ({
   pageFailure: null as 'load' | 'render' | null,
 }));
 const downloadPdfMock = vi.hoisted(() => vi.fn());
+const revokeObjectUrlMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../../services/pdfApi', () => ({
   downloadPdf: downloadPdfMock,
@@ -93,8 +94,9 @@ describe('SourceViewerOverlay', () => {
     rendererState.pageFailure = null;
     downloadPdfMock.mockReset();
     downloadPdfMock.mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' }));
+    revokeObjectUrlMock.mockReset();
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:pdf') });
-    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectUrlMock });
     vi.stubGlobal('open', vi.fn());
   });
 
@@ -153,7 +155,7 @@ describe('SourceViewerOverlay', () => {
     await screen.findByText('Rendered page 1');
     unmount();
 
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:pdf');
+    expect(revokeObjectUrlMock).toHaveBeenCalledWith('blob:pdf');
   });
 
   it('falls back without replacing the owning page when PDF rendering throws', async () => {

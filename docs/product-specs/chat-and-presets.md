@@ -8,6 +8,7 @@
 - Users can switch between official and custom presets without losing the underlying mode snapshot.
 - Existing conversations restore with their saved behavior context after reload.
 - Desktop users keep their chat rail visibility preferences across refreshes in the current browser.
+- Users can open any assistant citation in a source-evidence drawer and, on demand, inspect its authenticated PDF source at the cited page.
 
 ## Acceptance Notes
 
@@ -17,3 +18,5 @@
 - Desktop chat rail collapse must be smooth; collapsing a rail must not unmount the central workspace or remove access to settings.
 - When Agentic Benchmark execution completes, the workspace should land on the final result tab without requiring a manual tab switch.
 - Assistant markdown content must not auto-load or expose untrusted external image/link targets in chat bubbles.
+- Every existing Chat source chip opens the shared evidence drawer without changing the Chat response contract. The drawer shows the citation filename, page, quote, and provenance before offering `開啟原文`.
+- Opening a citation source uses the shared authenticated viewer rather than a direct PDF URL. The viewer opens the cited page, preserves the selected quote while loading or reporting a session-expiry error, and can fall back to opening its authenticated blob in the browser when in-app PDF rendering fails.
