@@ -1,6 +1,6 @@
 # Shared Evidence Navigation MVP
 
-**Status:** Conversation design approved; awaiting written-spec review
+**Status:** Approved
 **Date:** 2026-08-10
 **Scope:** `Multimodal_RAG_System` frontend and `pdftopng` backend
 
