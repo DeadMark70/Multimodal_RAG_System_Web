@@ -76,8 +76,8 @@ vi.mock('react-force-graph-3d', async () => {
     default: (props: unknown) => {
       forceGraph3DPropsMock(props);
       const typedProps = props as {
-        graphData: { nodes: Array<{ id: string }> };
-        onNodeClick?: (node: { id: string }) => void;
+        graphData: { nodes: Array<{ id: string; node_key?: string; source_docs?: string[] }> };
+        onNodeClick?: (node: { id: string; node_key?: string; source_docs?: string[] }) => void;
       };
 
       return (
@@ -191,7 +191,7 @@ describe('KnowledgeGraph', () => {
   it('keeps node selection callbacks active in 3D mode', async () => {
     const onNodeClick = vi.fn();
     const graphData = {
-      nodes: [{ id: 'Node 1', node_key: 'node:1', source_docs: [], group: 1, val: 2 }],
+      nodes: [{ id: 'Node 1', node_key: 'node-1-key', source_docs: ['doc-1'], group: 1, val: 2 }],
       links: [],
     };
 
@@ -207,7 +207,11 @@ describe('KnowledgeGraph', () => {
     fireEvent.click(screen.getByTestId('force-graph-3d'));
 
     expect(setSelectedNodeIdMock).toHaveBeenCalledWith('Node 1');
-    expect(onNodeClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'Node 1' }));
+    expect(onNodeClick).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'Node 1',
+      node_key: 'node-1-key',
+      source_docs: ['doc-1'],
+    }));
   });
 
   it('applies large-graph render degradation settings for dense graphs', async () => {

@@ -39,14 +39,16 @@ import {
   AlertDialogHeader,
   AlertDialogOverlay,
 } from '@chakra-ui/react';
-import { useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useMemo, useRef, useState } from 'react';
 import { FiChevronDown, FiChevronUp, FiCpu, FiRefreshCw, FiRotateCcw, FiTrash2, FiZap } from 'react-icons/fi';
 import { KnowledgeGraph } from '../components/graph/KnowledgeGraph';
+import { EvidenceDrawer } from '../components/evidence/EvidenceDrawer';
 import { GraphRebuildProgress } from '../components/graph/GraphRebuildProgress';
 import { ResearchFlow } from '../components/graph/ResearchFlow';
 import Layout from '../components/layout/Layout';
 import PageHeader from '../components/common/PageHeader';
 import SurfaceCard from '../components/common/SurfaceCard';
+import { useEvidenceNavigation } from '../hooks/useEvidenceNavigation';
 import {
   useGraphData,
   useGraphDocuments,
@@ -63,8 +65,9 @@ import {
   useDebugGraphSearch,
   useGraphQuality,
   useGraphRuntimeQuality,
+  useGraphNodeEvidence,
 } from '../hooks/useGraphData';
-import type { GraphDocumentStatusItem, GraphExtractionProfile, GraphSearchMode } from '../types/graph';
+import type { GraphDocumentStatusItem, GraphExtractionProfile, GraphNode, GraphSearchMode } from '../types/graph';
 
 const STATUS_META: Record<GraphDocumentStatusItem['status'], { colorScheme: string; label: string }> = {
   indexed: { colorScheme: 'green', label: '成功' },
@@ -75,6 +78,7 @@ const STATUS_META: Record<GraphDocumentStatusItem['status'], { colorScheme: stri
   skipped: { colorScheme: 'gray', label: '未建圖' },
 };
 const EMPTY_GRAPH_DOCUMENTS: GraphDocumentStatusItem[] = [];
+const SourceViewerOverlay = lazy(() => import('../components/evidence/SourceViewerOverlay'));
 
 export function GraphDemo() {
   const textColor = useColorModeValue('surface.700', 'white');
@@ -87,6 +91,8 @@ export function GraphDemo() {
   const [runtimeCampaignId, setRuntimeCampaignId] = useState('');
   const [highPrecisionDoc, setHighPrecisionDoc] = useState<GraphDocumentStatusItem | null>(null);
   const highPrecisionCancelRef = useRef<HTMLButtonElement>(null);
+  const evidenceNavigation = useEvidenceNavigation();
+  const selectedNodeKeyRef = useRef<string | null>(null);
 
   // Queries
   const { data: graphData, isLoading: isGraphLoading, error: graphError } = useGraphData();
@@ -110,6 +116,7 @@ export function GraphDemo() {
   const purgeMutation = usePurgeGraphDocument();
   const startNodeVectorSyncMutation = useStartNodeVectorSync();
   const debugSearchMutation = useDebugGraphSearch();
+  const graphNodeEvidenceMutation = useGraphNodeEvidence();
   const graphDocuments = graphDocumentsResponse?.documents ?? EMPTY_GRAPH_DOCUMENTS;
   const actionableDocuments = graphDocuments.filter((doc) =>
     ['failed', 'partial', 'empty'].includes(doc.status)
@@ -209,6 +216,23 @@ export function GraphDemo() {
           status: 'error',
           duration: 5000,
         });
+      },
+    });
+  };
+
+  const handleGraphNodeClick = (node: GraphNode) => {
+    selectedNodeKeyRef.current = node.node_key;
+    evidenceNavigation.open(node.id, [], true);
+    graphNodeEvidenceMutation.mutate(node.node_key, {
+      onSuccess: (payload) => {
+        if (selectedNodeKeyRef.current === node.node_key) {
+          evidenceNavigation.setPayload(payload);
+        }
+      },
+      onError: () => {
+        if (selectedNodeKeyRef.current === node.node_key) {
+          evidenceNavigation.setError('無法載入這個節點的來源證據。');
+        }
       },
     });
   };
@@ -733,9 +757,7 @@ export function GraphDemo() {
                         width={graphWidth}
                         height={600}
                         isLoading={isGraphLoading}
-                        onNodeClick={(node) => {
-                          console.log('Node clicked:', node);
-                        }}
+                        onNodeClick={handleGraphNodeClick}
                       />
                     </Box>
                   </TabPanel>
@@ -773,6 +795,19 @@ export function GraphDemo() {
           </AlertDialogContent>
         </AlertDialogOverlay>
       </AlertDialog>
+      <EvidenceDrawer
+        state={evidenceNavigation.state}
+        onClose={evidenceNavigation.close}
+        onOpenSource={evidenceNavigation.openViewer}
+      />
+      {evidenceNavigation.state.viewerEvidence && (
+        <Suspense fallback={null}>
+          <SourceViewerOverlay
+            evidence={evidenceNavigation.state.viewerEvidence}
+            onClose={evidenceNavigation.closeViewer}
+          />
+        </Suspense>
+      )}
     </Layout>
   );
 }

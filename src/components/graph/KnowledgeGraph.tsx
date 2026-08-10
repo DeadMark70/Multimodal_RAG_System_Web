@@ -243,6 +243,7 @@ type ForceLink = Omit<GraphLink, "source" | "target"> & {
 
 type ForceNode3D = {
   id: string | number;
+  node_key?: string;
   group?: number;
   val?: number;
   desc?: string;
@@ -352,6 +353,7 @@ export function KnowledgeGraph({
       nodes: graphData.nodes.map(
         (node): ForceNode3D => ({
           id: node.id,
+          node_key: node.node_key,
           group: node.group,
           val: node.val,
           desc: node.desc,

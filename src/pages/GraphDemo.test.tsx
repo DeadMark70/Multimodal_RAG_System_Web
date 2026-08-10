@@ -1,5 +1,5 @@
 import { ChakraProvider } from '@chakra-ui/react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -14,6 +14,8 @@ const {
   optimizeMutateMock,
   purgeMutateMock,
   retryMutateMock,
+  graphNodeEvidenceMutateMock,
+  graphNodeEvidenceCallbacks,
 } = vi.hoisted(() => ({
   rebuildMutateMock: vi.fn(),
   rebuildFullMutateMock: vi.fn(),
@@ -22,6 +24,21 @@ const {
   optimizeMutateMock: vi.fn(),
   purgeMutateMock: vi.fn(),
   retryMutateMock: vi.fn(),
+  graphNodeEvidenceMutateMock: vi.fn(),
+  graphNodeEvidenceCallbacks: [] as Array<{
+    onSuccess?: (payload: {
+      title: string;
+      items: Array<{
+        docId: string;
+        filename: string | null;
+        page: number | null;
+        quote: string | null;
+        bbox: [number, number, number, number] | null;
+        provenanceStatus: 'full' | 'partial' | 'source_only';
+      }>;
+    }) => void;
+    onError?: () => void;
+  }>,
 }));
 
 vi.mock('../components/layout/Layout', () => ({
@@ -37,7 +54,51 @@ vi.mock('../components/common/SurfaceCard', () => ({
 }));
 
 vi.mock('../components/graph/KnowledgeGraph', () => ({
-  KnowledgeGraph: () => <div>KnowledgeGraph</div>,
+  KnowledgeGraph: ({ onNodeClick }: { onNodeClick?: (node: {
+    id: string;
+    node_key: string;
+    source_docs: string[];
+    group: number;
+    val: number;
+    desc: string;
+  }) => void }) => (
+    <>
+      <button
+        onClick={() => onNodeClick?.({
+          id: 'Transformer', node_key: 'node-transformer', source_docs: ['doc-1'],
+          group: 1, val: 2, desc: 'Method',
+        })}
+        type="button"
+      >
+        Transformer node
+      </button>
+      <button
+        onClick={() => onNodeClick?.({
+          id: 'BERT', node_key: 'node-bert', source_docs: ['doc-2'],
+          group: 1, val: 2, desc: 'Method',
+        })}
+        type="button"
+      >
+        BERT node
+      </button>
+    </>
+  ),
+}));
+
+vi.mock('../components/evidence/EvidenceDrawer', () => ({
+  EvidenceDrawer: ({ state }: { state: {
+    isOpen: boolean;
+    title: string;
+    items: Array<{ filename: string | null; page: number | null; quote: string | null }>;
+  } }) => state.isOpen ? (
+    <div data-testid="evidence-drawer">
+      {state.title} {state.items.map((item) => `${item.filename} 第 ${item.page} 頁 ${item.quote}`).join(' ')}
+    </div>
+  ) : null,
+}));
+
+vi.mock('../components/evidence/SourceViewerOverlay', () => ({
+  default: () => <div>Source viewer</div>,
 }));
 
 vi.mock('../components/graph/ResearchFlow', () => ({
@@ -156,6 +217,7 @@ vi.mock('../hooks/useGraphData', () => ({
   }),
   useGraphRuntimeQuality: () => ({ data: undefined }),
   useDebugGraphSearch: () => ({ mutate: vi.fn(), isPending: false, data: undefined }),
+  useGraphNodeEvidence: () => ({ mutate: graphNodeEvidenceMutateMock }),
   useOptimizeGraph: () => ({
     mutate: optimizeMutateMock,
     isPending: false,
@@ -212,6 +274,72 @@ vi.mock('../hooks/useGraphData', () => ({
 describe('GraphDemo', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    graphNodeEvidenceCallbacks.length = 0;
+    graphNodeEvidenceMutateMock.mockImplementation((_: string, callbacks: typeof graphNodeEvidenceCallbacks[number]) => {
+      graphNodeEvidenceCallbacks.push(callbacks);
+      callbacks.onSuccess?.({
+        title: 'Transformer',
+        items: [{
+          docId: 'doc-1', filename: 'paper.pdf', page: 3,
+          quote: 'Transformer uses self-attention.', bbox: null,
+          provenanceStatus: 'full',
+        }],
+      });
+    });
+  });
+
+  it('opens verified node evidence in the shared drawer', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <GraphDemo />
+      </ChakraProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Transformer node' }));
+
+    expect(screen.getByTestId('evidence-drawer')).toHaveTextContent('paper.pdf');
+    expect(screen.getByTestId('evidence-drawer')).toHaveTextContent('第 3 頁');
+    expect(screen.getByTestId('evidence-drawer')).toHaveTextContent('Transformer uses self-attention.');
+  });
+
+  it('keeps evidence from an earlier node click out of the drawer after a newer click', () => {
+    graphNodeEvidenceMutateMock.mockImplementation((_: string, callbacks: typeof graphNodeEvidenceCallbacks[number]) => {
+      graphNodeEvidenceCallbacks.push(callbacks);
+    });
+
+    render(
+      <ChakraProvider theme={theme}>
+        <GraphDemo />
+      </ChakraProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Transformer node' }));
+    fireEvent.click(screen.getByRole('button', { name: 'BERT node' }));
+
+    act(() => {
+      graphNodeEvidenceCallbacks[0].onSuccess?.({
+        title: 'Transformer',
+        items: [{
+          docId: 'doc-1', filename: 'stale-transformer.pdf', page: 3,
+          quote: 'Stale evidence.', bbox: null, provenanceStatus: 'full',
+        }],
+      });
+    });
+
+    expect(screen.queryByText(/stale-transformer\.pdf/)).not.toBeInTheDocument();
+
+    act(() => {
+      graphNodeEvidenceCallbacks[1].onSuccess?.({
+        title: 'BERT',
+        items: [{
+          docId: 'doc-2', filename: 'bert.pdf', page: 5,
+          quote: 'BERT evidence.', bbox: null, provenanceStatus: 'full',
+        }],
+      });
+    });
+
+    expect(screen.getByTestId('evidence-drawer')).toHaveTextContent('bert.pdf');
+    expect(screen.getByTestId('evidence-drawer')).toHaveTextContent('BERT evidence.');
   });
 
   it('renders graph maintenance controls and a collapsed document summary by default', () => {
