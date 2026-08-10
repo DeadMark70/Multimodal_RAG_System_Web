@@ -29,6 +29,28 @@ import type {
   GraphRuntimeQualityResponse,
   GraphExtractionProfile,
 } from '../types/graph';
+import type { SourceEvidencePayload } from '../types/evidence';
+
+interface GraphNodeEvidenceApiItem {
+  doc_id: string;
+  filename: string | null;
+  page: number | null;
+  quote: string;
+  bbox: [number, number, number, number] | null;
+  provenance_status: 'full' | 'partial';
+}
+
+interface GraphNodeSourceDocumentApiItem {
+  doc_id: string;
+  filename: string | null;
+}
+
+interface GraphNodeEvidenceResponse {
+  node_key: string;
+  label: string;
+  evidence: GraphNodeEvidenceApiItem[];
+  source_documents: GraphNodeSourceDocumentApiItem[];
+}
 
 /**
  * 取得圖譜狀態
@@ -54,6 +76,31 @@ export async function getGraphDocuments(): Promise<GraphDocumentStatusListRespon
 export async function getGraphData(): Promise<GraphData> {
   const response = await api.get<GraphData>('/graph/data');
   return response.data;
+}
+
+export async function getGraphNodeEvidence(nodeKey: string): Promise<SourceEvidencePayload> {
+  const response = await api.get<GraphNodeEvidenceResponse>(
+    `/graph/nodes/${encodeURIComponent(nodeKey)}/evidence`,
+  );
+  const verified = response.data.evidence.map((item) => ({
+    docId: item.doc_id,
+    filename: item.filename,
+    page: item.page,
+    quote: item.quote,
+    bbox: item.bbox,
+    provenanceStatus: item.provenance_status,
+  }));
+  const sourceOnly = response.data.source_documents
+    .filter((document) => !verified.some((item) => item.docId === document.doc_id))
+    .map((document) => ({
+      docId: document.doc_id,
+      filename: document.filename,
+      page: null,
+      quote: null,
+      bbox: null,
+      provenanceStatus: 'source_only' as const,
+    }));
+  return { title: response.data.label, items: [...verified, ...sourceOnly] };
 }
 
 /**

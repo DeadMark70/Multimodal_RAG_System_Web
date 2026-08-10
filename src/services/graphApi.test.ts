@@ -52,6 +52,52 @@ describe('graphApi', () => {
     expect(result.total).toBe(1);
   });
 
+  it('normalizes verified and source-only graph node evidence', async () => {
+    mockedApi.get.mockResolvedValue({
+      data: {
+        node_key: 'node/method',
+        label: 'Method Node',
+        evidence: [{
+          doc_id: 'doc-1',
+          filename: 'paper.pdf',
+          page: 7,
+          quote: 'Verified evidence',
+          bbox: [1, 2, 3, 4],
+          provenance_status: 'full',
+        }],
+        source_documents: [
+          { doc_id: 'doc-1', filename: 'paper.pdf' },
+          { doc_id: 'doc-2', filename: 'appendix.pdf' },
+        ],
+      },
+    });
+
+    const result = await graphApi.getGraphNodeEvidence('node/method');
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/graph/nodes/node%2Fmethod/evidence');
+    expect(result).toEqual({
+      title: 'Method Node',
+      items: [
+        {
+          docId: 'doc-1',
+          filename: 'paper.pdf',
+          page: 7,
+          quote: 'Verified evidence',
+          bbox: [1, 2, 3, 4],
+          provenanceStatus: 'full',
+        },
+        {
+          docId: 'doc-2',
+          filename: 'appendix.pdf',
+          page: null,
+          quote: null,
+          bbox: null,
+          provenanceStatus: 'source_only',
+        },
+      ],
+    });
+  });
+
   it('starts a full rebuild via POST /graph/rebuild-full', async () => {
     mockedApi.post.mockResolvedValue({
       data: {

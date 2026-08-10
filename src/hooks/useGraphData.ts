@@ -23,7 +23,9 @@ import {
   retryGraphDocument,
   startNodeVectorSync,
   debugGraphSearch,
+  getGraphNodeEvidence,
 } from '../services/graphApi';
+import type { SourceEvidencePayload } from '../types/evidence';
 import type {
   GraphData,
   GraphDocumentStatusListResponse,
@@ -177,6 +179,12 @@ export function useRebuildFullGraph() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['graph'] });
     },
+  });
+}
+
+export function useGraphNodeEvidence() {
+  return useMutation<SourceEvidencePayload, Error, string>({
+    mutationFn: getGraphNodeEvidence,
   });
 }
 

@@ -19,6 +19,9 @@ export interface GraphNode {
   /** 節點唯一識別碼 (通常是實體名稱) */
   id: string;
 
+  /** 節點穩定識別碼 (用於取得證據) */
+  node_key: string;
+
   /** 社群分組 (用於著色) */
   group: number;
 
@@ -32,7 +35,7 @@ export interface GraphNode {
   type?: string;
 
   /** 來源文件 ID 列表 */
-  source_docs?: string[];
+  source_docs: string[];
 
   // ========== D3 Force Simulation Properties ==========
   /** 當前 X 座標 (由 d3-force 計算) */
