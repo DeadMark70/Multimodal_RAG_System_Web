@@ -70,6 +70,7 @@ export default function SourceViewerOverlay({ evidence, onClose }: SourceViewerO
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [renderFailed, setRenderFailed] = useState(false);
   const [numPages, setNumPages] = useState<number | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const citedPage = evidence.page ?? 1;
   const [pageNumber, setPageNumber] = useState(citedPage);
 
@@ -114,9 +115,21 @@ export default function SourceViewerOverlay({ evidence, onClose }: SourceViewerO
     }
   };
 
+  const retryPreview = () => {
+    setRenderFailed(false);
+    setRetryKey((key) => key + 1);
+  };
+
+  const visibleBbox = evidence.bbox !== null
+    && evidence.page !== null
+    && pageNumber === evidence.page
+    ? evidence.bbox
+    : null;
+
   const failurePanel = (
     <Stack spacing={3} align="start">
       <Alert status="error"><AlertIcon />PDF 預覽載入失敗</Alert>
+      <Button onClick={retryPreview}>再試一次</Button>
       <Button onClick={openInBrowser} isDisabled={!blobUrl}>使用瀏覽器開啟</Button>
     </Stack>
   );
@@ -135,12 +148,18 @@ export default function SourceViewerOverlay({ evidence, onClose }: SourceViewerO
               ) : !blobUrl ? (
                 <Flex minH="240px" align="center" justify="center"><Spinner /></Flex>
               ) : renderFailed ? failurePanel : (
-                <PdfErrorBoundary fallback={failurePanel}>
-                  <Document file={blobUrl} onLoadSuccess={(pdf) => setNumPages(pdf.numPages)} onLoadError={() => setRenderFailed(true)}>
+                <PdfErrorBoundary key={retryKey} fallback={failurePanel}>
+                  <Document key={retryKey} file={blobUrl} onLoadSuccess={(pdf) => setNumPages(pdf.numPages)} onLoadError={() => setRenderFailed(true)}>
                     <Stack spacing={3} align="start">
                       <Box position="relative" display="inline-block">
-                        <Page pageNumber={pageNumber} />
-                        {evidence.bbox && (
+                        <Page
+                          pageNumber={pageNumber}
+                          renderTextLayer={false}
+                          renderAnnotationLayer={false}
+                          onLoadError={() => setRenderFailed(true)}
+                          onRenderError={() => setRenderFailed(true)}
+                        />
+                        {visibleBbox && (
                           <Box
                             data-testid="source-bbox-highlight"
                             position="absolute"
@@ -149,10 +168,10 @@ export default function SourceViewerOverlay({ evidence, onClose }: SourceViewerO
                             borderColor="yellow.400"
                             bg="yellow.200"
                             opacity={0.35}
-                            left={`${evidence.bbox[0] * 100}%`}
-                            top={`${evidence.bbox[1] * 100}%`}
-                            width={`${(evidence.bbox[2] - evidence.bbox[0]) * 100}%`}
-                            height={`${(evidence.bbox[3] - evidence.bbox[1]) * 100}%`}
+                            left={`${visibleBbox[0] * 100}%`}
+                            top={`${visibleBbox[1] * 100}%`}
+                            width={`${(visibleBbox[2] - visibleBbox[0]) * 100}%`}
+                            height={`${(visibleBbox[3] - visibleBbox[1]) * 100}%`}
                           />
                         )}
                       </Box>
@@ -186,10 +205,17 @@ export default function SourceViewerOverlay({ evidence, onClose }: SourceViewerO
                   <Badge colorScheme={provenanceColor(evidence.provenanceStatus)}>{provenanceLabel(evidence.provenanceStatus)}</Badge>
                 </Box>
                 <Divider />
-                <Box>
-                  <Text fontSize="sm" color="gray.500" mb={1}>原文</Text>
-                  <Text whiteSpace="pre-wrap">{evidence.quote ?? '沒有可用的原文片段。'}</Text>
-                </Box>
+                {evidence.provenanceStatus === 'source_only' ? (
+                  <Box>
+                    <Text fontSize="sm" color="gray.500" mb={1}>文件關聯</Text>
+                    <Text>僅確認文件關聯，沒有可驗證的原文片段。</Text>
+                  </Box>
+                ) : (
+                  <Box>
+                    <Text fontSize="sm" color="gray.500" mb={1}>原文</Text>
+                    <Text whiteSpace="pre-wrap">{evidence.quote ?? '沒有可用的原文片段。'}</Text>
+                  </Box>
+                )}
               </Stack>
             </Box>
           </Flex>

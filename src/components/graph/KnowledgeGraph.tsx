@@ -35,8 +35,7 @@ import GlassPane from "../common/GlassPane";
 
 // ========== Mock Data ==========
 
-const MOCK_GRAPH_DATA: GraphData = {
-  nodes: [
+const MOCK_GRAPH_NODES = [
     {
       id: "Machine Learning",
       group: 1,
@@ -157,7 +156,14 @@ const MOCK_GRAPH_DATA: GraphData = {
       desc: "科技公司",
       type: "Organization",
     },
-  ],
+];
+
+const MOCK_GRAPH_DATA: GraphData = {
+  nodes: MOCK_GRAPH_NODES.map((node) => ({
+    ...node,
+    node_key: `mock:${node.id}`,
+    source_docs: [],
+  })),
   links: [
     { source: "Machine Learning", target: "Deep Learning", label: "includes" },
     { source: "Deep Learning", target: "Neural Networks", label: "uses" },

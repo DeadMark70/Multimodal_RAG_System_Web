@@ -163,7 +163,10 @@ describe('KnowledgeGraph', () => {
   it('drops pinned 2D coordinates from the 3D graph projection', async () => {
     const graphWithPinnedNode = {
       nodes: [
-        { id: 'Pinned Node', group: 1, val: 3, fx: 120, fy: 240 },
+        {
+          id: 'Pinned Node', node_key: 'node:pinned', source_docs: [],
+          group: 1, val: 3, fx: 120, fy: 240,
+        },
       ],
       links: [],
     };
@@ -188,7 +191,7 @@ describe('KnowledgeGraph', () => {
   it('keeps node selection callbacks active in 3D mode', async () => {
     const onNodeClick = vi.fn();
     const graphData = {
-      nodes: [{ id: 'Node 1', group: 1, val: 2 }],
+      nodes: [{ id: 'Node 1', node_key: 'node:1', source_docs: [], group: 1, val: 2 }],
       links: [],
     };
 
@@ -211,6 +214,8 @@ describe('KnowledgeGraph', () => {
     const denseGraph = {
       nodes: Array.from({ length: 1600 }, (_, index) => ({
         id: `node-${index}`,
+        node_key: `node:${index}`,
+        source_docs: [],
         group: index % 8,
         val: 1,
       })),

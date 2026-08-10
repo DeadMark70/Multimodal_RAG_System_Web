@@ -62,7 +62,7 @@ describe('graphApi', () => {
           filename: 'paper.pdf',
           page: 7,
           quote: 'Verified evidence',
-          bbox: [1, 2, 3, 4],
+          bbox: [0.1, 0.2, 0.6, 0.5],
           provenance_status: 'full',
         }],
         source_documents: [
@@ -83,7 +83,7 @@ describe('graphApi', () => {
           filename: 'paper.pdf',
           page: 7,
           quote: 'Verified evidence',
-          bbox: [1, 2, 3, 4],
+          bbox: [0.1, 0.2, 0.6, 0.5],
           provenanceStatus: 'full',
         },
         {

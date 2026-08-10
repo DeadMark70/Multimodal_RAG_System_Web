@@ -80,12 +80,16 @@ export function EvidenceDrawer({ state, onClose, onOpenSource, finalFocusRef }: 
             <Text>這個節點目前沒有可用的來源證據。</Text>
           ) : (
             <Stack spacing={4}>
-              {evidenceItems.map((item) => <EvidenceItem key={item.docId} item={item} onOpenSource={onOpenSource} />)}
+              {evidenceItems.map((item, index) => (
+                <EvidenceItem key={`${item.docId}:${item.page ?? 'none'}:${index}`} item={item} onOpenSource={onOpenSource} />
+              ))}
               {sourceOnlyItems.length > 0 && (
                 <>
                   {evidenceItems.length > 0 && <Divider />}
                   <Heading size="sm">相關來源文件</Heading>
-                  {sourceOnlyItems.map((item) => <EvidenceItem key={item.docId} item={item} onOpenSource={onOpenSource} />)}
+                  {sourceOnlyItems.map((item, index) => (
+                    <EvidenceItem key={`${item.docId}:source:${index}`} item={item} onOpenSource={onOpenSource} />
+                  ))}
                 </>
               )}
             </Stack>

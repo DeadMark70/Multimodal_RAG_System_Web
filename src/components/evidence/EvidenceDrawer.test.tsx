@@ -67,4 +67,29 @@ describe('EvidenceDrawer', () => {
     fireEvent.keyDown(screen.getByRole('dialog').parentElement!, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it('keeps separate excerpts from one document independently actionable', () => {
+    const secondExcerpt: SourceEvidence = {
+      ...verified,
+      page: 4,
+      quote: 'A second excerpt from the same paper.',
+    };
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const { onOpenSource } = renderDrawer({
+        ...openState,
+        items: [verified, secondExcerpt],
+      });
+
+      const buttons = screen.getAllByRole('button', { name: '開啟原文' });
+      fireEvent.click(buttons[0]);
+      fireEvent.click(buttons[1]);
+
+      expect(onOpenSource).toHaveBeenNthCalledWith(1, verified);
+      expect(onOpenSource).toHaveBeenNthCalledWith(2, secondExcerpt);
+      expect(consoleError.mock.calls.flat().join(' ')).not.toContain('unique "key" prop');
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
 });
