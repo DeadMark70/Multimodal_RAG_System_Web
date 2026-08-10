@@ -8,6 +8,19 @@ import Chat from './Chat';
 import theme from '../theme';
 import { useSettingsStore } from '../stores';
 
+const { chatCitation, messageBubbleMock, evidenceDrawerMock, useChatMock } = vi.hoisted(() => ({
+  chatCitation: {
+    doc_id: 'doc-1',
+    filename: 'paper.pdf',
+    page: 3,
+    snippet: 'Source quote',
+    score: 0.9,
+  },
+  messageBubbleMock: vi.fn(),
+  evidenceDrawerMock: vi.fn(),
+  useChatMock: vi.fn(),
+}));
+
 const mockSetCurrentChatId = vi.fn();
 const scrollToMock = vi.fn();
 const scrollIntoViewMock = vi.fn();
@@ -48,7 +61,18 @@ vi.mock('../components/rag/ConversationSidebar', () => ({
   ),
 }));
 vi.mock('../components/rag/DocumentSelector', () => ({ default: () => <div>DocSelector</div> }));
-vi.mock('../components/rag/MessageBubble', () => ({ default: () => <div>MessageBubble</div> }));
+vi.mock('../components/rag/MessageBubble', () => ({
+  default: ({ onCitationClick }: { onCitationClick?: (citation: typeof chatCitation) => void }) => {
+    messageBubbleMock(onCitationClick);
+    return <button onClick={() => onCitationClick?.(chatCitation)}>Open citation</button>;
+  },
+}));
+vi.mock('../components/evidence/EvidenceDrawer', () => ({
+  EvidenceDrawer: ({ state }: { state: { title: string; items: Array<{ filename: string | null; page: number | null }> } }) => {
+    evidenceDrawerMock(state);
+    return <div data-testid="evidence-drawer">{state.title} {state.items[0]?.filename} {state.items[0]?.page}</div>;
+  },
+}));
 vi.mock('../components/rag/DeepResearchPanel', () => ({ default: () => <div>DeepResearch</div> }));
 vi.mock('../components/rag/AgenticBenchmarkPanel', () => ({ default: () => <div>AgenticBenchmark</div> }));
 vi.mock('../components/settings/SettingsPanel', () => ({ default: () => <div>SettingsPanel</div> }));
@@ -67,16 +91,7 @@ vi.mock('../hooks/useConversations', () => ({
   useConversationMutations: vi.fn(() => ({ create: vi.fn() })),
 }));
 vi.mock('../hooks/useChat', () => ({
-  useChat: vi.fn(() => ({
-    messages: [],
-    sendMessage: vi.fn(),
-    clearMessages: vi.fn(),
-    isLoading: false,
-    isLoadingHistory: false,
-    selectedDocIds: [],
-    setSelectedDocIds: vi.fn(),
-    currentStage: null,
-  })),
+  useChat: useChatMock,
 }));
 vi.mock('../hooks/useDeepResearch', () => ({
   useDeepResearch: vi.fn(() => ({
@@ -155,6 +170,18 @@ describe('Chat Page Integration', () => {
       customChatPresets: [],
     });
     mockSetCurrentChatId.mockReset();
+    messageBubbleMock.mockReset();
+    evidenceDrawerMock.mockReset();
+    useChatMock.mockReturnValue({
+      messages: [],
+      sendMessage: vi.fn(),
+      clearMessages: vi.fn(),
+      isLoading: false,
+      isLoadingHistory: false,
+      selectedDocIds: [],
+      setSelectedDocIds: vi.fn(),
+      currentStage: null,
+    });
   });
 
   it('restores agentic preset when a research conversation is selected', () => {
@@ -251,5 +278,39 @@ describe('Chat Page Integration', () => {
 
     expect(scrollToMock).toHaveBeenCalled();
     expect(scrollIntoViewMock).not.toHaveBeenCalled();
+  });
+
+  it('opens shared evidence navigation when a Chat citation is clicked', () => {
+    useChatMock.mockReturnValue({
+      messages: [{
+        id: 'assistant-1',
+        role: 'assistant',
+        content: 'Answer',
+        sources: [chatCitation],
+      }],
+      sendMessage: vi.fn(),
+      clearMessages: vi.fn(),
+      isLoading: false,
+      isLoadingHistory: false,
+      selectedDocIds: [],
+      setSelectedDocIds: vi.fn(),
+      currentStage: null,
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChakraProvider theme={theme}>
+          <Chat />
+        </ChakraProvider>
+      </QueryClientProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open citation' }));
+
+    expect(messageBubbleMock).toHaveBeenCalledWith(expect.any(Function));
+    expect(evidenceDrawerMock).toHaveBeenLastCalledWith(expect.objectContaining({
+      title: 'paper.pdf',
+      items: [expect.objectContaining({ filename: 'paper.pdf', page: 3 })],
+    }));
   });
 });

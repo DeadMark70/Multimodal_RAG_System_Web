@@ -40,11 +40,13 @@ import {
 } from 'react-icons/fi';
 
 import SurfaceCard from '../components/common/SurfaceCard';
+import { EvidenceDrawer } from '../components/evidence/EvidenceDrawer';
 import MessageBubble from '../components/rag/MessageBubble';
 import DocumentSelector from '../components/rag/DocumentSelector';
 import ConversationSidebar from '../components/rag/ConversationSidebar';
 import { useChatRailPreference } from '../hooks/useChatRailPreference';
 import { useChat } from '../hooks/useChat';
+import { useEvidenceNavigation } from '../hooks/useEvidenceNavigation';
 import { useDeepResearch } from '../hooks/useDeepResearch';
 import { useAgenticBenchmarkResearch } from '../hooks/useAgenticBenchmarkResearch';
 import { useConversationMutations } from '../hooks/useConversations';
@@ -60,10 +62,13 @@ import {
   useSettingsActions,
 } from '../stores';
 import type { Conversation, ConversationType } from '../types/conversation';
+import { mapCitationToSourceEvidence } from '../types/evidence';
+import type { Citation } from '../types/rag';
 
 const DeepResearchPanel = lazy(() => import('../components/rag/DeepResearchPanel'));
 const AgenticBenchmarkPanel = lazy(() => import('../components/rag/AgenticBenchmarkPanel'));
 const SettingsPanel = lazy(() => import('../components/settings/SettingsPanel'));
+const SourceViewerOverlay = lazy(() => import('../components/evidence/SourceViewerOverlay'));
 
 function getChatStageLabel(stage: ReturnType<typeof useChat>['currentStage']): string | null {
   switch (stage) {
@@ -152,6 +157,7 @@ export default function Chat() {
   const { create } = useConversationMutations();
   const conversationDrawer = useDisclosure();
   const settingsDrawer = useDisclosure();
+  const evidenceNavigation = useEvidenceNavigation();
 
   const isDeepResearchMode = activePreset.baseMode === 'agentic';
   const isAgenticBenchmarkMode = activePreset.baseMode === 'agentic_benchmark';
@@ -204,6 +210,7 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const mainLayoutRef = useRef<HTMLDivElement>(null);
   const messageScrollRegionRef = useRef<HTMLDivElement>(null);
+  const evidenceNavigationFinalFocusRef = useRef<HTMLDivElement>(null);
   const leftRailPreference = useChatRailPreference(LEFT_RAIL_STORAGE_KEY);
   const rightRailPreference = useChatRailPreference(RIGHT_RAIL_STORAGE_KEY);
 
@@ -327,6 +334,11 @@ export default function Chat() {
     settingsActions.setChatMode(presetId);
   };
 
+  const handleCitationClick = (citation: Citation) => {
+    const item = mapCitationToSourceEvidence(citation);
+    evidenceNavigation.open(item.filename ?? '來源文件', [item]);
+  };
+
   const handleSaveCustomPreset = () => {
     const name = window.prompt('輸入自訂模式名稱');
     if (!name) {
@@ -350,7 +362,16 @@ export default function Chat() {
 
   return (
     <Layout>
-      <Flex direction="column" flex={1} h="100%" minH={0} overflow="hidden" data-testid="chat-shell">
+      <Flex
+        ref={evidenceNavigationFinalFocusRef}
+        direction="column"
+        flex={1}
+        h="100%"
+        minH={0}
+        overflow="hidden"
+        tabIndex={-1}
+        data-testid="chat-shell"
+      >
         <Box flexShrink={0}>
           <PageHeader
             title="對話"
@@ -488,6 +509,7 @@ export default function Chat() {
                             content={message.content}
                             sources={message.sources}
                             metrics={ragSettings.enable_evaluation ? message.metrics : undefined}
+                            onCitationClick={handleCitationClick}
                           />
                         ))}
                         {isChatLoading && !activeStatusLabel && (
@@ -800,6 +822,21 @@ export default function Chat() {
           </DrawerBody>
         </DrawerContent>
       </Drawer>
+
+      <EvidenceDrawer
+        state={evidenceNavigation.state}
+        onClose={evidenceNavigation.close}
+        onOpenSource={evidenceNavigation.openViewer}
+        finalFocusRef={evidenceNavigationFinalFocusRef}
+      />
+      {evidenceNavigation.state.viewerEvidence && (
+        <Suspense fallback={null}>
+          <SourceViewerOverlay
+            evidence={evidenceNavigation.state.viewerEvidence}
+            onClose={evidenceNavigation.closeViewer}
+          />
+        </Suspense>
+      )}
     </Layout>
   );
 }

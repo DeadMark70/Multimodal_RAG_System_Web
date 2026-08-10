@@ -42,6 +42,21 @@ describe('MessageBubble', () => {
     });
   });
 
+  it('passes the exact citation to its click handler', async () => {
+    const citation = {
+      doc_id: 'doc-1', filename: 'paper.pdf', page: 3,
+      snippet: 'Source quote', score: 0.9,
+    };
+    const onCitationClick = vi.fn();
+    render(<ChakraProvider theme={theme}><MessageBubble
+      role="assistant" content="Answer" sources={[citation]}
+      onCitationClick={onCitationClick}
+    /></ChakraProvider>);
+    fireEvent.click(screen.getByRole('button', { name: '切換來源顯示' }));
+    fireEvent.click(await screen.findByRole('button', { name: /paper\.pdf/i }));
+    expect(onCitationClick).toHaveBeenCalledWith(citation);
+  });
+
   it('renders markdown images and opens preview with preserved alt text', () => {
     render(
       <ChakraProvider theme={theme}>
