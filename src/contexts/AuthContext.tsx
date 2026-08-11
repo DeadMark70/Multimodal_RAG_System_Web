@@ -1,6 +1,11 @@
 import { useEffect, useState, type FC, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
+import {
+  resetSessionExpiration,
+  subscribeSessionExpired,
+} from '../services/sessionRecovery';
+import { saveSessionReturnPath } from '../services/sessionReturnPath';
 import { AuthContext } from './auth-context';
 
 export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
@@ -8,6 +13,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [recoveryActive, setRecoveryActive] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -35,12 +41,34 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       if (event === 'SIGNED_OUT') {
         setRecoveryActive(false);
       }
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        resetSessionExpiration();
+        setSessionExpired(false);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    const unsubscribeSessionExpired = subscribeSessionExpired(() => {
+      if (window.location.pathname !== '/login') {
+        saveSessionReturnPath(
+          `${window.location.pathname}${window.location.search}${window.location.hash}`
+        );
+      }
+      setSessionExpired(true);
+      setSession(null);
+      setUser(null);
+      setRecoveryActive(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+      unsubscribeSessionExpired();
+    };
   }, []);
 
   const signOut = async () => {
+    setSessionExpired(false);
+    resetSessionExpiration();
     const { error: globalError } = await supabase.auth.signOut({ scope: 'global' });
     if (globalError) {
       const { error: localError } = await supabase.auth.signOut({ scope: 'local' });
@@ -54,8 +82,22 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     setRecoveryActive(false);
   };
 
+  const acknowledgeSessionExpired = () => {
+    setSessionExpired(false);
+  };
+
   return (
-    <AuthContext.Provider value={{ session, user, loading, recoveryActive, signOut }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        user,
+        loading,
+        recoveryActive,
+        sessionExpired,
+        acknowledgeSessionExpired,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

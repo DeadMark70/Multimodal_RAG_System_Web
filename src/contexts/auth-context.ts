@@ -6,6 +6,8 @@ export interface AuthContextType {
   user: User | null;
   loading: boolean;
   recoveryActive: boolean;
+  sessionExpired: boolean;
+  acknowledgeSessionExpired: () => void;
   signOut: () => Promise<void>;
 }
 

@@ -72,6 +72,8 @@ describe('ChangePassword', () => {
       user: { id: '1', email: 'user@example.com' } as AuthContextType['user'],
       loading: false,
       recoveryActive: false,
+      sessionExpired: false,
+      acknowledgeSessionExpired: vi.fn(),
       signOut: signOutMock,
     });
   });

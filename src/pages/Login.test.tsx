@@ -5,11 +5,13 @@ import { MemoryRouter } from 'react-router-dom';
 import Login from './Login';
 import theme from '../theme';
 import type { AuthContextType } from '../contexts/auth-context';
+import { saveSessionReturnPath } from '../services/sessionReturnPath';
 
 const navigateMock = vi.fn();
 const signOutMock = vi.fn();
 const useAuthMock = vi.fn<() => AuthContextType>();
 const authRenderMock = vi.fn();
+const acknowledgeSessionExpiredMock = vi.fn();
 
 vi.mock('../contexts/useAuth', () => ({
   useAuth: () => useAuthMock(),
@@ -39,11 +41,15 @@ describe('Login', () => {
     navigateMock.mockReset();
     signOutMock.mockReset();
     authRenderMock.mockReset();
+    acknowledgeSessionExpiredMock.mockReset();
+    sessionStorage.clear();
     useAuthMock.mockReturnValue({
       session: null,
       user: null,
       loading: false,
       recoveryActive: false,
+      sessionExpired: false,
+      acknowledgeSessionExpired: acknowledgeSessionExpiredMock,
       signOut: signOutMock,
     });
   });
@@ -78,6 +84,8 @@ describe('Login', () => {
       user: { id: '1' } as AuthContextType['user'],
       loading: false,
       recoveryActive: false,
+      sessionExpired: false,
+      acknowledgeSessionExpired: acknowledgeSessionExpiredMock,
       signOut: signOutMock,
     });
 
@@ -89,6 +97,62 @@ describe('Login', () => {
       </ChakraProvider>
     );
 
-    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/dashboard'));
+    await waitFor(() =>
+      expect(navigateMock).toHaveBeenCalledWith('/dashboard', { replace: true })
+    );
+  });
+
+  it('restores a saved safe route after login', async () => {
+    saveSessionReturnPath('/chat?mode=rag');
+    useAuthMock.mockReturnValue({
+      session: { user: { id: '1' } } as AuthContextType['session'],
+      user: { id: '1' } as AuthContextType['user'],
+      loading: false,
+      recoveryActive: false,
+      sessionExpired: false,
+      acknowledgeSessionExpired: acknowledgeSessionExpiredMock,
+      signOut: signOutMock,
+    });
+
+    render(
+      <ChakraProvider theme={theme}>
+        <MemoryRouter>
+          <Login />
+        </MemoryRouter>
+      </ChakraProvider>
+    );
+
+    await waitFor(() =>
+      expect(navigateMock).toHaveBeenCalledWith('/chat?mode=rag', { replace: true })
+    );
+  });
+
+  it('falls back to dashboard when stored return data is unsafe', async () => {
+    sessionStorage.setItem('rag.session.return-path.v1', 'https://evil.example');
+    useAuthMock.mockReturnValue({
+      session: { user: { id: '1' } } as AuthContextType['session'],
+      user: { id: '1' } as AuthContextType['user'],
+      loading: false,
+      recoveryActive: false,
+      sessionExpired: false,
+      acknowledgeSessionExpired: acknowledgeSessionExpiredMock,
+      signOut: signOutMock,
+    });
+
+    render(
+      <ChakraProvider theme={theme}>
+        <MemoryRouter>
+          <Login />
+        </MemoryRouter>
+      </ChakraProvider>
+    );
+
+    await waitFor(() =>
+      expect(navigateMock).toHaveBeenCalledWith('/dashboard', { replace: true })
+    );
+    expect(navigateMock).not.toHaveBeenCalledWith(
+      expect.stringMatching(/^https?:/),
+      expect.anything()
+    );
   });
 });

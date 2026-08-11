@@ -44,6 +44,8 @@ function createAuthValue(overrides: Partial<AuthContextType> = {}): AuthContextT
     } as AuthContextType['user'],
     loading: false,
     recoveryActive: false,
+    sessionExpired: false,
+    acknowledgeSessionExpired: vi.fn(),
     signOut: signOutMock,
     ...overrides,
   };

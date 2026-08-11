@@ -16,6 +16,7 @@ import { motion } from 'framer-motion';
 import { supabase } from '../services/supabase';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
+import { consumeSessionReturnPath } from '../services/sessionReturnPath';
 
 const brandHighlights = ['Responsible', 'Reliable', 'Research'];
 
@@ -36,7 +37,8 @@ export default function Login() {
 
   useEffect(() => {
     if (session) {
-      void navigate('/dashboard');
+      const destination = consumeSessionReturnPath() ?? '/dashboard';
+      void navigate(destination, { replace: true });
     }
   }, [session, navigate]);
 

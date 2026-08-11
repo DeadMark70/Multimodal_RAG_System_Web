@@ -45,6 +45,8 @@ describe('ResetPassword', () => {
       user: { id: '1' } as AuthContextType['user'],
       loading: false,
       recoveryActive: true,
+      sessionExpired: false,
+      acknowledgeSessionExpired: vi.fn(),
       signOut: signOutMock,
     });
     signOutMock.mockResolvedValue(undefined);
@@ -56,6 +58,8 @@ describe('ResetPassword', () => {
       user: null,
       loading: false,
       recoveryActive: false,
+      sessionExpired: false,
+      acknowledgeSessionExpired: vi.fn(),
       signOut: signOutMock,
     });
 
@@ -77,6 +81,8 @@ describe('ResetPassword', () => {
       user: { id: '1' } as AuthContextType['user'],
       loading: false,
       recoveryActive: false,
+      sessionExpired: false,
+      acknowledgeSessionExpired: vi.fn(),
       signOut: signOutMock,
     });
 

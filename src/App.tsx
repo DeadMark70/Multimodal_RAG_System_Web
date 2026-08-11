@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import theme from './theme';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import SessionExpiredDialog from './components/auth/SessionExpiredDialog';
 
 const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
@@ -32,8 +33,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ChakraProvider theme={theme}>
-        <AuthProvider>
-          <Router>
+        <Router>
+          <AuthProvider>
+            <SessionExpiredDialog />
             <Suspense fallback={<div data-testid="app-route-fallback">Loading...</div>}>
               <Routes>
                 <Route path="/login" element={<Login />} />
@@ -52,8 +54,8 @@ function App() {
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </Suspense>
-          </Router>
-        </AuthProvider>
+          </AuthProvider>
+        </Router>
       </ChakraProvider>
     </QueryClientProvider>
   );

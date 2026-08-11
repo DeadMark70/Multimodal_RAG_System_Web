@@ -1,11 +1,18 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 
 vi.mock('./contexts/AuthContext', () => ({
-  AuthProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+  AuthProvider: ({ children }: { children: ReactNode }) => {
+    useLocation();
+    return <>{children}</>;
+  },
+}));
+
+vi.mock('./components/auth/SessionExpiredDialog', () => ({
+  default: () => null,
 }));
 
 vi.mock('./components/auth/ProtectedRoute', () => ({

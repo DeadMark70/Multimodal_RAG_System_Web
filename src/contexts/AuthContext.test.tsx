@@ -1,16 +1,27 @@
 import { render, waitFor } from '@testing-library/react';
-import { act } from 'react';
+import { act, useEffect } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { AuthProvider } from './AuthContext';
 import { useAuth } from './useAuth';
+import { consumeSessionReturnPath } from '../services/sessionReturnPath';
 
 let authStateChangeCallback: ((event: AuthChangeEvent, session: Session | null) => void) | null = null;
+let expirationListener: (() => void) | null = null;
 
-const { getSessionMock, onAuthStateChangeMock, signOutMock, unsubscribeMock } = vi.hoisted(() => ({
+const {
+  getSessionMock,
+  onAuthStateChangeMock,
+  resetSessionExpirationMock,
+  signOutMock,
+  subscribeSessionExpiredMock,
+  unsubscribeMock,
+} = vi.hoisted(() => ({
   getSessionMock: vi.fn(),
   onAuthStateChangeMock: vi.fn(),
+  resetSessionExpirationMock: vi.fn(),
   signOutMock: vi.fn(),
+  subscribeSessionExpiredMock: vi.fn(),
   unsubscribeMock: vi.fn(),
 }));
 
@@ -22,6 +33,11 @@ vi.mock('../services/supabase', () => ({
       signOut: signOutMock,
     },
   },
+}));
+
+vi.mock('../services/sessionRecovery', () => ({
+  resetSessionExpiration: resetSessionExpirationMock,
+  subscribeSessionExpired: subscribeSessionExpiredMock,
 }));
 
 describe('AuthProvider', () => {
@@ -44,12 +60,26 @@ describe('AuthProvider', () => {
     return <div data-testid="recovery-active">{String(recoveryActive)}</div>;
   };
 
+  const ExpirationProbe = ({ onTransition }: { onTransition?: (expired: boolean) => void }) => {
+    const { sessionExpired } = useAuth();
+
+    useEffect(() => {
+      onTransition?.(sessionExpired);
+    }, [onTransition, sessionExpired]);
+
+    return <div data-testid="session-expired">{String(sessionExpired)}</div>;
+  };
+
   beforeEach(() => {
     authStateChangeCallback = null;
+    expirationListener = null;
     getSessionMock.mockReset();
     onAuthStateChangeMock.mockReset();
     unsubscribeMock.mockReset();
     signOutMock.mockReset();
+    resetSessionExpirationMock.mockReset();
+    subscribeSessionExpiredMock.mockReset();
+    sessionStorage.clear();
 
     getSessionMock.mockResolvedValue({
       data: { session: null },
@@ -64,6 +94,11 @@ describe('AuthProvider', () => {
           },
         },
       };
+    });
+
+    subscribeSessionExpiredMock.mockImplementation((listener: () => void) => {
+      expirationListener = listener;
+      return vi.fn();
     });
 
     window.history.pushState({}, '', '/');
@@ -176,5 +211,56 @@ describe('AuthProvider', () => {
     });
 
     await waitFor(() => expect(getByTestId('recovery-active')).toHaveTextContent('false'));
+  });
+
+  it('publishes one expired state transition and stores the protected return path', async () => {
+    const onTransition = vi.fn();
+    window.history.pushState({}, '', '/chat?mode=rag#source');
+    const { getByTestId } = render(
+      <AuthProvider>
+        <ExpirationProbe onTransition={onTransition} />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(expirationListener).not.toBeNull());
+    expect(getByTestId('session-expired')).toHaveTextContent('false');
+
+    act(() => {
+      expirationListener?.();
+    });
+
+    expect(getByTestId('session-expired')).toHaveTextContent('true');
+    expect(onTransition).toHaveBeenCalledTimes(2);
+    expect(onTransition).toHaveBeenLastCalledWith(true);
+
+    act(() => {
+      expirationListener?.();
+    });
+
+    expect(onTransition).toHaveBeenCalledTimes(2);
+    expect(consumeSessionReturnPath()).toBe('/chat?mode=rag#source');
+  });
+
+  it('keeps session expiration false after deliberate sign-out', async () => {
+    signOutMock.mockResolvedValue({ error: null });
+    const { getByRole, getByTestId } = render(
+      <AuthProvider>
+        <ExpirationProbe />
+        <TriggerSignOut />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(expirationListener).not.toBeNull());
+    act(() => {
+      expirationListener?.();
+    });
+    expect(getByTestId('session-expired')).toHaveTextContent('true');
+
+    act(() => {
+      getByRole('button', { name: 'sign-out' }).click();
+    });
+
+    await waitFor(() => expect(getByTestId('session-expired')).toHaveTextContent('false'));
+    expect(resetSessionExpirationMock).toHaveBeenCalledTimes(1);
   });
 });
