@@ -30,6 +30,7 @@ vi.mock('../hooks/useConversations', () => ({
   useConversationMutations: vi.fn(() => ({ create: vi.fn() })),
 }));
 vi.mock('../hooks/useChat', () => ({
+  getVisibleStreamStatusCopy: vi.fn(() => null),
   useChat: vi.fn(() => ({
     messages: [],
     sendMessage: vi.fn(),
