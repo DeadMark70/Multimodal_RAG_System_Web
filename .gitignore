@@ -22,6 +22,9 @@ findings.md
 progress.md
 *.zip
 
+# Local Superpowers execution state and agent reports
+.superpowers/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
