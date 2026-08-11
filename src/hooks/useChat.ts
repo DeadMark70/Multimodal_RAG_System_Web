@@ -16,7 +16,6 @@ import type {
   AskRequest,
   AskResponse,
   ChatMessage,
-  ChatPhaseUpdate,
   ChatPipelineStage,
   ChatStreamEvent,
 } from '../types/rag';
@@ -30,34 +29,6 @@ interface UseChatOptions {
   graphSearchMode?: 'local' | 'global' | 'hybrid' | 'auto' | 'generic';
   conversationId?: string | null;
   ensureConversation?: () => Promise<string | null>;
-}
-
-function isPhaseUpdatePayload(data: ChatStreamEvent['data']): data is ChatPhaseUpdate {
-  return (
-    typeof data === 'object' &&
-    data !== null &&
-    'stage' in data &&
-    typeof data.stage === 'string'
-  );
-}
-
-function isAskResponsePayload(data: ChatStreamEvent['data']): data is AskResponse {
-  return (
-    typeof data === 'object' &&
-    data !== null &&
-    'question' in data &&
-    'answer' in data &&
-    'sources' in data
-  );
-}
-
-function isErrorPayload(data: ChatStreamEvent['data']): data is { message: string } {
-  return (
-    typeof data === 'object' &&
-    data !== null &&
-    'message' in data &&
-    typeof data.message === 'string'
-  );
 }
 
 const WELCOME_MESSAGE: ChatMessage = {
@@ -230,28 +201,18 @@ export function useChat(options: UseChatOptions = {}) {
             }
 
             if (event.type === 'phase_update') {
-              if (isPhaseUpdatePayload(event.data) && event.data.stage) {
-                setCurrentStage(event.data.stage);
-              }
+              setCurrentStage(event.data.stage);
               return;
             }
 
             if (event.type === 'complete') {
-              if (isAskResponsePayload(event.data)) {
-                isSettled = true;
-                resolve(event.data);
-                return;
-              }
-
               isSettled = true;
-              reject(new Error('未收到完整回應'));
+              resolve(event.data);
               return;
             }
 
-            if (isErrorPayload(event.data)) {
-              isSettled = true;
-              reject(new Error(event.data.message ?? '無法取得回應'));
-            }
+            isSettled = true;
+            reject(new Error(event.data.message));
           }).catch((error: unknown) => {
             if (isSettled) {
               return;

@@ -277,11 +277,24 @@ describe('useDeepResearch Hook - Persistence', () => {
       });
       onEvent({
         type: 'task_phase_update',
-        data: { id: 1, iteration: 0, stage: 'retrieval', label: '正在檢索文件' },
+        data: {
+          id: 1,
+          iteration: 0,
+          stage: 'retrieval',
+          label: '正在檢索文件',
+          details: null,
+        },
       });
       onEvent({
         type: 'task_done',
-        data: { id: 1, answer: 'Done', iteration: 0, contexts: ['ctx-1'] },
+        data: {
+          id: 1,
+          question: 'Find evidence',
+          answer: 'Done',
+          sources: [],
+          iteration: 0,
+          contexts: ['ctx-1'],
+        },
       });
       onEvent({
         type: 'complete',

@@ -10,11 +10,9 @@ import {
   useSelectedChatModeId,
 } from '../stores/useSettingsStore';
 import type {
-  AgenticBenchmarkCompleteData,
   AgenticBenchmarkEvaluationUpdate,
   AgenticBenchmarkPlanReadyData,
   AgenticBenchmarkSSEEvent,
-  TaskPhaseUpdate,
   TaskProgress,
   ExecutePlanResponse,
 } from '../types/rag';
@@ -96,6 +94,67 @@ function defaultStageLabel(stage: string): string {
     default:
       return '任務處理中';
   }
+}
+
+const TRACE_PHASES: AgentTraceStep['phase'][] = [
+  'planning',
+  'execution',
+  'drilldown',
+  'evaluation',
+  'synthesis',
+];
+const TRACE_STATUSES: AgentTraceStep['status'][] = ['completed', 'partial', 'failed'];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isRecordArray(value: unknown): value is Array<Record<string, unknown>> {
+  return Array.isArray(value) && value.every(isRecord);
+}
+
+function isOptionalNullableString(value: unknown): boolean {
+  return value === undefined || value === null || typeof value === 'string';
+}
+
+function isAgentTraceStep(value: unknown): value is AgentTraceStep {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const toolCallsValid =
+    Array.isArray(value.tool_calls) &&
+    value.tool_calls.every(
+      (toolCall) =>
+        isRecord(toolCall) &&
+        typeof toolCall.index === 'number' &&
+        typeof toolCall.action === 'string' &&
+        TRACE_STATUSES.includes(toolCall.status as AgentTraceStep['status']) &&
+        isRecord(toolCall.payload) &&
+        isOptionalNullableString(toolCall.result_preview)
+    );
+  const tokenUsage = value.token_usage;
+  const tokenUsageValid =
+    isRecord(tokenUsage) &&
+    ['total_tokens', 'input_tokens', 'output_tokens', 'reasoning_tokens'].every(
+      (key) => tokenUsage[key] === undefined || typeof tokenUsage[key] === 'number'
+    );
+
+  return (
+    typeof value.step_id === 'string' &&
+    TRACE_PHASES.includes(value.phase as AgentTraceStep['phase']) &&
+    typeof value.step_type === 'string' &&
+    typeof value.title === 'string' &&
+    TRACE_STATUSES.includes(value.status as AgentTraceStep['status']) &&
+    isOptionalNullableString(value.started_at) &&
+    isOptionalNullableString(value.completed_at) &&
+    isOptionalNullableString(value.input_preview) &&
+    isOptionalNullableString(value.output_preview) &&
+    isOptionalNullableString(value.raw_text) &&
+    toolCallsValid &&
+    tokenUsageValid &&
+    isRecord(value.metadata)
+  );
 }
 
 export function useAgenticBenchmarkResearch(
@@ -210,7 +269,7 @@ export function useAgenticBenchmarkResearch(
 
     switch (type) {
       case 'plan_ready': {
-        const planData = data as AgenticBenchmarkPlanReadyData;
+        const planData = data;
         setPlan(planData);
         setCurrentPhase('executing');
         setProgress(
@@ -227,13 +286,7 @@ export function useAgenticBenchmarkResearch(
       }
       case 'task_start':
       case 'drilldown_task_start': {
-        const task = data as {
-          id: number;
-          question: string;
-          task_type: 'rag' | 'graph_analysis';
-          iteration: number;
-          route_profile?: string;
-        };
+        const task = data;
         setCurrentPhase(task.iteration > 0 ? 'drilldown' : 'executing');
         setProgress((prev) =>
           upsertTaskProgress(prev, {
@@ -245,13 +298,14 @@ export function useAgenticBenchmarkResearch(
             stageLabel: undefined,
             details: null,
             iteration: task.iteration,
-            routeProfile: task.route_profile,
+            routeProfile:
+              typeof task.route_profile === 'string' ? task.route_profile : undefined,
           })
         );
         break;
       }
       case 'task_phase_update': {
-        const phaseData = data as TaskPhaseUpdate;
+        const phaseData = data;
         setProgress((prev) =>
           prev.map((task) =>
             task.id === phaseData.id && task.iteration === phaseData.iteration
@@ -269,28 +323,23 @@ export function useAgenticBenchmarkResearch(
       }
       case 'task_done':
       case 'drilldown_task_done': {
-        const doneData = data as {
-          id: number;
-          question: string;
-          answer: string;
-          contexts?: string[];
-          iteration: number;
-          route_profile?: string;
-          tool_calls?: Array<Record<string, unknown>>;
-        };
+        const doneData = data;
         setProgress((prev) =>
           upsertTaskProgress(prev, {
             id: doneData.id,
             question: doneData.question,
             taskType: 'rag',
             status: 'done',
-            answer: doneData.answer,
+            answer: doneData.answer ?? undefined,
             contexts: doneData.contexts,
             stageLabel: '回答完成',
             details: null,
             iteration: doneData.iteration,
-            routeProfile: doneData.route_profile,
-            toolCalls: doneData.tool_calls,
+            routeProfile:
+              typeof doneData.route_profile === 'string'
+                ? doneData.route_profile
+                : undefined,
+            toolCalls: isRecordArray(doneData.tool_calls) ? doneData.tool_calls : undefined,
           })
         );
         break;
@@ -300,21 +349,23 @@ export function useAgenticBenchmarkResearch(
         break;
       case 'evaluation_update':
         setCurrentPhase('evaluation');
-        setEvaluationUpdates((prev) => [...prev, data as AgenticBenchmarkEvaluationUpdate]);
+        setEvaluationUpdates((prev) => [...prev, data]);
         break;
       case 'trace_step':
-        setTraceSteps((prev) => [...prev, data as AgentTraceStep]);
+        if (isAgentTraceStep(data)) {
+          setTraceSteps((prev) => [...prev, data]);
+        }
         break;
       case 'synthesis_start':
         setCurrentPhase('synthesis');
         break;
       case 'complete': {
-        const completeData = data as AgenticBenchmarkCompleteData;
+        const completeData = data;
         setResult(completeData.result);
         setAgentTrace(completeData.agent_trace);
         setTraceSteps((previous) => {
           const finalSteps = Array.isArray(completeData.agent_trace.steps)
-            ? completeData.agent_trace.steps
+            ? completeData.agent_trace.steps.filter(isAgentTraceStep)
             : [];
           return finalSteps.length > 0 ? finalSteps : previous;
         });
@@ -339,8 +390,7 @@ export function useAgenticBenchmarkResearch(
         break;
       }
       case 'error': {
-        const errorData = data as { message: string };
-        setError(errorData.message);
+        setError(data.message);
         break;
       }
     }

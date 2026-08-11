@@ -1,4 +1,9 @@
 import type { AgentTraceStep } from './evaluation';
+import type {
+  AgenticBenchmarkSSEEvent as ValidatedAgenticBenchmarkSSEEvent,
+  ChatStreamEvent as ValidatedChatStreamEvent,
+  SSEEvent as ValidatedSSEEvent,
+} from '../services/sse/schemas';
 
 export interface Citation {
   doc_id: string;
@@ -83,10 +88,7 @@ export interface ChatPhaseUpdate {
   message?: string;
 }
 
-export interface ChatStreamEvent {
-  type: 'phase_update' | 'complete' | 'error';
-  data: ChatPhaseUpdate | AskResponse | { message: string };
-}
+export type ChatStreamEvent = ValidatedChatStreamEvent;
 
 // ========== 文件管理型別 ==========
 
@@ -267,25 +269,12 @@ export interface TaskPhaseUpdate {
 /**
  * SSE 事件類型
  */
-export type SSEEventType = 
-  | 'plan_confirmed'
-  | 'task_start'
-  | 'task_phase_update'
-  | 'task_done'
-  | 'drilldown_start'
-  | 'drilldown_task_start'
-  | 'drilldown_task_done'
-  | 'synthesis_start'
-  | 'complete'
-  | 'error';
+export type SSEEventType = ValidatedSSEEvent['type'];
 
 /**
  * SSE 事件資料
  */
-export interface SSEEvent {
-  type: SSEEventType;
-  data: unknown;
-}
+export type SSEEvent = ValidatedSSEEvent;
 
 /**
  * 任務進度狀態
@@ -341,22 +330,7 @@ export interface AgenticBenchmarkCompleteData {
   };
 }
 
-export type AgenticBenchmarkSSEEventType =
-  | 'plan_ready'
-  | 'task_start'
-  | 'task_phase_update'
-  | 'task_done'
-  | 'drilldown_start'
-  | 'drilldown_task_start'
-  | 'drilldown_task_done'
-  | 'evaluation_update'
-  | 'trace_step'
-  | 'synthesis_start'
-  | 'complete'
-  | 'error';
+export type AgenticBenchmarkSSEEventType = ValidatedAgenticBenchmarkSSEEvent['type'];
 
-export interface AgenticBenchmarkSSEEvent {
-  type: AgenticBenchmarkSSEEventType;
-  data: unknown;
-}
+export type AgenticBenchmarkSSEEvent = ValidatedAgenticBenchmarkSSEEvent;
 

@@ -117,11 +117,24 @@ describe('useAgenticBenchmarkResearch', () => {
       });
       onEvent({
         type: 'task_phase_update',
-        data: { id: 1, iteration: 0, stage: 'retrieval', label: '正在檢索文件' },
+        data: {
+          id: 1,
+          iteration: 0,
+          stage: 'retrieval',
+          label: '正在檢索文件',
+          details: null,
+        },
       });
       onEvent({
         type: 'task_done',
-        data: { id: 1, question: 'task', answer: 'done', iteration: 0, contexts: [] },
+        data: {
+          id: 1,
+          question: 'task',
+          answer: 'done',
+          sources: [],
+          iteration: 0,
+          contexts: [],
+        },
       });
       onEvent({
         type: 'evaluation_update',
