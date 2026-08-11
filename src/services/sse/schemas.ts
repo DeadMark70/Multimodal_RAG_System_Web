@@ -42,14 +42,20 @@ const errorSchema = z
 
 const metricsSchema = z
   .object({
-    accuracy: z.number().optional(),
-    completeness: z.number().optional(),
-    clarity: z.number().optional(),
-    weighted_score: z.number().optional(),
-    is_passing: z.boolean().optional(),
-    suggestion: z.string().optional(),
-    faithfulness: z.enum(['grounded', 'hallucinated', 'uncertain']),
-    confidence_score: z.number(),
+    evaluation_reason: z.string().nullable().optional(),
+    accuracy: z.number().min(1).max(10).nullable().optional(),
+    completeness: z.number().min(1).max(10).nullable().optional(),
+    clarity: z.number().min(1).max(10).nullable().optional(),
+    weighted_score: z.number().min(1).max(10).nullable().optional(),
+    is_passing: z.boolean().nullable().optional(),
+    suggestion: z.string().nullable().optional(),
+    faithfulness: z.enum([
+      'grounded',
+      'hallucinated',
+      'uncertain',
+      'evaluation_failed',
+    ]),
+    confidence_score: z.number().min(0).max(1),
   })
   .passthrough();
 
@@ -170,6 +176,12 @@ export const agenticEventSchemas = {
       strategy_tier: z.string(),
       max_iterations: z.number().int(),
       sub_tasks: z.array(editableTaskSchema),
+    })
+    .passthrough(),
+  plan_confirmed: z
+    .object({
+      task_count: z.number().int(),
+      enabled_count: z.number().int(),
     })
     .passthrough(),
   task_start: taskStartSchema,

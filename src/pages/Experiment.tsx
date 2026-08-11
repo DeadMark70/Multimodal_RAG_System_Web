@@ -38,12 +38,12 @@ import ComparisonPanel from '../components/experiment/ComparisonPanel';
 import DocumentSelector from '../components/rag/DocumentSelector';
 import { askQuestion } from '../services/ragApi';
 import { exportToCsv, exportToJson, generateSummaryReport } from '../utils/exportData';
-import type { ExperimentResult } from '../types/rag';
+import type { EvaluationMetrics, ExperimentResult } from '../types/rag';
 import SurfaceCard from '../components/common/SurfaceCard';
 
 interface ComparisonResult {
   answer: string;
-  faithfulness: 'grounded' | 'hallucinated' | 'uncertain' | null;
+  faithfulness: EvaluationMetrics['faithfulness'] | null;
   confidence: number | null;
   isLoading?: boolean;
 }

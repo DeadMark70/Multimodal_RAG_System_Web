@@ -114,7 +114,7 @@ function getDisplayScore(metrics: EvaluationMetrics): string {
 /**
  * 格式化分數顯示
  */
-function formatScore(score: number | undefined): string {
+function formatScore(score: number | null | undefined): string {
   if (score === undefined || score === null) return '-';
   return score.toFixed(1);
 }

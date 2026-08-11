@@ -154,7 +154,7 @@ $RequestId
 docker compose logs backend | Select-String -SimpleMatch $RequestId
 ```
 
-Expected: one safe `http_request` record contains the same `request_id`. Do not
+Expected: one safe `request_complete` record contains the same `request_id`. Do not
 paste entire production logs into tickets; include only the minimum safe fields.
 
 Exercise rate limiting with GET requests to the POST-only generation route so the

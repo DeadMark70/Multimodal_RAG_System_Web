@@ -18,10 +18,11 @@ import {
 } from '@chakra-ui/react';
 import { FiCheckCircle, FiAlertTriangle, FiHelpCircle } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
+import type { EvaluationMetrics } from '../../types/rag';
 
 interface ComparisonResult {
   answer: string;
-  faithfulness: 'grounded' | 'hallucinated' | 'uncertain' | null;
+  faithfulness: EvaluationMetrics['faithfulness'] | null;
   confidence: number | null;
   isLoading?: boolean;
 }
@@ -32,13 +33,14 @@ interface ComparisonPanelProps {
   question: string;
 }
 
-const FaithfulnessTag = ({ status }: { status: 'grounded' | 'hallucinated' | 'uncertain' | null }) => {
+const FaithfulnessTag = ({ status }: { status: EvaluationMetrics['faithfulness'] | null }) => {
   if (!status) return <Badge colorScheme="gray">等待中</Badge>;
 
   const config = {
     grounded: { color: 'green', icon: FiCheckCircle, label: '有據' },
     hallucinated: { color: 'red', icon: FiAlertTriangle, label: '幻覺' },
     uncertain: { color: 'yellow', icon: FiHelpCircle, label: '不確定' },
+    evaluation_failed: { color: 'gray', icon: FiHelpCircle, label: '評估失敗' },
   };
 
   const { color, icon, label } = config[status];

@@ -71,9 +71,27 @@ describe('ragApi', () => {
     } as never);
 
     const encoder = new TextEncoder();
+    const degradedMetrics = {
+      faithfulness: 'evaluation_failed',
+      confidence_score: 0.5,
+      evaluation_reason: null,
+      accuracy: null,
+      completeness: null,
+      clarity: null,
+      weighted_score: null,
+      suggestion: null,
+      is_passing: null,
+    };
     const chunks: Uint8Array[] = [
       encoder.encode('event: phase_update\r\ndata: {"stage":"retrieval"}\r\n\r\n'),
-      encoder.encode('event: complete\r\ndata: {"question":"q","answer":"ok","sources":[],"metrics":null}\r\n\r\n'),
+      encoder.encode(
+        `event: complete\r\ndata: ${JSON.stringify({
+          question: 'q',
+          answer: 'ok',
+          sources: [],
+          metrics: degradedMetrics,
+        })}\r\n\r\n`
+      ),
     ];
 
     let index = 0;
@@ -123,7 +141,12 @@ describe('ragApi', () => {
     });
     expect(onEvent).toHaveBeenNthCalledWith(2, {
       type: 'complete',
-      data: { question: 'q', answer: 'ok', sources: [], metrics: null },
+      data: {
+        question: 'q',
+        answer: 'ok',
+        sources: [],
+        metrics: degradedMetrics,
+      },
     });
     expect(onStatus.mock.calls.map(([status]) => status)).toEqual([
       { state: 'connecting' },
@@ -200,6 +223,9 @@ describe('ragApi', () => {
       encoder.encode(
         'event: plan_ready\r\ndata: {"original_question":"q","estimated_complexity":"medium","task_count":1,"enabled_count":1,"question_intent":"research","strategy_tier":"balanced","max_iterations":2,"sub_tasks":[{"id":1,"question":"sq","task_type":"rag","enabled":true}]}\r\n\r\n'
       ),
+      encoder.encode(
+        'event: plan_confirmed\r\ndata: {"task_count":1,"enabled_count":1}\r\n\r\n'
+      ),
       encoder.encode('event: trace_step\r\n'),
       encoder.encode('data: {"step_id":"s1","title":"step"}\r\n\r\n'),
       encoder.encode(
@@ -244,7 +270,7 @@ describe('ragApi', () => {
       'http://127.0.0.1:8000/rag/agentic/stream',
       expect.any(Object)
     );
-    expect(onEvent).toHaveBeenCalledTimes(3);
+    expect(onEvent).toHaveBeenCalledTimes(4);
     expect(onEvent).toHaveBeenNthCalledWith(1, {
       type: 'plan_ready',
       data: {
@@ -266,6 +292,10 @@ describe('ragApi', () => {
       },
     });
     expect(onEvent).toHaveBeenNthCalledWith(2, {
+      type: 'plan_confirmed',
+      data: { task_count: 1, enabled_count: 1 },
+    });
+    expect(onEvent).toHaveBeenNthCalledWith(3, {
       type: 'trace_step',
       data: { step_id: 's1', title: 'step' },
     });

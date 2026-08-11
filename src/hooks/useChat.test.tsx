@@ -143,6 +143,46 @@ describe('useChat Hook', () => {
     expect(mockAskQuestionStream).toHaveBeenCalled();
   });
 
+  it('keeps degraded evaluation metrics on the completed assistant message', async () => {
+    const degradedMetrics = {
+      faithfulness: 'evaluation_failed' as const,
+      confidence_score: 0.5,
+      evaluation_reason: null,
+      accuracy: null,
+      completeness: null,
+      clarity: null,
+      weighted_score: null,
+      suggestion: null,
+      is_passing: null,
+    };
+    mockAskQuestionStream.mockImplementation((_request, onEvent) => {
+      onEvent({
+        type: 'complete',
+        data: {
+          question: 'Evaluate this',
+          answer: 'Answer without evaluation scores',
+          sources: [],
+          metrics: degradedMetrics,
+        },
+      });
+      return Promise.resolve();
+    });
+
+    const { result } = renderHook(() => useChat({ enableEvaluation: true }), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await result.current.sendMessage('Evaluate this');
+    });
+
+    expect(result.current.messages.at(-1)).toMatchObject({
+      role: 'assistant',
+      content: 'Answer without evaluation scores',
+      metrics: degradedMetrics,
+    });
+  });
+
   it('exposes a disconnected state and an explicit retry for the last request', async () => {
     mockAskQuestionStream.mockImplementation((_request, _onEvent, _signal, onStatus) => {
       onStatus?.({ state: 'reconnecting', attempt: 1, maxAttempts: 2 });

@@ -21,23 +21,25 @@ export interface Citation {
  * 注意：1-10 分制欄位為可選，以支援向後相容舊版 API
  */
 export interface EvaluationMetrics {
+  /** 評估結果說明 */
+  evaluation_reason?: string | null;
   // ========== 1-10 分制評估欄位 (🆕 v3.0) ==========
   /** 精確度 (1-10) - 資料準確性，權重 50% */
-  accuracy?: number;
+  accuracy?: number | null;
   /** 完整性 (1-10) - 回答是否涵蓋所有面向，權重 30% */
-  completeness?: number;
+  completeness?: number | null;
   /** 清晰度 (1-10) - 邏輯表達與結構，權重 20% */
-  clarity?: number;
+  clarity?: number | null;
   /** 加權總分 (由 accuracy*0.5 + completeness*0.3 + clarity*0.2 計算) */
-  weighted_score?: number;
+  weighted_score?: number | null;
   /** 是否通過學術門檻 (weighted_score >= 7.0) */
-  is_passing?: boolean;
+  is_passing?: boolean | null;
   /** 改進建議 (當 is_passing 為 false 時提供) */
-  suggestion?: string;
+  suggestion?: string | null;
 
   // ========== 核心欄位 (必填) ==========
   /** 答案可信度 */
-  faithfulness: 'grounded' | 'hallucinated' | 'uncertain';
+  faithfulness: 'grounded' | 'hallucinated' | 'uncertain' | 'evaluation_failed';
   /** 信心分數 (0.0-1.0) */
   confidence_score: number;
 }
@@ -180,10 +182,10 @@ export interface ExperimentResult {
   id: string;
   question: string;
   rag_answer: string;
-  rag_faithfulness: 'grounded' | 'hallucinated' | 'uncertain' | null;
+  rag_faithfulness: EvaluationMetrics['faithfulness'] | null;
   rag_confidence: number | null;
   vanilla_answer: string;
-  vanilla_faithfulness: 'grounded' | 'hallucinated' | 'uncertain' | null;
+  vanilla_faithfulness: EvaluationMetrics['faithfulness'] | null;
   vanilla_confidence: number | null;
   selected_docs: string[];
   timestamp: number;
