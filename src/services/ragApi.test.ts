@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as ragApi from './ragApi';
 import api from './api';
 import { supabase } from './supabase';
+import type { StreamConnectionStatus } from './sse/streamSse';
 
 vi.mock('./api', () => ({
   default: {
@@ -101,12 +102,15 @@ describe('ragApi', () => {
     );
 
     const onEvent = vi.fn();
+    const onStatus = vi.fn<(status: StreamConnectionStatus) => void>();
     await ragApi.askQuestionStream(
       {
         question: 'q',
         enable_multi_query: true,
       },
-      onEvent
+      onEvent,
+      undefined,
+      onStatus
     );
 
     expect(fetch).toHaveBeenCalledWith(
@@ -121,6 +125,11 @@ describe('ragApi', () => {
       type: 'complete',
       data: { question: 'q', answer: 'ok', sources: [], metrics: null },
     });
+    expect(onStatus.mock.calls.map(([status]) => status)).toEqual([
+      { state: 'connecting' },
+      { state: 'connected' },
+      { state: 'complete' },
+    ]);
   });
 
   it('parses deep research SSE stream without calling real backend', async () => {
@@ -131,8 +140,12 @@ describe('ragApi', () => {
 
     const encoder = new TextEncoder();
     const chunks: Uint8Array[] = [
-      encoder.encode('event: task_start\r\ndata: {"id":1}\r\n\r\n'),
-      encoder.encode('event: complete\r\ndata: {"summary":"ok"}\r\n\r\n'),
+      encoder.encode(
+        'event: task_start\r\ndata: {"id":1,"question":"sq","task_type":"rag","iteration":0}\r\n\r\n'
+      ),
+      encoder.encode(
+        'event: complete\r\ndata: {"question":"q","summary":"ok","detailed_answer":"details","sub_tasks":[],"all_sources":[],"confidence":1,"total_iterations":0}\r\n\r\n'
+      ),
     ];
 
     let index = 0;
@@ -184,7 +197,9 @@ describe('ragApi', () => {
 
     const encoder = new TextEncoder();
     const chunks: Uint8Array[] = [
-      encoder.encode('event: plan_ready\r\ndata: {"task_count":2}\r\n\r\n'),
+      encoder.encode(
+        'event: plan_ready\r\ndata: {"original_question":"q","estimated_complexity":"medium","task_count":1,"enabled_count":1,"question_intent":"research","strategy_tier":"balanced","max_iterations":2,"sub_tasks":[{"id":1,"question":"sq","task_type":"rag","enabled":true}]}\r\n\r\n'
+      ),
       encoder.encode('event: trace_step\r\n'),
       encoder.encode('data: {"step_id":"s1","title":"step"}\r\n\r\n'),
       encoder.encode(
@@ -232,7 +247,23 @@ describe('ragApi', () => {
     expect(onEvent).toHaveBeenCalledTimes(3);
     expect(onEvent).toHaveBeenNthCalledWith(1, {
       type: 'plan_ready',
-      data: { task_count: 2 },
+      data: {
+        original_question: 'q',
+        estimated_complexity: 'medium',
+        task_count: 1,
+        enabled_count: 1,
+        question_intent: 'research',
+        strategy_tier: 'balanced',
+        max_iterations: 2,
+        sub_tasks: [
+          {
+            id: 1,
+            question: 'sq',
+            task_type: 'rag',
+            enabled: true,
+          },
+        ],
+      },
     });
     expect(onEvent).toHaveBeenNthCalledWith(2, {
       type: 'trace_step',

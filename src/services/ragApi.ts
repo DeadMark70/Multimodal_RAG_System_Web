@@ -22,6 +22,13 @@ import type {
   SSEEvent,
 } from '../types/rag';
 import { assertAllowedApiTarget, resolveApiUrl } from './networkPolicy';
+import {
+  agenticEventSchemas,
+  chatEventSchemas,
+  deepResearchEventSchemas,
+} from './sse/schemas';
+import { streamSse } from './sse/streamSse';
+import type { StreamConnectionStatus } from './sse/streamSse';
 
 /**
  * 基本問答 (POST wrapped)
@@ -46,103 +53,22 @@ export async function askQuestion(request: AskRequest): Promise<AskResponse> {
   return response.data;
 }
 
-async function getAccessToken(): Promise<string> {
-  const { supabase } = await import('./supabase');
-  const { data: { session } } = await supabase.auth.getSession();
-
-  if (!session?.access_token) {
-    throw new Error('未登入，請重新登入');
-  }
-
-  return session.access_token;
-}
-
-async function streamSse<TEvent extends { type: string; data: unknown }>(
-  path: string,
-  request: unknown,
-  onEvent: (event: TEvent) => void,
-  signal?: AbortSignal
-): Promise<void> {
-  const accessToken = await getAccessToken();
-  const streamUrl = resolveApiUrl(api.defaults.baseURL, path);
-  assertAllowedApiTarget(streamUrl);
-
-  const response = await fetch(streamUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify(request),
-    signal,
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
-
-  const reader = response.body?.getReader();
-  if (!reader) {
-    throw new Error('Response body is not readable');
-  }
-
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let currentEvent = '';
-  const currentDataLines: string[] = [];
-
-  const flushEvent = () => {
-    if (!currentEvent) {
-      currentDataLines.length = 0;
-      return;
-    }
-    const dataPayload = currentDataLines.join('\n');
-    if (!dataPayload) {
-      currentEvent = '';
-      currentDataLines.length = 0;
-      return;
-    }
-
-    onEvent({
-      type: currentEvent,
-      data: JSON.parse(dataPayload),
-    } as TEvent);
-
-    currentEvent = '';
-    currentDataLines.length = 0;
-  };
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
-
-    for (const rawLine of lines) {
-      const line = rawLine.replace(/\r$/, '');
-      if (line.startsWith('event:')) {
-        currentEvent = line.slice(6).trim();
-      } else if (line.startsWith('data:')) {
-        currentDataLines.push(line.slice(5).trimStart());
-      } else if (line === '') {
-        flushEvent();
-      }
-    }
-  }
-
-  flushEvent();
-}
-
 export async function askQuestionStream(
   request: AskRequest,
   onEvent: (event: ChatStreamEvent) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onStatus?: (status: StreamConnectionStatus) => void
 ): Promise<void> {
-  await streamSse<ChatStreamEvent>('/rag/ask/stream', request, onEvent, signal);
+  const streamUrl = resolveApiUrl(api.defaults.baseURL, '/rag/ask/stream');
+  assertAllowedApiTarget(streamUrl);
+  await streamSse({
+    url: streamUrl,
+    body: request,
+    schemas: chatEventSchemas,
+    onEvent,
+    onStatus,
+    signal,
+  });
 }
 
 /**
@@ -219,9 +145,19 @@ export async function executeResearchPlan(
 export async function executeResearchPlanStream(
   request: ExecutePlanRequest,
   onEvent: (event: SSEEvent) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onStatus?: (status: StreamConnectionStatus) => void
 ): Promise<void> {
-  await streamSse<SSEEvent>('/rag/execute/stream', request, onEvent, signal);
+  const streamUrl = resolveApiUrl(api.defaults.baseURL, '/rag/execute/stream');
+  assertAllowedApiTarget(streamUrl);
+  await streamSse({
+    url: streamUrl,
+    body: request,
+    schemas: deepResearchEventSchemas,
+    onEvent,
+    onStatus,
+    signal,
+  });
 }
 
 /**
@@ -230,8 +166,18 @@ export async function executeResearchPlanStream(
 export async function executeAgenticBenchmarkStream(
   request: AgenticBenchmarkRequest,
   onEvent: (event: AgenticBenchmarkSSEEvent) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onStatus?: (status: StreamConnectionStatus) => void
 ): Promise<void> {
-  await streamSse<AgenticBenchmarkSSEEvent>('/rag/agentic/stream', request, onEvent, signal);
+  const streamUrl = resolveApiUrl(api.defaults.baseURL, '/rag/agentic/stream');
+  assertAllowedApiTarget(streamUrl);
+  await streamSse({
+    url: streamUrl,
+    body: request,
+    schemas: agenticEventSchemas,
+    onEvent,
+    onStatus,
+    signal,
+  });
 }
 
