@@ -214,4 +214,36 @@ describe('SourceViewerOverlay', () => {
     expect(await screen.findByText('登入狀態已失效，請重新登入。')).toBeInTheDocument();
     expect(screen.getByText('Keep this quote visible.')).toBeInTheDocument();
   });
+
+  it.each([403, 404])(
+    'shows safe unavailable copy and request ID for %s',
+    async (status) => {
+      vi.mocked(downloadPdf).mockRejectedValueOnce(
+        Object.assign(new Error('hidden backend detail'), {
+          status,
+          requestId: 'req-pdf-missing',
+        }),
+      );
+      renderViewer({ quote: 'Keep this quote visible.' });
+
+      expect(
+        await screen.findByText('找不到 PDF，或目前帳號無權存取。'),
+      ).toBeInTheDocument();
+      expect(screen.getByText('Request ID: req-pdf-missing')).toBeInTheDocument();
+      expect(screen.getByText('Keep this quote visible.')).toBeInTheDocument();
+      expect(screen.queryByText('hidden backend detail')).not.toBeInTheDocument();
+    },
+  );
+
+  it('shows rate-limit copy without inventing a request ID', async () => {
+    vi.mocked(downloadPdf).mockRejectedValueOnce(
+      Object.assign(new Error('Too many requests'), { status: 429 }),
+    );
+    renderViewer();
+
+    expect(
+      await screen.findByText('PDF 請求過於頻繁，請稍後再試。'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Request ID:/)).not.toBeInTheDocument();
+  });
 });

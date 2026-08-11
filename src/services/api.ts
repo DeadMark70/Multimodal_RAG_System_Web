@@ -28,11 +28,13 @@ type RetriableRequestConfig = InternalAxiosRequestConfig & {
 
 export class ApiError extends Error {
   readonly status: number | undefined;
+  readonly requestId: string | undefined;
 
-  constructor(message: string, status?: number) {
+  constructor(message: string, status?: number, requestId?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.requestId = requestId;
   }
 }
 
@@ -115,8 +117,16 @@ api.interceptors.response.use(
       error.response?.data?.detail ||
       error.message ||
       '發生未知錯誤';
+    const responseHeaders = error.response?.headers as
+      | { ['x-request-id']?: unknown }
+      | undefined;
+    const requestIdValue = responseHeaders?.['x-request-id'];
+    const requestId =
+      typeof requestIdValue === 'string' && requestIdValue.length > 0
+        ? requestIdValue
+        : undefined;
 
-    throw new ApiError(message, status);
+    throw new ApiError(message, status, requestId);
   }
 );
 

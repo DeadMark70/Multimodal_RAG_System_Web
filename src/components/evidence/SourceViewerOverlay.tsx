@@ -41,6 +41,11 @@ interface PdfErrorBoundaryState {
   hasError: boolean;
 }
 
+type PdfDownloadFailure = {
+  message: string;
+  requestId?: string;
+};
+
 class PdfErrorBoundary extends Component<PdfErrorBoundaryProps, PdfErrorBoundaryState> {
   state: PdfErrorBoundaryState = { hasError: false };
 
@@ -65,9 +70,31 @@ function provenanceColor(status: SourceEvidence['provenanceStatus']) {
   return 'gray';
 }
 
+function describePdfDownloadFailure(error: unknown): PdfDownloadFailure {
+  const value =
+    typeof error === 'object' && error !== null
+      ? (error as { status?: number; requestId?: string })
+      : {};
+  const message =
+    value.status === 401
+      ? '登入狀態已失效，請重新登入。'
+      : value.status === 403 || value.status === 404
+        ? '找不到 PDF，或目前帳號無權存取。'
+        : value.status === 429
+          ? 'PDF 請求過於頻繁，請稍後再試。'
+          : '無法載入 PDF。';
+  return {
+    message,
+    requestId:
+      typeof value.requestId === 'string' && value.requestId
+        ? value.requestId
+        : undefined,
+  };
+}
+
 export default function SourceViewerOverlay({ evidence, onClose }: SourceViewerOverlayProps) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<PdfDownloadFailure | null>(null);
   const [renderFailed, setRenderFailed] = useState(false);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -97,10 +124,7 @@ export default function SourceViewerOverlay({ evidence, onClose }: SourceViewerO
       .catch((error: unknown) => {
         if (cancelled) return;
 
-        const status = typeof error === 'object' && error !== null && 'status' in error
-          ? (error as { status?: number }).status
-          : undefined;
-        setDownloadError(status === 401 ? '登入狀態已失效，請重新登入。' : '無法載入 PDF。');
+        setDownloadError(describePdfDownloadFailure(error));
       });
 
     return () => {
@@ -144,7 +168,10 @@ export default function SourceViewerOverlay({ evidence, onClose }: SourceViewerO
           <Flex direction={{ base: 'column', lg: 'row' }} gap={6} h="full">
             <Box flex="1" minW={0} overflow="auto" bg="gray.50" p={4}>
               {downloadError ? (
-                <Alert status="error"><AlertIcon />{downloadError}</Alert>
+                <Stack spacing={2} align="start">
+                  <Alert status="error"><AlertIcon />{downloadError.message}</Alert>
+                  {downloadError.requestId && <Text fontSize="sm">Request ID: {downloadError.requestId}</Text>}
+                </Stack>
               ) : !blobUrl ? (
                 <Flex minH="240px" align="center" justify="center"><Spinner /></Flex>
               ) : renderFailed ? failurePanel : (

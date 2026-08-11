@@ -153,6 +153,26 @@ describe('api interceptors', () => {
     ).rejects.toThrow('Service unavailable');
   });
 
+  it('preserves request ID from a failed PDF blob response', async () => {
+    await expect(
+      responseRejected({
+        response: {
+          status: 404,
+          data: new Blob(
+            [JSON.stringify({ error: { message: 'Document file unavailable' } })],
+            { type: 'application/json' },
+          ),
+          headers: new AxiosHeaders({ 'x-request-id': 'req-pdf-404' }),
+        },
+        message: 'Request failed with status code 404',
+      }),
+    ).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 404,
+      requestId: 'req-pdf-404',
+    });
+  });
+
   it('refreshes and retries one 401 exactly once', async () => {
     refreshSessionMock.mockResolvedValue({
       data: { session: { access_token: 'fresh-token' } },
