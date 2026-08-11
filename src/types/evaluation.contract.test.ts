@@ -7,8 +7,7 @@ import type {
 } from './evaluation';
 
 describe('agentic v9 evaluation contract', () => {
-  it('pins the backend OpenAPI source and frontend baseline', () => {
-    expect(AGENTIC_V9_API_CONTRACT.backend_commit).toMatch(/^[a-f0-9]{40}$/);
+  it('pins the backend OpenAPI hash and frontend baseline', () => {
     expect(AGENTIC_V9_API_CONTRACT.openapi_sha256).toMatch(/^[a-f0-9]{64}$/);
     expect(AGENTIC_V9_API_CONTRACT.frontend_baseline_commit).toMatch(/^[a-f0-9]{40}$/);
     expect(AGENTIC_V9_API_CONTRACT.control_plane_fields.campaign_config).toEqual([

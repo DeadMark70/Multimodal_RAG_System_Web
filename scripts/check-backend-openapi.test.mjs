@@ -135,22 +135,19 @@ test('readBackendContract rejects untracked contract artifacts', () => {
   );
 });
 
-test('readPinnedContract extracts the two reviewed pin fields', () => {
+test('readPinnedContract extracts only the reviewed semantic hash', () => {
   const source = `export const PIN = {
-    backend_commit: '${'a'.repeat(40)}',
     openapi_sha256: "${'b'.repeat(64)}",
   };`;
   assert.deepEqual(readPinnedContract(source), {
-    backend_commit: 'a'.repeat(40),
     openapi_sha256: 'b'.repeat(64),
   });
-  assert.throws(() => readPinnedContract('export const PIN = {};'), /backend_commit/i);
+  assert.throws(() => readPinnedContract('export const PIN = {};'), /openapi_sha256/i);
 });
 
-test('replacePinnedContract changes only the two pin string literals', () => {
+test('replacePinnedContract changes only the semantic hash literal', () => {
   const source = `const note = 'keep';
 export const PIN = {
-  backend_commit: '${'a'.repeat(40)}',
   openapi_sha256: "${'b'.repeat(64)}",
   frontend_baseline_commit: '${'c'.repeat(40)}',
 };\n`;
@@ -158,23 +155,25 @@ export const PIN = {
     backend_commit: 'd'.repeat(40),
     openapi_sha256: 'e'.repeat(64),
   });
-  assert.equal(
-    updated,
-    source
-      .replace('a'.repeat(40), 'd'.repeat(40))
-      .replace('b'.repeat(64), 'e'.repeat(64)),
+  assert.equal(updated, source.replace('b'.repeat(64), 'e'.repeat(64)));
+});
+
+test('comparePinnedContract ignores backend revision when the semantic hash matches', () => {
+  assert.deepEqual(
+    comparePinnedContract(
+      { openapi_sha256: 'b'.repeat(64) },
+      { backend_commit: 'c'.repeat(40), openapi_sha256: 'b'.repeat(64), snapshot: 'openapi.json' },
+    ),
+    [],
   );
 });
 
-test('comparePinnedContract reports hash and revision drift together', () => {
+test('comparePinnedContract reports semantic hash drift', () => {
   assert.deepEqual(
     comparePinnedContract(
-      { backend_commit: 'a'.repeat(40), openapi_sha256: 'b'.repeat(64) },
+      { openapi_sha256: 'b'.repeat(64) },
       { backend_commit: 'c'.repeat(40), openapi_sha256: 'd'.repeat(64), snapshot: 'openapi.json' },
     ),
-    [
-      `backend_commit: pinned ${'a'.repeat(40)} != backend ${'c'.repeat(40)}`,
-      `openapi_sha256: pinned ${'b'.repeat(64)} != backend ${'d'.repeat(64)}`,
-    ],
+    [`openapi_sha256: pinned ${'b'.repeat(64)} != backend ${'d'.repeat(64)}`],
   );
 });

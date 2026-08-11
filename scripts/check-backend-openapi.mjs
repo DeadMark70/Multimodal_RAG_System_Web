@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const scriptPath = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(scriptPath), '..');
 const fixturePath = path.join(repoRoot, 'src', 'test', 'fixtures', 'agenticV9ApiContract.ts');
-const PIN_FIELDS = ['backend_commit', 'openapi_sha256'];
+const PIN_FIELDS = ['openapi_sha256'];
 
 export function canonicalizeJson(value) {
   if (Array.isArray(value)) {
