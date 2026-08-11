@@ -25,7 +25,9 @@ function isNormalizedBbox(value: unknown): value is [number, number, number, num
       && Number.isFinite(coordinate)
       && coordinate >= 0
       && coordinate <= 1
-    ));
+    ))
+    && value[0] < value[2]
+    && value[1] < value[3];
 }
 
 export function mapCitationToSourceEvidence(citation: Citation): SourceEvidence {

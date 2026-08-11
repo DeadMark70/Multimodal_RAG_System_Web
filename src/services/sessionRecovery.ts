@@ -5,6 +5,7 @@ type SessionExpiredListener = () => void;
 let refreshPromise: Promise<string | null> | null = null;
 let expirationPromise: Promise<void> | null = null;
 let expirationPublished = false;
+let intentionalSignOut = false;
 const listeners = new Set<SessionExpiredListener>();
 
 export async function getAccessToken(): Promise<string | null> {
@@ -29,6 +30,10 @@ export async function refreshAccessToken(): Promise<string | null> {
 }
 
 export function publishSessionExpired(): Promise<void> {
+  if (intentionalSignOut) {
+    return Promise.resolve();
+  }
+
   if (expirationPromise) {
     return expirationPromise;
   }
@@ -44,7 +49,9 @@ export function publishSessionExpired(): Promise<void> {
     } catch {
       // Session expiration still needs to reach subscribers if local cleanup fails.
     } finally {
-      listeners.forEach((listener) => listener());
+      if (!intentionalSignOut) {
+        listeners.forEach((listener) => listener());
+      }
     }
   })();
 
@@ -58,7 +65,16 @@ export function subscribeSessionExpired(
   return () => listeners.delete(listener);
 }
 
+export function beginIntentionalSignOut(): void {
+  intentionalSignOut = true;
+}
+
+export function cancelIntentionalSignOut(): void {
+  intentionalSignOut = false;
+}
+
 export function resetSessionExpiration(): void {
   expirationPromise = null;
   expirationPublished = false;
+  intentionalSignOut = false;
 }

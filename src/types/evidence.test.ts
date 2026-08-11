@@ -46,4 +46,21 @@ describe('mapCitationToSourceEvidence', () => {
       provenanceStatus: 'partial',
     });
   });
+
+  it.each([
+    ['reversed x-axis', [0.8, 0.2, 0.1, 0.4]],
+    ['reversed y-axis', [0.1, 0.7, 0.8, 0.2]],
+    ['zero width', [0.4, 0.2, 0.4, 0.7]],
+    ['zero height', [0.1, 0.5, 0.8, 0.5]],
+  ] as const)('rejects a %s runtime bbox', (_label, bbox) => {
+    expect(mapCitationToSourceEvidence({
+      doc_id: 'doc-5', filename: 'paper.pdf', page: 2,
+      snippet: 'Quote with invalid geometry', score: 0.5,
+      bbox: [...bbox],
+    })).toMatchObject({
+      quote: 'Quote with invalid geometry',
+      bbox: null,
+      provenanceStatus: 'partial',
+    });
+  });
 });

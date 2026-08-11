@@ -10,6 +10,8 @@ let authStateChangeCallback: ((event: AuthChangeEvent, session: Session | null) 
 let expirationListener: (() => void) | null = null;
 
 const {
+  beginIntentionalSignOutMock,
+  cancelIntentionalSignOutMock,
   getSessionMock,
   onAuthStateChangeMock,
   resetSessionExpirationMock,
@@ -17,6 +19,8 @@ const {
   subscribeSessionExpiredMock,
   unsubscribeMock,
 } = vi.hoisted(() => ({
+  beginIntentionalSignOutMock: vi.fn(),
+  cancelIntentionalSignOutMock: vi.fn(),
   getSessionMock: vi.fn(),
   onAuthStateChangeMock: vi.fn(),
   resetSessionExpirationMock: vi.fn(),
@@ -36,6 +40,8 @@ vi.mock('../services/supabase', () => ({
 }));
 
 vi.mock('../services/sessionRecovery', () => ({
+  beginIntentionalSignOut: beginIntentionalSignOutMock,
+  cancelIntentionalSignOut: cancelIntentionalSignOutMock,
   resetSessionExpiration: resetSessionExpirationMock,
   subscribeSessionExpired: subscribeSessionExpiredMock,
 }));
@@ -77,6 +83,8 @@ describe('AuthProvider', () => {
     onAuthStateChangeMock.mockReset();
     unsubscribeMock.mockReset();
     signOutMock.mockReset();
+    beginIntentionalSignOutMock.mockReset();
+    cancelIntentionalSignOutMock.mockReset();
     resetSessionExpirationMock.mockReset();
     subscribeSessionExpiredMock.mockReset();
     sessionStorage.clear();
@@ -262,5 +270,41 @@ describe('AuthProvider', () => {
 
     await waitFor(() => expect(getByTestId('session-expired')).toHaveTextContent('false'));
     expect(resetSessionExpirationMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels expiration suppression when deliberate sign-out fails completely', async () => {
+    signOutMock
+      .mockResolvedValueOnce({ error: new Error('global unavailable') })
+      .mockResolvedValueOnce({ error: new Error('local unavailable') });
+    const signOutError = vi.fn();
+
+    const SignOutFailureProbe = () => {
+      const { signOut } = useAuth();
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            void signOut().catch(signOutError);
+          }}
+        >
+          failed-sign-out
+        </button>
+      );
+    };
+
+    const { getByRole } = render(
+      <AuthProvider>
+        <SignOutFailureProbe />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(authStateChangeCallback).not.toBeNull());
+    act(() => {
+      getByRole('button', { name: 'failed-sign-out' }).click();
+    });
+
+    await waitFor(() => expect(signOutError).toHaveBeenCalledTimes(1));
+    expect(beginIntentionalSignOutMock).toHaveBeenCalledTimes(1);
+    expect(cancelIntentionalSignOutMock).toHaveBeenCalledTimes(1);
   });
 });

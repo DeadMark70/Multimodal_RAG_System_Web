@@ -2,6 +2,8 @@ import { useEffect, useState, type FC, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
 import {
+  beginIntentionalSignOut,
+  cancelIntentionalSignOut,
   resetSessionExpiration,
   subscribeSessionExpired,
 } from '../services/sessionRecovery';
@@ -69,17 +71,24 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const signOut = async () => {
     setSessionExpired(false);
     resetSessionExpiration();
-    const { error: globalError } = await supabase.auth.signOut({ scope: 'global' });
-    if (globalError) {
-      const { error: localError } = await supabase.auth.signOut({ scope: 'local' });
-      if (localError) {
-        throw localError;
-      }
-    }
+    beginIntentionalSignOut();
 
-    setSession(null);
-    setUser(null);
-    setRecoveryActive(false);
+    try {
+      const { error: globalError } = await supabase.auth.signOut({ scope: 'global' });
+      if (globalError) {
+        const { error: localError } = await supabase.auth.signOut({ scope: 'local' });
+        if (localError) {
+          throw localError;
+        }
+      }
+
+      setSession(null);
+      setUser(null);
+      setRecoveryActive(false);
+    } catch (error) {
+      cancelIntentionalSignOut();
+      throw error;
+    }
   };
 
   const acknowledgeSessionExpired = () => {

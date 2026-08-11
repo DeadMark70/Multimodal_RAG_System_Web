@@ -22,6 +22,7 @@ import {
 const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 
 type RetriableRequestConfig = InternalAxiosRequestConfig & {
+  _sessionRefreshAttempted?: boolean;
   _sessionRetry?: boolean;
 };
 
@@ -46,6 +47,7 @@ export const api = axios.create({
 // 請求攔截器 - 自動注入 JWT Token
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    const retriableConfig = config as RetriableRequestConfig;
     const fullUrl = resolveApiUrl(config.baseURL ?? API_BASE_URL, config.url ?? '/');
     assertAllowedApiTarget(fullUrl);
     const canAttachAuthorization = shouldAttachAuthorizationHeader(fullUrl);
@@ -53,7 +55,8 @@ api.interceptors.request.use(
     let accessToken: string | null = null;
     if (canAttachAuthorization) {
       accessToken = await getAccessToken();
-      if (!accessToken) {
+      if (!accessToken && retriableConfig._sessionRefreshAttempted !== true) {
+        retriableConfig._sessionRefreshAttempted = true;
         accessToken = await refreshAccessToken();
       }
     }
@@ -88,8 +91,13 @@ api.interceptors.response.use(
     const config = error.config as RetriableRequestConfig | undefined;
 
     if (status === 401) {
-      if (config && config._sessionRetry !== true) {
+      if (
+        config
+        && config._sessionRetry !== true
+        && config._sessionRefreshAttempted !== true
+      ) {
         config._sessionRetry = true;
+        config._sessionRefreshAttempted = true;
         const accessToken = await refreshAccessToken();
 
         if (accessToken) {

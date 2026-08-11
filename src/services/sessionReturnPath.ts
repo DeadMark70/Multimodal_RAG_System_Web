@@ -7,9 +7,10 @@ function normalizeInternalPath(path: string): string | null {
 
   try {
     const parsed = new URL(path, window.location.origin);
+    const canonicalPathname = parsed.pathname.replace(/\/+$/, '') || '/';
     if (
       parsed.origin !== window.location.origin ||
-      parsed.pathname === '/login'
+      canonicalPathname === '/login'
     ) {
       return null;
     }

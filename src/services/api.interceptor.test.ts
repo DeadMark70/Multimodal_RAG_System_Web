@@ -1,4 +1,4 @@
-import { AxiosHeaders } from 'axios';
+import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import api from './api';
 import { downloadPdf } from './pdfApi';
@@ -228,6 +228,51 @@ describe('api interceptors', () => {
       expect(signOutMock).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledTimes(1);
     } finally {
+      unsubscribe();
+    }
+  });
+
+  it('attempts refresh only once through the complete 401 interceptor lifecycle', async () => {
+    getSessionMock.mockResolvedValue({
+      data: { session: null },
+      error: null,
+    } as never);
+    refreshSessionMock.mockResolvedValue({
+      data: { session: { access_token: 'preflight-token' } },
+      error: null,
+    } as never);
+    signOutMock.mockResolvedValue({ error: null });
+    const listener = vi.fn();
+    const unsubscribe = subscribeSessionExpired(listener);
+    const originalAdapter = api.defaults.adapter;
+    const adapter = vi.fn((config: InternalAxiosRequestConfig) => (
+      Promise.reject(new AxiosError(
+        'Unauthorized',
+        'ERR_BAD_RESPONSE',
+        config,
+        undefined,
+        {
+          config,
+          data: { error: { code: 'UNAUTHORIZED', message: 'Session expired' } },
+          headers: new AxiosHeaders(),
+          status: 401,
+          statusText: 'Unauthorized',
+        }
+      ))
+    ));
+    api.defaults.adapter = adapter;
+
+    try {
+      await expect(api.get('/rag/ask')).rejects.toMatchObject({
+        name: 'ApiError',
+        status: 401,
+      });
+
+      expect(refreshSessionMock).toHaveBeenCalledTimes(1);
+      expect(adapter).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledTimes(1);
+    } finally {
+      api.defaults.adapter = originalAdapter;
       unsubscribe();
     }
   });

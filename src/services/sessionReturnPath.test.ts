@@ -13,6 +13,8 @@ describe('session return path', () => {
     ['https://evil.example', null],
     ['//evil.example/path', null],
     ['/login', null],
+    ['/login/', null],
+    ['/login/?reason=expired', null],
     ['/chat?mode=rag#source', '/chat?mode=rag#source'],
   ])('stores only safe internal routes: %s', (candidate, expected) => {
     saveSessionReturnPath(candidate);
