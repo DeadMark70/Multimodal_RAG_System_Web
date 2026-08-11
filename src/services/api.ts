@@ -8,15 +8,22 @@
  */
 
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
-import { supabase } from './supabase';
 import {
   assertAllowedApiTarget,
   resolveApiUrl,
   shouldAttachAuthorizationHeader,
 } from './networkPolicy';
+import {
+  getAccessToken,
+  publishSessionExpired,
+  refreshAccessToken,
+} from './sessionRecovery';
 
 const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
-let inFlightTokenRefresh: Promise<string | null> | null = null;
+
+type RetriableRequestConfig = InternalAxiosRequestConfig & {
+  _sessionRetry?: boolean;
+};
 
 export class ApiError extends Error {
   readonly status: number | undefined;
@@ -26,25 +33,6 @@ export class ApiError extends Error {
     this.name = 'ApiError';
     this.status = status;
   }
-}
-
-async function getRequestAccessToken(): Promise<string | null> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.access_token) {
-    return session.access_token;
-  }
-
-  if (!inFlightTokenRefresh) {
-    inFlightTokenRefresh = supabase.auth
-      .refreshSession()
-      .then(({ data }) => data.session?.access_token ?? null)
-      .catch(() => null)
-      .finally(() => {
-        inFlightTokenRefresh = null;
-      });
-  }
-
-  return await inFlightTokenRefresh;
 }
 
 export const api = axios.create({
@@ -62,7 +50,13 @@ api.interceptors.request.use(
     assertAllowedApiTarget(fullUrl);
     const canAttachAuthorization = shouldAttachAuthorizationHeader(fullUrl);
 
-    const accessToken = canAttachAuthorization ? await getRequestAccessToken() : null;
+    let accessToken: string | null = null;
+    if (canAttachAuthorization) {
+      accessToken = await getAccessToken();
+      if (!accessToken) {
+        accessToken = await refreshAccessToken();
+      }
+    }
 
     if (accessToken) {
       config.headers.set('Authorization', `Bearer ${accessToken}`);
@@ -81,7 +75,7 @@ api.interceptors.request.use(
 // 回應攔截器 - 統一錯誤處理
 api.interceptors.response.use(
   (response) => response,
-  (
+  async (
     error: AxiosError<{
       detail?: string;
       error?: {
@@ -90,20 +84,31 @@ api.interceptors.response.use(
       };
     }>
   ) => {
-    // 401 未授權 - 可能需要重新登入
-    if (error.response?.status === 401) {
-      console.error('認證失敗，請重新登入');
-      // 可在此觸發登出邏輯
+    const status = error.response?.status;
+    const config = error.config as RetriableRequestConfig | undefined;
+
+    if (status === 401) {
+      if (config && config._sessionRetry !== true) {
+        config._sessionRetry = true;
+        const accessToken = await refreshAccessToken();
+
+        if (accessToken) {
+          config.headers.set('Authorization', `Bearer ${accessToken}`);
+          return api.request(config);
+        }
+      }
+
+      await publishSessionExpired();
     }
-    
+
     // 提取錯誤訊息：優先新格式 error.message，向後相容 detail。
     const message =
       error.response?.data?.error?.message ||
       error.response?.data?.detail ||
       error.message ||
       '發生未知錯誤';
-    
-    return Promise.reject(new ApiError(message, error.response?.status));
+
+    throw new ApiError(message, status);
   }
 );
 

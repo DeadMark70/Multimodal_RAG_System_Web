@@ -1,10 +1,16 @@
+import { AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import api from './api';
 import { downloadPdf } from './pdfApi';
+import {
+  resetSessionExpiration,
+  subscribeSessionExpired,
+} from './sessionRecovery';
 
-const { getSessionMock, refreshSessionMock } = vi.hoisted(() => ({
+const { getSessionMock, refreshSessionMock, signOutMock } = vi.hoisted(() => ({
   getSessionMock: vi.fn(),
   refreshSessionMock: vi.fn(),
+  signOutMock: vi.fn(),
 }));
 
 vi.mock('./supabase', () => ({
@@ -12,14 +18,25 @@ vi.mock('./supabase', () => ({
     auth: {
       getSession: getSessionMock,
       refreshSession: refreshSessionMock,
+      signOut: signOutMock,
     },
   },
 }));
 
 describe('api interceptors', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
+    resetSessionExpiration();
   });
+
+  const responseRejected = (
+    error: unknown
+  ): Promise<unknown> => (
+    api.interceptors.response as unknown as {
+      handlers: Array<{ rejected: (error: unknown) => Promise<unknown> }>;
+    }
+  ).handlers[0].rejected(error);
 
   it('injects Authorization header when session exists', async () => {
     getSessionMock.mockResolvedValue({
@@ -134,6 +151,98 @@ describe('api interceptors', () => {
         message: 'Service unavailable',
       })
     ).rejects.toThrow('Service unavailable');
+  });
+
+  it('refreshes and retries one 401 exactly once', async () => {
+    refreshSessionMock.mockResolvedValue({
+      data: { session: { access_token: 'fresh-token' } },
+      error: null,
+    } as never);
+    const requestSpy = vi.spyOn(api, 'request').mockResolvedValue({ data: 'ok' });
+
+    const result = await responseRejected({
+      config: { url: '/rag/ask', headers: new AxiosHeaders() },
+      response: { status: 401, data: {} },
+      message: 'Unauthorized',
+    });
+
+    expect(requestSpy).toHaveBeenCalledTimes(1);
+    const retriedConfig = requestSpy.mock.calls[0][0] as {
+      _sessionRetry?: boolean;
+      headers: AxiosHeaders;
+    };
+    expect(retriedConfig._sessionRetry).toBe(true);
+    expect(retriedConfig.headers.get('Authorization')).toBe(
+      'Bearer fresh-token'
+    );
+    expect(result).toEqual({ data: 'ok' });
+  });
+
+  it('does not refresh an already retried 401', async () => {
+    signOutMock.mockResolvedValue({ error: null });
+    const listener = vi.fn();
+    const unsubscribe = subscribeSessionExpired(listener);
+
+    try {
+      await expect(
+        responseRejected({
+          config: {
+            url: '/rag/ask',
+            headers: new AxiosHeaders(),
+            _sessionRetry: true,
+          },
+          response: { status: 401, data: {} },
+          message: 'Unauthorized',
+        })
+      ).rejects.toMatchObject({ name: 'ApiError', status: 401 });
+
+      expect(refreshSessionMock).not.toHaveBeenCalled();
+      expect(signOutMock).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledTimes(1);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it('publishes expiration when a 401 refresh fails', async () => {
+    refreshSessionMock.mockResolvedValue({
+      data: { session: null },
+      error: new Error('refresh failed'),
+    } as never);
+    signOutMock.mockResolvedValue({ error: null });
+    const requestSpy = vi.spyOn(api, 'request');
+    const listener = vi.fn();
+    const unsubscribe = subscribeSessionExpired(listener);
+
+    try {
+      await expect(
+        responseRejected({
+          config: { url: '/rag/ask', headers: new AxiosHeaders() },
+          response: { status: 401, data: {} },
+          message: 'Unauthorized',
+        })
+      ).rejects.toMatchObject({ name: 'ApiError', status: 401 });
+
+      expect(refreshSessionMock).toHaveBeenCalledTimes(1);
+      expect(requestSpy).not.toHaveBeenCalled();
+      expect(signOutMock).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledTimes(1);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it('does not refresh non-401 responses', async () => {
+    await expect(
+      responseRejected({
+        config: { url: '/rag/ask', headers: new AxiosHeaders() },
+        response: { status: 403, data: {} },
+        message: 'Forbidden',
+      })
+    ).rejects.toMatchObject({ name: 'ApiError', status: 403 });
+
+    expect(refreshSessionMock).not.toHaveBeenCalled();
+    expect(signOutMock).not.toHaveBeenCalled();
   });
 
   it('preserves a 401 status through the real PDF download service', async () => {
