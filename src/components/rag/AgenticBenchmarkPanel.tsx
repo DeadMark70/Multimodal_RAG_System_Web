@@ -1,5 +1,7 @@
 import {
   Badge,
+  Alert,
+  AlertDescription,
   Box,
   Button,
   HStack,
@@ -16,6 +18,7 @@ import {
 import { FiRefreshCw } from 'react-icons/fi';
 
 import type { UseAgenticBenchmarkResearchReturn } from '../../hooks/useAgenticBenchmarkResearch';
+import { getVisibleStreamStatusCopy } from '../../hooks/useChat';
 import BenchmarkResultTab from './BenchmarkResultTab';
 import BenchmarkStatusTab from './BenchmarkStatusTab';
 import BenchmarkTraceTab from './BenchmarkTraceTab';
@@ -69,7 +72,10 @@ export default function AgenticBenchmarkPanel({ researchState }: AgenticBenchmar
     result,
     error,
     currentPhase,
+    connectionStatus,
+    canRetryLastRequest,
     cancelExecution,
+    retryLastRequest,
     reset,
   } = researchState;
 
@@ -83,6 +89,7 @@ export default function AgenticBenchmarkPanel({ researchState }: AgenticBenchmar
   const runningCount = progress.filter((task) => task.status === 'running').length;
   const taskCount = plan?.task_count ?? progress.filter((task) => task.iteration === 0).length;
   const progressPercent = progress.length > 0 ? Math.round((completedCount / progress.length) * 100) : 0;
+  const connectionMessage = getVisibleStreamStatusCopy(connectionStatus);
 
   return (
     <Box
@@ -94,6 +101,30 @@ export default function AgenticBenchmarkPanel({ researchState }: AgenticBenchmar
       data-testid="agentic-benchmark-scroll-region"
     >
       <VStack spacing={5} align="stretch" h="100%" minH={0} px={{ base: 1, md: 2 }} pb={2}>
+          {connectionMessage && (
+            <Alert
+              status={connectionStatus.state === 'rate_limited' ? 'warning' : 'error'}
+              borderRadius="lg"
+              py={2}
+              flexShrink={0}
+              role="alert"
+            >
+              <AlertDescription flex={1} fontSize="sm">
+                {connectionMessage}
+              </AlertDescription>
+              {connectionStatus.state === 'disconnected' && canRetryLastRequest && (
+                <Button
+                  size="sm"
+                  ml={3}
+                  onClick={() => void retryLastRequest()}
+                  isDisabled={isRunning}
+                >
+                  重新執行研究
+                </Button>
+              )}
+            </Alert>
+          )}
+
           <Box p={{ base: 4, md: 5 }} borderRadius="xl" bg={summaryBg} border="1px solid" borderColor={borderColor}>
             <HStack justify="space-between" align="start" wrap="wrap" spacing={3}>
               <VStack align="start" spacing={1}>

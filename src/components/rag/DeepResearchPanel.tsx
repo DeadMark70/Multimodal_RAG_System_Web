@@ -10,6 +10,8 @@
 import { useState } from 'react';
 import {
   Box,
+  Alert,
+  AlertDescription,
   VStack,
   HStack,
   Input,
@@ -49,6 +51,7 @@ import {
   FiFileText,
 } from 'react-icons/fi';
 import { type UseDeepResearchReturn } from '../../hooks/useDeepResearch';
+import { getVisibleStreamStatusCopy } from '../../hooks/useChat';
 import MarkdownContent from '../common/MarkdownContent';
 import MetricsBadge from './MetricsBadge';
 import EvaluationRadarChart from '../charts/EvaluationRadarChart';
@@ -78,11 +81,14 @@ export default function DeepResearchPanel({ researchState }: DeepResearchPanelPr
     result,
     error,
     currentPhase,
+    connectionStatus,
+    canRetryLastRequest,
     generatePlan,
     updateTask,
     toggleTask,
     deleteTask,
     executePlan,
+    retryLastRequest,
     cancelExecution,
     reset,
   } = researchState;
@@ -196,6 +202,7 @@ export default function DeepResearchPanel({ researchState }: DeepResearchPanelPr
       : 'plan';
   const activeViewEnabled = availableViews.some((view) => view.id === selectedView && view.enabled);
   const deepResearchView = activeViewEnabled && selectedView ? selectedView : autoView;
+  const connectionMessage = getVisibleStreamStatusCopy(connectionStatus);
 
   const toggleExpandedTask = (key: string) => {
     setExpandedTaskKeys((previous) =>
@@ -570,6 +577,30 @@ export default function DeepResearchPanel({ researchState }: DeepResearchPanelPr
   return (
     <>
       <VStack spacing={4} align="stretch" h="100%" minH={0} overflow="hidden">
+        {connectionMessage && (
+          <Alert
+            status={connectionStatus.state === 'rate_limited' ? 'warning' : 'error'}
+            borderRadius="lg"
+            py={2}
+            flexShrink={0}
+            role="alert"
+          >
+            <AlertDescription flex={1} fontSize="sm">
+              {connectionMessage}
+            </AlertDescription>
+            {connectionStatus.state === 'disconnected' && canRetryLastRequest && (
+              <Button
+                size="sm"
+                ml={3}
+                onClick={() => void retryLastRequest()}
+                isDisabled={isExecuting}
+              >
+                重新執行計畫
+              </Button>
+            )}
+          </Alert>
+        )}
+
         {availableViews.some((view) => view.enabled) && (
           <HStack spacing={2} wrap="wrap">
             {availableViews.map((view) => (

@@ -12,6 +12,11 @@ import { useToast } from '@chakra-ui/react';
 
 import { askQuestionStream } from '../services/ragApi';
 import { getConversationMessagesPage, addMessage } from '../services/conversationApi';
+import { SseProtocolError } from '../services/sse/protocol';
+import {
+  SseTransportError,
+  type StreamConnectionStatus,
+} from '../services/sse/streamSse';
 import type {
   AskRequest,
   AskResponse,
@@ -29,6 +34,62 @@ interface UseChatOptions {
   graphSearchMode?: 'local' | 'global' | 'hybrid' | 'auto' | 'generic';
   conversationId?: string | null;
   ensureConversation?: () => Promise<string | null>;
+}
+
+export type StreamUiConnectionStatus =
+  | StreamConnectionStatus
+  | { state: 'idle' | 'rate_limited' | 'protocol' | 'auth' };
+
+export const streamStatusCopy = {
+  connecting: '正在建立串流連線…',
+  reconnecting: '連線暫時中斷，正在有限重試…',
+  disconnected: '串流已中斷，請手動重新執行。',
+  rate_limited: '請求過於頻繁，請稍後再試。',
+  protocol: '伺服器回傳格式不相容，請重新整理後再試。',
+} as const;
+
+export function getVisibleStreamStatusCopy(status: StreamUiConnectionStatus): string | null {
+  switch (status.state) {
+    case 'reconnecting':
+    case 'disconnected':
+    case 'rate_limited':
+    case 'protocol':
+      return streamStatusCopy[status.state];
+    default:
+      return null;
+  }
+}
+
+export function getStreamFailureState(error: unknown): {
+  status: StreamUiConnectionStatus;
+  canRetry: boolean;
+} | null {
+  if (error instanceof SseProtocolError) {
+    return { status: { state: 'protocol' }, canRetry: false };
+  }
+  if (!(error instanceof SseTransportError)) {
+    return null;
+  }
+  if (error.kind === 'auth') {
+    return { status: { state: 'auth' }, canRetry: false };
+  }
+  if (error.kind === 'rate_limited') {
+    return { status: { state: 'rate_limited' }, canRetry: true };
+  }
+  if (error.kind === 'disconnected' || error.kind === 'server') {
+    return { status: { state: 'disconnected' }, canRetry: true };
+  }
+  return null;
+}
+
+export function isAbortError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError';
+}
+
+interface RetryableChatRequest {
+  request: AskRequest;
+  content: string;
+  conversationId: string | null;
 }
 
 const WELCOME_MESSAGE: ChatMessage = {
@@ -53,16 +114,26 @@ export function useChat(options: UseChatOptions = {}) {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [currentStage, setCurrentStage] = useState<ChatPipelineStage | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<StreamUiConnectionStatus>({
+    state: 'idle',
+  });
+  const [canRetryLastRequest, setCanRetryLastRequest] = useState(false);
   const toast = useToast();
 
   const messagesRef = useRef(messages);
   const protectedEmptyHistoryConversationIdRef = useRef<string | null>(null);
+  const lastRetryableRequestRef = useRef<RetryableChatRequest | null>(null);
+  const requestInFlightRef = useRef(false);
 
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
   useEffect(() => {
+    lastRetryableRequestRef.current = null;
+    setCanRetryLastRequest(false);
+    setConnectionStatus({ state: 'idle' });
+
     if (!conversationId) {
       protectedEmptyHistoryConversationIdRef.current = null;
       setMessages([WELCOME_MESSAGE]);
@@ -132,11 +203,114 @@ export function useChat(options: UseChatOptions = {}) {
     [toast]
   );
 
-  const sendMessage = useCallback(
-    async (content: string) => {
-      if (!content.trim() || isSending) {
+  const runChatRequest = useCallback(
+    async (retryableRequest: RetryableChatRequest) => {
+      if (isSending) {
         return;
       }
+
+      setIsSending(true);
+      setCurrentStage(null);
+      setConnectionStatus({ state: 'idle' });
+      setCanRetryLastRequest(false);
+      lastRetryableRequestRef.current = null;
+
+      try {
+        const answerPayload = await new Promise<AskResponse>((resolve, reject) => {
+          let isSettled = false;
+
+          void askQuestionStream(
+            retryableRequest.request,
+            (event: ChatStreamEvent) => {
+              if (isSettled) {
+                return;
+              }
+
+              if (event.type === 'phase_update') {
+                setCurrentStage(event.data.stage);
+                return;
+              }
+
+              if (event.type === 'complete') {
+                isSettled = true;
+                resolve(event.data);
+                return;
+              }
+
+              isSettled = true;
+              reject(new Error(event.data.message));
+            },
+            undefined,
+            setConnectionStatus
+          ).catch((error: unknown) => {
+            if (isSettled) {
+              return;
+            }
+
+            isSettled = true;
+            reject(error instanceof Error ? error : new Error('無法取得回應'));
+          });
+        });
+
+        const assistantMessage: ChatMessage = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: answerPayload.answer,
+          sources: answerPayload.sources,
+          metrics: answerPayload.metrics ?? undefined,
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+        lastRetryableRequestRef.current = null;
+        setCanRetryLastRequest(false);
+
+        if (retryableRequest.conversationId) {
+          try {
+            await addMessage(retryableRequest.conversationId, {
+              role: 'assistant',
+              content: answerPayload.answer,
+              metadata: {
+                sources: answerPayload.sources,
+                metrics: answerPayload.metrics,
+              },
+            });
+          } catch (error) {
+            console.error('Failed to save assistant message', error);
+            showPersistenceError('無法儲存 AI 回應至對話歷史');
+          }
+        }
+      } catch (error) {
+        const failure = getStreamFailureState(error);
+        if (failure) {
+          setConnectionStatus(failure.status);
+          setCanRetryLastRequest(failure.canRetry);
+          lastRetryableRequestRef.current = failure.canRetry ? retryableRequest : null;
+          return;
+        }
+
+        setConnectionStatus({ state: 'idle' });
+        const message = error instanceof Error ? error.message : '無法取得回應';
+        toast({
+          title: '請求失敗',
+          description: message,
+          status: 'error',
+          duration: 5000,
+        });
+      } finally {
+        setIsSending(false);
+        setCurrentStage(null);
+        requestInFlightRef.current = false;
+      }
+    },
+    [isSending, showPersistenceError, toast]
+  );
+
+  const sendMessage = useCallback(
+    async (content: string) => {
+      if (!content.trim() || isSending || requestInFlightRef.current) {
+        return;
+      }
+      requestInFlightRef.current = true;
 
       const userMessage: ChatMessage = {
         id: `user-${Date.now()}`,
@@ -173,93 +347,22 @@ export function useChat(options: UseChatOptions = {}) {
         }
       }
 
-      setIsSending(true);
-      setCurrentStage(null);
+      const request: AskRequest = {
+        question: content,
+        doc_ids: selectedDocIds.length > 0 ? selectedDocIds : null,
+        history: messagesRef.current
+          .filter((message) => message.id !== 'welcome')
+          .slice(-10)
+          .map((message) => ({ role: message.role, content: message.content })),
+        enable_hyde: enableHyde,
+        enable_multi_query: enableMultiQuery,
+        enable_reranking: enableReranking,
+        enable_evaluation: enableEvaluation,
+        enable_graph_rag: enableGraphRag,
+        graph_search_mode: graphSearchMode,
+      };
 
-      try {
-        const request: AskRequest = {
-          question: content,
-          doc_ids: selectedDocIds.length > 0 ? selectedDocIds : null,
-          history: messagesRef.current
-            .filter((message) => message.id !== 'welcome')
-            .slice(-10)
-            .map((message) => ({ role: message.role, content: message.content })),
-          enable_hyde: enableHyde,
-          enable_multi_query: enableMultiQuery,
-          enable_reranking: enableReranking,
-          enable_evaluation: enableEvaluation,
-          enable_graph_rag: enableGraphRag,
-          graph_search_mode: graphSearchMode,
-        };
-
-        const answerPayload = await new Promise<AskResponse>((resolve, reject) => {
-          let isSettled = false;
-
-          void askQuestionStream(request, (event: ChatStreamEvent) => {
-            if (isSettled) {
-              return;
-            }
-
-            if (event.type === 'phase_update') {
-              setCurrentStage(event.data.stage);
-              return;
-            }
-
-            if (event.type === 'complete') {
-              isSettled = true;
-              resolve(event.data);
-              return;
-            }
-
-            isSettled = true;
-            reject(new Error(event.data.message));
-          }).catch((error: unknown) => {
-            if (isSettled) {
-              return;
-            }
-
-            isSettled = true;
-            reject(error instanceof Error ? error : new Error('無法取得回應'));
-          });
-        });
-
-        const assistantMessage: ChatMessage = {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: answerPayload.answer,
-          sources: answerPayload.sources,
-          metrics: answerPayload.metrics ?? undefined,
-          timestamp: Date.now(),
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-
-        if (activeConversationId) {
-          try {
-            await addMessage(activeConversationId, {
-              role: 'assistant',
-              content: answerPayload.answer,
-              metadata: {
-                sources: answerPayload.sources,
-                metrics: answerPayload.metrics,
-              },
-            });
-          } catch (error) {
-            console.error('Failed to save assistant message', error);
-            showPersistenceError('無法儲存 AI 回應至對話歷史');
-          }
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : '無法取得回應';
-        toast({
-          title: '請求失敗',
-          description: message,
-          status: 'error',
-          duration: 5000,
-        });
-      } finally {
-        setIsSending(false);
-        setCurrentStage(null);
-      }
+      await runChatRequest({ request, content, conversationId: activeConversationId });
     },
     [
       conversationId,
@@ -271,14 +374,47 @@ export function useChat(options: UseChatOptions = {}) {
       ensureConversation,
       graphSearchMode,
       isSending,
+      runChatRequest,
       selectedDocIds,
       showPersistenceError,
-      toast,
     ]
   );
 
+  const retryLastRequest = useCallback(async () => {
+    const retryableRequest = lastRetryableRequestRef.current;
+    if (!retryableRequest || isSending || requestInFlightRef.current) {
+      return;
+    }
+    requestInFlightRef.current = true;
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: retryableRequest.content,
+      timestamp: Date.now(),
+    };
+    setMessages((prev) => [...prev, userMessage]);
+
+    if (retryableRequest.conversationId) {
+      try {
+        await addMessage(retryableRequest.conversationId, {
+          role: 'user',
+          content: retryableRequest.content,
+        });
+      } catch (error) {
+        console.error('Failed to save retried user message', error);
+        showPersistenceError('無法儲存您的訊息至對話歷史');
+      }
+    }
+
+    await runChatRequest(retryableRequest);
+  }, [isSending, runChatRequest, showPersistenceError]);
+
   const clearMessages = useCallback(() => {
     protectedEmptyHistoryConversationIdRef.current = null;
+    lastRetryableRequestRef.current = null;
+    setCanRetryLastRequest(false);
+    setConnectionStatus({ state: 'idle' });
     setMessages([
       {
         id: 'welcome',
@@ -298,6 +434,9 @@ export function useChat(options: UseChatOptions = {}) {
     selectedDocIds,
     setSelectedDocIds,
     currentStage,
+    connectionStatus,
+    canRetryLastRequest,
+    retryLastRequest,
   };
 }
 

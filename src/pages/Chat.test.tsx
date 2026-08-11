@@ -137,6 +137,12 @@ vi.mock('../hooks/useConversations', () => ({
 }));
 vi.mock('../hooks/useChat', () => ({
   useChat: useChatMock,
+  getVisibleStreamStatusCopy: ({ state }: { state: string }) => ({
+    reconnecting: '連線暫時中斷，正在有限重試…',
+    disconnected: '串流已中斷，請手動重新執行。',
+    rate_limited: '請求過於頻繁，請稍後再試。',
+    protocol: '伺服器回傳格式不相容，請重新整理後再試。',
+  })[state] ?? null,
 }));
 vi.mock('../hooks/useDeepResearch', () => ({
   useDeepResearch: vi.fn(() => ({
@@ -228,6 +234,9 @@ describe('Chat Page Integration', () => {
       selectedDocIds: [],
       setSelectedDocIds: vi.fn(),
       currentStage: null,
+      connectionStatus: { state: 'idle' },
+      canRetryLastRequest: false,
+      retryLastRequest: vi.fn(),
     });
   });
 
@@ -403,5 +412,87 @@ describe('Chat Page Integration', () => {
 
     expect(lazyViewerBoundaryMock).toHaveBeenCalled();
     expect(lazyViewerBoundaryMock.mock.calls.at(-1)?.[0].evidence.docId).toBe('doc-1');
+  });
+
+  it('shows a disconnected banner and explicitly retries once', () => {
+    const retryLastRequest = vi.fn();
+    useChatMock.mockReturnValue({
+      messages: [],
+      sendMessage: vi.fn(),
+      clearMessages: vi.fn(),
+      isLoading: false,
+      isLoadingHistory: false,
+      selectedDocIds: [],
+      setSelectedDocIds: vi.fn(),
+      currentStage: null,
+      connectionStatus: { state: 'disconnected' },
+      canRetryLastRequest: true,
+      retryLastRequest,
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChakraProvider theme={theme}>
+          <Chat />
+        </ChakraProvider>
+      </QueryClientProvider>
+    );
+
+    expect(screen.getByText('串流已中斷，請手動重新執行。')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '重新傳送' }));
+    expect(retryLastRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows reconnecting copy without a premature manual action', () => {
+    useChatMock.mockReturnValue({
+      messages: [],
+      sendMessage: vi.fn(),
+      clearMessages: vi.fn(),
+      isLoading: true,
+      isLoadingHistory: false,
+      selectedDocIds: [],
+      setSelectedDocIds: vi.fn(),
+      currentStage: null,
+      connectionStatus: { state: 'reconnecting', attempt: 1, maxAttempts: 2 },
+      canRetryLastRequest: false,
+      retryLastRequest: vi.fn(),
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChakraProvider theme={theme}>
+          <Chat />
+        </ChakraProvider>
+      </QueryClientProvider>
+    );
+
+    expect(screen.getByText('連線暫時中斷，正在有限重試…')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '重新傳送' })).not.toBeInTheDocument();
+  });
+
+  it('does not render a second auth failure banner', () => {
+    useChatMock.mockReturnValue({
+      messages: [],
+      sendMessage: vi.fn(),
+      clearMessages: vi.fn(),
+      isLoading: false,
+      isLoadingHistory: false,
+      selectedDocIds: [],
+      setSelectedDocIds: vi.fn(),
+      currentStage: null,
+      connectionStatus: { state: 'auth' },
+      canRetryLastRequest: false,
+      retryLastRequest: vi.fn(),
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChakraProvider theme={theme}>
+          <Chat />
+        </ChakraProvider>
+      </QueryClientProvider>
+    );
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

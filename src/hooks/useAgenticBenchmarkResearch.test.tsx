@@ -8,6 +8,7 @@ import { useSessionStore } from '../stores/useSessionStore';
 import * as settingsStore from '../stores/useSettingsStore';
 import { asMock } from '../test/mock-utils';
 import { CONVERSATION_TITLE_MAX_LENGTH } from '../utils/conversationTitle';
+import { SseTransportError } from '../services/sse/streamSse';
 
 interface MockSessionStoreState {
   currentChatId: string | null;
@@ -301,5 +302,109 @@ describe('useAgenticBenchmarkResearch', () => {
       expect(result.current.progress).toHaveLength(1);
       expect(result.current.evaluationUpdates).toHaveLength(1);
     });
+  });
+
+  it('surfaces reconnecting before the bounded transport retry settles', async () => {
+    let finishStream: (() => void) | undefined;
+    mockExecuteAgenticBenchmarkStream.mockImplementation((_request, _onEvent, _signal, onStatus) => {
+      onStatus?.({ state: 'reconnecting', attempt: 1, maxAttempts: 2 });
+      return new Promise<void>((resolve) => {
+        finishStream = resolve;
+      });
+    });
+    const { result } = renderHook(() => useAgenticBenchmarkResearch([]));
+
+    let execution: Promise<void> | undefined;
+    act(() => {
+      execution = result.current.runBenchmark('q');
+    });
+
+    await waitFor(() => {
+      expect(result.current.connectionStatus).toEqual({
+        state: 'reconnecting',
+        attempt: 1,
+        maxAttempts: 2,
+      });
+      expect(result.current.canRetryLastRequest).toBe(false);
+    });
+
+    await act(async () => {
+      finishStream?.();
+      await execution;
+    });
+  });
+
+  it('keeps partial progress and enables manual retry after disconnect', async () => {
+    mockExecuteAgenticBenchmarkStream.mockImplementation((_request, onEvent, _signal, onStatus) => {
+      onEvent({
+        type: 'plan_ready',
+        data: {
+          original_question: 'q',
+          estimated_complexity: 'simple',
+          task_count: 1,
+          enabled_count: 1,
+          question_intent: 'enumeration_definition',
+          strategy_tier: 'tier_1_detail_lookup',
+          max_iterations: 0,
+          sub_tasks: [{ id: 1, question: 'task', task_type: 'rag', enabled: true }],
+        },
+      });
+      onStatus?.({ state: 'disconnected' });
+      return Promise.reject(new SseTransportError('disconnected', '串流連線已中斷'));
+    });
+    const { result } = renderHook(() => useAgenticBenchmarkResearch([]));
+
+    await act(async () => result.current.runBenchmark('q'));
+
+    expect(result.current.connectionStatus.state).toBe('disconnected');
+    expect(result.current.canRetryLastRequest).toBe(true);
+    expect(result.current.plan?.original_question).toBe('q');
+    expect(result.current.error).toBeNull();
+  });
+
+  it('maps rate limiting to retryable UI state', async () => {
+    mockExecuteAgenticBenchmarkStream.mockImplementation((_request, _onEvent, _signal, onStatus) => {
+      onStatus?.({ state: 'disconnected' });
+      return Promise.reject(new SseTransportError('rate_limited', 'slow down', 429, '30'));
+    });
+    const { result } = renderHook(() => useAgenticBenchmarkResearch([]));
+
+    await act(async () => result.current.runBenchmark('q'));
+
+    expect(result.current.connectionStatus.state).toBe('rate_limited');
+    expect(result.current.canRetryLastRequest).toBe(true);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('resets connection state without an error when execution is aborted', async () => {
+    mockExecuteAgenticBenchmarkStream.mockRejectedValue(new DOMException('Aborted', 'AbortError'));
+    const { result } = renderHook(() => useAgenticBenchmarkResearch([]));
+
+    await act(async () => result.current.runBenchmark('q'));
+
+    expect(result.current.connectionStatus.state).toBe('idle');
+    expect(result.current.canRetryLastRequest).toBe(false);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('reuses the exact benchmark request and bounds immediate manual retries to one stream', async () => {
+    mockExecuteAgenticBenchmarkStream.mockRejectedValueOnce(
+      new SseTransportError('disconnected', '串流連線已中斷')
+    );
+    const { result } = renderHook(() => useAgenticBenchmarkResearch(['doc-1']));
+    await act(async () => result.current.runBenchmark('q'));
+    mockExecuteAgenticBenchmarkStream.mockResolvedValue(undefined);
+
+    await act(async () => {
+      await Promise.all([
+        result.current.retryLastRequest(),
+        result.current.retryLastRequest(),
+      ]);
+    });
+
+    expect(mockExecuteAgenticBenchmarkStream).toHaveBeenCalledTimes(2);
+    expect(mockExecuteAgenticBenchmarkStream.mock.calls[1]?.[0]).toEqual(
+      mockExecuteAgenticBenchmarkStream.mock.calls[0]?.[0]
+    );
   });
 });

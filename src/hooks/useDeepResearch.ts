@@ -19,6 +19,7 @@ import type {
   ChatPipelineStage,
   EditableSubTask, 
   ResearchPlanResponse,
+  ExecutePlanRequest,
   ExecutePlanResponse,
   TaskPhaseUpdate,
   TaskProgress,
@@ -32,6 +33,11 @@ import {
 } from '../stores/useSettingsStore';
 import { buildConversationTitle } from '../utils/conversationTitle';
 import { useConversationMutations } from './useConversations';
+import {
+  getStreamFailureState,
+  isAbortError,
+  type StreamUiConnectionStatus,
+} from './useChat';
 
 interface UseDeepResearchOptions {
   docIds?: string[];
@@ -66,6 +72,8 @@ export interface UseDeepResearchReturn {
   error: string | null;
   /** 🆕 Phase 6: 當前執行階段 */
   currentPhase: ResearchPhase;
+  connectionStatus: StreamUiConnectionStatus;
+  canRetryLastRequest: boolean;
 
   // 方法
   generatePlan: (question: string) => Promise<void>;
@@ -73,6 +81,7 @@ export interface UseDeepResearchReturn {
   toggleTask: (taskId: number) => void;
   deleteTask: (taskId: number) => void;
   executePlan: () => Promise<void>;
+  retryLastRequest: () => Promise<void>;
   cancelExecution: () => void;
   reset: () => void;
 }
@@ -138,8 +147,13 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
   const [error, setError] = useState<string | null>(null);
   /** 🆕 Phase 6: 當前執行階段 */
   const [currentPhase, setCurrentPhase] = useState<ResearchPhase>('idle');
+  const [connectionStatus, setConnectionStatus] = useState<StreamUiConnectionStatus>({
+    state: 'idle',
+  });
+  const [canRetryLastRequest, setCanRetryLastRequest] = useState(false);
   
   const abortControllerRef = useRef<AbortController | null>(null);
+  const lastRetryableRequestRef = useRef<ExecutePlanRequest | null>(null);
   const toast = useToast();
 
   // Integration with Session and Conversations
@@ -149,6 +163,10 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
 
   // 載入歷史紀錄 (如果 currentChatId 存在且是研究類型)
   useEffect(() => {
+    lastRetryableRequestRef.current = null;
+    setCanRetryLastRequest(false);
+    setConnectionStatus({ state: 'idle' });
+
     if (!currentChatId) return;
 
     const loadHistory = async () => {
@@ -404,43 +422,23 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     }
   }, [currentChatId]);
 
-  /**
-   * 執行研究計畫
-   */
-  const executePlan = useCallback(async () => {
-    if (!plan || plan.sub_tasks.filter(t => t.enabled).length === 0) {
-      toast({
-        title: '無法執行',
-        description: '請至少啟用一個子任務',
-        status: 'warning',
-        duration: 3000,
-      });
+  const runPlanRequest = useCallback(async (
+    request: ExecutePlanRequest,
+    planToPersist?: ResearchPlanResponse
+  ) => {
+    if (isExecuting) {
       return;
     }
-
     setIsExecuting(true);
     setCurrentPhase('executing');
     setError(null);
-    setResult(null);
-
-    // 初始化進度
-    const initialProgress: TaskProgress[] = plan.sub_tasks
-      .filter(t => t.enabled)
-      .map(task => ({
-        id: task.id,
-        question: task.question,
-        taskType: task.task_type,
-        status: 'pending',
-        details: null,
-        iteration: 0,
-      }));
-    setProgress(initialProgress);
-
-    // 建立 AbortController
+    setConnectionStatus({ state: 'idle' });
+    setCanRetryLastRequest(false);
+    lastRetryableRequestRef.current = null;
     abortControllerRef.current = new AbortController();
 
     try {
-      if (currentChatId) {
+      if (currentChatId && planToPersist) {
         const settingsSnapshot = getCurrentSettingsSnapshot();
         await updateConversation(currentChatId, {
           metadata: {
@@ -448,29 +446,29 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
             mode_config_snapshot: settingsSnapshot.ragSettings,
             research_engine: 'deep_research',
             engine: 'agentic',
-            original_question: plan.original_question,
-            plan,
+            original_question: planToPersist.original_question,
+            plan: planToPersist,
           },
         });
       }
 
       await executeResearchPlanStream(
-        {
-          original_question: plan.original_question,
-          sub_tasks: plan.sub_tasks.filter(t => t.enabled),
-          doc_ids: plan.doc_ids ?? undefined,
-          enable_reranking: runtimeSettings.enableReranking,
-          enable_drilldown: true,
-          enable_deep_image_analysis: runtimeSettings.enableDeepImageAnalysis,
-          conversation_id: currentChatId || undefined,
-        },
+        request,
         (event: SSEEvent) => {
           handleSSEEvent(event);
         },
-        abortControllerRef.current.signal
+        abortControllerRef.current.signal,
+        setConnectionStatus
       );
+      lastRetryableRequestRef.current = null;
+      setCanRetryLastRequest(false);
     } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
+      if (isAbortError(err)) {
+        lastRetryableRequestRef.current = null;
+        setCanRetryLastRequest(false);
+        setConnectionStatus({ state: 'idle' });
+        setError(null);
+        setCurrentPhase('idle');
         toast({
           title: '已取消',
           description: '研究已被取消',
@@ -478,6 +476,16 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
           duration: 3000,
         });
       } else {
+        const failure = getStreamFailureState(err);
+        if (failure) {
+          lastRetryableRequestRef.current = failure.canRetry ? request : null;
+          setCanRetryLastRequest(failure.canRetry);
+          setConnectionStatus(failure.status);
+          setError(null);
+          return;
+        }
+
+        setConnectionStatus({ state: 'idle' });
         const message = err instanceof Error ? err.message : '執行失敗';
         setError(message);
         toast({
@@ -492,13 +500,63 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
       abortControllerRef.current = null;
     }
   }, [
-    plan,
-    toast,
-    handleSSEEvent,
-    runtimeSettings,
-    selectedChatModeId,
     currentChatId,
+    handleSSEEvent,
+    isExecuting,
+    selectedChatModeId,
+    toast,
   ]);
+
+  /**
+   * 執行研究計畫
+   */
+  const executePlan = useCallback(async () => {
+    if (isExecuting) {
+      return;
+    }
+    if (!plan || plan.sub_tasks.filter(t => t.enabled).length === 0) {
+      toast({
+        title: '無法執行',
+        description: '請至少啟用一個子任務',
+        status: 'warning',
+        duration: 3000,
+      });
+      return;
+    }
+
+    setResult(null);
+    setProgress(
+      plan.sub_tasks
+        .filter(t => t.enabled)
+        .map(task => ({
+          id: task.id,
+          question: task.question,
+          taskType: task.task_type,
+          status: 'pending',
+          details: null,
+          iteration: 0,
+        }))
+    );
+
+    const request: ExecutePlanRequest = {
+      original_question: plan.original_question,
+      sub_tasks: plan.sub_tasks.filter(t => t.enabled),
+      doc_ids: plan.doc_ids ?? undefined,
+      enable_reranking: runtimeSettings.enableReranking,
+      enable_drilldown: true,
+      enable_deep_image_analysis: runtimeSettings.enableDeepImageAnalysis,
+      conversation_id: currentChatId || undefined,
+    };
+    await runPlanRequest(request, plan);
+  }, [currentChatId, isExecuting, plan, runPlanRequest, runtimeSettings, toast]);
+
+  const retryLastRequest = useCallback(async () => {
+    const request = lastRetryableRequestRef.current;
+    if (!request || isExecuting) {
+      return;
+    }
+    await runPlanRequest(request);
+  }, [isExecuting, runPlanRequest]);
 
   /**
    * 取消執行
@@ -520,6 +578,9 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     setResult(null);
     setError(null);
     setCurrentPhase('idle');
+    lastRetryableRequestRef.current = null;
+    setCanRetryLastRequest(false);
+    setConnectionStatus({ state: 'idle' });
     setCurrentChatId(null); // Reset chat ID
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -535,11 +596,14 @@ export function useDeepResearch(options: UseDeepResearchOptions = {}): UseDeepRe
     result,
     error,
     currentPhase,
+    connectionStatus,
+    canRetryLastRequest,
     generatePlan,
     updateTask,
     toggleTask,
     deleteTask,
     executePlan,
+    retryLastRequest,
     cancelExecution,
     reset,
   };

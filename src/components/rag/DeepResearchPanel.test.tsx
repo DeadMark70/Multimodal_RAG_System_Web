@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import theme from '../../theme';
 import DeepResearchPanel from './DeepResearchPanel';
@@ -34,11 +34,14 @@ function buildResearchState(overrides: Partial<UseDeepResearchReturn> = {}): Use
     result: null,
     error: null,
     currentPhase: 'executing',
+    connectionStatus: { state: 'idle' },
+    canRetryLastRequest: false,
     generatePlan: async () => {},
     updateTask: () => {},
     toggleTask: () => {},
     deleteTask: () => {},
     executePlan: async () => {},
+    retryLastRequest: async () => {},
     cancelExecution: () => {},
     reset: () => {},
     ...overrides,
@@ -86,5 +89,42 @@ describe('DeepResearchPanel', () => {
     expect(screen.getByText('完整研究報告')).toBeInTheDocument();
     expect(screen.getByRole('list')).toBeInTheDocument();
     expect(screen.getByTestId('markdown-source-token')).toHaveTextContent('[來源: 子問題4]');
+  });
+
+  it('shows a disconnected banner and explicitly reruns the confirmed plan once', () => {
+    const retryLastRequest = vi.fn();
+    render(
+      <ChakraProvider theme={theme}>
+        <DeepResearchPanel
+          researchState={buildResearchState({
+            isExecuting: false,
+            connectionStatus: { state: 'disconnected' },
+            canRetryLastRequest: true,
+            retryLastRequest,
+          })}
+        />
+      </ChakraProvider>
+    );
+
+    expect(screen.getByText('串流已中斷，請手動重新執行。')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '重新執行計畫' }));
+    expect(retryLastRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows reconnecting copy without a manual action', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <DeepResearchPanel
+          researchState={buildResearchState({
+            connectionStatus: { state: 'reconnecting', attempt: 1, maxAttempts: 2 },
+            canRetryLastRequest: false,
+            retryLastRequest: vi.fn(),
+          })}
+        />
+      </ChakraProvider>
+    );
+
+    expect(screen.getByText('連線暫時中斷，正在有限重試…')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '重新執行計畫' })).not.toBeInTheDocument();
   });
 });

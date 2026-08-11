@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import AgenticBenchmarkPanel from './AgenticBenchmarkPanel';
 import theme from '../../theme';
@@ -56,7 +56,10 @@ function buildState(
     agentTrace: { steps: [] },
     error: null,
     currentPhase: 'complete',
+    connectionStatus: { state: 'idle' },
+    canRetryLastRequest: false,
     runBenchmark: async () => {},
+    retryLastRequest: async () => {},
     cancelExecution: () => {},
     reset: () => {},
     ...overrides,
@@ -114,5 +117,41 @@ describe('AgenticBenchmarkPanel', () => {
 
     expect(screen.getByRole('tab', { name: '最終結果' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText('summary')).toBeInTheDocument();
+  });
+
+  it('shows a disconnected banner and explicitly reruns the research once', () => {
+    const retryLastRequest = vi.fn();
+    render(
+      <ChakraProvider theme={theme}>
+        <AgenticBenchmarkPanel
+          researchState={buildState({
+            connectionStatus: { state: 'disconnected' },
+            canRetryLastRequest: true,
+            retryLastRequest,
+          })}
+        />
+      </ChakraProvider>
+    );
+
+    expect(screen.getByText('串流已中斷，請手動重新執行。')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '重新執行研究' }));
+    expect(retryLastRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows rate-limit copy without claiming an active retry', () => {
+    render(
+      <ChakraProvider theme={theme}>
+        <AgenticBenchmarkPanel
+          researchState={buildState({
+            connectionStatus: { state: 'rate_limited' },
+            canRetryLastRequest: true,
+            retryLastRequest: vi.fn(),
+          })}
+        />
+      </ChakraProvider>
+    );
+
+    expect(screen.getByText('請求過於頻繁，請稍後再試。')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '重新執行研究' })).not.toBeInTheDocument();
   });
 });

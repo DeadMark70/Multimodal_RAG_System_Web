@@ -9,6 +9,7 @@ import { asMock } from '../test/mock-utils';
 import { CONVERSATION_TITLE_MAX_LENGTH } from '../utils/conversationTitle';
 import type { Conversation, ConversationDetail, CreateConversationRequest, Message } from '../types/conversation';
 import type { ExecutePlanResponse, ResearchPlanResponse } from '../types/rag';
+import { SseTransportError } from '../services/sse/streamSse';
 
 interface MockSessionStoreState {
   currentChatId: string | null;
@@ -330,7 +331,8 @@ describe('useDeepResearch Hook - Persistence', () => {
         enable_reranking: true,
       }),
       expect.any(Function),
-      expect.any(AbortSignal)
+      expect.any(AbortSignal),
+      expect.any(Function)
     );
 
     await waitFor(() => {
@@ -349,5 +351,169 @@ describe('useDeepResearch Hook - Persistence', () => {
         },
       ]);
     });
+  });
+
+  it('surfaces reconnecting while the transport is performing its bounded retry', async () => {
+    const planResponse: ResearchPlanResponse = {
+      status: 'waiting_confirmation',
+      original_question: 'Research topic',
+      sub_tasks: [{ id: 1, question: 'Find evidence', task_type: 'rag', enabled: true }],
+      estimated_complexity: 'simple',
+      doc_ids: null,
+    };
+    mockGenerateResearchPlan.mockResolvedValue(planResponse);
+    mockCreateConversation.mockResolvedValue({
+      id: 'research-123',
+      title: 'Research topic',
+      type: 'research',
+      created_at: '',
+      updated_at: '',
+    });
+    let finishStream: (() => void) | undefined;
+    mockExecuteResearchPlanStream.mockImplementation((_request, _onEvent, _signal, onStatus) => {
+      onStatus?.({ state: 'reconnecting', attempt: 1, maxAttempts: 2 });
+      return new Promise<void>((resolve) => {
+        finishStream = resolve;
+      });
+    });
+
+    const { result } = renderHook(() => useDeepResearch());
+    await act(async () => result.current.generatePlan('Research topic'));
+
+    let execution: Promise<void> | undefined;
+    act(() => {
+      execution = result.current.executePlan();
+    });
+
+    await waitFor(() => {
+      expect(result.current.connectionStatus).toEqual({
+        state: 'reconnecting',
+        attempt: 1,
+        maxAttempts: 2,
+      });
+      expect(result.current.canRetryLastRequest).toBe(false);
+    });
+
+    await act(async () => {
+      finishStream?.();
+      await execution;
+    });
+  });
+
+  it('keeps partial progress and enables manual retry after disconnect', async () => {
+    const planResponse: ResearchPlanResponse = {
+      status: 'waiting_confirmation',
+      original_question: 'Research topic',
+      sub_tasks: [{ id: 1, question: 'Find evidence', task_type: 'rag', enabled: true }],
+      estimated_complexity: 'simple',
+      doc_ids: null,
+    };
+    mockGenerateResearchPlan.mockResolvedValue(planResponse);
+    mockCreateConversation.mockResolvedValue({
+      id: 'research-123',
+      title: 'Research topic',
+      type: 'research',
+      created_at: '',
+      updated_at: '',
+    });
+    mockExecuteResearchPlanStream.mockImplementation((_request, onEvent, _signal, onStatus) => {
+      onEvent({
+        type: 'task_start',
+        data: { id: 1, question: 'Find evidence', task_type: 'rag', iteration: 0 },
+      });
+      onStatus?.({ state: 'disconnected' });
+      return Promise.reject(new SseTransportError('disconnected', '串流連線已中斷'));
+    });
+
+    const { result } = renderHook(() => useDeepResearch());
+    await act(async () => result.current.generatePlan('Research topic'));
+    await act(async () => result.current.executePlan());
+
+    expect(result.current.connectionStatus.state).toBe('disconnected');
+    expect(result.current.canRetryLastRequest).toBe(true);
+    expect(result.current.progress[0]?.status).toBe('running');
+    expect(result.current.error).toBeNull();
+  });
+
+  it('maps rate limiting to retryable UI state', async () => {
+    const planResponse: ResearchPlanResponse = {
+      status: 'waiting_confirmation',
+      original_question: 'Research topic',
+      sub_tasks: [{ id: 1, question: 'Find evidence', task_type: 'rag', enabled: true }],
+      estimated_complexity: 'simple',
+      doc_ids: null,
+    };
+    mockGenerateResearchPlan.mockResolvedValue(planResponse);
+    mockCreateConversation.mockResolvedValue({
+      id: 'research-123', title: 'Research topic', type: 'research', created_at: '', updated_at: '',
+    });
+    mockExecuteResearchPlanStream.mockImplementation((_request, _onEvent, _signal, onStatus) => {
+      onStatus?.({ state: 'disconnected' });
+      return Promise.reject(new SseTransportError('rate_limited', 'slow down', 429, '30'));
+    });
+
+    const { result } = renderHook(() => useDeepResearch());
+    await act(async () => result.current.generatePlan('Research topic'));
+    await act(async () => result.current.executePlan());
+
+    expect(result.current.connectionStatus.state).toBe('rate_limited');
+    expect(result.current.canRetryLastRequest).toBe(true);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('resets connection state without an error when execution is aborted', async () => {
+    const planResponse: ResearchPlanResponse = {
+      status: 'waiting_confirmation',
+      original_question: 'Research topic',
+      sub_tasks: [{ id: 1, question: 'Find evidence', task_type: 'rag', enabled: true }],
+      estimated_complexity: 'simple',
+      doc_ids: null,
+    };
+    mockGenerateResearchPlan.mockResolvedValue(planResponse);
+    mockCreateConversation.mockResolvedValue({
+      id: 'research-123', title: 'Research topic', type: 'research', created_at: '', updated_at: '',
+    });
+    mockExecuteResearchPlanStream.mockRejectedValue(new DOMException('Aborted', 'AbortError'));
+
+    const { result } = renderHook(() => useDeepResearch());
+    await act(async () => result.current.generatePlan('Research topic'));
+    await act(async () => result.current.executePlan());
+
+    expect(result.current.connectionStatus.state).toBe('idle');
+    expect(result.current.canRetryLastRequest).toBe(false);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('reuses the exact plan request and bounds immediate manual retries to one stream', async () => {
+    const planResponse: ResearchPlanResponse = {
+      status: 'waiting_confirmation',
+      original_question: 'Research topic',
+      sub_tasks: [{ id: 1, question: 'Find evidence', task_type: 'rag', enabled: true }],
+      estimated_complexity: 'simple',
+      doc_ids: null,
+    };
+    mockGenerateResearchPlan.mockResolvedValue(planResponse);
+    mockCreateConversation.mockResolvedValue({
+      id: 'research-123', title: 'Research topic', type: 'research', created_at: '', updated_at: '',
+    });
+    mockExecuteResearchPlanStream.mockRejectedValueOnce(
+      new SseTransportError('disconnected', '串流連線已中斷')
+    );
+    const { result } = renderHook(() => useDeepResearch());
+    await act(async () => result.current.generatePlan('Research topic'));
+    await act(async () => result.current.executePlan());
+    mockExecuteResearchPlanStream.mockResolvedValue(undefined);
+
+    await act(async () => {
+      await Promise.all([
+        result.current.retryLastRequest(),
+        result.current.retryLastRequest(),
+      ]);
+    });
+
+    expect(mockExecuteResearchPlanStream).toHaveBeenCalledTimes(2);
+    expect(mockExecuteResearchPlanStream.mock.calls[1]?.[0]).toEqual(
+      mockExecuteResearchPlanStream.mock.calls[0]?.[0]
+    );
   });
 });

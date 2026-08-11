@@ -11,6 +11,7 @@ import {
 } from '../stores/useSettingsStore';
 import type {
   AgenticBenchmarkEvaluationUpdate,
+  AgenticBenchmarkRequest,
   AgenticBenchmarkPlanReadyData,
   AgenticBenchmarkSSEEvent,
   TaskProgress,
@@ -18,6 +19,11 @@ import type {
 } from '../types/rag';
 import type { AgentTraceStep } from '../types/evaluation';
 import { buildConversationTitle } from '../utils/conversationTitle';
+import {
+  getStreamFailureState,
+  isAbortError,
+  type StreamUiConnectionStatus,
+} from './useChat';
 
 type AgenticBenchmarkPhase =
   | 'idle'
@@ -57,7 +63,10 @@ export interface UseAgenticBenchmarkResearchReturn {
   agentTrace: Record<string, unknown> | null;
   error: string | null;
   currentPhase: AgenticBenchmarkPhase;
+  connectionStatus: StreamUiConnectionStatus;
+  canRetryLastRequest: boolean;
   runBenchmark: (question: string) => Promise<void>;
+  retryLastRequest: () => Promise<void>;
   cancelExecution: () => void;
   reset: () => void;
 }
@@ -175,9 +184,18 @@ export function useAgenticBenchmarkResearch(
   const [agentTrace, setAgentTrace] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentPhase, setCurrentPhase] = useState<AgenticBenchmarkPhase>('idle');
+  const [connectionStatus, setConnectionStatus] = useState<StreamUiConnectionStatus>({
+    state: 'idle',
+  });
+  const [canRetryLastRequest, setCanRetryLastRequest] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const lastRetryableRequestRef = useRef<AgenticBenchmarkRequest | null>(null);
 
   useEffect(() => {
+    lastRetryableRequestRef.current = null;
+    setCanRetryLastRequest(false);
+    setConnectionStatus({ state: 'idle' });
+
     if (!currentChatId) {
       return;
     }
@@ -396,6 +414,60 @@ export function useAgenticBenchmarkResearch(
     }
   }, [currentChatId]);
 
+  const executeBenchmarkRequest = useCallback(async (request: AgenticBenchmarkRequest) => {
+    setConnectionStatus({ state: 'idle' });
+    setCanRetryLastRequest(false);
+    lastRetryableRequestRef.current = null;
+    abortControllerRef.current = new AbortController();
+
+    try {
+      await executeAgenticBenchmarkStream(
+        request,
+        handleEvent,
+        abortControllerRef.current.signal,
+        setConnectionStatus
+      );
+      lastRetryableRequestRef.current = null;
+      setCanRetryLastRequest(false);
+    } catch (runError) {
+      if (isAbortError(runError)) {
+        lastRetryableRequestRef.current = null;
+        setCanRetryLastRequest(false);
+        setConnectionStatus({ state: 'idle' });
+        setError(null);
+        setCurrentPhase('idle');
+        toast({
+          title: '已取消',
+          description: 'Benchmark 研究已取消',
+          status: 'info',
+          duration: 3000,
+        });
+        return;
+      }
+
+      const failure = getStreamFailureState(runError);
+      if (failure) {
+        lastRetryableRequestRef.current = failure.canRetry ? request : null;
+        setCanRetryLastRequest(failure.canRetry);
+        setConnectionStatus(failure.status);
+        setError(null);
+        return;
+      }
+
+      setConnectionStatus({ state: 'idle' });
+      const message = runError instanceof Error ? runError.message : 'Agentic benchmark 執行失敗';
+      setError(message);
+      toast({
+        title: '執行失敗',
+        description: message,
+        status: 'error',
+        duration: 5000,
+      });
+    } finally {
+      abortControllerRef.current = null;
+    }
+  }, [handleEvent, toast]);
+
   const runBenchmark = useCallback(async (question: string) => {
     if (!question.trim() || isRunning) {
       return;
@@ -410,8 +482,6 @@ export function useAgenticBenchmarkResearch(
     setAgentTrace(null);
     setIsRunning(true);
     setCurrentPhase('planning');
-
-    abortControllerRef.current = new AbortController();
 
     try {
       const settingsSnapshot = getCurrentSettingsSnapshot();
@@ -433,48 +503,52 @@ export function useAgenticBenchmarkResearch(
         content: question,
       });
 
-      await executeAgenticBenchmarkStream(
-        {
-          question,
-          doc_ids: docIds.length > 0 ? docIds : undefined,
-          conversation_id: conversation.id,
-          enable_reranking: runtimeSettings.enableReranking,
-          enable_deep_image_analysis: runtimeSettings.enableDeepImageAnalysis,
-        },
-        handleEvent,
-        abortControllerRef.current.signal
-      );
+      const request: AgenticBenchmarkRequest = {
+        question,
+        doc_ids: docIds.length > 0 ? docIds : undefined,
+        conversation_id: conversation.id,
+        enable_reranking: runtimeSettings.enableReranking,
+        enable_deep_image_analysis: runtimeSettings.enableDeepImageAnalysis,
+      };
+      await executeBenchmarkRequest(request);
     } catch (runError) {
-      if (runError instanceof Error && runError.name === 'AbortError') {
-        toast({
-          title: '已取消',
-          description: 'Benchmark 研究已取消',
-          status: 'info',
-          duration: 3000,
-        });
-      } else {
-        const message = runError instanceof Error ? runError.message : 'Agentic benchmark 執行失敗';
-        setError(message);
-        toast({
-          title: '執行失敗',
-          description: message,
-          status: 'error',
-          duration: 5000,
-        });
-      }
+      const message = runError instanceof Error ? runError.message : 'Agentic benchmark 執行失敗';
+      setError(message);
+      setConnectionStatus({ state: 'idle' });
+      toast({
+        title: '執行失敗',
+        description: message,
+        status: 'error',
+        duration: 5000,
+      });
     } finally {
       setIsRunning(false);
-      abortControllerRef.current = null;
     }
   }, [
     docIds,
-    handleEvent,
+    executeBenchmarkRequest,
     isRunning,
     runtimeSettings,
     selectedChatModeId,
     setCurrentChatId,
     toast,
   ]);
+
+  const retryLastRequest = useCallback(async () => {
+    const request = lastRetryableRequestRef.current;
+    if (!request || isRunning) {
+      return;
+    }
+
+    setIsRunning(true);
+    setCurrentPhase('planning');
+    setError(null);
+    try {
+      await executeBenchmarkRequest(request);
+    } finally {
+      setIsRunning(false);
+    }
+  }, [executeBenchmarkRequest, isRunning]);
 
   const cancelExecution = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -490,6 +564,9 @@ export function useAgenticBenchmarkResearch(
     setAgentTrace(null);
     setError(null);
     setCurrentPhase('idle');
+    lastRetryableRequestRef.current = null;
+    setCanRetryLastRequest(false);
+    setConnectionStatus({ state: 'idle' });
     setCurrentChatId(null);
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -507,7 +584,10 @@ export function useAgenticBenchmarkResearch(
     agentTrace,
     error,
     currentPhase,
+    connectionStatus,
+    canRetryLastRequest,
     runBenchmark,
+    retryLastRequest,
     cancelExecution,
     reset,
   };

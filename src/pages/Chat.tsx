@@ -3,6 +3,8 @@ import Layout from '../components/layout/Layout';
 import PageHeader from '../components/common/PageHeader';
 import {
   Badge,
+  Alert,
+  AlertDescription,
   Box,
   Button,
   CardBody,
@@ -46,7 +48,7 @@ import MessageBubble from '../components/rag/MessageBubble';
 import DocumentSelector from '../components/rag/DocumentSelector';
 import ConversationSidebar from '../components/rag/ConversationSidebar';
 import { useChatRailPreference } from '../hooks/useChatRailPreference';
-import { useChat } from '../hooks/useChat';
+import { getVisibleStreamStatusCopy, useChat } from '../hooks/useChat';
 import { useEvidenceNavigation } from '../hooks/useEvidenceNavigation';
 import { useDeepResearch } from '../hooks/useDeepResearch';
 import { useAgenticBenchmarkResearch } from '../hooks/useAgenticBenchmarkResearch';
@@ -173,6 +175,9 @@ export default function Chat() {
     selectedDocIds,
     setSelectedDocIds,
     currentStage,
+    connectionStatus = { state: 'idle' },
+    canRetryLastRequest = false,
+    retryLastRequest = async () => {},
   } = useChat({
     enableEvaluation: chatRuntimeSettings.enableEvaluation,
     enableHyde: chatRuntimeSettings.enableHyde,
@@ -276,6 +281,9 @@ export default function Chat() {
     : isAgenticBenchmarkMode
       ? benchmarkStatus
       : ordinaryChatStatus;
+  const chatConnectionMessage = isResearchMode
+    ? null
+    : getVisibleStreamStatusCopy(connectionStatus);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) {
@@ -527,6 +535,29 @@ export default function Chat() {
 
             <Box p={0} position="relative" zIndex={2}>
               <VStack spacing={2} align="stretch">
+                {chatConnectionMessage && (
+                  <Alert
+                    status={connectionStatus.state === 'rate_limited' ? 'warning' : 'error'}
+                    borderRadius="lg"
+                    py={2}
+                    role="alert"
+                  >
+                    <AlertDescription flex={1} fontSize="sm">
+                      {chatConnectionMessage}
+                    </AlertDescription>
+                    {connectionStatus.state === 'disconnected' && canRetryLastRequest && (
+                      <Button
+                        size="sm"
+                        ml={3}
+                        onClick={() => void retryLastRequest()}
+                        isDisabled={isChatLoading}
+                      >
+                        重新傳送
+                      </Button>
+                    )}
+                  </Alert>
+                )}
+
                 {activeStatusLabel && (
                   <HStack
                     spacing={2}
