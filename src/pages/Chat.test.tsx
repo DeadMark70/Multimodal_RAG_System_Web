@@ -361,8 +361,10 @@ describe('Chat Page Integration', () => {
       items: [expect.objectContaining({
         filename: 'paper.pdf',
         page: 3,
-        quote: null,
-        provenanceStatus: 'source_only',
+        quote: 'Source quote',
+        score: 0.9,
+        bbox: null,
+        provenanceStatus: 'partial',
       })],
     }));
     const finalFocusRef = evidenceDrawerFinalFocusMock.mock.calls.at(-1)?.[0] as

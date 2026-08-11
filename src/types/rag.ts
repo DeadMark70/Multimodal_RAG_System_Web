@@ -4,8 +4,9 @@ export interface Citation {
   doc_id: string;
   filename: string | null;
   page: number | null;
-  snippet: string;
-  score: number;
+  snippet: string | null;
+  score: number | null;
+  bbox?: [number, number, number, number] | null;
 }
 
 /**

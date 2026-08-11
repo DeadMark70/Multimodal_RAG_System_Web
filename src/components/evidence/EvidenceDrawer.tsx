@@ -13,6 +13,7 @@ import {
   DrawerHeader,
   DrawerOverlay,
   Heading,
+  HStack,
   Spinner,
   Stack,
   Text,
@@ -32,12 +33,23 @@ export interface EvidenceDrawerProps {
 
 function EvidenceItem({ item, onOpenSource }: Pick<EvidenceDrawerProps, 'onOpenSource'> & { item: SourceEvidence }) {
   const isSourceOnly = item.provenanceStatus === 'source_only';
+  const measuredScore = typeof item.score === 'number'
+    && Number.isFinite(item.score)
+    && item.score >= 0
+    && item.score <= 1
+    ? item.score
+    : null;
 
   return (
     <Box borderWidth="1px" borderRadius="md" p={4}>
       <Stack spacing={3} align="start">
         <Text fontWeight="semibold">{item.filename ?? '未命名文件'}</Text>
-        {item.page !== null && <Text fontSize="sm">第 {item.page} 頁</Text>}
+        {(item.page !== null || measuredScore !== null) && (
+          <HStack spacing={3} flexWrap="wrap">
+            {item.page !== null && <Text fontSize="sm">第 {item.page} 頁</Text>}
+            {measuredScore !== null && <Text fontSize="sm">相關度 {Math.round(measuredScore * 100)}%</Text>}
+          </HStack>
+        )}
         {!isSourceOnly && (
           <>
             {item.quote && (

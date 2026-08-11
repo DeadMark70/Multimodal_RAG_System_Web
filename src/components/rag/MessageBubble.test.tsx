@@ -44,8 +44,8 @@ describe('MessageBubble', () => {
 
   it('passes the exact citation to its click handler', async () => {
     const citation = {
-      doc_id: 'doc-1', filename: 'paper.pdf', page: 3,
-      snippet: 'Source quote', score: 0.9,
+      doc_id: 'doc-1', filename: null, page: null,
+      snippet: null, score: null, bbox: null,
     };
     const onCitationClick = vi.fn();
     render(<ChakraProvider theme={theme}><MessageBubble
@@ -53,7 +53,7 @@ describe('MessageBubble', () => {
       onCitationClick={onCitationClick}
     /></ChakraProvider>);
     fireEvent.click(screen.getByRole('button', { name: '切換來源顯示' }));
-    const citationButton = await screen.findByRole('button', { name: /paper\.pdf/i });
+    const citationButton = await screen.findByRole('button', { name: /doc-1/i });
     fireEvent.click(citationButton);
     expect(onCitationClick).toHaveBeenCalledWith(citation, citationButton);
   });

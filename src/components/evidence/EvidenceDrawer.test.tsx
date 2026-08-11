@@ -10,7 +10,7 @@ import { EvidenceDrawer } from './EvidenceDrawer';
 
 const verified: SourceEvidence = {
   docId: 'doc-1', filename: 'paper.pdf', page: 3,
-  quote: 'Transformer uses self-attention.', bbox: null,
+  quote: 'Transformer uses self-attention.', score: 0.82, bbox: null,
   provenanceStatus: 'full',
 };
 const sourceOnly: SourceEvidence = {
@@ -48,11 +48,13 @@ describe('EvidenceDrawer', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('paper.pdf')).toBeInTheDocument();
     expect(screen.getByText('第 3 頁')).toBeInTheDocument();
+    expect(screen.getByText('相關度 82%')).toBeInTheDocument();
     expect(screen.getByText('Transformer uses self-attention.')).toBeInTheDocument();
     expect(screen.getByText('原文')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '相關來源文件' })).toBeInTheDocument();
     expect(screen.getByText('related.pdf')).toBeInTheDocument();
     expect(screen.getByText('僅確認文件關聯，沒有可驗證的原文片段')).toBeInTheDocument();
+    expect(screen.queryAllByText(/相關度/)).toHaveLength(1);
     expect(screen.queryAllByText('原文')).toHaveLength(1);
   });
 
@@ -104,6 +106,7 @@ describe('EvidenceDrawer', () => {
     expect(screen.getByText('僅確認文件關聯，沒有可驗證的原文片段')).toBeInTheDocument();
     expect(screen.queryByText('原文')).not.toBeInTheDocument();
     expect(screen.queryByText('已驗證')).not.toBeInTheDocument();
+    expect(screen.queryByText(/相關度/)).not.toBeInTheDocument();
   });
 
   it('restores focus to the exact origin after close and Escape', async () => {
