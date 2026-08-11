@@ -62,16 +62,24 @@ def build_document_storage_path(*, user_id: str, doc_id: str, filename: str) -> 
     """Return the canonical portable documents-table storage reference."""
 
 
+def normalize_document_storage_path(
+    *, user_id: str, doc_id: str, storage_path: str
+) -> str:
+    """Validate a portable or legacy relative reference and return canonical POSIX form."""
+
+
 def resolve_document_storage_path(
     *, user_id: str, doc_id: str, storage_path: str
 ) -> Path:
     """Resolve a portable or legacy relative Windows reference inside one document root."""
 ```
 
-The resolver accepts both canonical `/` paths and legacy relative `\` paths, then
-validates their path components before touching the filesystem. The normalized
-components must be exactly beneath `uploads/<user-id>/<document-id>/`. The resolved
-candidate must remain beneath the same document directory.
+The normalizer accepts both canonical `/` paths and legacy relative `\` paths,
+validates their components without touching the filesystem, and returns canonical
+POSIX form. The resolver calls that normalizer and then resolves the result beneath
+the exact document directory. The normalized components must be exactly beneath
+`uploads/<user-id>/<document-id>/`, and the resolved candidate must remain beneath
+the same document directory.
 
 Reject:
 
