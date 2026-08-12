@@ -22,7 +22,7 @@ export interface RunTraceEvent {
   stageName: string;
   status: string;
   startedAt: string;
-  durationMs?: number;
+  durationMs?: number | null;
   payload?: Record<string, unknown>;
   error?: Record<string, unknown>;
 }
@@ -30,6 +30,12 @@ export interface RunTraceEvent {
 interface TraceEventGroup {
   representative: RunTraceEvent;
   lifecycle: RunTraceEvent[];
+}
+
+function formatDuration(value: number | null | undefined): string {
+  return value !== undefined && value !== null && Number.isFinite(value)
+    ? `${value.toLocaleString()} ms`
+    : 'n/a';
 }
 
 function groupLifecycleEvents(events: RunTraceEvent[]): TraceEventGroup[] {
@@ -101,7 +107,7 @@ export default function RunTraceTree({ events }: { events?: RunTraceEvent[] }) {
                     {event.status}
                   </Badge>
                 </Td>
-                <Td isNumeric>{event.durationMs ? `${event.durationMs.toLocaleString()} ms` : 'n/a'}</Td>
+                <Td isNumeric>{formatDuration(event.durationMs)}</Td>
                 <Td>
                   <HStack align="start" spacing={2}>
                     {index === 0 && lifecycle.length > 1 ? (

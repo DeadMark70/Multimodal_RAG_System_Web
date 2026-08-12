@@ -1,5 +1,5 @@
 import { ChakraProvider } from '@chakra-ui/react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import theme from '../../theme';
 import { exportCampaignAnalysis } from '../../services/evaluationApi';
@@ -198,6 +198,35 @@ describe('AblationDashboardTab', () => {
     expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
     expect(screen.getByText('0.80')).toBeInTheDocument();
     expect(screen.getByText('run_not_completed: 1')).toBeInTheDocument();
+  });
+
+  it('preserves missing counts as N/A while retaining a reported zero failed count', () => {
+    const dataWithUnknownCounts = {
+      ...conditionDashboardData,
+      ablation: {
+        ...conditionDashboardData.ablation!,
+        sample_count: null,
+        summaries: {
+          ...conditionDashboardData.ablation!.summaries,
+          condition_counts: { text_only: null },
+          condition_labels: { text_only: 'Text only' },
+        },
+      },
+    } as unknown as NonNullable<Parameters<typeof AblationDashboardTab>[0]['data']>;
+
+    renderWithTheme(<AblationDashboardTab campaignId="cmp-1" data={dataWithUnknownCounts} />);
+
+    const samplesCard = screen.getAllByText('Samples')[0].closest('.chakra-stat');
+    expect(samplesCard).not.toBeNull();
+    expect(within(samplesCard as HTMLElement).getByText('N/A')).toBeInTheDocument();
+
+    const conditionRow = screen.getByText('Text only').closest('tr');
+    expect(conditionRow).not.toBeNull();
+    expect(within(conditionRow as HTMLElement).getByText('N/A')).toBeInTheDocument();
+
+    const failedCard = screen.getByText('Requirement guidance on').closest('tr');
+    expect(failedCard).not.toBeNull();
+    expect(within(failedCard as HTMLElement).getByText('0')).toBeInTheDocument();
   });
 
   it('allows export redaction options to be toggled locally', () => {

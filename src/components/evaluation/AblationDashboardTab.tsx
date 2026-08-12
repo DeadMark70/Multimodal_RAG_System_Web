@@ -57,7 +57,7 @@ function formatNumber(value: unknown, digits = 2): string {
 }
 
 function formatCount(value: unknown): string {
-  return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : '0';
+  return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : 'N/A';
 }
 
 function summaryCount(value: unknown, fallback: number): number {
@@ -93,7 +93,7 @@ function conditionRows(data?: AblationResponse) {
   return Object.entries(counts).map(([conditionId, count]) => ({
     conditionId,
     label: typeof labels[conditionId] === 'string' ? String(labels[conditionId]) : conditionId,
-    sampleCount: typeof count === 'number' ? count : 0,
+    sampleCount: typeof count === 'number' ? count : null,
   }));
 }
 
@@ -346,7 +346,7 @@ export default function AblationDashboardTab({
                   <Tr key={row.conditionId}>
                     <Td fontWeight="medium">{row.conditionId}</Td>
                     <Td>{row.label}</Td>
-                    <Td isNumeric>{row.sampleCount.toLocaleString()}</Td>
+                    <Td isNumeric>{formatCount(row.sampleCount)}</Td>
                   </Tr>
                 ))
               ) : (

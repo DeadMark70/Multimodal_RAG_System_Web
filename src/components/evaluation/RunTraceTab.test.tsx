@@ -1,5 +1,5 @@
 import { ChakraProvider } from '@chakra-ui/react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import theme from '../../theme';
 import RunTraceTab from './RunTraceTab';
@@ -224,6 +224,22 @@ describe('RunTraceTab', () => {
     expect(screen.getByText('legacy trace')).toBeInTheDocument();
     expect(screen.getByText('Plan subtasks')).toBeInTheDocument();
     expect(screen.getByText('Synthesize answer')).toBeInTheDocument();
+  });
+
+  it('renders a zero-duration legacy step as 0 ms', () => {
+    renderWithTheme(
+      <RunTraceTab legacySteps={[{
+        stepId: 'legacy-zero-duration',
+        phase: 'planning',
+        title: 'Instant legacy step',
+        status: 'completed',
+        durationMs: 0,
+      }]} />,
+    );
+
+    const zeroDurationRow = screen.getByText('Instant legacy step').closest('.chakra-stack');
+    expect(zeroDurationRow).not.toBeNull();
+    expect(within(zeroDurationRow as HTMLElement).getByText('1. planning - completed - 0 ms')).toBeInTheDocument();
   });
 
   it('clears expanded trace disclosure when the selected run ID changes', () => {

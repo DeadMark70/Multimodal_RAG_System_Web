@@ -20,7 +20,7 @@ interface LegacyStep {
   phase: string;
   title: string;
   status: string;
-  durationMs?: number;
+  durationMs?: number | null;
 }
 
 interface RunMetadata {
@@ -35,6 +35,12 @@ interface RunMetadata {
   accountingDiagnostics?: ResearchTokenBreakdown;
 }
 
+function formatDuration(value: number | null | undefined): string {
+  return value !== undefined && value !== null && Number.isFinite(value)
+    ? `${value.toLocaleString()} ms`
+    : 'n/a';
+}
+
 function LegacyTraceTree({ steps }: { steps: LegacyStep[] }) {
   return (
     <Box overflowX="auto">
@@ -47,7 +53,7 @@ function LegacyTraceTree({ steps }: { steps: LegacyStep[] }) {
             <HStack justify="space-between">
               <Text fontWeight="medium">{step.title}</Text>
               <Text fontSize="sm" color="text.secondary">
-                {`${index + 1}. ${step.phase} - ${step.status}${step.durationMs ? ` - ${step.durationMs} ms` : ''}`}
+                {`${index + 1}. ${step.phase} - ${step.status}${step.durationMs !== undefined && step.durationMs !== null ? ` - ${formatDuration(step.durationMs)}` : ''}`}
               </Text>
             </HStack>
           </Box>
