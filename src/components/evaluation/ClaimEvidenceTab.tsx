@@ -21,10 +21,11 @@ export default function ClaimEvidenceTab({
   unsupportedReasons?: string[];
   agenticV9Evidence?: AgenticV9RunEvidence;
 }) {
+  const emptyMessage = extractionStatus === 'empty'
+    ? 'Claim extraction ran and recorded zero claims.'
+    : 'Claim extraction telemetry was not recorded for this run.';
+
   if (!claims?.length && !unsupportedReasons?.length && !agenticV9Evidence) {
-    const emptyMessage = extractionStatus === 'empty'
-      ? 'Claim extraction ran and recorded zero claims.'
-      : 'Claim extraction telemetry was not recorded for this run.';
     return (
       <Stack spacing={4}>
         <RunContextSelector
@@ -48,7 +49,9 @@ export default function ClaimEvidenceTab({
         <Heading size="sm" mb={3}>
           Claim Alignment
         </Heading>
-        <ClaimEvidenceTable claims={claims} />
+        {claims?.length
+          ? <ClaimEvidenceTable claims={claims} />
+          : <Text color="text.secondary">{emptyMessage}</Text>}
       </Box>
       {agenticV9Evidence ? <V9ClaimSlotAlignment data={agenticV9Evidence} /> : null}
       <Box>

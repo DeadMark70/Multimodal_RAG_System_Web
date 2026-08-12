@@ -52,19 +52,50 @@ function renderWithTheme(node: React.ReactNode) {
   return render(<ChakraProvider theme={theme}>{node}</ChakraProvider>);
 }
 
+const populatedAgenticV9Evidence = {
+  runId: 'run-status',
+  schemaVersion: '2',
+  queryContract: {
+    route: 'single_lookup',
+    intent: 'verify claim extraction status',
+    required_slots: [{ slot_id: 'status-slot', description: 'status evidence' }],
+  },
+  slotResolutions: [],
+  evidencePackets: [],
+  contextPack: undefined,
+  sufficiency: null,
+  budget: undefined,
+  repairs: [],
+  conflicts: undefined,
+  finalClaims: [],
+  metrics: undefined,
+} as never;
+
 describe('ClaimEvidenceTab', () => {
-  it('distinguishes recorded-empty extraction from missing telemetry', () => {
+  it('distinguishes empty extraction from missing telemetry while preserving v9 alignment', () => {
     const rendered = renderWithTheme(
-      <ClaimEvidenceTab claims={[]} unsupportedReasons={[]} extractionStatus="empty" />
+      <ClaimEvidenceTab
+        claims={[]}
+        unsupportedReasons={[]}
+        extractionStatus="empty"
+        agenticV9Evidence={populatedAgenticV9Evidence}
+      />
     );
     expect(screen.getByText('Claim extraction ran and recorded zero claims.')).toBeInTheDocument();
+    expect(screen.getByText('Atomic Slot Alignment')).toBeInTheDocument();
 
     rendered.rerender(
       <ChakraProvider theme={theme}>
-        <ClaimEvidenceTab claims={[]} unsupportedReasons={[]} extractionStatus="not_instrumented" />
+        <ClaimEvidenceTab
+          claims={[]}
+          unsupportedReasons={[]}
+          extractionStatus="not_instrumented"
+          agenticV9Evidence={populatedAgenticV9Evidence}
+        />
       </ChakraProvider>
     );
     expect(screen.getByText('Claim extraction telemetry was not recorded for this run.')).toBeInTheDocument();
+    expect(screen.getByText('Atomic Slot Alignment')).toBeInTheDocument();
   });
 
   it('renders claims with support statuses and unsupported reasons', () => {
