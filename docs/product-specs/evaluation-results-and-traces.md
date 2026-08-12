@@ -15,6 +15,9 @@
 - Results analysis must remain readable on standard desktop widths by placing dense tables in horizontal scroll containers instead of allowing page overflow.
 - Delta analysis should use a tabbed `Category / Difficulty / Question` view so operators can switch comparison dimensions without stacking multiple 12-column tables side by side.
 - ECR note reasons should be discoverable via tooltip triggers, not rendered as always-visible full-width note columns in the main tables.
+- Claim Evidence and Run Trace must preserve selected-run claim telemetry semantics: `empty` reports that extraction ran with zero claims; `not_instrumented` reports that claim extraction telemetry is absent.
+- Retrieval Evidence must display provenance, availability status, and availability reasons within the matching chunk row, using the canonical retrieval chunk ID for row identity.
+- The selected-run observability client contract must use canonical backend field names and preserve required, nullable, zero, and unknown values without compatibility aliases.
 
 ## Campaign Overview: Research Accounting
 

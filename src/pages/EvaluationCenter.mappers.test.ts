@@ -59,12 +59,11 @@ describe('Evaluation Center data mappers', () => {
       campaign_id: 'cmp-1',
       retrieval_events: [],
       retrieval_chunks: [{
-        chunk_id: 'chunk-1',
-        doc_id: 'doc-1',
-        rank_after_rerank: 1,
-        dense_score: null,
-        bm25_score: null,
-        rerank_score: null,
+        retrieval_chunk_id: 'retrieval-chunk-1', run_id: 'run-1', campaign_id: 'cmp-1',
+        retrieval_event_id: 'retrieval-1', chunk_id: 'chunk-1', doc_id: 'doc-1',
+        rank_after_rerank: 1, dense_score: null, bm25_score: null, rerank_score: null,
+        provenance: 'persisted', availability: { status: 'not_available', reasons: ['provenance_not_recorded'] },
+        created_at: '2026-08-12T00:00:00Z',
       }],
       context_packs: [],
       trace_events: [],
@@ -75,15 +74,21 @@ describe('Evaluation Center data mappers', () => {
       human_ratings: [],
       evidence_coverage: null,
       graph_observability_status: 'not_instrumented',
-      graph_events: [{ graph_route: null, router_reason: null, node_count: 0, edge_count: null, path_count: 0 }],
-      graph_evidence_items: [{ source_doc_ids: ['doc-1'], source_chunk_ids: ['chunk-1'] }],
+      graph_events: [{
+        graph_event_id: 'graph-1', run_id: 'run-1', graph_query: 'query', graph_search_mode: 'local',
+        graph_route: 'local', router_reason: null, node_count: 0, path_count: 0,
+      }],
+      graph_evidence_items: [{
+        graph_evidence_item_id: 'graph-evidence-1', graph_event_id: 'graph-1',
+        source_doc_ids: ['doc-1'], source_chunk_ids: ['chunk-1'],
+      }],
     });
 
     expect(mapped.chunks[0]).toMatchObject({ denseScore: null, bm25Score: null, rerankScore: null });
     expect(mapped.coverage).toBeUndefined();
     expect(mapped.graph).toMatchObject({
       status: 'not_instrumented',
-      events: [{ route: null, routerReason: null, nodeCount: 0, edgeCount: null, pathCount: 0 }],
+      events: [{ route: 'local', routerReason: null, nodeCount: 0, edgeCount: null, pathCount: 0 }],
       evidenceItems: [{ source: 'doc-1', locator: 'chunk-1' }],
     });
   });
@@ -94,7 +99,8 @@ describe('Evaluation Center data mappers', () => {
       campaign_id: 'cmp-typed-evidence',
       retrieval_events: [],
       retrieval_chunks: [{
-        chunk_id: 'chunk-1',
+        retrieval_chunk_id: 'retrieval-chunk-typed', run_id: 'run-typed-evidence',
+        campaign_id: 'cmp-typed-evidence', retrieval_event_id: 'retrieval-typed', chunk_id: 'chunk-1',
         doc_id: 'doc-1',
         rank_after_rerank: 1,
         modality: null,
@@ -103,7 +109,7 @@ describe('Evaluation Center data mappers', () => {
         expected_evidence_match: false,
         provenance: 'derived',
         availability: { status: 'partial', reasons: ['rerank_score_unavailable'] },
-        payload: { provider: 'must-not-render' },
+        payload: { provider: 'must-not-render' }, created_at: '2026-08-12T00:00:00Z',
       }],
       context_packs: [],
       trace_events: [],
@@ -116,6 +122,7 @@ describe('Evaluation Center data mappers', () => {
       graph_observability_status: 'recorded',
       graph_events: [],
       graph_evidence_items: [{
+        graph_evidence_item_id: 'graph-evidence-typed', graph_event_id: 'graph-typed',
         source_doc_ids: ['doc-1'],
         source_chunk_ids: ['chunk-1'],
         pages: [4],
@@ -144,12 +151,14 @@ describe('Evaluation Center data mappers', () => {
       campaign_id: 'cmp-historical-evidence',
       retrieval_events: [],
       retrieval_chunks: [{
+        retrieval_chunk_id: 'retrieval-chunk-historical', run_id: 'run-historical-evidence',
+        campaign_id: 'cmp-historical-evidence', retrieval_event_id: 'retrieval-historical',
         chunk_id: 'chunk-historical',
         availability: { status: 'not_available', reasons: ['provenance_not_recorded'] },
         provenance: 'persisted',
         used_in_context: null,
         used_in_answer: null,
-        expected_evidence_match: null,
+        expected_evidence_match: null, created_at: '2026-08-12T00:00:00Z',
       }],
       context_packs: [],
       trace_events: [],
@@ -173,11 +182,13 @@ describe('Evaluation Center data mappers', () => {
 
   it('maps only safe typed claim evidence and repair fields', () => {
     const mappedClaims = mapClaims({
+      claim_extraction_status: 'recorded',
       claims: [{
+        claim_id: 'claim-1', run_id: 'run-1', campaign_id: 'cmp-1',
         claim_text: 'The metric is supported.',
         claim_type: 'numeric',
         support_status: 'supported',
-        evidence: ['provider evidence that must not render'],
+        evidence: [{ provider: 'provider evidence that must not render' }],
         evidence_refs: [{ chunk_id: 'chunk-1', doc_id: 'doc-1', page: 4 }],
         repair_action: 'retry_retrieval',
         post_repair_status: 'supported',
@@ -191,6 +202,13 @@ describe('Evaluation Center data mappers', () => {
       repairAction: 'retry_retrieval',
       postRepairStatus: 'supported',
     });
+    expect(mappedClaims.extractionStatus).toBe('recorded');
+  });
+
+  it('preserves recorded-empty and not-instrumented claim extraction states', () => {
+    expect(mapClaims({ claims: [], claim_extraction_status: 'empty' }).extractionStatus).toBe('empty');
+    expect(mapClaims({ claims: [], claim_extraction_status: 'not_instrumented' }).extractionStatus)
+      .toBe('not_instrumented');
   });
 
   it('does not report retrospective router summary zeros as measured actual metrics', () => {

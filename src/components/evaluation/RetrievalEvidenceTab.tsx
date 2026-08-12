@@ -10,15 +10,7 @@ interface RetrievalQueryRow {
   queryText: string;
 }
 
-type RetrievalEvidenceChunk = RetrievedChunkRow & {
-  provenance?: 'measured' | 'persisted' | 'derived' | 'heuristic' | null;
-  availabilityStatus?: string | null;
-  availabilityReasons?: string[] | null;
-};
-
-function provenanceLabel(provenance: RetrievalEvidenceChunk['provenance']): string {
-  return provenance ? `${provenance[0].toUpperCase()}${provenance.slice(1)}` : 'N/A';
-}
+type RetrievalEvidenceChunk = RetrievedChunkRow;
 
 export default function RetrievalEvidenceTab({
   runOptions,
@@ -74,18 +66,6 @@ export default function RetrievalEvidenceTab({
         <Heading size="sm" mb={3}>
           Retrieved Chunks
         </Heading>
-        {chunks?.some((chunk) => chunk.provenance || chunk.availabilityStatus || chunk.availabilityReasons?.length) ? (
-          <Stack direction="row" spacing={2} mb={3} align="center" flexWrap="wrap">
-            {chunks.map((chunk) => (
-              <Stack key={`${chunk.docId}-${chunk.rank}`} direction="row" spacing={1} align="center">
-                <Badge colorScheme={chunk.availabilityStatus === 'complete' ? 'green' : chunk.availabilityStatus === 'partial' ? 'orange' : 'gray'}>
-                  {`${provenanceLabel(chunk.provenance)} · ${chunk.availabilityStatus ?? 'N/A'}`}
-                </Badge>
-                {chunk.availabilityReasons?.map((reason) => <Text key={reason} fontSize="xs" color="text.secondary">{reason}</Text>)}
-              </Stack>
-            ))}
-          </Stack>
-        ) : null}
         <RetrievedChunksTable chunks={chunks} />
       </Box>
 

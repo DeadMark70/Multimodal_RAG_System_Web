@@ -99,7 +99,10 @@ function mapRetrievalSummary(detail?: EvaluationRunObservabilityDetail): string 
 function mapClaimsSummary(detail?: EvaluationRunObservabilityDetail): string {
   if (!detail) return 'No selected run detail.';
   const claimCount = detail.claims?.length ?? 0;
-  return claimCount ? `${claimCount} claim(s) extracted.` : 'No claim extraction recorded.';
+  if (claimCount) return `${claimCount} claim(s) extracted.`;
+  return detail.claim_extraction_status === 'empty'
+    ? 'Claim extraction ran and recorded zero claims.'
+    : 'Claim extraction telemetry was not recorded for this run.';
 }
 
 export default function EvaluationCenter() {
@@ -388,6 +391,7 @@ export default function EvaluationCenter() {
           selectedRunId={selectedRun?.runId}
           onSelectedRunIdChange={handleSelectedRunIdChange}
           claims={claimData.claims}
+          extractionStatus={claimData.extractionStatus}
           unsupportedReasons={claimData.unsupportedReasons}
           agenticV9Evidence={selectedV9Evidence}
         />

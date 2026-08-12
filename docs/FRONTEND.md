@@ -169,8 +169,10 @@
     - `getHumanEvalQueue`
     - `getCampaignErrors`
     - `exportCampaignAnalysis`
-    - `getRunObservability` only after a run-detail tab is activated; it consumes the canonical selected-run observability response, including nullable `agentic_v9` and persisted human ratings
+    - `getRunObservability` only after a run-detail tab is activated; its TypeScript contract mirrors canonical backend field names/nullability, including nullable `agentic_v9`, typed LLM/accounting fields, and persisted human ratings
   - maps raw API payloads into simpler tab props; tab components stay presentation-focused
+  - preserves the backend `claim_extraction_status` distinction: `empty` means extraction ran with zero claims, while `not_instrumented` means telemetry is absent
+  - renders retrieval provenance, availability status, and reasons inside the corresponding chunk row keyed by `retrieval_chunk_id`
 - `EvaluationSetupDrawer.tsx`
   - contains setup CRUD/execution surfaces; does not share page-local selection state with the analytics tabs
 - `TestCaseManager.tsx`

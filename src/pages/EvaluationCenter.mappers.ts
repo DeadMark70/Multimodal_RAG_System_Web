@@ -205,7 +205,9 @@ function safeClaimReferenceText(reference: NonNullable<EvaluationClaim['evidence
   return typeof reference.page === 'number' ? `p. ${reference.page}` : null;
 }
 
-export function mapClaims(detail?: Pick<EvaluationRunObservabilityDetail, 'claims'>) {
+export function mapClaims(
+  detail?: Pick<EvaluationRunObservabilityDetail, 'claims' | 'claim_extraction_status'>,
+) {
   const claims = (detail?.claims ?? []).map((claim) => ({
     claim: typeof claim.claim_text === 'string' ? claim.claim_text : null,
     type: typeof claim.claim_type === 'string' ? claim.claim_type : null,
@@ -220,6 +222,7 @@ export function mapClaims(detail?: Pick<EvaluationRunObservabilityDetail, 'claim
 
   return {
     claims,
+    extractionStatus: detail?.claim_extraction_status ?? 'not_instrumented',
     unsupportedReasons: claims
       .filter((claim) => claim.status !== null && claim.status !== 'supported' && claim.claim !== null)
       .flatMap((claim) => claim.claim === null ? [] : [claim.claim]),
@@ -258,6 +261,7 @@ export function mapRetrieval(detail?: RetrievalObservabilityProjection) {
       const pageStart = scalarString(chunk.page_start, '?');
       const pageEnd = scalarString(chunk.page_end, pageStart);
       return {
+        retrievalChunkId: chunk.retrieval_chunk_id,
         rank: numberValue(chunk.rank_after_rerank, numberValue(chunk.rank_before_rerank, index + 1)),
         docId: stringValue(chunk.doc_id, stringValue(chunk.chunk_id, 'n/a')),
         page: hasPage ? `${pageStart}-${pageEnd}` : 'n/a',

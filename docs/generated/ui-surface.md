@@ -115,7 +115,7 @@ Human-maintained inventory of the current frontend surface.
 - `EvaluationCenter.tsx`
   - keeps `PageHeader` fixed in-page and uses `evaluation-scroll-region` as the route scroll owner
   - loads campaign inventory first, then refetches the selected campaign's analytics bundle with direct service calls instead of TanStack Query
-  - fetches selected-run detail through `getRunObservability(...)`; canonical observability keeps historical `agentic_v9` nullable and ignores stale campaign/run responses via request generations
+  - fetches selected-run detail through `getRunObservability(...)`; canonical observability keeps historical `agentic_v9` nullable, mirrors backend normalized-row field names, and ignores stale campaign/run responses via request generations
   - exposes eight main tabs:
     - `Campaign Overview`
     - `Question Analysis`
@@ -125,6 +125,8 @@ Human-maintained inventory of the current frontend surface.
     - `Claim Evidence`
     - `Router Lab`
     - `Ablation`
+  - distinguishes recorded-empty claim extraction from absent claim telemetry in Run Trace and Claim Evidence
+  - keeps each retrieval chunk's provenance/status/reasons within its own keyed table row
   - opens `EvaluationSetupDrawer.tsx` from the header for setup/admin work
 - `EvaluationSetupDrawer.tsx`
   - right-side drawer with setup tabs for `Test Cases`, `Model Configs`, and `Campaigns`

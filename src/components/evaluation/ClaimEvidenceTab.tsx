@@ -9,6 +9,7 @@ export default function ClaimEvidenceTab({
   selectedRunId,
   onSelectedRunIdChange,
   claims,
+  extractionStatus,
   unsupportedReasons,
   agenticV9Evidence,
 }: {
@@ -16,10 +17,14 @@ export default function ClaimEvidenceTab({
   selectedRunId?: string;
   onSelectedRunIdChange?: (runId: string) => void;
   claims?: ClaimRow[];
+  extractionStatus?: 'recorded' | 'empty' | 'not_instrumented';
   unsupportedReasons?: string[];
   agenticV9Evidence?: AgenticV9RunEvidence;
 }) {
   if (!claims?.length && !unsupportedReasons?.length && !agenticV9Evidence) {
+    const emptyMessage = extractionStatus === 'empty'
+      ? 'Claim extraction ran and recorded zero claims.'
+      : 'Claim extraction telemetry was not recorded for this run.';
     return (
       <Stack spacing={4}>
         <RunContextSelector
@@ -27,7 +32,7 @@ export default function ClaimEvidenceTab({
           selectedRunId={selectedRunId}
           onSelectedRunIdChange={onSelectedRunIdChange}
         />
-        <Text color="text.secondary">Claim-evidence alignment will appear after claim extraction is available.</Text>
+        <Text color="text.secondary">{emptyMessage}</Text>
       </Stack>
     );
   }

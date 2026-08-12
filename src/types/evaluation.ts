@@ -293,11 +293,30 @@ export interface ResearchTokenBreakdown {
   other_tokens: number | null;
   total_tokens: number | null;
   by_phase: Record<string, number>;
+  observed_call_count?: number;
+  measured_call_count?: number;
+  missing_usage_call_count?: number;
+  unbalanced_call_count?: number;
+  unclassified_phase_call_count?: number;
   missing_usage_by_phase?: Record<string, number>;
   missing_usage_by_purpose?: Record<string, number>;
   missing_usage_by_provider?: Record<string, number>;
   accounting_status: TokenAccountingStatus;
   phase_attribution_status: PhaseAttributionStatus;
+  phase_attribution_reasons?: string[];
+}
+
+/** Fully serialized selected-run diagnostics; backend defaults are always present. */
+export interface EvaluationAccountingDiagnostics extends ResearchTokenBreakdown {
+  observed_call_count: number;
+  measured_call_count: number;
+  missing_usage_call_count: number;
+  unbalanced_call_count: number;
+  unclassified_phase_call_count: number;
+  missing_usage_by_phase: Record<string, number>;
+  missing_usage_by_purpose: Record<string, number>;
+  missing_usage_by_provider: Record<string, number>;
+  phase_attribution_reasons: string[];
 }
 
 export interface ResearchCostSummary {
@@ -932,58 +951,83 @@ export interface CampaignPreflightResponse {
 export interface EvaluationRunSummary {
   run_id: string;
   campaign_id: string;
-  question_id?: string | null;
-  mode?: CampaignMode | null;
-  repeat_number?: number | null;
+  question_id: string;
+  mode: CampaignMode;
+  repeat_number?: number;
   answer_preview?: string | null;
   latency_ms?: number | null;
   total_tokens?: number | null;
   accounting_status?: 'complete' | 'partial' | 'not_available';
-  created_at?: string | null;
+  created_at: string;
 }
 
 export interface EvaluationTraceEvent {
-  event_id?: string | null;
-  span_id?: string | null;
+  event_id: string;
+  run_id: string;
+  campaign_id: string;
+  span_id: string;
+  parent_event_id?: string | null;
   parent_span_id?: string | null;
-  sequence?: number | null;
-  stage_type?: string | null;
-  stage_name?: string | null;
-  status?: string | null;
-  started_at?: string | null;
+  event_type: string;
+  event_schema_version?: string;
+  sequence: number;
+  stage_type: 'routing' | 'planning' | 'retrieval' | 'rerank' | 'graph' | 'visual' | 'tool'
+    | 'context_packing' | 'generation' | 'claim_verification' | 'evaluation' | 'export';
+  stage_name: string;
+  started_at: string;
+  ended_at?: string | null;
   duration_ms?: number | null;
-  payload?: Record<string, unknown> | null;
-  error?: Record<string, unknown> | null;
+  status: 'running' | 'success' | 'failed' | 'skipped' | 'timeout' | 'partial';
+  retry_count?: number;
+  payload?: Record<string, unknown>;
+  error?: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface EvaluationLlmCall {
-  llm_call_id?: string | null;
+  llm_call_id: string;
+  run_id: string;
+  campaign_id: string;
   span_id?: string | null;
   provider?: string | null;
-  model?: string | null;
-  purpose?: string | null;
-  status?: string | null;
-  started_at?: string | null;
-  duration_ms?: number | null;
-  input_tokens?: number | null;
-  output_text_tokens?: number | null;
+  model_name?: string | null;
+  phase?: 'unknown' | 'contract_planning' | 'comparison_plan' | 'graph_route' | 'evidence_extract'
+    | 'retrieval_judge' | 'visual_extract' | 'final_answer';
+  purpose?: string;
+  reservation_id?: string | null;
+  provider_attempt?: number | null;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
   reasoning_tokens?: number | null;
-  total_tokens?: number | null;
-  payload?: Record<string, unknown> | null;
-  error?: Record<string, unknown> | null;
+  other_tokens?: number | null;
+  estimated_cost_usd?: number | null;
+  estimated_cost_twd?: number | null;
+  prompt_hash?: string | null;
+  prompt_preview?: string | null;
+  prompt_capture_status?: 'unknown' | 'captured' | 'redacted' | 'not_captured_at_execution' | 'capture_failed';
+  full_prompt_capture_status?: 'unknown' | 'captured' | 'redacted' | 'not_captured_at_execution' | 'capture_failed';
+  response_hash?: string | null;
+  latency_ms?: number | null;
+  status?: 'running' | 'success' | 'failed' | 'skipped' | 'timeout' | 'partial';
+  error?: Record<string, unknown>;
+  payload?: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface EvaluationRetrievalEvent {
-  retrieval_event_id?: string | null;
+  retrieval_event_id: string;
+  run_id: string;
+  campaign_id: string;
   span_id?: string | null;
-  retriever_name?: string | null;
   query?: string | null;
   query_hash?: string | null;
-  result_count?: number | null;
+  retriever_name?: string | null;
+  top_k?: number | null;
+  result_count?: number;
   latency_ms?: number | null;
-  status?: string | null;
-  payload?: Record<string, unknown> | null;
-  error?: Record<string, unknown> | null;
+  payload?: Record<string, unknown>;
+  created_at: string;
 }
 
 export type ObservationAvailabilityStatus =
@@ -1001,7 +1045,12 @@ export interface ObservationAvailability {
 }
 
 export interface EvaluationRetrievalChunk {
-  chunk_id?: string | null;
+  retrieval_chunk_id: string;
+  run_id: string;
+  campaign_id: string;
+  span_id?: string | null;
+  retrieval_event_id: string;
+  chunk_id: string;
   doc_id?: string | null;
   page_start?: number | null;
   page_end?: number | null;
@@ -1015,88 +1064,132 @@ export interface EvaluationRetrievalChunk {
   used_in_context?: boolean | null;
   used_in_answer?: boolean | null;
   expected_evidence_match?: boolean | null;
+  content_hash?: string | null;
   /** Safe server projection; raw payload is intentionally empty for this endpoint. */
-  provenance?: ObservationProvenance | null;
-  availability?: ObservationAvailability | null;
-  payload?: Record<string, unknown> | null;
-  error?: Record<string, unknown> | null;
+  provenance: ObservationProvenance;
+  availability: ObservationAvailability;
+  payload?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface EvaluationContextPackEvidenceReference {
+  evidence_id?: string | null;
+  doc_id?: string | null;
+  chunk_id?: string | null;
+  page?: number | null;
 }
 
 export interface EvaluationContextPack {
-  context_pack_id?: string | null;
+  context_pack_id: string;
+  run_id: string;
+  campaign_id: string;
+  attempt_id?: string | null;
+  condition_id?: string;
+  schema_version?: string;
   span_id?: string | null;
-  token_count?: number | null;
-  chunk_count?: number | null;
-  status?: string | null;
-  source_doc_ids?: string[];
-  source_chunk_ids?: string[];
-  payload?: Record<string, unknown> | null;
-  error?: Record<string, unknown> | null;
+  input_chunk_count?: number;
+  packed_chunk_count?: number;
+  token_count?: number;
+  retrieved_but_not_packed_evidence?: EvaluationContextPackEvidenceReference[];
+  payload?: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface EvaluationToolCall {
-  tool_call_id?: string | null;
+  tool_call_id: string;
+  run_id: string;
+  campaign_id: string;
   span_id?: string | null;
-  tool_name?: string | null;
-  status?: string | null;
-  started_at?: string | null;
-  duration_ms?: number | null;
-  payload?: Record<string, unknown> | null;
-  error?: Record<string, unknown> | null;
+  tool_name: string;
+  action?: string | null;
+  latency_ms?: number | null;
+  status?: 'running' | 'success' | 'failed' | 'skipped' | 'timeout' | 'partial';
+  payload?: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface EvaluationRoutingDecision {
-  routing_decision_id?: string | null;
+  routing_decision_id: string;
+  run_id: string;
+  campaign_id: string;
   span_id?: string | null;
-  selected_route?: string | null;
-  decision_source?: string | null;
-  route_reason?: string | null;
+  selected_mode: CampaignMode;
+  analysis_type?: 'retrospective' | 'actual';
+  decision_source?: 'deterministic' | 'llm_planner' | 'safe_fallback' | null;
+  candidate_routes?: string[];
+  matched_rules?: string[];
+  fallback_reason?: string | null;
   confidence?: number | null;
-  payload?: Record<string, unknown> | null;
-  error?: Record<string, unknown> | null;
+  reason?: string | null;
+  payload?: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface EvaluationGraphEvent {
-  graph_event_id?: string | null;
+  graph_event_id: string;
+  run_id: string;
+  campaign_id?: string | null;
   span_id?: string | null;
-  graph_route?: string | null;
+  graph_query: string;
+  graph_search_mode: string;
+  graph_evidence_mode?: string;
+  graph_route: string;
   router_reason?: string | null;
-  node_count?: number | null;
-  edge_count?: number | null;
-  path_count?: number | null;
+  graph_feature_flags?: Record<string, unknown>;
+  graph_snapshot_version?: string | null;
+  graph_schema_version?: string | null;
+  graph_extraction_prompt_version?: string | null;
+  matched_entity_ids?: string[];
+  community_ids?: number[];
+  node_count?: number;
+  edge_count?: number;
+  path_count?: number;
+  graph_latency_ms?: number | null;
+  graph_context_tokens?: number;
   graph_to_chunk_success_rate?: number | null;
-  payload?: Record<string, unknown> | null;
-  error?: Record<string, unknown> | null;
+  graph_noise_ratio?: number | null;
+  created_at?: string;
 }
 
 export interface EvaluationGraphEvidenceItem {
-  graph_evidence_item_id?: string | null;
-  source_id?: string | null;
-  source?: string | null;
-  locator?: string | null;
-  page_label?: string | null;
+  graph_evidence_item_id: string;
+  graph_event_id: string;
+  node_ids?: string[];
+  edge_ids?: string[];
+  relation_path?: string[];
   source_doc_ids?: string[];
   source_chunk_ids?: string[];
   pages?: number[];
   asset_ids?: string[];
-  payload?: Record<string, unknown> | null;
-  error?: Record<string, unknown> | null;
+  confidence?: number;
+  provenance_status?: 'full' | 'partial' | 'missing';
+  used_as_locator?: boolean;
+  packed_in_context?: boolean;
+  used_in_answer?: boolean;
+  supported_claim_ids?: string[];
+  created_at?: string;
 }
 
 export interface EvaluationClaim {
-  claim_id?: string | null;
-  claim_text?: string | null;
+  claim_id: string;
+  run_id: string;
+  campaign_id: string;
+  attempt_id?: string | null;
+  condition_id?: string;
+  schema_version?: string;
+  span_id?: string | null;
+  claim_text: string;
   claim_type?: string | null;
-  support_status?: string | null;
-  evidence?: string[];
-  evidence_ids?: string[];
+  support_status?: 'supported' | 'partially_supported' | 'unsupported' | 'contradicted';
+  evidence?: Record<string, unknown>[];
+  unsupported_reason?: string | null;
   /** Safe server projection; raw evidence is intentionally omitted for this endpoint. */
   evidence_refs?: EvaluationClaimEvidenceReference[];
   repair_action?: string | null;
   post_repair_status?: string | null;
-  extraction_status?: 'recorded' | 'empty' | 'not_instrumented' | null;
-  payload?: Record<string, unknown> | null;
-  error?: Record<string, unknown> | null;
+  extraction_status: 'recorded' | 'empty' | 'not_instrumented';
+  payload?: Record<string, unknown>;
+  created_at?: string;
 }
 
 export interface EvaluationClaimEvidenceReference {
@@ -1107,14 +1200,22 @@ export interface EvaluationClaimEvidenceReference {
 }
 
 export interface EvaluationHumanRating {
-  rating_id?: string | null;
-  evaluator_id?: string | null;
-  score?: number | null;
-  rating?: string | null;
-  rationale?: string | null;
-  created_at?: string | null;
-  payload?: Record<string, unknown> | null;
-  error?: Record<string, unknown> | null;
+  human_rating_id: string;
+  run_id: string;
+  campaign_id: string;
+  span_id?: string | null;
+  rater_id_hash: string;
+  rubric_version: string;
+  correctness_score: number;
+  faithfulness_score: number;
+  completeness_score: number;
+  citation_quality_score: number;
+  usefulness_score: number;
+  comments?: string | null;
+  is_blinded?: boolean;
+  shown_mode_label?: boolean;
+  payload?: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface EvaluationEvidenceCoverage {
@@ -1148,7 +1249,7 @@ export interface EvaluationRunObservabilityDetail {
   human_ratings: EvaluationHumanRating[];
   evidence_coverage: EvaluationEvidenceCoverage[] | null;
   evidence_coverage_status: 'complete' | 'partial' | 'not_available' | 'not_instrumented';
-  accounting_diagnostics: ResearchTokenBreakdown;
+  accounting_diagnostics: EvaluationAccountingDiagnostics;
   /** Historical v8 executions explicitly return null instead of a fabricated v9 envelope. */
   agentic_v9: V9ExecutionObservability | null;
 }

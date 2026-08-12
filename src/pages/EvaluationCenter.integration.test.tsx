@@ -99,6 +99,7 @@ const detailFor = (runId: string) => ({
   retrieval_events: runId === 'run-a' ? [{ retriever_name: 'hybrid', query: 'query A' }] : [],
   retrieval_chunks: runId === 'run-a' ? [
     {
+      retrieval_chunk_id: 'retrieval-chunk-a',
       chunk_id: 'chunk-a',
       doc_id: 'doc-a',
       rank_after_rerank: 1,
@@ -111,6 +112,7 @@ const detailFor = (runId: string) => ({
       payload: {},
     },
     {
+      retrieval_chunk_id: 'retrieval-chunk-false',
       chunk_id: 'chunk-false',
       doc_id: 'doc-false',
       rank_after_rerank: 2,
@@ -127,6 +129,7 @@ const detailFor = (runId: string) => ({
   tool_calls: [],
   routing_decisions: [],
   claims: [],
+  claim_extraction_status: runId === 'run-a' ? 'empty' : 'not_instrumented',
   human_ratings: [],
   evidence_coverage: runId === 'run-a' ? [] : null,
   evidence_coverage_status: runId === 'run-a' ? 'not_instrumented' : 'not_available',
@@ -366,6 +369,22 @@ describe('Evaluation Center real data flow', () => {
     expect(await screen.findByText(/no actual router runs/)).toBeInTheDocument();
     expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
     expect(screen.queryByText('Cost')).not.toBeInTheDocument();
+  });
+
+  it('propagates recorded-empty and not-instrumented claim extraction states by selected run', async () => {
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Run Trace' }));
+    await screen.findByRole('combobox', { name: 'Run selector' });
+    expect(await screen.findByText('Claim extraction ran and recorded zero claims.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Claim Evidence' }));
+    expect(await screen.findByText('Claim extraction ran and recorded zero claims.')).toBeInTheDocument();
+
+    const claimRunSelector = await screen.findByRole('combobox', { name: 'Run selector' });
+    fireEvent.change(claimRunSelector, { target: { value: 'run-b' } });
+    await waitFor(() => expect(apiMocks.getRunObservability).toHaveBeenLastCalledWith('cmp-integration', 'run-b'));
+    expect(await screen.findByText('Claim extraction telemetry was not recorded for this run.')).toBeInTheDocument();
   });
 
   it('keeps directly opened v9 Run Trace scoped to the new campaign when an old response resolves late', async () => {

@@ -1,5 +1,5 @@
 import { ChakraProvider } from '@chakra-ui/react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import theme from '../../theme';
 import EvidenceCoveragePanel from './EvidenceCoveragePanel';
@@ -8,6 +8,7 @@ import RetrievedChunksTable from './RetrievedChunksTable';
 
 const chunks = [
   {
+    retrievalChunkId: 'retrieval-chunk-a',
     rank: 1,
     docId: 'paper-a.pdf',
     page: '5',
@@ -21,6 +22,7 @@ const chunks = [
     excerpt: 'Top ranked table chunk',
   },
   {
+    retrievalChunkId: 'retrieval-chunk-b',
     rank: 2,
     docId: 'paper-b.pdf',
     page: '3',
@@ -103,6 +105,25 @@ describe('RetrievalEvidenceTab', () => {
     expect(screen.getByText('Derived · partial')).toBeInTheDocument();
     expect(screen.getByText('rerank_score_unavailable')).toBeInTheDocument();
     expect(screen.queryByText('must-not-render')).not.toBeInTheDocument();
+  });
+
+  it('keeps each provenance status and reason inside its retrieval chunk row', () => {
+    renderWithTheme(
+      <RetrievalEvidenceTab chunks={[
+        { ...chunks[0], provenance: 'measured', availabilityStatus: 'complete', availabilityReasons: ['measured_reason'] },
+        { ...chunks[1], provenance: 'derived', availabilityStatus: 'partial', availabilityReasons: ['derived_reason'] },
+      ]} />
+    );
+
+    const firstRow = screen.getByText('paper-a.pdf').closest('tr');
+    const secondRow = screen.getByText('paper-b.pdf').closest('tr');
+    expect(firstRow).not.toBeNull();
+    expect(secondRow).not.toBeNull();
+    expect(within(firstRow as HTMLElement).getByText('Measured · complete')).toBeInTheDocument();
+    expect(within(firstRow as HTMLElement).getByText('measured_reason')).toBeInTheDocument();
+    expect(within(firstRow as HTMLElement).queryByText('derived_reason')).not.toBeInTheDocument();
+    expect(within(secondRow as HTMLElement).getByText('Derived · partial')).toBeInTheDocument();
+    expect(within(secondRow as HTMLElement).getByText('derived_reason')).toBeInTheDocument();
   });
 
   it('renders GraphRAG route diagnostics and fallback-safe status', () => {

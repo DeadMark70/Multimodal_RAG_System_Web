@@ -53,6 +53,20 @@ function renderWithTheme(node: React.ReactNode) {
 }
 
 describe('ClaimEvidenceTab', () => {
+  it('distinguishes recorded-empty extraction from missing telemetry', () => {
+    const rendered = renderWithTheme(
+      <ClaimEvidenceTab claims={[]} unsupportedReasons={[]} extractionStatus="empty" />
+    );
+    expect(screen.getByText('Claim extraction ran and recorded zero claims.')).toBeInTheDocument();
+
+    rendered.rerender(
+      <ChakraProvider theme={theme}>
+        <ClaimEvidenceTab claims={[]} unsupportedReasons={[]} extractionStatus="not_instrumented" />
+      </ChakraProvider>
+    );
+    expect(screen.getByText('Claim extraction telemetry was not recorded for this run.')).toBeInTheDocument();
+  });
+
   it('renders claims with support statuses and unsupported reasons', () => {
     renderWithTheme(<ClaimEvidenceTab claims={claims} unsupportedReasons={unsupportedReasons} />);
 

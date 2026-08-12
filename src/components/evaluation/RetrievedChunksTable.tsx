@@ -1,7 +1,8 @@
-import { Box, Table, Tbody, Td, Text, Th, Thead, Tr } from '@chakra-ui/react';
+import { Badge, Box, Stack, Table, Tbody, Td, Text, Th, Thead, Tr } from '@chakra-ui/react';
 import { formatOptionalNumber } from './evaluationDisplay';
 
 export interface RetrievedChunkRow {
+  retrievalChunkId: string;
   rank: number;
   docId: string;
   page: string;
@@ -14,9 +15,15 @@ export interface RetrievedChunkRow {
   goldMatch: boolean | null;
   instrumentationDepth?: string | null;
   excerpt?: string;
+  provenance?: 'measured' | 'persisted' | 'derived' | 'heuristic' | null;
+  availabilityStatus?: string | null;
+  availabilityReasons?: string[] | null;
 }
 
 const yesNo = (value: boolean | null) => (value == null ? 'N/A' : value ? 'yes' : 'no');
+const provenanceLabel = (provenance: RetrievedChunkRow['provenance']) => (
+  provenance ? `${provenance[0].toUpperCase()}${provenance.slice(1)}` : 'N/A'
+);
 
 export default function RetrievedChunksTable({ chunks }: { chunks?: RetrievedChunkRow[] }) {
   if (!chunks?.length) {
@@ -42,9 +49,23 @@ export default function RetrievedChunksTable({ chunks }: { chunks?: RetrievedChu
         </Thead>
         <Tbody>
           {chunks.map((chunk) => (
-            <Tr key={`${chunk.docId}-${chunk.rank}`}>
+            <Tr key={chunk.retrievalChunkId}>
               <Td isNumeric>{chunk.rank}</Td>
-              <Td fontWeight="medium">{chunk.docId}</Td>
+              <Td>
+                <Stack spacing={1} align="start">
+                  <Text fontWeight="medium">{chunk.docId}</Text>
+                  {chunk.provenance || chunk.availabilityStatus || chunk.availabilityReasons?.length ? (
+                    <>
+                      <Badge colorScheme={chunk.availabilityStatus === 'complete' ? 'green' : chunk.availabilityStatus === 'partial' ? 'orange' : 'gray'}>
+                        {`${provenanceLabel(chunk.provenance)} · ${chunk.availabilityStatus ?? 'N/A'}`}
+                      </Badge>
+                      {chunk.availabilityReasons?.map((reason) => (
+                        <Text key={reason} fontSize="xs" color="text.secondary">{reason}</Text>
+                      ))}
+                    </>
+                  ) : null}
+                </Stack>
+              </Td>
               <Td>{chunk.page}</Td>
               <Td>{chunk.modality}</Td>
               <Td isNumeric>{formatOptionalNumber(chunk.denseScore, 2)}</Td>
