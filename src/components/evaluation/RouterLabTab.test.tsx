@@ -7,58 +7,22 @@ import RouterLabTab from './RouterLabTab';
 
 const routerData = {
   analysisType: 'retrospective' as const,
-  oracleLabelSource: 'utility_best_mode' as const,
-  hasActualRouterRuns: false,
-  utilityFormula:
-    '0.40 * correctness + 0.25 * faithfulness + 0.20 * relevancy + 0.15 * evidence_coverage - cost_penalty - latency_penalty - unsupported_claim_penalty',
-  selectedDecision: {
-    selectedMode: 'naive',
-    tier: 'fast-lane',
-    complexity: 'medium',
-    routingReason: 'Evidence need is moderate and router utility penalizes agentic latency.',
-  },
-  comparisonRows: [
-    {
-      label: 'Always Naive',
-      qualityScore: 0.71,
-      avgLatencyMs: 1800,
-      tokens: 6200,
-      regret: 0.12,
-      policyType: 'observed',
-    },
-    {
-      label: 'Always Agentic',
-      qualityScore: 0.89,
-      avgLatencyMs: 7900,
-      tokens: 20640,
-      regret: 0,
-      policyType: 'observed',
-    },
-    {
-      label: 'Router',
-      qualityScore: 0.84,
-      avgLatencyMs: 3100,
-      tokens: 10120,
-      regret: 0.05,
-      policyType: 'simulated retrospective policy',
-    },
-    {
-      label: 'Oracle',
-      qualityScore: 0.91,
-      avgLatencyMs: 3500,
-      tokens: 11000,
-      regret: 0,
-      policyType: 'upper bound',
-    },
-  ],
-  savedTokens: 10520,
-  qualityLossVsAgentic: 0.05,
-  qualityGainVsNaive: 0.13,
-  routerRegret: 0.05,
-  confusionMatrix: [
-    { expected: 'naive', predicted: 'naive', count: 8 },
-    { expected: 'agentic', predicted: 'naive', count: 2 },
-  ],
+  decisions: [{
+    routingDecisionId: 'routing-7',
+    runId: 'run-7',
+    campaignId: 'cmp-1',
+    questionId: 'Q-7',
+    repeat: 2,
+    spanId: null,
+    selectedMode: 'graph',
+    decisionSource: 'deterministic' as const,
+    candidateRoutes: ['graph'],
+    matchedRules: ['graph-required'],
+    fallbackReason: null,
+    confidence: 1,
+    reason: 'The question requires graph retrieval.',
+    createdAt: '2026-08-13T00:00:00Z',
+  }],
 };
 
 function renderWithTheme(node: React.ReactNode) {
@@ -66,45 +30,49 @@ function renderWithTheme(node: React.ReactNode) {
 }
 
 describe('RouterLabTab', () => {
-  it('renders selected mode, utility details, comparison rows, and retrospective notice', () => {
+  it('renders only recorded retrospective fields and no fabricated router analysis', () => {
     renderWithTheme(<RouterLabTab data={routerData} />);
 
-    expect(screen.getAllByText('naive').length).toBeGreaterThan(0);
-    expect(screen.getByText('fast-lane')).toBeInTheDocument();
-    expect(screen.getByText('medium')).toBeInTheDocument();
-    expect(screen.getByText('Evidence need is moderate and router utility penalizes agentic latency.')).toBeInTheDocument();
+    expect(screen.getByText('graph')).toBeInTheDocument();
+    expect(screen.getByText('Q-7 · run-7 · repeat 2')).toBeInTheDocument();
+    expect(screen.getByText('The question requires graph retrieval.')).toBeInTheDocument();
+    expect(screen.getByText('graph-required')).toBeInTheDocument();
     expect(screen.getByText('retrospective')).toBeInTheDocument();
-    expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
-    expect(screen.queryByText('Cost')).not.toBeInTheDocument();
-    expect(screen.getAllByText('Router').length).toBeGreaterThan(0);
-    expect(screen.getByText('Retrospective analysis only: no actual router runs in this campaign.')).toBeInTheDocument();
-    expect(screen.getByText('utility_best_mode')).toBeInTheDocument();
+    for (const unsupportedLabel of [
+      'Tier', 'Complexity', 'Saved Tokens', 'Quality Loss vs Agentic',
+      'Quality Gain vs Naive', 'Latency', 'Tokens', 'Regret',
+      'Utility Formula', 'Oracle', 'Router Confusion Matrix',
+    ]) {
+      expect(screen.queryByText(unsupportedLabel, { exact: false })).not.toBeInTheDocument();
+    }
+    expect(screen.queryByText('N/A')).not.toBeInTheDocument();
   });
 
-  it('keeps a materialized v9 execution route separate from retrospective router analysis', () => {
+  it('renders the execution route while omitting unavailable provenance placeholders', () => {
     renderWithTheme(<RouterLabTab
       data={routerData}
       executionRoute={{
-        route: 'multi_hop', decisionSource: 'deterministic',
-        routeReason: 'Matched cross-document dependency.',
-        matchedRules: ['cross_document'], candidateRoutes: ['multi_hop'], fallbackReason: null,
+        route: 'visual', decisionSource: null, routeReason: null,
+        matchedRules: [], candidateRoutes: [], fallbackReason: null,
       }}
     />);
 
     expect(screen.getByText('Execution Route')).toBeInTheDocument();
-    expect(screen.getByText(/Matched cross-document dependency/)).toBeInTheDocument();
-    expect(screen.getByText(/Decision source: deterministic/)).toBeInTheDocument();
-    expect(screen.getByText('Retrospective analysis only: no actual router runs in this campaign.')).toBeInTheDocument();
+    expect(screen.getByText('Route: visual')).toBeInTheDocument();
+    expect(screen.queryByText(/Decision source:/)).not.toBeInTheDocument();
+    expect(screen.queryByText('N/A')).not.toBeInTheDocument();
   });
 });
 
 describe('RouterDecisionCard', () => {
-  it('renders router decision details', () => {
-    renderWithTheme(<RouterDecisionCard decision={routerData.selectedDecision} analysisType="retrospective" />);
+  it('renders recorded router decision details without fabricated classifications', () => {
+    renderWithTheme(<RouterDecisionCard decision={routerData.decisions[0]} />);
 
-    expect(screen.getByText('Retrospective best-mode observation')).toBeInTheDocument();
-    expect(screen.getByText('Tier')).toBeInTheDocument();
-    expect(screen.getByText('Complexity')).toBeInTheDocument();
-    expect(screen.getByText('Routing Reason')).toBeInTheDocument();
+    expect(screen.getByText('Retrospective selected mode')).toBeInTheDocument();
+    expect(screen.getByText('Decision source')).toBeInTheDocument();
+    expect(screen.getByText('Matched rules')).toBeInTheDocument();
+    expect(screen.getByText('Reason')).toBeInTheDocument();
+    expect(screen.queryByText('Tier')).not.toBeInTheDocument();
+    expect(screen.queryByText('Complexity')).not.toBeInTheDocument();
   });
 });

@@ -158,6 +158,63 @@ const detailFor = (runId: string) => ({
   },
 });
 
+const detailWithRoute = (
+  campaignId: string,
+  runId: string,
+  route: string,
+  routeDecision: Record<string, unknown> | null = null,
+) => ({
+  ...detailFor(runId),
+  run_id: runId,
+  campaign_id: campaignId,
+  run_summary: {
+    ...detailFor(runId).run_summary,
+    run_id: runId,
+    campaign_id: campaignId,
+  },
+  agentic_v9: {
+    schema_version: '2',
+    contract: {
+      route,
+      intent: `route ${route}`,
+      route_decision: routeDecision,
+    },
+    slot_resolutions: [],
+    evidence_packets: [],
+    context_pack: null,
+    final_claims: [],
+  },
+});
+
+const routerAnalysisFor = (campaignId: string, reason = 'Retrospective decision recorded.') => ({
+  campaign_id: campaignId,
+  analysis_unit: 'execution',
+  analysis_type: 'retrospective',
+  sample_count: 1,
+  independent_question_count: 1,
+  repeat_count: 1,
+  sample_note: 'retrospective',
+  warnings: [],
+  rows: [{
+    routing_decision_id: `routing-${campaignId}`,
+    run_id: `analysis-run-${campaignId}`,
+    campaign_id: campaignId,
+    question_id: 'Q-router',
+    repeat_number: 1,
+    span_id: null,
+    selected_mode: 'graph',
+    analysis_type: 'retrospective',
+    decision_source: 'deterministic',
+    candidate_routes: ['graph'],
+    matched_rules: ['graph-required'],
+    fallback_reason: null,
+    confidence: 1,
+    reason,
+    created_at: '2026-08-13T00:00:00Z',
+  }],
+  summaries: {},
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
   jobPanelProps.length = 0;
@@ -225,7 +282,7 @@ beforeEach(() => {
     sample_note: 'retrospective',
     warnings: [],
     rows: [],
-    summaries: { saved_tokens: 0, quality_loss_vs_agentic: 0, quality_gain_vs_naive: 0, router_regret: 0 },
+    summaries: {},
   });
   apiMocks.getAblationAnalysis.mockResolvedValue({ campaign_id: 'cmp-integration', analysis_unit: 'execution', sample_count: 0, independent_question_count: 0, repeat_count: 0, sample_note: 'none', warnings: [], rows: [], summaries: {} });
   apiMocks.getHumanVsAuto.mockResolvedValue({ campaign_id: 'cmp-integration', analysis_unit: 'execution', sample_count: 0, independent_question_count: 0, repeat_count: 0, sample_note: 'none', warnings: [], rows: [], summaries: {} });
@@ -380,9 +437,111 @@ describe('Evaluation Center real data flow', () => {
     expect(naiveRow).toHaveTextContent('not_available');
 
     fireEvent.click(screen.getByRole('tab', { name: 'Router Lab' }));
-    expect(await screen.findByText(/no actual router runs/)).toBeInTheDocument();
-    expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
-    expect(screen.queryByText('Cost')).not.toBeInTheDocument();
+    expect(await screen.findByText('Retrospective Router Analysis')).toBeInTheDocument();
+  });
+
+  it('loads Router Lab directly and renders contract.route without route-decision provenance', async () => {
+    apiMocks.getRouterAnalysis.mockResolvedValue(routerAnalysisFor(campaign.id));
+    apiMocks.getRunObservability.mockResolvedValue(
+      detailWithRoute(campaign.id, 'run-a', 'visual', null),
+    );
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Router Lab' }));
+
+    await waitFor(() => expect(apiMocks.getRouterAnalysis).toHaveBeenCalledWith(campaign.id));
+    expect(apiMocks.getCampaignRuns).toHaveBeenCalledWith(campaign.id);
+    expect(apiMocks.getRunObservability).toHaveBeenCalledWith(campaign.id, 'run-a');
+    expect(await screen.findByText('Route: visual')).toBeInTheDocument();
+    for (const unsupportedLabel of [
+      'Tier', 'Complexity', 'Saved Tokens', 'Quality Loss vs Agentic',
+      'Quality Gain vs Naive', 'Latency', 'Tokens', 'Regret',
+      'Utility Formula', 'Oracle', 'Router Confusion Matrix',
+    ]) {
+      expect(screen.queryByText(unsupportedLabel, { exact: false })).not.toBeInTheDocument();
+    }
+  });
+
+  it('keeps retrospective decisions visible when selected-run observability fails', async () => {
+    apiMocks.getRouterAnalysis.mockResolvedValue(
+      routerAnalysisFor(campaign.id, 'Retrospective row survives selected-run failure.'),
+    );
+    apiMocks.getRunObservability.mockRejectedValue(new Error('selected run unavailable'));
+
+    renderPage();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Router Lab' }));
+
+    expect(await screen.findByText('Retrospective row survives selected-run failure.')).toBeInTheDocument();
+    expect(apiMocks.getRunObservability).toHaveBeenCalledWith(campaign.id, 'run-a');
+  });
+
+  it('keeps the execution route visible when retrospective analysis fails', async () => {
+    apiMocks.getRouterAnalysis.mockRejectedValue(new Error('router analysis unavailable'));
+    apiMocks.getRunObservability.mockResolvedValue(
+      detailWithRoute(campaign.id, 'run-a', 'graph_relational'),
+    );
+
+    renderPage();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Router Lab' }));
+
+    expect(await screen.findByText('Route: graph_relational')).toBeInTheDocument();
+    expect(apiMocks.getRouterAnalysis).toHaveBeenCalledWith(campaign.id);
+  });
+
+  it('stays on Router Lab across campaign switches and rejects a late old execution route', async () => {
+    const nextCampaign = { ...campaign, id: 'cmp-router-next', name: 'Next Router campaign' };
+    const oldRun = { ...runs.runs[0], run_id: 'run-router-old', campaign_id: campaign.id };
+    const newRun = { ...runs.runs[0], run_id: 'run-router-new', campaign_id: nextCampaign.id };
+    const oldDetail = detailWithRoute(campaign.id, oldRun.run_id, 'multi_hop');
+    const newDetail = detailWithRoute(nextCampaign.id, newRun.run_id, 'graph_relational');
+    let oldDetailCalls = 0;
+    let resolveLateOld!: (value: typeof oldDetail) => void;
+
+    apiMocks.listCampaigns.mockResolvedValue([campaign, nextCampaign]);
+    apiMocks.getCampaignResearchSummary.mockImplementation((campaignId: string) => Promise.resolve({
+      ...completeFixture,
+      campaign_id: campaignId,
+    }));
+    apiMocks.getRouterAnalysis.mockImplementation((campaignId: string) => (
+      Promise.resolve(routerAnalysisFor(campaignId))
+    ));
+    apiMocks.getCampaignRuns.mockImplementation((campaignId: string) => Promise.resolve({
+      campaign_id: campaignId,
+      runs: campaignId === campaign.id ? [oldRun] : [newRun],
+    }));
+    apiMocks.getRunObservability.mockImplementation((campaignId: string) => {
+      if (campaignId === nextCampaign.id) {
+        return Promise.resolve(newDetail);
+      }
+      oldDetailCalls += 1;
+      return oldDetailCalls === 1
+        ? Promise.resolve(oldDetail)
+        : new Promise<typeof oldDetail>((resolve) => { resolveLateOld = resolve; });
+    });
+
+    renderPage();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Router Lab' }));
+    expect(await screen.findByText('Route: multi_hop')).toBeInTheDocument();
+
+    jobPanelProps.at(-1)?.onJobTerminal?.({ job_id: 'router-refresh', campaign_id: campaign.id } as never);
+    await waitFor(() => expect(apiMocks.getRunObservability).toHaveBeenCalledTimes(2));
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Campaign selector' }), {
+      target: { value: nextCampaign.id },
+    });
+
+    expect(screen.getByRole('tab', { name: 'Router Lab' })).toHaveAttribute('aria-selected', 'true');
+    await waitFor(() => expect(screen.queryByText('Route: multi_hop')).not.toBeInTheDocument());
+    await waitFor(() => expect(apiMocks.getRouterAnalysis).toHaveBeenCalledWith(nextCampaign.id));
+    expect(apiMocks.getCampaignRuns).toHaveBeenCalledWith(nextCampaign.id);
+    expect(apiMocks.getRunObservability).toHaveBeenCalledWith(nextCampaign.id, newRun.run_id);
+    expect(await screen.findByText('Route: graph_relational')).toBeInTheDocument();
+
+    resolveLateOld(oldDetail);
+    await waitFor(() => expect(screen.queryByText('Route: multi_hop')).not.toBeInTheDocument());
+    expect(screen.getByText('Route: graph_relational')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Router Lab' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('refreshes the selected tab after a terminal job without returning to Campaign Overview', async () => {

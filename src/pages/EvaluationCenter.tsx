@@ -172,7 +172,6 @@ export default function EvaluationCenter() {
     requestGenerationRef.current = generation;
     runDetailRequestRef.current += 1;
     loadedTabsRef.current = new Set();
-    setActiveTabIndex(0);
     setSelectedRunId('');
     setDashboardData((current) => ({ campaigns: current.campaigns }));
     const loadDashboard = async () => {
@@ -232,8 +231,34 @@ export default function EvaluationCenter() {
       }
       case 4:
         return { agentBehavior: await getAgentBehavior(campaignId) };
-      case 6:
-        return { routerAnalysis: await getRouterAnalysis(campaignId) };
+      case 6: {
+        const routerRequest = getRouterAnalysis(campaignId);
+        const selectedRunRequest = getCampaignRuns(campaignId).then(async (runs) => {
+          const effectiveRunId =
+            (preferredRunId && runs.runs.some((run) => run.run_id === preferredRunId)
+              ? preferredRunId
+              : runs.runs[0]?.run_id) ?? '';
+          const runDetail = effectiveRunId
+            ? await getRunObservability(campaignId, effectiveRunId).catch(() => undefined)
+            : undefined;
+          return {
+            runs,
+            runDetail,
+            selectedV9Evidence: mapAgenticV9RunEvidence(runDetail),
+          };
+        });
+        const [routerResult, selectedRunResult] = await Promise.allSettled([
+          routerRequest,
+          selectedRunRequest,
+        ]);
+        const selectedRunData = selectedRunResult.status === 'fulfilled'
+          ? selectedRunResult.value
+          : { runs: undefined, runDetail: undefined, selectedV9Evidence: undefined };
+        return {
+          routerAnalysis: routerResult.status === 'fulfilled' ? routerResult.value : undefined,
+          ...selectedRunData,
+        };
+      }
       case 7: {
         const [ablation, humanVsAuto, humanQueue, errors, stageWarnings] = await Promise.all([
           getAblationAnalysis(campaignId),
@@ -368,6 +393,16 @@ export default function EvaluationCenter() {
     dashboardData.selectedV9Evidence?.runId === selectedRun?.runId
       ? dashboardData.selectedV9Evidence
       : undefined;
+  const executionContract = selectedV9Evidence?.queryContract;
+  const executionDecision = executionContract?.route_decision;
+  const executionRoute = executionContract ? {
+    route: executionContract.route,
+    decisionSource: executionDecision?.decision_source ?? null,
+    routeReason: executionDecision?.route_reason ?? null,
+    matchedRules: executionDecision?.matched_rules ?? [],
+    candidateRoutes: executionDecision?.candidate_routes ?? [],
+    fallbackReason: executionDecision?.fallback_reason ?? null,
+  } : undefined;
   const retrievalData = mapRetrieval(selectedRunDetail);
   const claimData = mapClaims(selectedRunDetail);
   const dashboardTabs = [
@@ -440,14 +475,7 @@ export default function EvaluationCenter() {
       label: 'Router Lab',
       component: <RouterLabTab
         data={mapRouterData(dashboardData)}
-        executionRoute={selectedV9Evidence?.queryContract?.route_decision ? {
-          route: selectedV9Evidence.queryContract.route_decision.selected_route,
-          decisionSource: selectedV9Evidence.queryContract.route_decision.decision_source,
-          routeReason: selectedV9Evidence.queryContract.route_decision.route_reason,
-          matchedRules: selectedV9Evidence.queryContract.route_decision.matched_rules,
-          candidateRoutes: selectedV9Evidence.queryContract.route_decision.candidate_routes,
-          fallbackReason: selectedV9Evidence.queryContract.route_decision.fallback_reason,
-        } : undefined}
+        executionRoute={executionRoute}
       />,
     },
     {

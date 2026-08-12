@@ -213,30 +213,7 @@ describe('Evaluation Center data mappers', () => {
       .toBe('not_instrumented');
   });
 
-  it('does not report retrospective router summary zeros as measured actual metrics', () => {
-    const mapped = mapRouterData({
-      campaigns: [],
-      routerAnalysis: {
-        campaign_id: 'cmp-1',
-        analysis_unit: 'execution',
-        sample_count: 0,
-        independent_question_count: 0,
-        repeat_count: 0,
-        sample_note: 'test',
-        warnings: [],
-        analysis_type: 'retrospective',
-        rows: [],
-        summaries: { saved_tokens: 0, quality_loss_vs_agentic: 0, router_regret: 0 },
-      },
-    } as DashboardApiData);
-
-    expect(mapped?.hasActualRouterRuns).toBe(false);
-    expect(mapped?.savedTokens).toBeNull();
-    expect(mapped?.qualityLossVsAgentic).toBeNull();
-    expect(mapped?.routerRegret).toBeNull();
-  });
-
-  it('keeps retrospective routing decisions tied to their run identity', () => {
+  it('maps only the typed retrospective router contract without fabricated analysis fields', () => {
     const mapped = mapRouterData({
       campaigns: [],
       routerAnalysis: {
@@ -269,8 +246,25 @@ describe('Evaluation Center data mappers', () => {
       },
     } as DashboardApiData);
 
-    expect(mapped?.comparisonRows[0]).toMatchObject({ questionId: 'Q-7', runId: 'run-7', repeat: 2 });
-    expect(mapped?.selectedDecision).toMatchObject({ questionId: 'Q-7', runId: 'run-7', repeat: 2 });
+    expect(mapped).toEqual({
+      analysisType: 'retrospective',
+      decisions: [{
+        routingDecisionId: 'routing-7',
+        runId: 'run-7',
+        campaignId: 'cmp-1',
+        questionId: 'Q-7',
+        repeat: 2,
+        spanId: null,
+        selectedMode: 'graph',
+        decisionSource: 'deterministic',
+        candidateRoutes: ['graph'],
+        matchedRules: ['graph-required'],
+        fallbackReason: null,
+        confidence: 1,
+        reason: 'The question requires graph retrieval.',
+        createdAt: '2026-08-13T00:00:00Z',
+      }],
+    });
   });
 
   it('keeps agent behavior rows distinct by run and leaves missing fields null', () => {

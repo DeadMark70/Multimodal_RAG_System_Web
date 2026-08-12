@@ -20,6 +20,7 @@ Describe the current evaluation UI as a first-class subsystem rather than a rele
   - it uses page-local `useState` + `useEffect`
   - initial load fetches only campaign inventory
   - selecting a campaign fetches the strict campaign overview through `getCampaignResearchSummary(...)`; tab-specific payloads load only after that tab is selected
+  - changing campaigns preserves the active tab, clears selected-run detail immediately, and uses request-generation guards so late responses from the previous campaign cannot repopulate the page
 
 ## Strict Research Summary Contract (schema v2)
 
@@ -148,10 +149,15 @@ Before the tab list, `EvaluationJobPanel` is mounted with `key={selectedCampaign
 7. `Router Lab`
    - component: `RouterLabTab.tsx`
    - page inputs:
-     - `getRouterAnalysis(...)`
+     - `getRouterAnalysis(...)` supplies typed retrospective-only routing decisions
+     - `getCampaignRuns(...)` and `getRunObservability(...)` independently supply the selected run's actual execution route
    - rendering behavior:
-     - warns when the campaign only has retrospective router analysis
-     - shows KPI cards, utility formula text, policy comparison table, and optional confusion matrix
+     - direct entry loads both data surfaces without depending on another run-oriented tab
+     - actual execution route comes only from `agentic_v9.contract.route`; nullable `route_decision` supplies optional provenance and never gates the route itself
+     - retrospective and selected-run requests fail independently, so either valid surface remains visible when the other is unavailable
+     - retrospective cards render only Task 8 fields: run/question/repeat identity, selected mode, decision source, matched rules, candidate routes, fallback reason, confidence, and recorded reason
+     - no inferred tier or complexity, saved-token/quality/latency/token/regret KPI, utility formula, oracle label, or confusion matrix is rendered
+     - switching campaigns keeps Router Lab active, clears the prior execution route, reloads both surfaces, and rejects late responses from the previous campaign
 
 8. `Ablation`
    - component: `AblationDashboardTab.tsx`
@@ -256,8 +262,8 @@ Before the tab list, `EvaluationJobPanel` is mounted with `key={selectedCampaign
 - `ClaimEvidenceTab.tsx`
   - `Claim-evidence alignment will appear after claim extraction is available.`
 - `RouterLabTab.tsx`
-  - `Router lab metrics will appear after router analysis is available.`
-  - plus an explicit warning when there are no actual router runs
+  - `Router analysis and execution route are unavailable.` when neither independent surface is available
+  - `No retrospective router decisions were recorded.` when the typed retrospective response contains no rows
 - `AblationDashboardTab.tsx`
   - if no tab data at all: `Ablation, human calibration, export, and debug surfaces will appear after selecting a campaign.`
   - section-level empty rows:

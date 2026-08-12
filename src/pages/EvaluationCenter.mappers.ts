@@ -361,42 +361,26 @@ export function mapAgentRows(data: DashboardApiData) {
 }
 
 export function mapRouterData(data: DashboardApiData) {
-  const rows = asRows(data.routerAnalysis?.rows);
-  const summaries = asRecord(data.routerAnalysis?.summaries);
-  if (!data.routerAnalysis && rows.length === 0) {
+  if (!data.routerAnalysis) {
     return undefined;
   }
-  const firstDecision = rows[0] ?? {};
-  const hasActualRouterRuns = rows.some((row) => row.analysis_type === 'actual');
   return {
-    analysisType: data.routerAnalysis?.analysis_type ?? 'retrospective',
-    oracleLabelSource: 'utility_best_mode' as const,
-    hasActualRouterRuns,
-    utilityFormula: stringValue(summaries.utility_formula, 'Retrospective utility summary from recorded routing decisions.'),
-    selectedDecision: {
-      selectedMode: stringValue(firstDecision.selected_mode, 'n/a'),
-      tier: stringValue(firstDecision.tier, 'n/a'),
-      complexity: stringValue(firstDecision.complexity, 'n/a'),
-      routingReason: stringValue(firstDecision.reason, 'No routing reason recorded.'),
-      questionId: stringValue(firstDecision.question_id, 'n/a'),
-      runId: stringValue(firstDecision.run_id, 'n/a'),
-      repeat: nullableNumber(firstDecision.repeat_number),
-    },
-    comparisonRows: rows.map((row, index) => ({
-      questionId: typeof row.question_id === 'string' ? row.question_id : null,
-      runId: typeof row.run_id === 'string' ? row.run_id : null,
-      repeat: nullableNumber(row.repeat_number),
-      label: stringValue(row.selected_mode, `Decision ${index + 1}`),
-      qualityScore: nullableNumber(row.quality_score),
-      avgLatencyMs: nullableNumber(row.latency_ms),
-      tokens: nullableNumber(row.total_tokens),
-      regret: nullableNumber(row.regret),
-      policyType: stringValue(row.analysis_type, 'retrospective'),
+    analysisType: data.routerAnalysis.analysis_type,
+    decisions: data.routerAnalysis.rows.map((row) => ({
+      routingDecisionId: row.routing_decision_id,
+      runId: row.run_id,
+      campaignId: row.campaign_id,
+      questionId: row.question_id,
+      repeat: row.repeat_number,
+      spanId: row.span_id ?? null,
+      selectedMode: row.selected_mode,
+      decisionSource: row.decision_source,
+      candidateRoutes: row.candidate_routes,
+      matchedRules: row.matched_rules,
+      fallbackReason: row.fallback_reason,
+      confidence: row.confidence,
+      reason: row.reason,
+      createdAt: row.created_at,
     })),
-    savedTokens: hasActualRouterRuns ? nullableNumber(summaries.saved_tokens) : null,
-    qualityLossVsAgentic: hasActualRouterRuns ? nullableNumber(summaries.quality_loss_vs_agentic) : null,
-    qualityGainVsNaive: hasActualRouterRuns ? nullableNumber(summaries.quality_gain_vs_naive) : null,
-    routerRegret: hasActualRouterRuns ? nullableNumber(summaries.router_regret) : null,
-    confusionMatrix: [],
   };
 }
