@@ -986,6 +986,20 @@ export interface EvaluationRetrievalEvent {
   error?: Record<string, unknown> | null;
 }
 
+export type ObservationAvailabilityStatus =
+  | 'complete'
+  | 'partial'
+  | 'not_instrumented'
+  | 'not_available'
+  | 'not_applicable';
+
+export type ObservationProvenance = 'measured' | 'persisted' | 'derived' | 'heuristic';
+
+export interface ObservationAvailability {
+  status: ObservationAvailabilityStatus;
+  reasons: string[];
+}
+
 export interface EvaluationRetrievalChunk {
   chunk_id?: string | null;
   doc_id?: string | null;
@@ -1001,6 +1015,9 @@ export interface EvaluationRetrievalChunk {
   used_in_context?: boolean | null;
   used_in_answer?: boolean | null;
   expected_evidence_match?: boolean | null;
+  /** Safe server projection; raw payload is intentionally empty for this endpoint. */
+  provenance?: ObservationProvenance | null;
+  availability?: ObservationAvailability | null;
   payload?: Record<string, unknown> | null;
   error?: Record<string, unknown> | null;
 }
@@ -1073,8 +1090,20 @@ export interface EvaluationClaim {
   support_status?: string | null;
   evidence?: string[];
   evidence_ids?: string[];
+  /** Safe server projection; raw evidence is intentionally omitted for this endpoint. */
+  evidence_refs?: EvaluationClaimEvidenceReference[];
+  repair_action?: string | null;
+  post_repair_status?: string | null;
+  extraction_status?: 'recorded' | 'empty' | 'not_instrumented' | null;
   payload?: Record<string, unknown> | null;
   error?: Record<string, unknown> | null;
+}
+
+export interface EvaluationClaimEvidenceReference {
+  evidence_id?: string | null;
+  doc_id?: string | null;
+  chunk_id?: string | null;
+  page?: number | null;
 }
 
 export interface EvaluationHumanRating {
@@ -1115,6 +1144,7 @@ export interface EvaluationRunObservabilityDetail {
   graph_evidence_items: EvaluationGraphEvidenceItem[];
   graph_observability_status: 'recorded' | 'fallback' | 'not_instrumented';
   claims: EvaluationClaim[];
+  claim_extraction_status?: 'recorded' | 'empty' | 'not_instrumented';
   human_ratings: EvaluationHumanRating[];
   evidence_coverage: EvaluationEvidenceCoverage[] | null;
   evidence_coverage_status: 'complete' | 'partial' | 'not_available' | 'not_instrumented';

@@ -1,13 +1,16 @@
 import { Box, Table, Tbody, Td, Text, Th, Thead, Tr } from '@chakra-ui/react';
 
 export interface ClaimRow {
-  claim: string;
-  type: string;
-  status: string;
+  claim: string | null;
+  type: string | null;
+  status: string | null;
   evidence: string[];
-  repairAction: string;
-  postRepairStatus: string;
+  repairAction: string | null;
+  postRepairStatus: string | null;
+  extractionStatus?: 'recorded' | 'empty' | 'not_instrumented' | null;
 }
+
+const textOrNA = (value: string | null) => value ?? 'N/A';
 
 export default function ClaimEvidenceTable({ claims }: { claims?: ClaimRow[] }) {
   if (!claims?.length) {
@@ -29,13 +32,13 @@ export default function ClaimEvidenceTable({ claims }: { claims?: ClaimRow[] }) 
         </Thead>
         <Tbody>
           {claims.map((claim) => (
-            <Tr key={claim.claim}>
-              <Td maxW="320px">{claim.claim}</Td>
-              <Td>{claim.type}</Td>
-              <Td>{claim.status}</Td>
-              <Td>{claim.evidence.length ? claim.evidence.join(', ') : 'none'}</Td>
-              <Td>{claim.repairAction}</Td>
-              <Td>{claim.postRepairStatus}</Td>
+            <Tr key={claim.claim ?? 'n/a'}>
+              <Td maxW="320px">{textOrNA(claim.claim)}</Td>
+              <Td>{textOrNA(claim.type)}</Td>
+              <Td>{textOrNA(claim.status)}</Td>
+              <Td>{claim.evidence.length ? claim.evidence.join(', ') : 'N/A'}</Td>
+              <Td>{textOrNA(claim.repairAction)}</Td>
+              <Td>{textOrNA(claim.postRepairStatus)}</Td>
             </Tr>
           ))}
         </Tbody>

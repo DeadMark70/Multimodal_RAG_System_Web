@@ -87,6 +87,24 @@ describe('RetrievalEvidenceTab', () => {
     expect(screen.getByText('missing')).toBeInTheDocument();
   });
 
+  it('renders typed provenance and availability without provider payload fields', () => {
+    renderWithTheme(
+      <RetrievalEvidenceTab
+        chunks={[{
+          ...chunks[0],
+          provenance: 'derived',
+          availabilityStatus: 'partial',
+          availabilityReasons: ['rerank_score_unavailable'],
+          provider: 'must-not-render',
+        } as typeof chunks[number]]}
+      />
+    );
+
+    expect(screen.getByText('Derived · partial')).toBeInTheDocument();
+    expect(screen.getByText('rerank_score_unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('must-not-render')).not.toBeInTheDocument();
+  });
+
   it('renders GraphRAG route diagnostics and fallback-safe status', () => {
     renderWithTheme(
       <RetrievalEvidenceTab

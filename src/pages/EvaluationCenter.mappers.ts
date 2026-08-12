@@ -11,6 +11,7 @@ import type {
   EvaluationRunListResponse,
   HumanEvalQueueResponse,
   HumanVsAutoResponse,
+  EvaluationClaim,
   QuestionComparisonRow,
   ResearchQuestionComparisonResponse,
   RouterAnalysisResponse,
@@ -183,8 +184,46 @@ export function scalarString(value: unknown, fallback: string): string {
   return typeof value === 'string' || typeof value === 'number' ? String(value) : fallback;
 }
 
-export function nullableBoolean(value: unknown, instrumented: boolean): boolean | null {
-  return instrumented && typeof value === 'boolean' ? value : null;
+export function nullableBoolean(value: unknown, available = true): boolean | null {
+  return available && typeof value === 'boolean' ? value : null;
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function numberArray(value: unknown): number[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is number => typeof item === 'number' && Number.isFinite(item))
+    : [];
+}
+
+function safeClaimReferenceText(reference: NonNullable<EvaluationClaim['evidence_refs']>[number]): string | null {
+  if (typeof reference.chunk_id === 'string') return reference.chunk_id;
+  if (typeof reference.evidence_id === 'string') return reference.evidence_id;
+  if (typeof reference.doc_id === 'string') return reference.doc_id;
+  return typeof reference.page === 'number' ? `p. ${reference.page}` : null;
+}
+
+export function mapClaims(detail?: Pick<EvaluationRunObservabilityDetail, 'claims'>) {
+  const claims = (detail?.claims ?? []).map((claim) => ({
+    claim: typeof claim.claim_text === 'string' ? claim.claim_text : null,
+    type: typeof claim.claim_type === 'string' ? claim.claim_type : null,
+    status: typeof claim.support_status === 'string' ? claim.support_status : null,
+    evidence: (claim.evidence_refs ?? [])
+      .map(safeClaimReferenceText)
+      .filter((reference): reference is string => reference !== null),
+    repairAction: typeof claim.repair_action === 'string' ? claim.repair_action : null,
+    postRepairStatus: typeof claim.post_repair_status === 'string' ? claim.post_repair_status : null,
+    extractionStatus: claim.extraction_status ?? null,
+  }));
+
+  return {
+    claims,
+    unsupportedReasons: claims
+      .filter((claim) => claim.status !== null && claim.status !== 'supported' && claim.claim !== null)
+      .flatMap((claim) => claim.claim === null ? [] : [claim.claim]),
+  };
 }
 
 export function mapQuestionRows(data: DashboardApiData) {
@@ -216,23 +255,23 @@ export function mapRetrieval(detail?: RetrievalObservabilityProjection) {
     })),
     chunks: (detail?.retrieval_chunks ?? []).map((chunk, index) => {
       const hasPage = typeof chunk.page_start === 'number' || typeof chunk.page_end === 'number';
-      const payload = asRecord(chunk.payload);
-      const instrumented = typeof payload.instrumentation_depth === 'string';
       const pageStart = scalarString(chunk.page_start, '?');
       const pageEnd = scalarString(chunk.page_end, pageStart);
       return {
         rank: numberValue(chunk.rank_after_rerank, numberValue(chunk.rank_before_rerank, index + 1)),
         docId: stringValue(chunk.doc_id, stringValue(chunk.chunk_id, 'n/a')),
         page: hasPage ? `${pageStart}-${pageEnd}` : 'n/a',
-        modality: stringValue(chunk.modality, 'text'),
+        modality: stringValue(chunk.modality, 'N/A'),
         denseScore: nullableNumber(chunk.dense_score),
         bm25Score: nullableNumber(chunk.bm25_score),
         rerankScore: nullableNumber(chunk.rerank_score),
-        inContext: nullableBoolean(chunk.used_in_context, instrumented),
-        usedInAnswer: nullableBoolean(chunk.used_in_answer, instrumented),
-        goldMatch: nullableBoolean(chunk.expected_evidence_match, instrumented),
+        inContext: nullableBoolean(chunk.used_in_context),
+        usedInAnswer: nullableBoolean(chunk.used_in_answer),
+        goldMatch: nullableBoolean(chunk.expected_evidence_match),
         excerpt: stringValue(chunk.excerpt),
-        instrumentationDepth: instrumented ? String(payload.instrumentation_depth) : null,
+        provenance: chunk.provenance ?? null,
+        availabilityStatus: chunk.availability?.status ?? null,
+        availabilityReasons: chunk.availability?.reasons ?? null,
       };
     }),
     coverage: Array.isArray(detail?.evidence_coverage)
@@ -259,6 +298,12 @@ export function mapRetrieval(detail?: RetrievalObservabilityProjection) {
         }))
       : undefined,
     coverageStatus: detail?.evidence_coverage_status ?? 'not_available',
+    graphEvidence: (detail?.graph_evidence_items ?? []).map((row) => ({
+      sourceDocIds: stringArray(row.source_doc_ids),
+      sourceChunkIds: stringArray(row.source_chunk_ids),
+      pages: numberArray(row.pages),
+      assetIds: stringArray(row.asset_ids),
+    })),
     graph: {
       status: detail?.graph_observability_status ?? 'not_instrumented',
       events: (detail?.graph_events ?? []).map((event) => ({
@@ -270,8 +315,8 @@ export function mapRetrieval(detail?: RetrievalObservabilityProjection) {
         graphToChunkSuccessRate: nullableNumber(event.graph_to_chunk_success_rate),
       })),
       evidenceItems: (detail?.graph_evidence_items ?? []).map((item) => ({
-        source: item.source_doc_ids?.[0] ?? item.source_id ?? item.source ?? null,
-        locator: item.source_chunk_ids?.[0] ?? item.locator ?? item.page_label ?? null,
+        source: stringArray(item.source_doc_ids)[0] ?? null,
+        locator: stringArray(item.source_chunk_ids)[0] ?? null,
       })),
     },
   };

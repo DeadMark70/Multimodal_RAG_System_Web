@@ -173,4 +173,20 @@ describe('ClaimEvidenceTable', () => {
     expect(screen.getByText('Repair Action')).toBeInTheDocument();
     expect(screen.getByText('Post Repair Status')).toBeInTheDocument();
   });
+
+  it('renders typed evidence references without provider payload fields', () => {
+    renderWithTheme(<ClaimEvidenceTable claims={[{
+      claim: 'Typed claim evidence',
+      type: 'numeric',
+      status: 'supported',
+      evidence: ['chunk-1'],
+      repairAction: 'retry_retrieval',
+      postRepairStatus: 'supported',
+      extractionStatus: 'recorded',
+    }]} />);
+
+    expect(screen.getByText('chunk-1')).toBeInTheDocument();
+    expect(screen.getByText('retry_retrieval')).toBeInTheDocument();
+    expect(screen.queryByText('must-not-render')).not.toBeInTheDocument();
+  });
 });

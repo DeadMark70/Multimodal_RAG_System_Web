@@ -20,6 +20,7 @@ import {
   asRecord,
   mapAgentRows,
   mapAgenticV9RunEvidence,
+  mapClaims,
   mapQuestionRows,
   mapRetrieval,
   mapRouterData,
@@ -84,21 +85,6 @@ function mapTraceEvents(detail?: EvaluationRunObservabilityDetail) {
     payload: asRecord(event.payload),
     error: asRecord(event.error),
   }));
-}
-
-function mapClaims(detail?: EvaluationRunObservabilityDetail) {
-  const claims = (detail?.claims ?? []).map((claim) => ({
-    claim: stringValue(claim.claim_text, 'n/a'),
-    type: stringValue(claim.claim_type, 'claim'),
-    status: stringValue(claim.support_status, 'unknown'),
-    evidence: Array.isArray(claim.evidence) ? claim.evidence.map((item) => JSON.stringify(item)) : [],
-    repairAction: stringValue(asRecord(claim.payload).repair_action, 'none'),
-    postRepairStatus: stringValue(asRecord(claim.payload).post_repair_status, stringValue(claim.support_status, 'unknown')),
-  }));
-  return {
-    claims,
-    unsupportedReasons: claims.filter((claim) => claim.status !== 'supported').map((claim) => claim.claim),
-  };
 }
 
 function mapRetrievalSummary(detail?: EvaluationRunObservabilityDetail): string {

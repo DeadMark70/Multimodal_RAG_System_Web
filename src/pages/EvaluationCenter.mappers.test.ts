@@ -3,6 +3,7 @@ import type { EvaluationRunObservabilityDetail } from '../types/evaluation';
 import {
   mapAgentRows,
   mapAgenticV9RunEvidence,
+  mapClaims,
   mapQuestionRows,
   mapRetrieval,
   mapRouterData,
@@ -84,6 +85,111 @@ describe('Evaluation Center data mappers', () => {
       status: 'not_instrumented',
       events: [{ route: null, routerReason: null, nodeCount: 0, edgeCount: null, pathCount: 0 }],
       evidenceItems: [{ source: 'doc-1', locator: 'chunk-1' }],
+    });
+  });
+
+  it('maps typed retrieval provenance and graph evidence without payload guesses', () => {
+    const mapped = mapRetrieval({
+      run_id: 'run-typed-evidence',
+      campaign_id: 'cmp-typed-evidence',
+      retrieval_events: [],
+      retrieval_chunks: [{
+        chunk_id: 'chunk-1',
+        doc_id: 'doc-1',
+        rank_after_rerank: 1,
+        modality: null,
+        used_in_context: true,
+        used_in_answer: false,
+        expected_evidence_match: false,
+        provenance: 'derived',
+        availability: { status: 'partial', reasons: ['rerank_score_unavailable'] },
+        payload: { provider: 'must-not-render' },
+      }],
+      context_packs: [],
+      trace_events: [],
+      llm_calls: [],
+      tool_calls: [],
+      routing_decisions: [],
+      claims: [],
+      human_ratings: [],
+      evidence_coverage: null,
+      graph_observability_status: 'recorded',
+      graph_events: [],
+      graph_evidence_items: [{
+        source_doc_ids: ['doc-1'],
+        source_chunk_ids: ['chunk-1'],
+        pages: [4],
+        asset_ids: ['asset-1'],
+      }],
+    } as Partial<EvaluationRunObservabilityDetail>);
+
+    expect(mapped.chunks[0]).toMatchObject({
+      inContext: true,
+      usedInAnswer: false,
+      provenance: 'derived',
+      availabilityStatus: 'partial',
+    });
+    expect(mapped.chunks[0]?.modality).toBe('N/A');
+    expect(mapped.graphEvidence[0]).toMatchObject({
+      sourceDocIds: ['doc-1'],
+      sourceChunkIds: ['chunk-1'],
+      pages: [4],
+      assetIds: ['asset-1'],
+    });
+  });
+
+  it('keeps historical not-available retrieval booleans null', () => {
+    const mapped = mapRetrieval({
+      run_id: 'run-historical-evidence',
+      campaign_id: 'cmp-historical-evidence',
+      retrieval_events: [],
+      retrieval_chunks: [{
+        chunk_id: 'chunk-historical',
+        availability: { status: 'not_available', reasons: ['provenance_not_recorded'] },
+        provenance: 'persisted',
+        used_in_context: null,
+        used_in_answer: null,
+        expected_evidence_match: null,
+      }],
+      context_packs: [],
+      trace_events: [],
+      llm_calls: [],
+      tool_calls: [],
+      routing_decisions: [],
+      graph_events: [],
+      graph_evidence_items: [],
+      claims: [],
+      human_ratings: [],
+      evidence_coverage: null,
+      graph_observability_status: 'not_instrumented',
+    } as Partial<EvaluationRunObservabilityDetail>);
+
+    expect(mapped.chunks[0]).toMatchObject({
+      inContext: null,
+      usedInAnswer: null,
+      goldMatch: null,
+    });
+  });
+
+  it('maps only safe typed claim evidence and repair fields', () => {
+    const mappedClaims = mapClaims({
+      claims: [{
+        claim_text: 'The metric is supported.',
+        claim_type: 'numeric',
+        support_status: 'supported',
+        evidence: ['provider evidence that must not render'],
+        evidence_refs: [{ chunk_id: 'chunk-1', doc_id: 'doc-1', page: 4 }],
+        repair_action: 'retry_retrieval',
+        post_repair_status: 'supported',
+        extraction_status: 'recorded',
+        payload: { provider: 'must-not-render' },
+      }],
+    });
+
+    expect(mappedClaims.claims[0]).toMatchObject({
+      evidence: ['chunk-1'],
+      repairAction: 'retry_retrieval',
+      postRepairStatus: 'supported',
     });
   });
 

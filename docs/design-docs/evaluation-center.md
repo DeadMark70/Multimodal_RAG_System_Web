@@ -119,6 +119,8 @@ The primary analytics surface is an 8-tab Chakra `Tabs` control rendered directl
      - retrieval scores and boolean evidence flags are nullable
      - `evidence_coverage_status` distinguishes complete/partial/not available/not instrumented
      - a missing flag is `N/A`; measured `false` remains `no`
+     - retrieval rows use the typed safe projection: nullable flags, provenance, and availability status/reasons; the UI never infers instrumentation from raw payloads and shows provenance/status as compact labels above the existing chunk table
+     - graph evidence preserves plural typed source document IDs, source chunk IDs, pages, and asset IDs; claim evidence uses only typed evidence references and repair/extraction fields, never raw provider payloads
 
 5. `Agent Behavior`
    - component: `AgentBehaviorTab.tsx`
