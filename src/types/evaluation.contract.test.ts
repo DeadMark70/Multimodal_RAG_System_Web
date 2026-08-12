@@ -1,10 +1,59 @@
 import { describe, expect, it } from 'vitest';
 import { AGENTIC_V9_API_CONTRACT } from '../test/fixtures/agenticV9ApiContract';
 import type {
+  CampaignMode,
+  CampaignProgressEvent,
   CampaignPreflightRequest,
+  EvaluationRunListItem,
   EvaluationRunObservabilityDetail,
+  RouterAnalysisResponse,
+  RouterAnalysisRow,
   V9ExecutionObservability,
 } from './evaluation';
+
+type Equal<Actual, Expected> =
+  (<Value>() => Value extends Actual ? 1 : 2) extends
+  (<Value>() => Value extends Expected ? 1 : 2)
+    ? (<Value>() => Value extends Expected ? 1 : 2) extends
+      (<Value>() => Value extends Actual ? 1 : 2)
+      ? true
+      : false
+    : false;
+type Expect<Condition extends true> = Condition;
+
+type ExpectedRouterAnalysisRow = {
+  routing_decision_id: string;
+  run_id: string;
+  campaign_id: string;
+  question_id: string;
+  repeat_number: number;
+  span_id?: string | null;
+  selected_mode: CampaignMode;
+  analysis_type: 'retrospective';
+  decision_source: 'deterministic' | 'llm_planner' | 'safe_fallback' | null;
+  candidate_routes: string[];
+  matched_rules: string[];
+  fallback_reason: string | null;
+  confidence: number | null;
+  reason: string | null;
+  created_at: string;
+};
+
+type RouterAnalysisRowMatchesBackend = Expect<
+  Equal<RouterAnalysisRow, ExpectedRouterAnalysisRow>
+>;
+type RouterAnalysisResponseRowsMatchBackend = Expect<
+  Equal<RouterAnalysisResponse['rows'][number], ExpectedRouterAnalysisRow>
+>;
+type CampaignProgressHasNoLatestResultId = Expect<
+  'latest_result_id' extends keyof CampaignProgressEvent ? false : true
+>;
+
+const activeContractTypeChecks: [
+  RouterAnalysisRowMatchesBackend,
+  RouterAnalysisResponseRowsMatchBackend,
+  CampaignProgressHasNoLatestResultId,
+] = [true, true, true];
 
 describe('agentic v9 evaluation contract', () => {
   it('pins the backend OpenAPI hash and frontend baseline', () => {
@@ -20,6 +69,63 @@ describe('agentic v9 evaluation contract', () => {
     });
     expect(AGENTIC_V9_API_CONTRACT.control_plane_fields).not.toHaveProperty('campaign_status');
     expect(AGENTIC_V9_API_CONTRACT.release_metrics.required_fields).toContain('benchmark_id');
+  });
+
+  it('models the active evaluation API contract without compatibility fields', () => {
+    const runListItem: EvaluationRunListItem = {
+      run_id: 'run-1',
+      campaign_id: 'campaign-1',
+      question_id: 'Q1',
+      question: 'Which route was selected?',
+      mode: 'agentic-v9',
+      run_number: 1,
+      status: 'completed',
+      total_tokens: null,
+      created_at: '2026-08-13T00:00:00Z',
+    };
+    const progress: CampaignProgressEvent = {
+      campaign_id: 'campaign-1',
+      status: 'running',
+      phase: 'execution',
+      completed_units: 0,
+      total_units: 1,
+      evaluation_completed_units: 0,
+      evaluation_total_units: 1,
+    };
+    const routerAnalysis: RouterAnalysisResponse = {
+      campaign_id: 'campaign-1',
+      analysis_unit: 'execution',
+      sample_count: 1,
+      independent_question_count: 1,
+      repeat_count: 1,
+      sample_note: 'one recorded routing decision',
+      warnings: [],
+      summaries: {},
+      analysis_type: 'retrospective',
+      rows: [{
+        routing_decision_id: 'routing-1',
+        run_id: 'run-1',
+        campaign_id: 'campaign-1',
+        question_id: 'Q1',
+        repeat_number: 1,
+        span_id: null,
+        selected_mode: 'agentic-v9',
+        analysis_type: 'retrospective',
+        decision_source: 'llm_planner',
+        candidate_routes: ['agentic-v9'],
+        matched_rules: ['route-agentic-v9'],
+        fallback_reason: null,
+        confidence: 0.9,
+        reason: 'The request requires grounded multi-step reasoning.',
+        created_at: '2026-08-13T00:00:00Z',
+      }],
+    };
+
+    expect(runListItem.total_tokens).toBeNull();
+    expect('latest_result_id' in progress).toBe(false);
+    expect(routerAnalysis.rows[0].analysis_type).toBe('retrospective');
+    expect(routerAnalysis.rows[0]).not.toHaveProperty('payload');
+    expect(activeContractTypeChecks).toEqual([true, true, true]);
   });
 
   it('keeps historical v8 observability valid when v9 observability is null', () => {

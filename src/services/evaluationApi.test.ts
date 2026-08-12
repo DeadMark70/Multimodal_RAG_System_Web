@@ -52,7 +52,7 @@ import {
   updateModelConfig,
   updateTestCase,
 } from './evaluationApi';
-import type { AvailableModel } from '../types/evaluation';
+import type { AvailableModel, RouterAnalysisResponse } from '../types/evaluation';
 
 const researchSummaryFixture = {
   campaign_id: 'cmp-1',
@@ -80,6 +80,35 @@ const researchSummaryFixture = {
   }, latency: { mean_ms: 1000, p50_ms: 900, p95_ms: 1200, sample_count: 2, method: 'nearest_rank' as const, low_sample_size: true }, tokens: { input_tokens: 120, output_text_tokens: 80, reasoning_tokens: 20, other_tokens: 0, total_tokens: 220, by_phase: { execution: 220 }, accounting_status: 'complete' as const, phase_attribution_status: 'complete' as const }, execution_cost: { benchmark_usd: 0.02, operational_usd: 0.02, pricing_status: 'complete' as const, priced_call_count: 2, unpriced_call_count: 0 } }],
   evaluation_overhead: { tokens: { input_tokens: 0, output_text_tokens: 0, reasoning_tokens: 0, other_tokens: 0, total_tokens: 0, by_phase: {}, accounting_status: 'complete' as const, phase_attribution_status: 'complete' as const }, cost_usd: 0, pricing_status: 'complete' as const, evaluator_models: ['gemini-2.5-pro'], metric_names: ['faithfulness', 'answer_correctness', 'answer_relevancy'], batch_count: 1, retry_count: 0 },
   warnings: [],
+};
+
+const routerAnalysisFixture: RouterAnalysisResponse = {
+  campaign_id: 'cmp-1',
+  analysis_unit: 'execution',
+  sample_count: 1,
+  independent_question_count: 1,
+  repeat_count: 1,
+  sample_note: 'one recorded routing decision',
+  warnings: [],
+  summaries: {},
+  analysis_type: 'retrospective',
+  rows: [{
+    routing_decision_id: 'routing-1',
+    run_id: 'run-1',
+    campaign_id: 'cmp-1',
+    question_id: 'Q1',
+    repeat_number: 1,
+    span_id: null,
+    selected_mode: 'agentic-v9',
+    analysis_type: 'retrospective',
+    decision_source: 'llm_planner',
+    candidate_routes: ['agentic-v9'],
+    matched_rules: ['route-agentic-v9'],
+    fallback_reason: null,
+    confidence: 0.9,
+    reason: 'The request requires grounded multi-step reasoning.',
+    created_at: '2026-08-13T00:00:00Z',
+  }],
 };
 
 vi.mock('./api', () => ({
@@ -445,11 +474,7 @@ describe('evaluationApi', () => {
           mode_comparison: { campaign_id: 'cmp-1', rows: [{ mode: 'naive' }] },
           question_comparison: { campaign_id: 'cmp-1', rows: [{ question_id: 'Q1' }] },
           cost_latency: { campaign_id: 'cmp-1', rows: [{ run_id: 'run-1' }] },
-          router_analysis: {
-            campaign_id: 'cmp-1',
-            analysis_type: 'retrospective',
-            rows: [{ selected_mode: 'naive' }],
-          },
+          router_analysis: routerAnalysisFixture,
           ablation: { campaign_id: 'cmp-1', rows: [{ condition_id: 'baseline' }] },
           human_vs_auto: { campaign_id: 'cmp-1', rows: [{ run_id: 'run-1' }] },
           human_queue: { campaign_id: 'cmp-1', rows: [] },
@@ -461,9 +486,7 @@ describe('evaluationApi', () => {
       .mockResolvedValueOnce({ data: { campaign_id: 'cmp-1', rows: [{ mode: 'naive' }] } })
       .mockResolvedValueOnce({ data: { campaign_id: 'cmp-1', rows: [{ question_id: 'Q1' }] } })
       .mockResolvedValueOnce({ data: { campaign_id: 'cmp-1', rows: [{ run_id: 'run-1' }] } })
-      .mockResolvedValueOnce({
-        data: { campaign_id: 'cmp-1', analysis_type: 'retrospective', rows: [{ selected_mode: 'naive' }] },
-      })
+      .mockResolvedValueOnce({ data: routerAnalysisFixture })
       .mockResolvedValueOnce({ data: { campaign_id: 'cmp-1', rows: [{ condition_id: 'baseline' }] } })
       .mockResolvedValueOnce({ data: { campaign_id: 'cmp-1', rows: [{ run_id: 'run-1' }] } });
 
@@ -503,11 +526,7 @@ describe('evaluationApi', () => {
     });
     expect(mockedApi.get).toHaveBeenNthCalledWith(6, '/api/evaluation/campaigns/cmp-1/cost-latency');
 
-    expect(await getRouterAnalysis('cmp-1')).toEqual({
-      campaign_id: 'cmp-1',
-      analysis_type: 'retrospective',
-      rows: [{ selected_mode: 'naive' }],
-    });
+    expect(await getRouterAnalysis('cmp-1')).toEqual(routerAnalysisFixture);
     expect(mockedApi.get).toHaveBeenNthCalledWith(7, '/api/evaluation/campaigns/cmp-1/router-analysis');
 
     expect(await getAblationAnalysis('cmp-1')).toEqual({

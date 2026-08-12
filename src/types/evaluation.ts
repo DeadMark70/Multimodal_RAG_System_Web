@@ -495,8 +495,26 @@ export type QuestionComparisonResponse = AnalyticsAggregateResponse;
 
 export type CostLatencyResponse = AnalyticsAggregateResponse;
 
-export interface RouterAnalysisResponse extends AnalyticsAggregateResponse {
-  analysis_type: 'retrospective' | 'actual';
+export interface RouterAnalysisRow {
+  routing_decision_id: string;
+  run_id: string;
+  campaign_id: string;
+  question_id: string;
+  repeat_number: number;
+  span_id?: string | null;
+  selected_mode: CampaignMode;
+  analysis_type: 'retrospective';
+  decision_source: 'deterministic' | 'llm_planner' | 'safe_fallback' | null;
+  candidate_routes: string[];
+  matched_rules: string[];
+  fallback_reason: string | null;
+  confidence: number | null;
+  reason: string | null;
+  created_at: string;
+}
+
+export interface RouterAnalysisResponse extends AnalyticsAggregateResponse<RouterAnalysisRow> {
+  analysis_type: 'retrospective';
 }
 
 export type ConditionMetricName = 'answer_correctness' | 'faithfulness' | 'answer_relevancy';
@@ -563,7 +581,7 @@ export interface EvaluationRunListItem {
   agentic_execution_version?: AgenticExecutionVersion;
   response_status?: string | null;
   status: CampaignResultStatus;
-  total_tokens: number;
+  total_tokens: number | null;
   total_latency_ms?: number | null;
   created_at: string;
 }
@@ -1373,7 +1391,6 @@ export interface CampaignProgressEvent {
   evaluation_total_units: number;
   current_question_id?: string | null;
   current_mode?: CampaignMode | null;
-  latest_result_id?: string | null;
 }
 
 export interface MetricAggregate {
