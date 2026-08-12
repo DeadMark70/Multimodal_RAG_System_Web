@@ -42,3 +42,12 @@ test('Nginx serves PDF.js module workers with a JavaScript MIME type', () => {
     /location ~\* \\.mjs\$\s*\{\s*default_type application\/javascript;\s*try_files \$uri =404;\s*\}/,
   );
 });
+
+test('Content Security Policy allows PDF.js to read blob URLs', () => {
+  const config = readFileSync(configPath, 'utf8');
+
+  assert.match(
+    config,
+    /connect-src 'self' blob: https:\/\/\*\.supabase\.co wss:\/\/\*\.supabase\.co;/,
+  );
+});
