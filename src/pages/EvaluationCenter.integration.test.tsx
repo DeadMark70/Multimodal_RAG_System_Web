@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
@@ -590,6 +590,74 @@ describe('Evaluation Center real data flow', () => {
     await waitFor(() => expect(apiMocks.getCampaignReleaseMetrics).toHaveBeenCalledTimes(2));
     expect(await screen.findByText('3 / 3')).toBeInTheDocument();
     expect(screen.queryByText('2 / 3')).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Campaign Overview' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('keeps newer terminal Overview data when the initial same-campaign request resolves late', async () => {
+    let resolveInitialSummary!: (value: typeof completeFixture) => void;
+    const initialSummary = new Promise<typeof completeFixture>((resolve) => {
+      resolveInitialSummary = resolve;
+    });
+    apiMocks.getCampaignResearchSummary
+      .mockImplementationOnce(() => initialSummary)
+      .mockResolvedValueOnce({
+        ...completeFixture,
+        campaign_id: campaign.id,
+        completed_run_count: 3,
+        total_run_count: 3,
+      });
+
+    renderPage();
+
+    await waitFor(() => expect(apiMocks.getCampaignResearchSummary).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(jobPanelProps.at(-1)?.campaignId).toBe(campaign.id));
+
+    jobPanelProps.at(-1)?.onJobTerminal?.({
+      job_id: 'overview-terminal-race',
+      campaign_id: campaign.id,
+    } as never);
+
+    await waitFor(() => expect(apiMocks.getCampaignResearchSummary).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText('3 / 3')).toBeInTheDocument();
+
+    await act(async () => {
+      resolveInitialSummary({
+        ...completeFixture,
+        campaign_id: campaign.id,
+        completed_run_count: 2,
+        total_run_count: 3,
+      });
+      await initialSummary;
+    });
+
+    expect(screen.getByText('3 / 3')).toBeInTheDocument();
+    expect(screen.queryByText('2 / 3')).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Campaign Overview' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('lets the terminal refresh own Overview loading when benchmark applicability changes', async () => {
+    const campaignWithoutBenchmark = {
+      ...campaign,
+      config: { ...campaign.config, benchmark_id: null },
+    };
+    apiMocks.listCampaigns
+      .mockResolvedValueOnce([campaignWithoutBenchmark])
+      .mockResolvedValueOnce([campaign]);
+
+    renderPage();
+
+    expect(await screen.findByText('2 / 2')).toBeInTheDocument();
+    expect(apiMocks.getCampaignResearchSummary).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getCampaignReleaseMetrics).not.toHaveBeenCalled();
+
+    jobPanelProps.at(-1)?.onJobTerminal?.({
+      job_id: 'overview-terminal-benchmark',
+      campaign_id: campaign.id,
+    } as never);
+
+    await waitFor(() => expect(apiMocks.listCampaigns).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(apiMocks.getCampaignReleaseMetrics).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.getCampaignResearchSummary).toHaveBeenCalledTimes(2));
     expect(screen.getByRole('tab', { name: 'Campaign Overview' })).toHaveAttribute('aria-selected', 'true');
   });
 

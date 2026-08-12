@@ -132,8 +132,10 @@ export default function EvaluationCenter() {
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const loadedTabsRef = useRef(new Set<string>());
   const requestGenerationRef = useRef(0);
+  const overviewRequestRef = useRef(0);
   const runDetailRequestRef = useRef(0);
   const selectedCampaignIdRef = useRef('');
+  const selectedCampaignHasBenchmarkRef = useRef(false);
 
   useEffect(() => {
     selectedCampaignIdRef.current = selectedCampaignId;
@@ -181,6 +183,10 @@ export default function EvaluationCenter() {
   const selectedCampaignHasBenchmark = Boolean(selectedCampaign?.config.benchmark_id);
 
   useEffect(() => {
+    selectedCampaignHasBenchmarkRef.current = selectedCampaignHasBenchmark;
+  }, [selectedCampaignHasBenchmark]);
+
+  useEffect(() => {
     if (!selectedCampaignId) {
       return;
     }
@@ -188,6 +194,8 @@ export default function EvaluationCenter() {
     let mounted = true;
     const generation = requestGenerationRef.current + 1;
     requestGenerationRef.current = generation;
+    const overviewRequest = overviewRequestRef.current + 1;
+    overviewRequestRef.current = overviewRequest;
     runDetailRequestRef.current += 1;
     loadedTabsRef.current = new Set();
     setSelectedRunId('');
@@ -197,9 +205,14 @@ export default function EvaluationCenter() {
       try {
         const { researchSummary, releaseMetrics } = await loadCampaignOverviewData(
           selectedCampaignId,
-          selectedCampaignHasBenchmark,
+          selectedCampaignHasBenchmarkRef.current,
         );
-        if (!mounted) {
+        if (
+          !mounted
+          || overviewRequest !== overviewRequestRef.current
+          || generation !== requestGenerationRef.current
+          || selectedCampaignId !== selectedCampaignIdRef.current
+        ) {
           return;
         }
         setDashboardData((current) => ({ ...current, researchSummary, releaseMetrics }));
@@ -217,7 +230,7 @@ export default function EvaluationCenter() {
     return () => {
       mounted = false;
     };
-  }, [selectedCampaignHasBenchmark, selectedCampaignId]);
+  }, [selectedCampaignId]);
 
   const loadTabData = useCallback(async (tabIndex: number, campaignId: string, preferredRunId?: string) => {
     switch (tabIndex) {
@@ -344,13 +357,16 @@ export default function EvaluationCenter() {
           if (activeTabIndex === 0) {
             const generation = requestGenerationRef.current;
             const refreshedCampaign = campaigns.find((campaign) => campaign.id === sourceCampaignId);
+            const overviewRequest = overviewRequestRef.current + 1;
+            overviewRequestRef.current = overviewRequest;
             const overviewData = await loadCampaignOverviewData(
               sourceCampaignId,
               Boolean(refreshedCampaign?.config.benchmark_id),
             );
             if (
-              sourceCampaignId !== selectedCampaignIdRef.current
+              overviewRequest !== overviewRequestRef.current
               || generation !== requestGenerationRef.current
+              || sourceCampaignId !== selectedCampaignIdRef.current
             ) {
               return;
             }
