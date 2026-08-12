@@ -33,3 +33,12 @@ test('Nginx enforces public API limits while preserving health and upload routin
     'upload regex must appear before the general API regex',
   );
 });
+
+test('Nginx serves PDF.js module workers with a JavaScript MIME type', () => {
+  const config = readFileSync(configPath, 'utf8');
+
+  assert.match(
+    config,
+    /location ~\* \\.mjs\$\s*\{\s*default_type application\/javascript;\s*try_files \$uri =404;\s*\}/,
+  );
+});
