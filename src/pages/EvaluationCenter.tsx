@@ -108,6 +108,18 @@ function mapClaimsSummary(detail?: EvaluationRunObservabilityDetail): string {
     : 'Claim extraction telemetry was not recorded for this run.';
 }
 
+async function loadCampaignOverviewData(campaignId: string, hasBenchmark: boolean) {
+  const [researchSummary, releaseMetrics] = await Promise.all([
+    getCampaignResearchSummary(campaignId),
+    // Historical deployments may not yet expose Wave 7. Do not make the
+    // established research dashboard unavailable because of that.
+    hasBenchmark
+      ? getCampaignReleaseMetrics(campaignId).catch(() => undefined)
+      : Promise.resolve(undefined),
+  ]);
+  return { researchSummary, releaseMetrics };
+}
+
 export default function EvaluationCenter() {
   const setupDrawer = useDisclosure();
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
@@ -162,6 +174,12 @@ export default function EvaluationCenter() {
     };
   }, [loadCampaignInventory]);
 
+  const selectedCampaign = useMemo(
+    () => dashboardData.campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
+    [dashboardData.campaigns, selectedCampaignId]
+  );
+  const selectedCampaignHasBenchmark = Boolean(selectedCampaign?.config.benchmark_id);
+
   useEffect(() => {
     if (!selectedCampaignId) {
       return;
@@ -177,17 +195,10 @@ export default function EvaluationCenter() {
     const loadDashboard = async () => {
       setLoadingDashboard(true);
       try {
-        const selectedCampaign = dashboardData.campaigns.find(
-          (campaign) => campaign.id === selectedCampaignId
+        const { researchSummary, releaseMetrics } = await loadCampaignOverviewData(
+          selectedCampaignId,
+          selectedCampaignHasBenchmark,
         );
-        const [researchSummary, releaseMetrics] = await Promise.all([
-          getCampaignResearchSummary(selectedCampaignId),
-          // Historical deployments may not yet expose Wave 7. Do not make the
-          // established research dashboard unavailable because of that.
-          selectedCampaign?.config.benchmark_id
-            ? getCampaignReleaseMetrics(selectedCampaignId).catch(() => undefined)
-            : Promise.resolve(undefined),
-        ]);
         if (!mounted) {
           return;
         }
@@ -206,7 +217,7 @@ export default function EvaluationCenter() {
     return () => {
       mounted = false;
     };
-  }, [selectedCampaignId]);
+  }, [selectedCampaignHasBenchmark, selectedCampaignId]);
 
   const loadTabData = useCallback(async (tabIndex: number, campaignId: string, preferredRunId?: string) => {
     switch (tabIndex) {
@@ -326,8 +337,25 @@ export default function EvaluationCenter() {
         return;
       }
       void loadCampaignInventory()
-        .then(() => {
+        .then(async (campaigns) => {
           if (sourceCampaignId !== selectedCampaignIdRef.current) {
+            return;
+          }
+          if (activeTabIndex === 0) {
+            const generation = requestGenerationRef.current;
+            const refreshedCampaign = campaigns.find((campaign) => campaign.id === sourceCampaignId);
+            const overviewData = await loadCampaignOverviewData(
+              sourceCampaignId,
+              Boolean(refreshedCampaign?.config.benchmark_id),
+            );
+            if (
+              sourceCampaignId !== selectedCampaignIdRef.current
+              || generation !== requestGenerationRef.current
+            ) {
+              return;
+            }
+            setDashboardData((current) => ({ ...current, ...overviewData }));
+            setDashboardError(null);
             return;
           }
           loadedTabsRef.current.delete(`${sourceCampaignId}:${activeTabIndex}`);
@@ -381,10 +409,6 @@ export default function EvaluationCenter() {
     [selectedCampaignId, selectedRunId]
   );
 
-  const selectedCampaign = useMemo(
-    () => dashboardData.campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
-    [dashboardData.campaigns, selectedCampaignId]
-  );
   const runOptions = mapRunOptions(dashboardData.runs);
   const selectedRun = runOptions.find((run) => run.runId === selectedRunId) ?? runOptions[0];
   const selectedRunDetail =

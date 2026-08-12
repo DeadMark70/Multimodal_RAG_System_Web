@@ -560,6 +560,39 @@ describe('Evaluation Center real data flow', () => {
     expect(screen.getByRole('tab', { name: 'Campaign Overview' })).toHaveAttribute('aria-selected', 'false');
   });
 
+  it('refreshes campaign inventory and Overview data after a terminal job', async () => {
+    apiMocks.getCampaignResearchSummary
+      .mockResolvedValueOnce({
+        ...completeFixture,
+        campaign_id: campaign.id,
+        completed_run_count: 2,
+        total_run_count: 3,
+      })
+      .mockResolvedValueOnce({
+        ...completeFixture,
+        campaign_id: campaign.id,
+        completed_run_count: 3,
+        total_run_count: 3,
+      });
+
+    renderPage();
+
+    expect(await screen.findByText('2 / 3')).toBeInTheDocument();
+    await waitFor(() => expect(jobPanelProps.at(-1)?.campaignId).toBe(campaign.id));
+
+    jobPanelProps.at(-1)?.onJobTerminal?.({
+      job_id: 'overview-terminal',
+      campaign_id: campaign.id,
+    } as never);
+
+    await waitFor(() => expect(apiMocks.listCampaigns).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(apiMocks.getCampaignResearchSummary).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(apiMocks.getCampaignReleaseMetrics).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText('3 / 3')).toBeInTheDocument();
+    expect(screen.queryByText('2 / 3')).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Campaign Overview' })).toHaveAttribute('aria-selected', 'true');
+  });
+
   it('propagates recorded-empty and not-instrumented claim extraction states by selected run', async () => {
     renderPage();
 
