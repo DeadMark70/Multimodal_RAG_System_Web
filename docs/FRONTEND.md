@@ -169,7 +169,7 @@
     - `getHumanEvalQueue`
     - `getCampaignErrors`
     - `exportCampaignAnalysis`
-    - `getRunDetail` only after a run-detail tab is activated
+    - `getRunObservability` only after a run-detail tab is activated; it consumes the canonical selected-run observability response, including nullable `agentic_v9` and persisted human ratings
   - maps raw API payloads into simpler tab props; tab components stay presentation-focused
 - `EvaluationSetupDrawer.tsx`
   - contains setup CRUD/execution surfaces; does not share page-local selection state with the analytics tabs

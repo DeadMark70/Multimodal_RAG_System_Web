@@ -23,7 +23,7 @@ import {
   postRunHumanRating,
   preflightCampaign,
   getHumanVsAuto,
-  getRunDetail,
+  getRunObservability,
   getRunTrace,
   getRunRetrieval,
   getRunContext,
@@ -629,7 +629,7 @@ describe('evaluationApi', () => {
     });
   });
 
-  it('fetches run-level research detail endpoints', async () => {
+  it('fetches canonical run observability from the selected campaign endpoint', async () => {
     mockedApi.get
       .mockResolvedValueOnce({ data: { run_id: 'run-1', campaign_id: 'cmp-1', trace_events: [] } })
       .mockResolvedValueOnce({ data: { run_id: 'run-1', campaign_id: 'cmp-1', trace_events: [] } })
@@ -656,7 +656,7 @@ describe('evaluationApi', () => {
         },
       });
 
-    expect(await getRunDetail('cmp-1', 'run-1')).toEqual({
+    expect(await getRunObservability('cmp-1', 'run-1')).toEqual({
       run_id: 'run-1',
       campaign_id: 'cmp-1',
       trace_events: [],

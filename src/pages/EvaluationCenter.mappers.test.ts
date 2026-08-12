@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { RunDetailResponse } from '../types/evaluation';
+import type { EvaluationRunObservabilityDetail } from '../types/evaluation';
 import {
   mapAgentRows,
   mapAgenticV9RunEvidence,
@@ -75,7 +75,7 @@ describe('Evaluation Center data mappers', () => {
       evidence_coverage: null,
       graph_observability_status: 'not_instrumented',
       graph_events: [{ graph_route: null, router_reason: null, node_count: 0, edge_count: null, path_count: 0 }],
-      graph_evidence_items: [{ doc_id: 'doc-1', chunk_id: 'chunk-1' }],
+      graph_evidence_items: [{ source_doc_ids: ['doc-1'], source_chunk_ids: ['chunk-1'] }],
     });
 
     expect(mapped.chunks[0]).toMatchObject({ denseScore: null, bm25Score: null, rerankScore: null });
@@ -317,7 +317,7 @@ describe('Evaluation Center data mappers', () => {
           full_prompt: 'FULL_PROMPT_SECRET_SENTINEL',
         },
       },
-    } as unknown as RunDetailResponse);
+    } as unknown as EvaluationRunObservabilityDetail);
 
     expect(v2).toMatchObject({
       schemaVersion: '2',

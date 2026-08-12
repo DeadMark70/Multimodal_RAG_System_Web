@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { AGENTIC_V9_API_CONTRACT } from '../test/fixtures/agenticV9ApiContract';
 import type {
   CampaignPreflightRequest,
-  RunDetailResponse,
+  EvaluationRunObservabilityDetail,
   V9ExecutionObservability,
 } from './evaluation';
 
@@ -22,10 +22,11 @@ describe('agentic v9 evaluation contract', () => {
     expect(AGENTIC_V9_API_CONTRACT.release_metrics.required_fields).toContain('benchmark_id');
   });
 
-  it('keeps historical v8 run details valid when v9 observability is absent', () => {
-    const v8Detail: RunDetailResponse = {
+  it('keeps historical v8 observability valid when v9 observability is null', () => {
+    const v8Detail: EvaluationRunObservabilityDetail = {
       run_id: 'run-v8',
       campaign_id: 'campaign-v8',
+      run_summary: null,
       trace_events: [],
       llm_calls: [],
       retrieval_events: [],
@@ -33,11 +34,27 @@ describe('agentic v9 evaluation contract', () => {
       context_packs: [],
       tool_calls: [],
       routing_decisions: [],
+      graph_events: [],
+      graph_evidence_items: [],
+      graph_observability_status: 'not_instrumented',
       claims: [],
       human_ratings: [],
+      evidence_coverage: null,
+      evidence_coverage_status: 'not_available',
+      accounting_diagnostics: {
+        input_tokens: null,
+        output_text_tokens: null,
+        reasoning_tokens: null,
+        other_tokens: null,
+        total_tokens: null,
+        by_phase: {},
+        accounting_status: 'incomplete_legacy',
+        phase_attribution_status: 'not_available',
+      },
+      agentic_v9: null,
     };
 
-    expect(v8Detail.agentic_v9).toBeUndefined();
+    expect(v8Detail.agentic_v9).toBeNull();
   });
 
   it('models typed evidence observability and preflight without a trusted user field', () => {

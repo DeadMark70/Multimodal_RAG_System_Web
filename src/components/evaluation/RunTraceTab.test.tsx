@@ -182,11 +182,14 @@ describe('RunTraceTab', () => {
           totalTokens: 5700,
           accountingStatus: 'complete',
           accountingDiagnostics: {
-            observed_call_count: 3,
-            measured_call_count: 2,
-            missing_usage_call_count: 1,
-            unbalanced_call_count: 0,
-            unclassified_phase_call_count: 0,
+            input_tokens: 1000,
+            output_text_tokens: 2000,
+            reasoning_tokens: 2700,
+            other_tokens: 0,
+            total_tokens: 5700,
+            by_phase: {},
+            accounting_status: 'complete',
+            phase_attribution_status: 'complete',
           },
         }}
         onSelectedRunIdChange={onSelectedRunIdChange}
@@ -202,7 +205,7 @@ describe('RunTraceTab', () => {
     expect(screen.getByText('120 ms')).toBeInTheDocument();
     expect(screen.getByText('2,440 ms')).toBeInTheDocument();
     expect(screen.getByText('5,700')).toBeInTheDocument();
-    expect(screen.getByText(/Calls 2\/3; missing usage 1/)).toBeInTheDocument();
+    expect(screen.getByText('Phase attribution: complete')).toBeInTheDocument();
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Run selector' }), { target: { value: 'run-2' } });
     expect(onSelectedRunIdChange).toHaveBeenCalledWith('run-2');

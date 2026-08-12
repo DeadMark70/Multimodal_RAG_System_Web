@@ -40,12 +40,12 @@ import {
   getResearchQuestionComparison,
   getRouterAnalysis,
   getCampaignRuns,
-  getRunDetail,
+  getRunObservability,
   listCampaigns,
 } from '../services/evaluationApi';
 import type {
   EvaluationRunListResponse,
-  RunDetailResponse,
+  EvaluationRunObservabilityDetail,
 } from '../types/evaluation';
 
 const EvaluationSetupDrawer = lazy(() => import('../components/evaluation/EvaluationSetupDrawer'));
@@ -72,7 +72,7 @@ function mapRunOptions(runs?: EvaluationRunListResponse) {
   }));
 }
 
-function mapTraceEvents(detail?: RunDetailResponse) {
+function mapTraceEvents(detail?: EvaluationRunObservabilityDetail) {
   return (detail?.trace_events ?? []).map((event) => ({
     eventId: stringValue(event.event_id, stringValue(event.span_id, scalarString(event.sequence, 'event'))),
     spanId: stringValue(event.span_id),
@@ -86,7 +86,7 @@ function mapTraceEvents(detail?: RunDetailResponse) {
   }));
 }
 
-function mapClaims(detail?: RunDetailResponse) {
+function mapClaims(detail?: EvaluationRunObservabilityDetail) {
   const claims = (detail?.claims ?? []).map((claim) => ({
     claim: stringValue(claim.claim_text, 'n/a'),
     type: stringValue(claim.claim_type, 'claim'),
@@ -101,7 +101,7 @@ function mapClaims(detail?: RunDetailResponse) {
   };
 }
 
-function mapRetrievalSummary(detail?: RunDetailResponse): string {
+function mapRetrievalSummary(detail?: EvaluationRunObservabilityDetail): string {
   if (!detail) return 'No selected run detail.';
   const queryCount = detail.retrieval_events?.length ?? 0;
   const chunkCount = detail.retrieval_chunks?.length ?? 0;
@@ -110,7 +110,7 @@ function mapRetrievalSummary(detail?: RunDetailResponse): string {
     : 'No retrieval observability recorded.';
 }
 
-function mapClaimsSummary(detail?: RunDetailResponse): string {
+function mapClaimsSummary(detail?: EvaluationRunObservabilityDetail): string {
   if (!detail) return 'No selected run detail.';
   const claimCount = detail.claims?.length ?? 0;
   return claimCount ? `${claimCount} claim(s) extracted.` : 'No claim extraction recorded.';
@@ -220,7 +220,7 @@ export default function EvaluationCenter() {
           (preferredRunId && runs.runs.some((run) => run.run_id === preferredRunId)
             ? preferredRunId
             : runs.runs[0]?.run_id) ?? '';
-        const runDetail = effectiveRunId ? await getRunDetail(campaignId, effectiveRunId) : undefined;
+        const runDetail = effectiveRunId ? await getRunObservability(campaignId, effectiveRunId) : undefined;
         return {
           runs,
           runDetail,
@@ -303,7 +303,7 @@ export default function EvaluationCenter() {
       const requestId = runDetailRequestRef.current + 1;
       const campaignGeneration = requestGenerationRef.current;
       runDetailRequestRef.current = requestId;
-      void getRunDetail(selectedCampaignId, runId)
+      void getRunObservability(selectedCampaignId, runId)
         .then((runDetail) => {
           if (
             requestId === runDetailRequestRef.current &&

@@ -13,6 +13,7 @@ import RunTraceTree, { type RunTraceEvent } from './RunTraceTree';
 import AgenticV9Trace from './AgenticV9Trace';
 import { formatOptionalTokens } from './evaluationDisplay';
 import type { AgenticV9RunEvidence } from '../../pages/EvaluationCenter.mappers';
+import type { ResearchTokenBreakdown } from '../../types/evaluation';
 
 interface LegacyStep {
   stepId: string;
@@ -31,16 +32,7 @@ interface RunMetadata {
   claimsSummary?: string;
   totalTokens?: number | null;
   accountingStatus?: 'complete' | 'partial' | 'not_available';
-  accountingDiagnostics?: {
-    observed_call_count: number;
-    measured_call_count: number;
-    missing_usage_call_count: number;
-    unbalanced_call_count: number;
-    unclassified_phase_call_count: number;
-    missing_usage_by_phase?: Record<string, number>;
-    missing_usage_by_purpose?: Record<string, number>;
-    missing_usage_by_provider?: Record<string, number>;
-  };
+  accountingDiagnostics?: ResearchTokenBreakdown;
 }
 
 function LegacyTraceTree({ steps }: { steps: LegacyStep[] }) {
@@ -122,7 +114,7 @@ export default function RunTraceTab({
             {metadata.accountingDiagnostics ? (
               <>
                 <Text fontSize="xs" color="text.secondary">
-                  {`Calls ${metadata.accountingDiagnostics.measured_call_count}/${metadata.accountingDiagnostics.observed_call_count}; missing usage ${metadata.accountingDiagnostics.missing_usage_call_count}; unbalanced ${metadata.accountingDiagnostics.unbalanced_call_count}; unclassified phase ${metadata.accountingDiagnostics.unclassified_phase_call_count}`}
+                  {`Phase attribution: ${metadata.accountingDiagnostics.phase_attribution_status}`}
                 </Text>
                 {Object.keys(metadata.accountingDiagnostics.missing_usage_by_phase ?? {}).length ? (
                   <Text fontSize="xs" color="text.secondary">

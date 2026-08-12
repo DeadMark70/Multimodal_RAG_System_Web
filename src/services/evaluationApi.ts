@@ -45,7 +45,7 @@ import type {
   RouterAnalysisResponse,
   RunClaimsResponse,
   RunContextResponse,
-  RunDetailResponse,
+  EvaluationRunObservabilityDetail,
   RunDiffResponse,
   RunLlmCallsResponse,
   RunMetricsResponse,
@@ -397,8 +397,8 @@ export async function getCampaignStageWarnings(
   return response.data;
 }
 
-export async function getRunDetail(campaignId: string, runId: string): Promise<RunDetailResponse> {
-  const response = await api.get<RunDetailResponse>(
+export async function getRunObservability(campaignId: string, runId: string): Promise<EvaluationRunObservabilityDetail> {
+  const response = await api.get<EvaluationRunObservabilityDetail>(
     `/api/evaluation/campaigns/${campaignId}/runs/${runId}/observability`
   );
   return response.data;

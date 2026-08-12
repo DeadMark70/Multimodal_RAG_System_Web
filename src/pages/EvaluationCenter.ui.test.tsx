@@ -12,7 +12,7 @@ import {
   getCampaignReleaseMetrics,
   listCampaigns,
   getModeComparison,
-  getRunDetail,
+  getRunObservability,
 } from '../services/evaluationApi';
 
 const { overviewProps, runTraceProps, researchSummaryFixture } = vi.hoisted(() => ({ overviewProps: [] as Array<{
@@ -274,7 +274,7 @@ vi.mock('../services/evaluationApi', () => ({
   getCampaignErrors: vi.fn().mockResolvedValue({ campaign_id: 'cmp-1', rows: [] }),
   getCampaignStageWarnings: vi.fn().mockResolvedValue({ campaign_id: 'cmp-1', rows: [] }),
   exportCampaignAnalysis: vi.fn().mockResolvedValue({ campaign: {}, redaction: { include_full_prompts: false }, runs: [], llm_calls: [] }),
-  getRunDetail: vi.fn().mockImplementation((_campaignId: string, runId: string) => Promise.resolve({
+  getRunObservability: vi.fn().mockImplementation((_campaignId: string, runId: string) => Promise.resolve({
     run_id: runId,
     campaign_id: 'cmp-1',
     trace_events: [],
@@ -355,7 +355,7 @@ describe('EvaluationCenter UI', () => {
     expect(screen.getByTestId('mock-v9-evidence-run')).toHaveTextContent('unavailable');
 
     fireEvent.change(selector, { target: { value: 'run-2' } });
-    await waitFor(() => expect(getRunDetail).toHaveBeenLastCalledWith('cmp-1', 'run-2'));
+    await waitFor(() => expect(getRunObservability).toHaveBeenLastCalledWith('cmp-1', 'run-2'));
     await waitFor(() => expect(screen.getByTestId('mock-run-detail-preview')).toHaveTextContent('answer-run-2'));
     await waitFor(() => expect(screen.getByTestId('mock-v9-evidence-run')).toHaveTextContent('run-2'));
   });

@@ -13,7 +13,7 @@ const apiMocks = vi.hoisted(() => ({
   getCampaignErrors: vi.fn(),
   getResearchQuestionComparison: vi.fn(),
   getCampaignRuns: vi.fn(),
-  getRunDetail: vi.fn(),
+  getRunObservability: vi.fn(),
   getAgentBehavior: vi.fn(),
   getRouterAnalysis: vi.fn(),
   getAblationAnalysis: vi.fn(),
@@ -175,7 +175,7 @@ beforeEach(() => {
     }],
   });
   apiMocks.getCampaignRuns.mockResolvedValue(runs);
-  apiMocks.getRunDetail.mockImplementation((_campaignId: string, runId: string) => Promise.resolve(detailFor(runId)));
+  apiMocks.getRunObservability.mockImplementation((_campaignId: string, runId: string) => Promise.resolve(detailFor(runId)));
   apiMocks.getAgentBehavior.mockResolvedValue({
     campaign_id: 'cmp-integration',
     analysis_unit: 'execution',
@@ -286,7 +286,7 @@ describe('Evaluation Center real data flow', () => {
     expect(screen.getByRole('option', { name: /Q-integrated · Agentic v9 shadow · repeat 1/ })).toHaveValue('run-v9-shadow');
 
     fireEvent.change(selector, { target: { value: 'run-v9-shadow' } });
-    await waitFor(() => expect(apiMocks.getRunDetail).toHaveBeenLastCalledWith('cmp-integration', 'run-v9-shadow'));
+    await waitFor(() => expect(apiMocks.getRunObservability).toHaveBeenLastCalledWith('cmp-integration', 'run-v9-shadow'));
     expect(selector).toHaveValue('run-v9-shadow');
   });
 
@@ -333,13 +333,13 @@ describe('Evaluation Center real data flow', () => {
     expect(screen.getByText('Agent trace A')).toBeInTheDocument();
 
     let resolveLateB!: (value: ReturnType<typeof detailFor>) => void;
-    apiMocks.getRunDetail.mockImplementation((_campaignId: string, runId: string) => (
+    apiMocks.getRunObservability.mockImplementation((_campaignId: string, runId: string) => (
       runId === 'run-b'
         ? new Promise((resolve) => { resolveLateB = resolve; })
         : Promise.resolve(detailFor(runId))
     ));
     fireEvent.change(runSelector, { target: { value: 'run-b' } });
-    await waitFor(() => expect(apiMocks.getRunDetail).toHaveBeenLastCalledWith('cmp-integration', 'run-b'));
+    await waitFor(() => expect(apiMocks.getRunObservability).toHaveBeenLastCalledWith('cmp-integration', 'run-b'));
     await waitFor(() => expect(runSelector).toHaveValue('run-b'));
     fireEvent.change(runSelector, { target: { value: 'run-a' } });
     await waitFor(() => expect(screen.getByText('Answer from run A')).toBeInTheDocument());
@@ -366,5 +366,62 @@ describe('Evaluation Center real data flow', () => {
     expect(await screen.findByText(/no actual router runs/)).toBeInTheDocument();
     expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
     expect(screen.queryByText('Cost')).not.toBeInTheDocument();
+  });
+
+  it('keeps directly opened v9 Run Trace scoped to the new campaign when an old response resolves late', async () => {
+    const nextCampaign = { ...campaign, id: 'cmp-new', name: 'New campaign' };
+    const oldRun = { ...runs.runs[0], run_id: 'run-old', campaign_id: campaign.id };
+    const newRun = { ...runs.runs[0], run_id: 'run-new', campaign_id: nextCampaign.id };
+    const oldDetail = {
+      ...detailFor('run-a'),
+      run_id: 'run-old',
+      campaign_id: campaign.id,
+      run_summary: { ...detailFor('run-a').run_summary, run_id: 'run-old', campaign_id: campaign.id, answer_preview: 'Answer from old run' },
+    };
+    const newDetail = {
+      ...detailFor('run-b'),
+      run_id: 'run-new',
+      campaign_id: nextCampaign.id,
+      run_summary: { ...detailFor('run-b').run_summary, run_id: 'run-new', campaign_id: nextCampaign.id, answer_preview: 'Answer from new run' },
+      agentic_v9: {
+        schema_version: '1',
+        contract: { route: 'single_lookup', intent: 'new campaign v9 trace' },
+        slot_resolutions: [],
+        evidence_packets: [],
+        context_pack: null,
+        final_claims: [],
+      },
+    };
+    let resolveOld!: (value: typeof oldDetail) => void;
+
+    apiMocks.listCampaigns.mockResolvedValue([campaign, nextCampaign]);
+    apiMocks.getCampaignResearchSummary.mockImplementation((campaignId: string) => Promise.resolve({
+      ...completeFixture,
+      campaign_id: campaignId,
+    }));
+    apiMocks.getCampaignRuns.mockImplementation((campaignId: string) => Promise.resolve({
+      campaign_id: campaignId,
+      runs: campaignId === campaign.id ? [oldRun] : [newRun],
+    }));
+    apiMocks.getRunObservability.mockImplementation((_campaignId: string, runId: string) => (
+      runId === 'run-old'
+        ? new Promise<typeof oldDetail>((resolve) => { resolveOld = resolve; })
+        : Promise.resolve(newDetail)
+    ));
+
+    renderPage();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Run Trace' }));
+    await waitFor(() => expect(apiMocks.getRunObservability).toHaveBeenLastCalledWith(campaign.id, 'run-old'));
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Campaign selector' }), { target: { value: nextCampaign.id } });
+    await waitFor(() => expect(apiMocks.getCampaignResearchSummary).toHaveBeenLastCalledWith(nextCampaign.id));
+    fireEvent.click(screen.getByRole('tab', { name: 'Run Trace' }));
+    await waitFor(() => expect(apiMocks.getRunObservability).toHaveBeenLastCalledWith(nextCampaign.id, 'run-new'));
+    expect((await screen.findAllByText('Answer from new run')).length).toBeGreaterThan(0);
+    expect(screen.getByTestId('agentic-v9-trace')).toHaveTextContent('v9 schema 1');
+
+    resolveOld(oldDetail);
+    await waitFor(() => expect(screen.queryByText('Answer from old run')).not.toBeInTheDocument());
+    expect(screen.getAllByText('Answer from new run').length).toBeGreaterThan(0);
   });
 });

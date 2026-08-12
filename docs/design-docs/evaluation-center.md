@@ -96,11 +96,12 @@ The primary analytics surface is an 8-tab Chakra `Tabs` control rendered directl
    - component: `RunTraceTab.tsx`
    - page inputs:
      - `getCampaignRuns(...)`
-     - `getRunDetail(...)` for the currently selected run
+     - `getRunObservability(...)` for the currently selected run, using the canonical `EvaluationRunObservabilityDetail` response
    - rendering behavior:
      - the run selector is interactive and refetches the selected run detail
      - question/mode/repeat selects are read-only identity metadata for that run
-     - stale detail responses are ignored and never rendered under another run ID
+     - selected-run detail is cleared before a campaign or run request starts; the existing request-generation guards ignore stale initial-tab and selector responses so they never render under another campaign or run ID
+     - historical v8 responses carry `agentic_v9: null`; the UI does not fabricate a v9 envelope
      - `RunTraceTree.tsx` sorts persisted events by `sequence`
      - payload and error blobs stay collapsed behind disclosure buttons
    - legacy compatibility:
@@ -109,7 +110,7 @@ The primary analytics surface is an 8-tab Chakra `Tabs` control rendered directl
 4. `Retrieval Evidence`
    - component: `RetrievalEvidenceTab.tsx`
    - page inputs:
-     - `getRunDetail(...)`
+     - `getRunObservability(...)`
    - rendering behavior:
      - query cards
      - `RetrievedChunksTable.tsx`
@@ -131,7 +132,7 @@ The primary analytics surface is an 8-tab Chakra `Tabs` control rendered directl
 6. `Claim Evidence`
    - component: `ClaimEvidenceTab.tsx`
    - page inputs:
-     - `getRunDetail(...)`
+     - `getRunObservability(...)`
    - rendering behavior:
      - `ClaimEvidenceTable.tsx` for row details
      - separate unsupported-reasons list

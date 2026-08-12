@@ -14,7 +14,7 @@ import type {
   QuestionComparisonRow,
   ResearchQuestionComparisonResponse,
   RouterAnalysisResponse,
-  RunDetailResponse,
+  EvaluationRunObservabilityDetail,
   V9ContextPack,
   V9BudgetReservation,
   V9ConflictCandidate,
@@ -76,10 +76,14 @@ export interface DashboardApiData {
   humanQueue?: HumanEvalQueueResponse;
   errors?: CampaignErrorsResponse;
   stageWarnings?: CampaignStageWarningsResponse;
-  runDetail?: RunDetailResponse;
+  runDetail?: EvaluationRunObservabilityDetail;
   selectedV9Evidence?: AgenticV9RunEvidence;
   agentBehavior?: AgentBehaviorResponse;
 }
+
+type RetrievalObservabilityProjection = Partial<EvaluationRunObservabilityDetail>;
+type AgenticV9ObservabilityProjection = Pick<EvaluationRunObservabilityDetail, 'run_id' | 'agentic_v9'>
+  & Partial<Omit<EvaluationRunObservabilityDetail, 'run_id' | 'agentic_v9'>>;
 
 function mapContextPack(contextPack: V9ContextPack | null | undefined): AgenticV9RunEvidence['contextPack'] {
   if (contextPack === null) {
@@ -100,7 +104,9 @@ function mapContextPack(contextPack: V9ContextPack | null | undefined): AgenticV
  * Undefined means the historical run has no materialized v9 observability;
  * it is deliberately distinct from a materialized v9 payload with empty lists.
  */
-export function mapAgenticV9RunEvidence(detail?: RunDetailResponse): AgenticV9RunEvidence | undefined {
+export function mapAgenticV9RunEvidence(
+  detail?: AgenticV9ObservabilityProjection,
+): AgenticV9RunEvidence | undefined {
   const v9 = detail?.agentic_v9;
   if (!detail || !v9) {
     return undefined;
@@ -202,7 +208,7 @@ export function mapQuestionRows(data: DashboardApiData) {
   }));
 }
 
-export function mapRetrieval(detail?: RunDetailResponse) {
+export function mapRetrieval(detail?: RetrievalObservabilityProjection) {
   return {
     retrievals: (detail?.retrieval_events ?? []).map((event, index) => ({
       queryLabel: stringValue(event.retriever_name, `query ${index + 1}`),
@@ -263,25 +269,10 @@ export function mapRetrieval(detail?: RunDetailResponse) {
         pathCount: nullableNumber(event.path_count),
         graphToChunkSuccessRate: nullableNumber(event.graph_to_chunk_success_rate),
       })),
-      evidenceItems: (detail?.graph_evidence_items ?? []).map((item) => {
-        const record = asRecord(item);
-        return {
-          source: typeof record.doc_id === 'string'
-            ? record.doc_id
-            : typeof record.source_id === 'string'
-              ? record.source_id
-              : typeof record.source === 'string'
-                ? record.source
-                : null,
-          locator: typeof record.locator === 'string'
-            ? record.locator
-            : typeof record.chunk_id === 'string'
-              ? record.chunk_id
-              : typeof record.page_label === 'string'
-                ? record.page_label
-                : null,
-        };
-      }),
+      evidenceItems: (detail?.graph_evidence_items ?? []).map((item) => ({
+        source: item.source_doc_ids?.[0] ?? item.source_id ?? item.source ?? null,
+        locator: item.source_chunk_ids?.[0] ?? item.locator ?? item.page_label ?? null,
+      })),
     },
   };
 }
