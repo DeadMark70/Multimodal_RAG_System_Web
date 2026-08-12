@@ -241,12 +241,10 @@ export function mapQuestionRows(data: DashboardApiData) {
     deltaLatencyMs: row.delta_latency_ms,
     ecrCorrectness: row.ecr_correctness,
     bestMode: row.best_quality_mode,
-    routerSelectedMode: 'N/A',
     evidenceCoverage: row.evidence_coverage,
     unsupportedClaimRatio: row.unsupported_claim_ratio,
     risks: row.comparability_reason ? [row.comparability_reason] : [],
     status: row.comparability_reason ?? 'complete',
-    ablationFlags: [],
   }));
 }
 
@@ -348,8 +346,6 @@ export function mapAgentRows(data: DashboardApiData) {
     supportedClaimRatio: row.supported_claim_ratio,
     tokens: row.total_tokens,
     legacy: row.legacy ?? null,
-    atomicCompleteness: row.v9?.atomic_completeness ?? null,
-    atomicCompletenessReason: row.v9?.atomic_completeness_reason ?? null,
     v9: row.v9 ? {
       route: row.v9.route,
       contractVersion: row.v9.contract_version ?? null,

@@ -63,7 +63,7 @@ function renderExplorer(graph?: React.ComponentProps<typeof V9EvidenceExplorer>[
 }
 
 describe('V9EvidenceExplorer', () => {
-  it('renders evidence provenance with N/A for uninstrumented citation and token attribution', () => {
+  it('renders evidence provenance without uninstrumented citation or token attribution placeholders', () => {
     renderExplorer({
       status: 'recorded',
       events: [{ route: 'traverse', routerReason: 'required locator', nodeCount: 0, edgeCount: null, pathCount: 0, graphToChunkSuccessRate: null }],
@@ -74,11 +74,16 @@ describe('V9EvidenceExplorer', () => {
     expect(screen.getByText('paper-a')).toBeInTheDocument();
     expect(screen.getByText('dataset: BraTS')).toBeInTheDocument();
     expect(screen.getByText('p. 7 · T2')).toBeInTheDocument();
-    expect(screen.getByText(/Per-slot tokens: N\/A \(not instrumented\)/)).toBeInTheDocument();
     expect(screen.getByText(/nodes 0/)).toBeInTheDocument();
     expect(screen.getByText(/edges N\/A/)).toBeInTheDocument();
     expect(screen.getByText('Visual evidence')).toBeInTheDocument();
     expect(screen.getByText(/asset-1 · paper-a/)).toBeInTheDocument();
+
+    const section = screen.getByTestId('v9-evidence-explorer');
+    expect(within(section).queryByRole('columnheader', { name: 'Cited' })).not.toBeInTheDocument();
+    expect(within(section).queryByText(/Per-slot tokens:/)).not.toBeInTheDocument();
+    expect(within(section).queryByText(/Per-source tokens:/)).not.toBeInTheDocument();
+    expect(within(section).getAllByTestId('capability-notice')).toHaveLength(1);
   });
 
   it('reveals authorized plain-text excerpts and navigates a claim citation to its packet', () => {
@@ -110,7 +115,7 @@ describe('V9EvidenceExplorer', () => {
 
     const packetRow = screen.getAllByRole('row').find((row) => row.textContent?.includes('packet-1'));
     expect(packetRow).toBeDefined();
-    expect(within(packetRow!).getAllByText('N/A')).toHaveLength(3);
+    expect(within(packetRow!).getAllByText('N/A')).toHaveLength(2);
     expect(packetRow).not.toHaveTextContent('no');
   });
 });

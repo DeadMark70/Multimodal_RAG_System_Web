@@ -90,7 +90,8 @@ The primary analytics surface is an 8-tab Chakra `Tabs` control rendered directl
    - rendering behavior:
      - local category/status filters only
      - `QuestionDeltaHeatmap.tsx` renders a tint-based table, not a canvas heatmap
-     - full detail table is wrapped in `overflowX="auto"`
+    - full detail table is wrapped in `overflowX="auto"`
+    - router-selection and ablation details are not shown because question comparisons do not instrument them
 
 3. `Run Trace`
    - component: `RunTraceTab.tsx`
@@ -102,6 +103,7 @@ The primary analytics surface is an 8-tab Chakra `Tabs` control rendered directl
      - question/mode/repeat selects are read-only identity metadata for that run
      - selected-run detail is cleared before a campaign or run request starts; the existing request-generation guards ignore stale initial-tab and selector responses so they never render under another campaign or run ID
      - historical v8 responses carry `agentic_v9: null`; the UI does not fabricate a v9 envelope
+     - v9 evidence does not show packet citation state or token breakdowns by slot/source because those values are not instrumented
      - `RunTraceTree.tsx` sorts persisted events by `sequence`
      - payload and error blobs stay collapsed behind disclosure buttons
    - legacy compatibility:
@@ -129,7 +131,8 @@ The primary analytics surface is an 8-tab Chakra `Tabs` control rendered directl
    - rendering behavior:
      - rows retain mode, repeat, question, and run identity
      - counts and quality are rendered as `N/A` when their source instrumentation is absent
-     - quality columns use durable RAGAS/claim observations and never claim-ratio fallbacks
+    - quality columns use durable RAGAS/claim observations and never claim-ratio fallbacks
+    - atomic completeness is not shown until a measured contract is available
 
 6. `Claim Evidence`
    - component: `ClaimEvidenceTab.tsx`
@@ -137,7 +140,8 @@ The primary analytics surface is an 8-tab Chakra `Tabs` control rendered directl
      - `getRunObservability(...)`
    - rendering behavior:
      - `ClaimEvidenceTable.tsx` for row details
-     - separate unsupported-reasons list
+    - separate unsupported-reasons list
+    - atomic-slot alignment does not show a per-slot graph value because that relationship is not instrumented
 
 7. `Router Lab`
    - component: `RouterLabTab.tsx`

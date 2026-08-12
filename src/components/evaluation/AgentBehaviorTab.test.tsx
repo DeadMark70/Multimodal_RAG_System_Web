@@ -1,5 +1,5 @@
 import { ChakraProvider } from '@chakra-ui/react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import theme from '../../theme';
 import AgentBehaviorTab from './AgentBehaviorTab';
@@ -95,13 +95,12 @@ describe('AgentBehaviorTab', () => {
     expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
   });
 
-  it('renders v9 slot-plan metadata without inferring atomic completeness for legacy rows', () => {
+  it('removes unmeasured atomic completeness from the agent behavior table', () => {
     renderWithTheme(<AgentBehaviorTab rows={[{
       runId: 'run-v2', campaignId: 'cmp-1', questionId: 'Q16', mode: 'agentic', repeat: 1,
       traceStatus: 'completed', behaviorSchema: 'v9', accountingStatus: 'complete',
       subtasks: null, toolCalls: null, visualCalls: null, graphCalls: null, drilldownDepth: null,
       unsupportedClaimRatio: null, supportedClaimRatio: null, tokens: 42,
-      atomicCompleteness: null, atomicCompletenessReason: 'experimental_not_scored',
       v9: {
         route: 'multi_document_exact', contractVersion: '2', slotPlanStatus: 'complete',
         slotSemantics: 'atomic', graphExecution: 'not_triggered', visualExecution: 'not_requested',
@@ -111,6 +110,8 @@ describe('AgentBehaviorTab', () => {
 
     expect(screen.getByText('Slot Plan')).toBeInTheDocument();
     expect(screen.getByText(/atomic/)).toBeInTheDocument();
-    expect(screen.getByText('experimental_not_scored')).toBeInTheDocument();
+    const section = screen.getByTestId('agent-behavior-table');
+    expect(within(section).queryByRole('columnheader', { name: 'Atomic Completeness' })).not.toBeInTheDocument();
+    expect(within(section).getAllByTestId('capability-notice')).toHaveLength(1);
   });
 });

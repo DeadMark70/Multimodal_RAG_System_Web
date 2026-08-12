@@ -51,6 +51,8 @@ describe('Evaluation Center data mappers', () => {
       unsupportedClaimRatio: null,
       risks: ['comparison_mode_missing'],
     });
+    expect(mapped[0]).not.toHaveProperty('routerSelectedMode');
+    expect(mapped[0]).not.toHaveProperty('ablationFlags');
   });
 
   it('keeps unknown retrieval scores and coverage uninstrumented', () => {
@@ -465,6 +467,7 @@ describe('Evaluation Center data mappers', () => {
         }],
       },
     } as DashboardApiData);
-    expect(legacy[0]).toMatchObject({ atomicCompleteness: null, atomicCompletenessReason: null });
+    expect(legacy[0]).not.toHaveProperty('atomicCompleteness');
+    expect(legacy[0]).not.toHaveProperty('atomicCompletenessReason');
   });
 });

@@ -11,11 +11,9 @@ export interface QuestionDeltaRow {
   deltaLatencyMs: number | null;
   ecrCorrectness: number | null;
   bestMode: string | null;
-  routerSelectedMode: string;
   evidenceCoverage: number | null;
   unsupportedClaimRatio: number | null;
   status?: string;
-  ablationFlags?: string[];
   risks?: string[];
 }
 

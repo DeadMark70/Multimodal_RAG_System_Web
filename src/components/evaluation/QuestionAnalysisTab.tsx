@@ -70,7 +70,11 @@ export default function QuestionAnalysisTab({ rows }: { rows?: QuestionDeltaRow[
 
       <QuestionDeltaHeatmap rows={filteredRows} />
 
-      <Box overflowX="auto">
+      <Box data-testid="question-analysis-details">
+        <Text data-testid="capability-notice" fontSize="sm" color="text.secondary" mb={2}>
+          Router-selection and ablation details are not instrumented for question comparisons.
+        </Text>
+        <Box overflowX="auto">
         <Table size="sm">
           <Thead>
             <Tr>
@@ -84,7 +88,6 @@ export default function QuestionAnalysisTab({ rows }: { rows?: QuestionDeltaRow[
               <Th isNumeric>Delta Latency</Th>
               <Th isNumeric>ECR Correctness</Th>
               <Th>Best Mode</Th>
-              <Th>Router Selected Mode</Th>
               <Th isNumeric>Evidence Coverage</Th>
               <Th isNumeric>Unsupported Claim Ratio</Th>
               <Th>Risks</Th>
@@ -103,7 +106,6 @@ export default function QuestionAnalysisTab({ rows }: { rows?: QuestionDeltaRow[
                 <Td isNumeric>{row.deltaLatencyMs == null ? 'N/A' : `${row.deltaLatencyMs.toLocaleString()} ms`}</Td>
                 <Td isNumeric>{formatOptionalNumber(row.ecrCorrectness, 6)}</Td>
                 <Td>{formatOptionalText(row.bestMode)}</Td>
-                <Td>{row.routerSelectedMode}</Td>
                 <Td isNumeric>{formatOptionalPercent(row.evidenceCoverage)}</Td>
                 <Td isNumeric>{formatOptionalPercent(row.unsupportedClaimRatio)}</Td>
                 <Td>
@@ -119,6 +121,7 @@ export default function QuestionAnalysisTab({ rows }: { rows?: QuestionDeltaRow[
             ))}
           </Tbody>
         </Table>
+        </Box>
       </Box>
     </Stack>
   );

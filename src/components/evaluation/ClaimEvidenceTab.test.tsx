@@ -1,5 +1,5 @@
 import { ChakraProvider } from '@chakra-ui/react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import theme from '../../theme';
 import ClaimEvidenceTab from './ClaimEvidenceTab';
@@ -217,6 +217,17 @@ describe('ClaimEvidenceTable', () => {
     expect(screen.getByText('Evidence')).toBeInTheDocument();
     expect(screen.getByText('Repair Action')).toBeInTheDocument();
     expect(screen.getByText('Post Repair Status')).toBeInTheDocument();
+  });
+
+  it('removes the uninstrumented graph column from the atomic slot alignment section', () => {
+    renderWithTheme(<ClaimEvidenceTab
+      claims={[]}
+      agenticV9Evidence={populatedAgenticV9Evidence}
+    />);
+
+    const section = screen.getByTestId('atomic-slot-alignment');
+    expect(within(section).queryByRole('columnheader', { name: 'Graph' })).not.toBeInTheDocument();
+    expect(within(section).getAllByTestId('capability-notice')).toHaveLength(1);
   });
 
   it('renders typed evidence references without provider payload fields', () => {

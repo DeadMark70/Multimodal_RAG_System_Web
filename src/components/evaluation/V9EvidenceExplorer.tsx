@@ -145,13 +145,16 @@ export default function V9EvidenceExplorer({
 
   return (
     <Stack spacing={4} data-testid="v9-evidence-explorer" data-agentic-v9-run-id={data.runId}>
+      <Text data-testid="capability-notice" fontSize="sm" color="text.secondary">
+        Citation status and token attribution by slot or source are not instrumented for this run.
+      </Text>
       <Box>
         <Heading size="sm" mb={2}>Evidence packets</Heading>
         {selectedPacketId ? <Text fontSize="sm" color="text.secondary">Selected packet: {selectedPacketId}</Text> : null}
         {packets === undefined ? <Text color="text.secondary">N/A — evidence packets were not instrumented.</Text> : !packets.length ? <Text color="text.secondary">No evidence packets recorded.</Text> : (
           <Box overflowX="auto">
             <Table size="sm">
-              <Thead><Tr><Th>Packet</Th><Th>Source</Th><Th>Scope</Th><Th>Locator</Th><Th>Support</Th><Th>Slots</Th><Th>Round</Th><Th>Packed</Th><Th>Used</Th><Th>Cited</Th></Tr></Thead>
+              <Thead><Tr><Th>Packet</Th><Th>Source</Th><Th>Scope</Th><Th>Locator</Th><Th>Support</Th><Th>Slots</Th><Th>Round</Th><Th>Packed</Th><Th>Used</Th></Tr></Thead>
               <Tbody>
                 {visiblePackets.map(({ evidence_id: packetId, packet }) => {
                   const expanded = expandedPackets.has(packetId);
@@ -166,7 +169,6 @@ export default function V9EvidenceExplorer({
                       <Td>{packet.round_id}</Td>
                       <Td>{stateText(data.contextPack?.packedEvidenceIds === undefined ? undefined : packed.has(packetId))}</Td>
                       <Td>{stateText(data.finalClaims === undefined ? undefined : used.has(packetId))}</Td>
-                      <Td>N/A</Td>
                     </Tr>
                   );
                 })}
@@ -193,8 +195,6 @@ export default function V9EvidenceExplorer({
               <Text>Packed packets: {data.contextPack.packedEvidenceIds === undefined ? 'N/A' : data.contextPack.packedEvidenceIds.length}</Text>
               <Text>Dropped packets: {data.contextPack.droppedEvidenceIds === undefined ? 'N/A' : data.contextPack.droppedEvidenceIds.length}</Text>
               <Text>Total packed tokens: {formatOptionalTokens(data.contextPack.tokenCount)}</Text>
-              <Text>Per-slot tokens: N/A (not instrumented)</Text>
-              <Text>Per-source tokens: N/A (not instrumented)</Text>
             </Stack>
           )}
         </Box>

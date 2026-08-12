@@ -19,8 +19,6 @@ interface AgentBehaviorRow {
   unsupportedClaimRatio: number | null;
   supportedClaimRatio: number | null;
   tokens: number | null;
-  atomicCompleteness?: boolean | null;
-  atomicCompletenessReason?: string | null;
   v9?: {
     route: string | null;
     contractVersion?: string | null;
@@ -88,7 +86,10 @@ export default function AgentBehaviorTab({ rows }: { rows?: AgentBehaviorRow[] }
         </GridItem>
       </Grid>
 
-      <Box overflowX="auto">
+      <Box overflowX="auto" data-testid="agent-behavior-table">
+        <Text data-testid="capability-notice" fontSize="sm" color="text.secondary" mb={2}>
+          Atomic completeness is not displayed until a measured contract is available.
+        </Text>
         <Table size="sm">
           <Thead>
             <Tr>
@@ -100,7 +101,6 @@ export default function AgentBehaviorTab({ rows }: { rows?: AgentBehaviorRow[] }
               <Th>Schema</Th>
               <Th>Route</Th>
               <Th>Slot Plan</Th>
-              <Th>Atomic Completeness</Th>
               <Th>Graph</Th>
               <Th>Visual</Th>
               <Th isNumeric>Evidence</Th>
@@ -127,7 +127,6 @@ export default function AgentBehaviorTab({ rows }: { rows?: AgentBehaviorRow[] }
                 <Td>{formatOptionalText(row.behaviorSchema ?? null)}</Td>
                 <Td>{formatOptionalText(row.v9?.route ?? null)}</Td>
                 <Td>{formatOptionalText(row.v9?.slotPlanStatus ?? null)}{row.v9?.slotSemantics ? ` · ${row.v9.slotSemantics}` : ''}</Td>
-                <Td>{row.atomicCompleteness == null ? formatOptionalText(row.atomicCompletenessReason ?? null) : row.atomicCompleteness ? 'yes' : 'no'}</Td>
                 <Td>{formatOptionalText(row.v9?.graphExecution ?? null)}</Td>
                 <Td>{formatOptionalText(row.v9?.visualExecution ?? null)}</Td>
                 <Td isNumeric>{formatOptionalTokens(row.v9?.evidencePacketCount ?? null)}</Td>

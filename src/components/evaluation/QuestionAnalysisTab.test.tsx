@@ -1,5 +1,5 @@
 import { ChakraProvider } from '@chakra-ui/react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import theme from '../../theme';
 import QuestionAnalysisTab from './QuestionAnalysisTab';
@@ -17,11 +17,9 @@ const rows = [
     deltaLatencyMs: 6100,
     ecrCorrectness: 0.000024,
     bestMode: 'agentic',
-    routerSelectedMode: 'naive',
     evidenceCoverage: 0.58,
     unsupportedClaimRatio: 0.31,
     status: 'attention',
-    ablationFlags: ['visual-off'],
     risks: ['High cost', 'Faithfulness drop', 'Visual required but not triggered'],
   },
   {
@@ -35,11 +33,9 @@ const rows = [
     deltaLatencyMs: 320,
     ecrCorrectness: 0.00008,
     bestMode: 'naive',
-    routerSelectedMode: 'naive',
     evidenceCoverage: 0.92,
     unsupportedClaimRatio: 0.02,
     status: 'healthy',
-    ablationFlags: [],
     risks: ['Missing required docs'],
   },
 ];
@@ -82,6 +78,14 @@ describe('QuestionAnalysisTab', () => {
 
     expect(screen.getAllByText('Q-17').length).toBeGreaterThan(0);
     expect(screen.queryAllByText('Q-02')).toHaveLength(0);
+  });
+
+  it('removes uninstrumented routing and ablation details from the question analysis section', () => {
+    renderWithTheme(<QuestionAnalysisTab rows={rows} />);
+
+    const section = screen.getByTestId('question-analysis-details');
+    expect(within(section).queryByRole('columnheader', { name: 'Router Selected Mode' })).not.toBeInTheDocument();
+    expect(within(section).getAllByTestId('capability-notice')).toHaveLength(1);
   });
 });
 
