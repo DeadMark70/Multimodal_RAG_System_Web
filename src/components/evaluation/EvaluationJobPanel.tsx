@@ -195,12 +195,32 @@ export default function EvaluationJobPanel({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAttempts, setShowAttempts] = useState(false);
   const notifiedTerminalJobIdsRef = useRef(new Set<string>());
+  const onJobTerminalRef = useRef(onJobTerminal);
   const toast = useToast();
   const jobs = controlledJobs ?? loadedJobs;
   const sortedJobs = useMemo(
     () => [...jobs].sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at)),
     [jobs],
   );
+
+  useEffect(() => {
+    onJobTerminalRef.current = onJobTerminal;
+  }, [onJobTerminal]);
+
+  const notifyTerminalJobs = useCallback((candidateJobs: EvaluationJob[]) => {
+    for (const candidateJob of candidateJobs) {
+      if (
+        !TERMINAL_JOB_STATUSES.has(candidateJob.status)
+        || (candidateJob.campaign_id && candidateJob.campaign_id !== campaignId)
+      ) {
+        continue;
+      }
+      const key = jobKey(candidateJob);
+      if (notifiedTerminalJobIdsRef.current.has(key)) continue;
+      notifiedTerminalJobIdsRef.current.add(key);
+      onJobTerminalRef.current?.(candidateJob);
+    }
+  }, [campaignId]);
 
   const updateJobs = useCallback(
     (nextJobs: EvaluationJob[]) => {
@@ -301,12 +321,8 @@ export default function EvaluationJobPanel({
   }, [durableApiUnavailable, embeddedJobItems, selectedJobKey, toast]);
 
   useEffect(() => {
-    if (!selectedJob || !TERMINAL_JOB_STATUSES.has(selectedJob.status)) return;
-    const key = jobKey(selectedJob);
-    if (notifiedTerminalJobIdsRef.current.has(key)) return;
-    notifiedTerminalJobIdsRef.current.add(key);
-    onJobTerminal?.(selectedJob);
-  }, [onJobTerminal, selectedJob]);
+    notifyTerminalJobs(jobs);
+  }, [jobs, notifyTerminalJobs]);
 
   useEffect(() => {
     if (!activeJob || controlledJobs !== undefined || durableApiUnavailable) return;
@@ -317,6 +333,7 @@ export default function EvaluationJobPanel({
         .then((nextJob) => {
           if (cancelled) return;
           setLoadError(null);
+          notifyTerminalJobs([nextJob]);
           const nextJobs = [nextJob, ...jobs.filter((job) => jobKey(job) !== jobKey(nextJob))];
           updateJobs(nextJobs);
         })
@@ -339,7 +356,7 @@ export default function EvaluationJobPanel({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [activeJob, controlledJobs, durableApiUnavailable, jobs, onJobTerminal, toast, updateJobs]);
+  }, [activeJob, controlledJobs, durableApiUnavailable, jobs, notifyTerminalJobs, toast, updateJobs]);
 
   // Keep discovering jobs created by another control (for example the
   // selected-question RAGAS button in EvaluationResults), even while an
