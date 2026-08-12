@@ -192,8 +192,9 @@ export default function EvaluationJobPanel({
   const [jobItems, setJobItems] = useState<EvaluationJobItemSummary[]>([]);
   const [jobItemsKey, setJobItemsKey] = useState<string | null>(null);
   const [durableApiUnavailable, setDurableApiUnavailable] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showAttempts, setShowAttempts] = useState(false);
-  const notifiedTerminalJobRef = useRef<string | null>(null);
+  const notifiedTerminalJobIdsRef = useRef(new Set<string>());
   const toast = useToast();
   const jobs = controlledJobs ?? loadedJobs;
   const sortedJobs = useMemo(
@@ -216,6 +217,7 @@ export default function EvaluationJobPanel({
     if (typeof listCampaignJobs !== 'function') return [];
     try {
       const nextJobs = await listCampaignJobs(campaignId);
+      setLoadError(null);
       updateJobs(nextJobs);
       return nextJobs;
     } catch (error) {
@@ -228,13 +230,19 @@ export default function EvaluationJobPanel({
   }, [campaignId, controlledJobs, durableApiUnavailable, updateJobs]);
 
   useEffect(() => {
+    notifiedTerminalJobIdsRef.current.clear();
+  }, [campaignId]);
+
+  useEffect(() => {
     if (controlledJobs !== undefined) return;
     let mounted = true;
     setLoading(true);
+    setLoadError(null);
     void refreshJobs()
       .catch((error: unknown) => {
         if (mounted) {
           if (isDurableEndpointUnavailable(error)) return;
+          setLoadError(error instanceof Error ? error.message : 'Unknown error');
           toast({
             title: 'Unable to load evaluation jobs',
             description: error instanceof Error ? error.message : 'Unknown error',
@@ -295,8 +303,8 @@ export default function EvaluationJobPanel({
   useEffect(() => {
     if (!selectedJob || !TERMINAL_JOB_STATUSES.has(selectedJob.status)) return;
     const key = jobKey(selectedJob);
-    if (notifiedTerminalJobRef.current === key) return;
-    notifiedTerminalJobRef.current = key;
+    if (notifiedTerminalJobIdsRef.current.has(key)) return;
+    notifiedTerminalJobIdsRef.current.add(key);
     onJobTerminal?.(selectedJob);
   }, [onJobTerminal, selectedJob]);
 
@@ -308,6 +316,7 @@ export default function EvaluationJobPanel({
       void getEvaluationJob(jobKey(activeJob))
         .then((nextJob) => {
           if (cancelled) return;
+          setLoadError(null);
           const nextJobs = [nextJob, ...jobs.filter((job) => jobKey(job) !== jobKey(nextJob))];
           updateJobs(nextJobs);
         })
@@ -317,6 +326,7 @@ export default function EvaluationJobPanel({
               setDurableApiUnavailable(true);
               return;
             }
+            setLoadError(error instanceof Error ? error.message : 'Unknown error');
             toast({
               title: 'Unable to refresh evaluation job',
               description: error instanceof Error ? error.message : 'Unknown error',
@@ -342,12 +352,16 @@ export default function EvaluationJobPanel({
     ) return;
     const timer = window.setInterval(() => {
       void listCampaignJobs(campaignId)
-        .then(updateJobs)
+        .then((nextJobs) => {
+          setLoadError(null);
+          updateJobs(nextJobs);
+        })
         .catch((error: unknown) => {
           if (isDurableEndpointUnavailable(error)) {
             setDurableApiUnavailable(true);
             return;
           }
+          setLoadError(error instanceof Error ? error.message : 'Unknown error');
           toast({
             title: 'Unable to refresh evaluation jobs',
             description: error instanceof Error ? error.message : 'Unknown error',
@@ -469,15 +483,16 @@ export default function EvaluationJobPanel({
     );
   };
 
-  if (loading) {
+  if (loading || !selectedJob) {
     return (
-      <Box borderWidth="1px" borderRadius="lg" p={4}>
-        <HStack><Spinner size="sm" /><Text>Loading evaluation jobs...</Text></HStack>
+      <Box borderWidth="1px" borderRadius="lg" p={4} bg="bg.panel">
+        <Heading size="sm" mb={3}>Durable evaluation jobs</Heading>
+        {loading ? <HStack><Spinner size="sm" /><Text>Loading evaluation jobs...</Text></HStack> : null}
+        {loadError ? <Text role="alert" color="red.500">Unable to load evaluation jobs: {loadError}</Text> : null}
+        {!loading && !loadError ? <Text color="text.secondary">No durable evaluation jobs</Text> : null}
       </Box>
     );
   }
-
-  if (!selectedJob) return null;
 
   const disabledActions = isDisabled || activeJob !== null;
   const itemsLoaded = jobItemsKey === selectedJobKey;
@@ -498,7 +513,7 @@ export default function EvaluationJobPanel({
     <Box borderWidth="1px" borderRadius="lg" p={4} bg="bg.panel">
       <HStack justify="space-between" align="flex-start" mb={3}>
         <Box>
-          <Heading size="sm">Durable evaluation job</Heading>
+          <Heading size="sm">Durable evaluation jobs</Heading>
           <Text color="text.secondary" fontSize="sm">{jobKey(selectedJob)}</Text>
         </Box>
         <Badge colorScheme={statusColor(selectedJob.status)}>{statusLabel(selectedJob.status)}</Badge>
@@ -511,6 +526,7 @@ export default function EvaluationJobPanel({
           {latestSafeError ?? selectedJob.latest_safe_error_message}
         </Text>
       )}
+      {loadError ? <Text role="alert" color="red.500" fontSize="sm" mb={3}>Unable to load evaluation jobs: {loadError}</Text> : null}
       <HStack spacing={2} flexWrap="wrap">
         <Button
           size="sm"

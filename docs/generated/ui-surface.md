@@ -114,7 +114,9 @@ Human-maintained inventory of the current frontend surface.
 
 - `EvaluationCenter.tsx`
   - keeps `PageHeader` fixed in-page and uses `evaluation-scroll-region` as the route scroll owner
-  - loads campaign inventory first, then refetches the selected campaign's analytics bundle with direct service calls instead of TanStack Query
+  - loads campaign inventory through a stable loader, then refetches the selected campaign's analytics bundle with direct service calls instead of TanStack Query
+  - mounts `EvaluationJobPanel` before the tabs with `key={selectedCampaignId}`; terminal durable-job updates refresh inventory and only the current tab while stale campaign callbacks are ignored
+  - keeps the durable-jobs heading visible for loading, empty, error, and populated states
   - fetches selected-run detail through `getRunObservability(...)`; canonical observability keeps historical `agentic_v9` nullable, mirrors backend normalized-row field names, and ignores stale campaign/run responses via request generations
   - exposes eight main tabs:
     - `Campaign Overview`

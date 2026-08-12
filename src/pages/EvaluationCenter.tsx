@@ -47,7 +47,10 @@ import {
 import type {
   EvaluationRunListResponse,
   EvaluationRunObservabilityDetail,
+  CampaignStatus,
+  EvaluationJob,
 } from '../types/evaluation';
+import EvaluationJobPanel from '../components/evaluation/EvaluationJobPanel';
 
 const EvaluationSetupDrawer = lazy(() => import('../components/evaluation/EvaluationSetupDrawer'));
 const CampaignOverviewTab = lazy(() => import('../components/evaluation/CampaignOverviewTab'));
@@ -113,10 +116,23 @@ export default function EvaluationCenter() {
   const [loadingTab, setLoadingTab] = useState(false);
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [selectedRunId, setSelectedRunId] = useState('');
+  const [tabRefreshToken, setTabRefreshToken] = useState(0);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const loadedTabsRef = useRef(new Set<string>());
   const requestGenerationRef = useRef(0);
   const runDetailRequestRef = useRef(0);
+  const selectedCampaignIdRef = useRef('');
+
+  useEffect(() => {
+    selectedCampaignIdRef.current = selectedCampaignId;
+  }, [selectedCampaignId]);
+
+  const loadCampaignInventory = useCallback(async (): Promise<CampaignStatus[]> => {
+    const campaigns = await listCampaigns();
+    setDashboardData((current) => ({ ...current, campaigns }));
+    setSelectedCampaignId((current) => current || campaigns[0]?.id || '');
+    return campaigns;
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -124,12 +140,10 @@ export default function EvaluationCenter() {
     const loadCampaigns = async () => {
       setLoadingDashboard(true);
       try {
-        const campaigns = await listCampaigns();
+        await loadCampaignInventory();
         if (!mounted) {
           return;
         }
-        setDashboardData({ campaigns });
-        setSelectedCampaignId((current) => current || campaigns[0]?.id || '');
         setDashboardError(null);
       } catch (error) {
         if (mounted) {
@@ -146,7 +160,7 @@ export default function EvaluationCenter() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [loadCampaignInventory]);
 
   useEffect(() => {
     if (!selectedCampaignId) {
@@ -193,12 +207,12 @@ export default function EvaluationCenter() {
     return () => {
       mounted = false;
     };
-  }, [dashboardData.campaigns, selectedCampaignId]);
+  }, [selectedCampaignId]);
 
   const loadTabData = useCallback(async (tabIndex: number, campaignId: string, preferredRunId?: string) => {
     switch (tabIndex) {
       case 0:
-        return { errors: await getCampaignErrors(campaignId) };
+        return {};
       case 1:
         return { questionComparison: await getResearchQuestionComparison(campaignId) };
       case 2:
@@ -276,7 +290,32 @@ export default function EvaluationCenter() {
     return () => {
       mounted = false;
     };
-  }, [activeTabIndex, dashboardData.researchSummary, loadTabData, selectedCampaignId, selectedRunId]);
+  }, [activeTabIndex, dashboardData.researchSummary, loadTabData, selectedCampaignId, selectedRunId, tabRefreshToken]);
+
+  const handleJobTerminal = useCallback(
+    (sourceCampaignId: string, job: EvaluationJob) => {
+      if (
+        sourceCampaignId !== selectedCampaignIdRef.current
+        || (job.campaign_id && job.campaign_id !== sourceCampaignId)
+      ) {
+        return;
+      }
+      void loadCampaignInventory()
+        .then(() => {
+          if (sourceCampaignId !== selectedCampaignIdRef.current) {
+            return;
+          }
+          loadedTabsRef.current.delete(`${sourceCampaignId}:${activeTabIndex}`);
+          setTabRefreshToken((current) => current + 1);
+        })
+        .catch((error: unknown) => {
+          if (sourceCampaignId === selectedCampaignIdRef.current) {
+            setDashboardError(error instanceof Error ? error.message : 'Failed to refresh evaluation campaigns');
+          }
+        });
+    },
+    [activeTabIndex, loadCampaignInventory],
+  );
 
   const handleSelectedRunIdChange = useCallback(
     (runId: string) => {
@@ -486,6 +525,13 @@ export default function EvaluationCenter() {
             <Text py={2} color="red.500">
               {dashboardError}
             </Text>
+          ) : null}
+          {selectedCampaignId ? (
+            <EvaluationJobPanel
+              key={selectedCampaignId}
+              campaignId={selectedCampaignId}
+              onJobTerminal={(job) => handleJobTerminal(selectedCampaignId, job)}
+            />
           ) : null}
           <Suspense fallback={<Text py={4}>Loading evaluation view...</Text>}>
             <Tabs

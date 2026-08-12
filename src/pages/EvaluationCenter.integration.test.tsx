@@ -6,7 +6,12 @@ import theme from '../theme';
 import EvaluationCenter from './EvaluationCenter';
 import { completeFixture } from '../components/evaluation/researchSummaryFixtures';
 
-const apiMocks = vi.hoisted(() => ({
+const { apiMocks, jobPanelProps } = vi.hoisted(() => ({
+  jobPanelProps: [] as Array<{
+    campaignId: string;
+    onJobTerminal?: (job: never) => void;
+  }>,
+  apiMocks: {
   listCampaigns: vi.fn(),
   getCampaignResearchSummary: vi.fn(),
   getCampaignReleaseMetrics: vi.fn(),
@@ -19,6 +24,7 @@ const apiMocks = vi.hoisted(() => ({
   getAblationAnalysis: vi.fn(),
   getHumanVsAuto: vi.fn(),
   getHumanEvalQueue: vi.fn(),
+  },
 }));
 
 vi.mock('../components/layout/Layout', () => ({
@@ -27,6 +33,13 @@ vi.mock('../components/layout/Layout', () => ({
 
 vi.mock('../components/evaluation/EvaluationSetupDrawer', () => ({
   default: () => null,
+}));
+
+vi.mock('../components/evaluation/EvaluationJobPanel', () => ({
+  default: (props: { campaignId: string; onJobTerminal?: (job: never) => void }) => {
+    jobPanelProps.push(props);
+    return <div>EvaluationJobPanel {props.campaignId}</div>;
+  },
 }));
 
 vi.mock('../services/evaluationApi', () => apiMocks);
@@ -147,6 +160,7 @@ const detailFor = (runId: string) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  jobPanelProps.length = 0;
   apiMocks.listCampaigns.mockResolvedValue([campaign]);
   apiMocks.getCampaignResearchSummary.mockResolvedValue({ ...completeFixture, campaign_id: 'cmp-integration', completed_run_count: 2, total_run_count: 2 });
   apiMocks.getCampaignReleaseMetrics.mockResolvedValue(releaseMetrics);
@@ -369,6 +383,22 @@ describe('Evaluation Center real data flow', () => {
     expect(await screen.findByText(/no actual router runs/)).toBeInTheDocument();
     expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
     expect(screen.queryByText('Cost')).not.toBeInTheDocument();
+  });
+
+  it('refreshes the selected tab after a terminal job without returning to Campaign Overview', async () => {
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Question Analysis' }));
+    await waitFor(() => expect(apiMocks.getResearchQuestionComparison).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('tab', { name: 'Question Analysis' })).toHaveAttribute('aria-selected', 'true');
+    await waitFor(() => expect(jobPanelProps.at(-1)?.campaignId).toBe(campaign.id));
+
+    jobPanelProps.at(-1)?.onJobTerminal?.({ job_id: 'job-terminal' } as never);
+
+    await waitFor(() => expect(apiMocks.listCampaigns).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(apiMocks.getResearchQuestionComparison).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('tab', { name: 'Question Analysis' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Campaign Overview' })).toHaveAttribute('aria-selected', 'false');
   });
 
   it('propagates recorded-empty and not-instrumented claim extraction states by selected run', async () => {

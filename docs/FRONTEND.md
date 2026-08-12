@@ -131,7 +131,8 @@
     - campaign selector populated from `listCampaigns()`
     - `Setup evaluation` button opening `EvaluationSetupDrawer.tsx`
   - Data loading:
-    - page shell uses page-local orchestration for campaign selection and a bounded overview request
+    - page shell uses a stable `loadCampaignInventory()` loader for initial selection and terminal durable-job refreshes
+    - terminal job refreshes invalidate only the selected campaign/current-tab cache key; the active tab does not reset
     - selecting a campaign loads overview only; each analytics tab requests its own data on first activation
     - setup drawer and analytics tabs are true dynamic imports, so hidden surfaces do not enter the first route chunk
   - Scroll ownership:
@@ -146,6 +147,10 @@
   - `Claim Evidence` -> `ClaimEvidenceTab`
   - `Router Lab` -> `RouterLabTab`
   - `Ablation` -> `AblationDashboardTab`
+- Durable campaign job surface:
+  - `EvaluationJobPanel` is mounted before the tabs with `key={selectedCampaignId}`
+  - `Durable evaluation jobs` remains visible while jobs load, when none exist, on visible errors, and when jobs are populated
+  - each terminal job ID refreshes the inventory once; stale callbacks from another campaign are ignored
 - Setup / admin drawer tabs (right-side `Drawer`, `size="xl"`):
   - `Test Cases` -> `TestCaseManager`
   - `Model Configs` -> `ModelConfigPanel`
@@ -168,6 +173,7 @@
     - `getHumanVsAuto`
     - `getHumanEvalQueue`
     - `getCampaignErrors`
+    - `getCampaignStageWarnings`
     - `exportCampaignAnalysis`
     - `getRunObservability` only after a run-detail tab is activated; its TypeScript contract mirrors canonical backend field names/nullability, including nullable `agentic_v9`, typed LLM/accounting fields, and persisted human ratings
   - maps raw API payloads into simpler tab props; tab components stay presentation-focused

@@ -15,7 +15,10 @@ import {
   getRunObservability,
 } from '../services/evaluationApi';
 
-const { overviewProps, runTraceProps, researchSummaryFixture } = vi.hoisted(() => ({ overviewProps: [] as Array<{
+const { jobPanelProps, overviewProps, runTraceProps, researchSummaryFixture } = vi.hoisted(() => ({ jobPanelProps: [] as Array<{
+  campaignId: string;
+  onJobTerminal?: (job: never) => void;
+}>, overviewProps: [] as Array<{
   data?: CampaignResearchSummaryResponse;
   releaseMetrics?: ReleaseMetricsReport;
 }>, runTraceProps: [] as Array<{
@@ -128,6 +131,13 @@ vi.mock('../components/evaluation/RouterLabTab', () => ({
 
 vi.mock('../components/evaluation/AblationDashboardTab', () => ({
   default: () => <div>AblationDashboardTab</div>,
+}));
+
+vi.mock('../components/evaluation/EvaluationJobPanel', () => ({
+  default: (props: { campaignId: string; onJobTerminal?: (job: never) => void }) => {
+    jobPanelProps.push(props);
+    return <div>EvaluationJobPanel {props.campaignId}</div>;
+  },
 }));
 
 vi.mock('../services/evaluationApi', () => ({
@@ -300,6 +310,7 @@ vi.mock('../services/evaluationApi', () => ({
 
 describe('EvaluationCenter UI', () => {
   beforeEach(() => {
+    jobPanelProps.length = 0;
     overviewProps.length = 0;
     runTraceProps.length = 0;
     vi.clearAllMocks();
@@ -360,18 +371,27 @@ describe('EvaluationCenter UI', () => {
     await waitFor(() => expect(screen.getByTestId('mock-v9-evidence-run')).toHaveTextContent('run-2'));
   });
 
-  it('does not keep the whole dashboard loading while deferred overview errors are pending', async () => {
-    vi.mocked(getCampaignErrors).mockReturnValueOnce(new Promise(() => {}));
+  it('refreshes the inventory once when the selected campaign terminal job completes', async () => {
+    vi.mocked(listCampaigns).mockResolvedValueOnce([
+      { id: 'cmp-1', name: 'Campaign 1', status: 'completed', phase: 'evaluation', config: { test_case_ids: [], modes: [], model_config: modelConfigFixture, repeat_count: 1, batch_size: 1, rpm_limit: 1, ragas_batch_size: 1, ragas_parallel_batches: 1, ragas_rpm_limit: 1 }, completed_units: 1, total_units: 1, evaluation_completed_units: 1, evaluation_total_units: 1, cancel_requested: false, created_at: '2026-07-08T00:00:00Z', updated_at: '2026-07-08T00:00:00Z' },
+      { id: 'cmp-2', name: 'Campaign 2', status: 'completed', phase: 'evaluation', config: { test_case_ids: [], modes: [], model_config: modelConfigFixture, repeat_count: 1, batch_size: 1, rpm_limit: 1, ragas_batch_size: 1, ragas_parallel_batches: 1, ragas_rpm_limit: 1 }, completed_units: 1, total_units: 1, evaluation_completed_units: 1, evaluation_total_units: 1, cancel_requested: false, created_at: '2026-07-08T00:00:00Z', updated_at: '2026-07-08T00:00:00Z' },
+    ]);
 
-    render(
-      <ChakraProvider theme={theme}>
-        <EvaluationCenter />
-      </ChakraProvider>
-    );
+    render(<ChakraProvider theme={theme}><EvaluationCenter /></ChakraProvider>);
 
-    expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
-    expect(getCampaignResearchSummary).toHaveBeenCalledWith('cmp-1');
-    await waitFor(() => expect(screen.queryByText('Loading evaluation analytics...')).not.toBeInTheDocument());
+    await waitFor(() => expect(jobPanelProps.at(-1)?.campaignId).toBe('cmp-1'));
+    const staleOnJobTerminal = jobPanelProps.at(-1)?.onJobTerminal;
+    fireEvent.change(screen.getByLabelText('Campaign selector'), { target: { value: 'cmp-2' } });
+    await waitFor(() => expect(jobPanelProps.at(-1)?.campaignId).toBe('cmp-2'));
+    expect(listCampaigns).toHaveBeenCalledTimes(1);
+
+    staleOnJobTerminal?.({ job_id: 'job-from-old-campaign' } as never);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(listCampaigns).toHaveBeenCalledTimes(1);
+
+    jobPanelProps.at(-1)?.onJobTerminal?.({ job_id: 'job-terminal' } as never);
+
+    await waitFor(() => expect(listCampaigns).toHaveBeenCalledTimes(2));
   });
 
   it('does not render a stale campaign summary after selecting another campaign', async () => {
@@ -396,28 +416,13 @@ describe('EvaluationCenter UI', () => {
     expect(screen.queryByText('CampaignOverviewTab 2')).not.toBeInTheDocument();
   });
 
-  it('does not render a stale overview error after selecting another campaign', async () => {
-    let rejectErrorsA!: (reason: Error) => void;
-    const campaignAErrors = new Promise<{ campaign_id: string; rows: [] }>((_resolve, reject) => {
-      rejectErrorsA = reject;
-    });
-    const campaignBSummary = createResearchSummary({ campaign_id: 'cmp-b', completed_run_count: 7 });
-    vi.mocked(listCampaigns).mockResolvedValueOnce([
-      { id: 'cmp-a', name: 'Campaign A', status: 'completed', phase: 'evaluation', config: { test_case_ids: [], modes: [], model_config: modelConfigFixture, repeat_count: 1, batch_size: 1, rpm_limit: 1, ragas_batch_size: 1, ragas_parallel_batches: 1, ragas_rpm_limit: 1 }, completed_units: 1, total_units: 1, evaluation_completed_units: 1, evaluation_total_units: 1, cancel_requested: false, created_at: '2026-07-08T00:00:00Z', updated_at: '2026-07-08T00:00:00Z' },
-      { id: 'cmp-b', name: 'Campaign B', status: 'completed', phase: 'evaluation', config: { test_case_ids: [], modes: [], model_config: modelConfigFixture, repeat_count: 1, batch_size: 1, rpm_limit: 1, ragas_batch_size: 1, ragas_parallel_batches: 1, ragas_rpm_limit: 1 }, completed_units: 1, total_units: 1, evaluation_completed_units: 1, evaluation_total_units: 1, cancel_requested: false, created_at: '2026-07-08T00:00:00Z', updated_at: '2026-07-08T00:00:00Z' },
-    ]);
-    vi.mocked(getCampaignResearchSummary).mockResolvedValueOnce(createResearchSummary({ campaign_id: 'cmp-a' })).mockResolvedValueOnce(campaignBSummary);
-    vi.mocked(getCampaignErrors).mockImplementationOnce(() => campaignAErrors).mockResolvedValueOnce({ campaign_id: 'cmp-b', rows: [] });
-
+  it('loads campaign errors only after the Ablation surface is opened', async () => {
     render(<ChakraProvider theme={theme}><EvaluationCenter /></ChakraProvider>);
-    await screen.findByText('CampaignOverviewTab 2');
-    await waitFor(() => expect(getCampaignErrors).toHaveBeenCalledWith('cmp-a'));
-    fireEvent.change(screen.getByLabelText('Campaign selector'), { target: { value: 'cmp-b' } });
-    await screen.findByText('CampaignOverviewTab 7');
-    rejectErrorsA(new Error('Campaign A errors failed'));
 
-    await waitFor(() => expect(overviewProps.at(-1)?.data?.completed_run_count).toBe(7));
-    expect(getCampaignErrors).toHaveBeenCalledWith('cmp-b');
-    expect(screen.queryByText('Campaign A errors failed')).not.toBeInTheDocument();
+    expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
+    expect(getCampaignErrors).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Ablation' }));
+    await waitFor(() => expect(getCampaignErrors).toHaveBeenCalledWith('cmp-1'));
   });
 });

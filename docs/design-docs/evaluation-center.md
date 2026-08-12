@@ -68,11 +68,13 @@ Describe the current evaluation UI as a first-class subsystem rather than a rele
 
 The primary analytics surface is an 8-tab Chakra `Tabs` control rendered directly in `EvaluationCenter.tsx`.
 
+Before the tab list, `EvaluationJobPanel` is mounted with `key={selectedCampaignId}`. Its `Durable evaluation jobs` heading remains visible for loading, empty, visible-error, and populated states. Terminal notifications are de-duplicated by job ID for the active campaign. A terminal notification refreshes campaign inventory, invalidates only the active selected-campaign tab key, and refetches that tab without changing the active tab index; callbacks from a no-longer-selected campaign are ignored.
+
 1. `Campaign Overview`
    - component: `CampaignOverviewTab.tsx`
    - page inputs:
      - `getCampaignResearchSummary(...)` is the sole source for Overview research metrics and rows
-     - `getCampaignErrors(...)`, when requested by page/tab orchestration, supplies background error data for other surfaces and is not an Overview research-metric source
+     - Campaign Overview does not request campaign errors; diagnostics are loaded only when Ablation is opened
    - mapped outputs:
      - summary cards
      - mode comparison rows
@@ -158,6 +160,7 @@ The primary analytics surface is an 8-tab Chakra `Tabs` control rendered directl
      - `getHumanVsAuto(...)`
      - `getHumanEvalQueue(...)`
      - `getCampaignErrors(...)`
+     - `getCampaignStageWarnings(...)`
      - `exportCampaignAnalysis(...)`
    - rendering behavior:
      - one tab owns ablation counts, human-calibration queue, export preview, and sanitized errors

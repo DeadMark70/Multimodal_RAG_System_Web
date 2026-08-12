@@ -127,6 +127,51 @@ describe('EvaluationJobPanel', () => {
     expect(screen.getByText('Provider response details were redacted.')).toBeInTheDocument();
   });
 
+  it('keeps the durable jobs heading visible for an empty campaign', async () => {
+    mockListCampaignJobs.mockResolvedValue([]);
+
+    renderPanel();
+
+    expect(await screen.findByRole('heading', { name: 'Durable evaluation jobs' })).toBeInTheDocument();
+    expect(screen.getByText('No durable evaluation jobs')).toBeInTheDocument();
+  });
+
+  it('keeps the durable jobs heading visible while jobs load', async () => {
+    mockListCampaignJobs.mockReturnValue(new Promise(() => {}));
+
+    renderPanel();
+
+    expect(await screen.findByRole('heading', { name: 'Durable evaluation jobs' })).toBeInTheDocument();
+    expect(screen.getByText('Loading evaluation jobs...')).toBeInTheDocument();
+  });
+
+  it('keeps the durable jobs heading visible when loading jobs fails', async () => {
+    mockListCampaignJobs.mockRejectedValue(new Error('Jobs service unavailable'));
+
+    renderPanel();
+
+    expect(await screen.findByRole('heading', { name: 'Durable evaluation jobs' })).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Unable to load evaluation jobs: Jobs service unavailable');
+  });
+
+  it('notifies a terminal job only once when the same job is rendered again', async () => {
+    const onJobTerminal = vi.fn();
+    const { rerender } = render(
+      <ChakraProvider theme={theme}>
+        <EvaluationJobPanel campaignId="cmp-1" jobs={[job]} onJobTerminal={onJobTerminal} />
+      </ChakraProvider>,
+    );
+
+    await waitFor(() => expect(onJobTerminal).toHaveBeenCalledTimes(1));
+    rerender(
+      <ChakraProvider theme={theme}>
+        <EvaluationJobPanel campaignId="cmp-1" jobs={[{ ...job }]} onJobTerminal={onJobTerminal} />
+      </ChakraProvider>,
+    );
+
+    await waitFor(() => expect(onJobTerminal).toHaveBeenCalledTimes(1));
+  });
+
   it('selects the newest terminal job without relabeling cancelled or unknown counts', async () => {
     const older = { ...job, job_id: 'job-old', created_at: '2026-07-13T00:00:00Z', status: 'completed' as const, counts: undefined };
     const newest = { ...job, job_id: 'job-new', created_at: '2026-07-14T00:00:00Z', status: 'cancelled' as const, counts: undefined, cancelled_items: 2 };
