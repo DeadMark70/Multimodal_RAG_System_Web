@@ -366,7 +366,8 @@ describe('AblationDashboardTab', () => {
 
   it('on rejection creates no download, preserves prior preview, and restores controls', async () => {
     vi.mocked(exportCampaignAnalysis).mockResolvedValueOnce(exportV2()).mockRejectedValueOnce(new Error('Invalid export response.'));
-    vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:campaign-export'), revokeObjectURL: vi.fn() });
+    const createObjectURL = vi.fn(() => 'blob:campaign-export');
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL: vi.fn() });
     const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
     const onExportError = vi.fn();
     renderWithTheme(<AblationDashboardTab campaignId="cmp-1" data={dashboardData} onExportError={onExportError} />);
@@ -378,6 +379,7 @@ describe('AblationDashboardTab', () => {
     expect(screen.getByText('Preview: 0 runs')).toBeInTheDocument();
     expect(button).not.toBeDisabled();
     expect(anchorClick).toHaveBeenCalledOnce();
+    expect(createObjectURL).toHaveBeenCalledOnce();
   });
 
   it('clears a prior export preview when the selected campaign changes', async () => {

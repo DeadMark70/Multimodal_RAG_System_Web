@@ -178,7 +178,7 @@
     - `getRunObservability` only after a run-detail tab is activated; its TypeScript contract mirrors canonical backend field names/nullability, including nullable `agentic_v9`, typed LLM/accounting fields, and persisted human ratings
   - maps raw API payloads into simpler tab props; tab components stay presentation-focused
   - preserves the backend `claim_extraction_status` distinction: `empty` means extraction ran with zero claims, while `not_instrumented` means telemetry is absent
-  - `exportCampaignAnalysis(...)` treats the response as `unknown` until the strict Zod Export Schema v2 decoder accepts the exact top-level, section, export-owned run/result, human-queue, and nullable `agentic_v9` wrappers; validation failures expose only `Invalid export response.`
+  - `exportCampaignAnalysis(...)` treats the response as `unknown` until the strict Zod Export Schema v2 decoder accepts the exact top-level, section, export-owned run/result, human-queue, and nullable `agentic_v9` wrappers; validation failures expose only `Invalid export response.` The decoder also enforces `observability.included`/`data` consistency, the no-benchmark release `{}` manifest/statistics shape, and typed empty safe payload/error fields.
   - renders retrieval provenance, availability status, and reasons inside the corresponding chunk row keyed by `retrieval_chunk_id`
 - `EvaluationSetupDrawer.tsx`
   - contains setup CRUD/execution surfaces; does not share page-local selection state with the analytics tabs
@@ -245,7 +245,7 @@
   - the export button posts every Export v2 option explicitly; `Include all run observability` is off by default and marked `Larger file`
   - the preview reads only `export_metadata.options`, redaction, availability warnings, sections, and runs; summary exports do not invent an LLM-call count
   - downloads use `<campaign>-<summary|observability>-<redacted|custom>-v2.json`; `custom` is selected only for full prompts or raw trace payloads
-  - pending export disables every control and admits one request/download; rejection preserves the prior preview, campaign changes reject stale responses, and every created object URL is revoked
+  - pending export disables every control and admits one request/download; invalid or rejected responses create no new object URL/download and preserve the prior preview, campaign changes reject stale responses, and every created object URL is revoked
 ### Evaluation Empty-State / Legacy Compatibility Notes
 
 - Dashboard tabs are defensive when analytics are missing or partial:
