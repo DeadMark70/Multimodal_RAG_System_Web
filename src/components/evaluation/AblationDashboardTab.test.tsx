@@ -201,6 +201,30 @@ function exportV2(
   };
 }
 
+function exportV2WithOmittedConditionComparison(): ExportCampaignResponse {
+  const response = exportV2();
+  response.sections.ablation = {
+    availability: { status: 'complete', reasons: [] },
+    data: {
+      campaign_id: 'cmp-1',
+      analysis_unit: 'execution',
+      sample_count: 1,
+      independent_question_count: 1,
+      repeat_count: 1,
+      sample_note: 'one execution sample',
+      warnings: [],
+      rows: [],
+      summaries: {
+        condition_counts: { baseline: 1 },
+        condition_labels: { baseline: 'Baseline' },
+        conditions_by_ablation_family: { retrieval: { baseline: 1 } },
+        graph_metrics_by_ablation_family: { retrieval: { graph_to_chunk_success_rate: null } },
+      },
+    },
+  };
+  return response;
+}
+
 describe('AblationDashboardTab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -310,6 +334,21 @@ describe('AblationDashboardTab', () => {
     expect(screen.getByText(/diagnostics: partial/)).toBeInTheDocument();
     expect(screen.getByText(/full prompts redacted/)).toBeInTheDocument();
     expect(anchorClick).toHaveBeenCalledOnce();
+  });
+
+  it('downloads when populated ablation data omits unavailable condition comparison', async () => {
+    vi.mocked(exportCampaignAnalysis).mockResolvedValue(exportV2WithOmittedConditionComparison());
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:campaign-export'),
+      revokeObjectURL: vi.fn(),
+    });
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    renderWithTheme(<AblationDashboardTab campaignId="cmp-1" data={dashboardData} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export redacted JSON' }));
+
+    await waitFor(() => expect(anchorClick).toHaveBeenCalledOnce());
+    expect(await screen.findByText('Preview: 0 runs')).toBeInTheDocument();
   });
 
   it.each([

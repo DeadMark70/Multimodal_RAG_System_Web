@@ -998,7 +998,7 @@ const ablationSchema = z.strictObject({
     condition_labels: z.record(z.string(), z.string()),
     conditions_by_ablation_family: z.record(z.string(), z.record(z.string(), nonNegativeInteger)),
     graph_metrics_by_ablation_family: z.record(z.string(), z.record(z.string(), nullableNumber)),
-    condition_comparison: conditionComparisonSchema.nullable(),
+    condition_comparison: conditionComparisonSchema.nullable().optional(),
   }),
 });
 

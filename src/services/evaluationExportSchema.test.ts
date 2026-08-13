@@ -51,6 +51,25 @@ function aggregate() {
   };
 }
 
+function ablationWithoutConditionComparison() {
+  return {
+    campaign_id: "cmp-1",
+    analysis_unit: "execution",
+    sample_count: 1,
+    independent_question_count: 1,
+    repeat_count: 1,
+    sample_note: "one execution sample",
+    warnings: [],
+    rows: [],
+    summaries: {
+      condition_counts: { baseline: 1 },
+      condition_labels: { baseline: "Baseline" },
+      conditions_by_ablation_family: { retrieval: { baseline: 1 } },
+      graph_metrics_by_ablation_family: { retrieval: { graph_to_chunk_success_rate: null } },
+    },
+  };
+}
+
 function researchSummary() {
   return {
     campaign_id: "cmp-1",
@@ -349,6 +368,18 @@ describe("Export Schema v2 runtime decoder", () => {
 
     expect(parsed.sections.overview.data?.release_metrics.data?.manifest).toEqual({});
     expect(parsed.sections.overview.data?.release_metrics.data?.statistics).toEqual({});
+  });
+
+  it("accepts populated ablation data when unavailable condition comparison is omitted", () => {
+    const value = validExportV2();
+    value.sections.ablation = {
+      availability: availability(),
+      data: ablationWithoutConditionComparison(),
+    } as never;
+
+    const parsed = parseExportCampaignResponse(value);
+
+    expect(parsed.sections.ablation.data?.summaries).not.toHaveProperty("condition_comparison");
   });
 
   it("rejects a wrong nested no-benchmark release shape", () => {
