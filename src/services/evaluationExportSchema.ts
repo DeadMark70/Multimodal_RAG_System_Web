@@ -3,6 +3,7 @@ import type { ExportCampaignResponse } from "../types/evaluation";
 
 const jsonValueSchema: z.ZodType<unknown> = z.lazy(() => z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(jsonValueSchema), z.record(z.string(), jsonValueSchema)]));
 const jsonObjectSchema = z.record(z.string(), jsonValueSchema);
+const emptyObjectSchema = z.strictObject({});
 const nullableString = z.string().nullable();
 const nullableNumber = z.number().finite().nullable();
 const nonNegativeInteger = z.number().int().nonnegative();
@@ -125,6 +126,7 @@ const traceEventSchema = z.strictObject({
   status: z.enum(["running", "success", "failed", "skipped", "timeout", "partial"]),
   retry_count: nonNegativeInteger,
   payload: jsonObjectSchema,
+  error: emptyObjectSchema,
   created_at: z.string(),
 });
 const llmCallSchema = z.strictObject({
@@ -153,6 +155,8 @@ const llmCallSchema = z.strictObject({
   full_prompt_capture_status: z.enum(["unknown", "captured", "redacted", "not_captured_at_execution", "capture_failed"]),
   prompt_preview: nullableString,
   full_prompt: nullableString,
+  error: emptyObjectSchema,
+  payload: emptyObjectSchema,
   created_at: z.string(),
 });
 const retrievalEventSchema = z.strictObject({
@@ -166,6 +170,7 @@ const retrievalEventSchema = z.strictObject({
   top_k: nonNegativeInteger.nullable(),
   result_count: nonNegativeInteger,
   latency_ms: nullableNumber,
+  payload: emptyObjectSchema,
   created_at: z.string(),
 });
 const retrievalChunkSchema = z.strictObject({
@@ -191,6 +196,7 @@ const retrievalChunkSchema = z.strictObject({
   content_hash: nullableString,
   provenance: z.enum(["measured", "persisted", "derived", "heuristic"]),
   availability: availabilitySchema,
+  payload: emptyObjectSchema,
   created_at: z.string(),
 });
 const contextPackSchema = z.strictObject({
@@ -205,6 +211,7 @@ const contextPackSchema = z.strictObject({
   packed_chunk_count: nonNegativeInteger,
   token_count: nonNegativeInteger,
   retrieved_but_not_packed_evidence: z.array(evidenceReferenceSchema),
+  payload: emptyObjectSchema,
   created_at: z.string(),
 });
 const toolCallSchema = z.strictObject({
@@ -216,6 +223,7 @@ const toolCallSchema = z.strictObject({
   action: nullableString,
   latency_ms: nullableNumber,
   status: z.enum(["running", "success", "failed", "skipped", "timeout", "partial"]),
+  payload: emptyObjectSchema,
   created_at: z.string(),
 });
 const routingDecisionSchema = z.strictObject({
@@ -231,6 +239,7 @@ const routingDecisionSchema = z.strictObject({
   fallback_reason: nullableString,
   confidence: nullableNumber,
   reason: nullableString,
+  payload: emptyObjectSchema,
   created_at: z.string(),
 });
 const graphEventSchema = z.strictObject({
@@ -243,6 +252,7 @@ const graphEventSchema = z.strictObject({
   graph_evidence_mode: z.string(),
   graph_route: z.string(),
   router_reason: nullableString,
+  graph_feature_flags: emptyObjectSchema,
   graph_snapshot_version: nullableString,
   graph_schema_version: nullableString,
   graph_extraction_prompt_version: nullableString,
@@ -286,11 +296,13 @@ const claimSchema = z.strictObject({
   claim_text: nullableString,
   claim_type: nullableString,
   support_status: z.enum(["supported", "partially_supported", "unsupported", "contradicted"]),
+  evidence: z.array(evidenceReferenceSchema),
   evidence_refs: z.array(evidenceReferenceSchema),
   unsupported_reason: nullableString,
   repair_action: nullableString,
   post_repair_status: nullableString,
   extraction_status: z.enum(["recorded", "empty", "not_instrumented"]),
+  payload: emptyObjectSchema,
   created_at: z.string(),
 });
 const humanRatingSchema = z.strictObject({
@@ -308,6 +320,7 @@ const humanRatingSchema = z.strictObject({
   comments: nullableString,
   is_blinded: z.boolean(),
   shown_mode_label: z.boolean(),
+  payload: emptyObjectSchema,
   created_at: z.string(),
 });
 const evidenceCoverageSchema = z.strictObject({
@@ -630,6 +643,22 @@ const observabilityDataSchema = z.strictObject({
   evidence_coverage_status: z.enum(["complete", "partial", "not_available", "not_instrumented"]),
   agentic_v9: v9Schema.nullable(),
 });
+const observabilityEnvelopeSchema = z
+  .strictObject({
+    included: z.boolean(),
+    availability: availabilitySchema,
+    data: observabilityDataSchema.nullable(),
+  })
+  .superRefine((value, context) => {
+    if (value.included !== (value.data !== null)) {
+      context.addIssue({
+        code: "custom",
+        message: "observability inclusion does not match data availability",
+        path: ["data"],
+      });
+    }
+  });
+
 const runSchema = z.strictObject({
   result: resultSchema,
   ragas_metrics: z.record(z.string(), z.number().finite()),
@@ -640,11 +669,7 @@ const runSchema = z.strictObject({
     started_at: nullableString,
     completed_at: nullableString,
   }),
-  observability: z.strictObject({
-    included: z.boolean(),
-    availability: availabilitySchema,
-    data: observabilityDataSchema.nullable(),
-  }),
+  observability: observabilityEnvelopeSchema,
 });
 
 const analyticsBase = {
@@ -735,8 +760,8 @@ const releaseMetricsSchema = z.strictObject({
   availability: z.enum(["available", "not_applicable"]),
   not_applicable_reason: nullableString,
   gate_reasons: z.array(z.string()),
-  manifest: z
-    .strictObject({
+  manifest: z.union([
+    z.strictObject({
       benchmark_id: z.string(),
       kind: z.enum(["smoke", "formal", "insufficient"]),
       arm_order_seed: z.number().int(),
@@ -760,8 +785,9 @@ const releaseMetricsSchema = z.strictObject({
       environment_fingerprint: nullableString,
       evaluator_fingerprint: nullableString,
       non_blocking_ablations: z.array(z.string()),
-    })
-    .nullable(),
+    }),
+    emptyObjectSchema,
+  ]),
   arms: z.array(
     z.strictObject({
       mode: z.string(),
@@ -789,8 +815,8 @@ const releaseMetricsSchema = z.strictObject({
   paired_quality_ci_upper: releaseMetricSchema,
   category_quality_deltas: z.record(z.string(), releaseMetricSchema),
   per_question_quality_deltas: z.record(z.string(), releaseMetricSchema),
-  statistics: z
-    .strictObject({
+  statistics: z.union([
+    z.strictObject({
       method: z.string(),
       availability: z.literal("release_gate_blocked").nullable(),
       seed: z.number().int().nullable(),
@@ -799,8 +825,9 @@ const releaseMetricsSchema = z.strictObject({
       repeat_aggregation: nullableString,
       token_ratio_method: nullableString,
       final_generation_count_aggregation: nullableString,
-    })
-    .nullable(),
+    }),
+    emptyObjectSchema,
+  ]),
 });
 const overviewSchema = z.strictObject({
   research_summary: researchSummarySchema,

@@ -1407,7 +1407,8 @@ export interface ExportTraceEventV2 {
   parent_event_id: string | null; parent_span_id: string | null; event_type: string;
   event_schema_version: string; sequence: number; stage_type: string; stage_name: string;
   started_at: string; ended_at: string | null; duration_ms: number | null;
-  status: string; retry_count: number; payload: Record<string, unknown>; created_at: string;
+  status: string; retry_count: number; payload: Record<string, unknown>;
+  error: Record<string, never>; created_at: string;
 }
 
 export interface ExportLlmCallV2 {
@@ -1419,13 +1420,14 @@ export interface ExportLlmCallV2 {
   estimated_cost_twd: number | null; latency_ms: number | null; status: string;
   prompt_hash: string | null; response_hash: string | null; prompt_capture_status: string;
   full_prompt_capture_status: string; prompt_preview: string | null; full_prompt: string | null;
-  created_at: string;
+  error: Record<string, never>; payload: Record<string, never>; created_at: string;
 }
 
 export interface ExportRetrievalEventV2 {
   retrieval_event_id: string; run_id: string; campaign_id: string; span_id: string | null;
   query: string | null; query_hash: string | null; retriever_name: string | null;
-  top_k: number | null; result_count: number; latency_ms: number | null; created_at: string;
+  top_k: number | null; result_count: number; latency_ms: number | null;
+  payload: Record<string, never>; created_at: string;
 }
 
 export interface ExportRetrievalChunkV2 {
@@ -1436,19 +1438,21 @@ export interface ExportRetrievalChunkV2 {
   rerank_score: number | null; used_in_context: boolean | null; used_in_answer: boolean | null;
   expected_evidence_match: boolean | null; excerpt: string | null; content_hash: string | null;
   provenance: 'measured' | 'persisted' | 'derived' | 'heuristic';
-  availability: ExportAvailabilityV2; created_at: string;
+  availability: ExportAvailabilityV2; payload: Record<string, never>; created_at: string;
 }
 
 export interface ExportContextPackV2 {
   context_pack_id: string; run_id: string; campaign_id: string; attempt_id: string | null;
   condition_id: string; schema_version: string; span_id: string | null; input_chunk_count: number;
   packed_chunk_count: number; token_count: number;
-  retrieved_but_not_packed_evidence: ExportEvidenceReferenceV2[]; created_at: string;
+  retrieved_but_not_packed_evidence: ExportEvidenceReferenceV2[];
+  payload: Record<string, never>; created_at: string;
 }
 
 export interface ExportToolCallV2 {
   tool_call_id: string; run_id: string; campaign_id: string; span_id: string | null;
-  tool_name: string; action: string | null; latency_ms: number | null; status: string; created_at: string;
+  tool_name: string; action: string | null; latency_ms: number | null; status: string;
+  payload: Record<string, never>; created_at: string;
 }
 
 export interface ExportRoutingDecisionV2 {
@@ -1456,13 +1460,14 @@ export interface ExportRoutingDecisionV2 {
   selected_mode: CampaignMode; analysis_type: 'retrospective' | 'actual';
   decision_source: 'deterministic' | 'llm_planner' | 'safe_fallback' | null;
   candidate_routes: string[]; matched_rules: string[]; fallback_reason: string | null;
-  confidence: number | null; reason: string | null; created_at: string;
+  confidence: number | null; reason: string | null; payload: Record<string, never>; created_at: string;
 }
 
 export interface ExportGraphEventV2 {
   graph_event_id: string; run_id: string; campaign_id: string | null; span_id: string | null;
   graph_query: string; graph_search_mode: string; graph_evidence_mode: string; graph_route: string;
-  router_reason: string | null; graph_snapshot_version: string | null; graph_schema_version: string | null;
+  router_reason: string | null; graph_feature_flags: Record<string, never>;
+  graph_snapshot_version: string | null; graph_schema_version: string | null;
   graph_extraction_prompt_version: string | null; matched_entity_ids: string[]; community_ids: number[];
   node_count: number; edge_count: number; path_count: number; graph_latency_ms: number | null;
   graph_context_tokens: number; graph_to_chunk_success_rate: number | null;
@@ -1481,16 +1486,18 @@ export interface ExportClaimV2 {
   claim_id: string; run_id: string; campaign_id: string; attempt_id: string | null;
   condition_id: string; schema_version: string; span_id: string | null; claim_text: string | null;
   claim_type: string | null; support_status: 'supported' | 'partially_supported' | 'unsupported' | 'contradicted';
-  evidence_refs: ExportEvidenceReferenceV2[]; unsupported_reason: string | null;
+  evidence: ExportEvidenceReferenceV2[]; evidence_refs: ExportEvidenceReferenceV2[]; unsupported_reason: string | null;
   repair_action: string | null; post_repair_status: string | null;
-  extraction_status: 'recorded' | 'empty' | 'not_instrumented'; created_at: string;
+  extraction_status: 'recorded' | 'empty' | 'not_instrumented';
+  payload: Record<string, never>; created_at: string;
 }
 
 export interface ExportHumanRatingV2 {
   human_rating_id: string; run_id: string; campaign_id: string; span_id: string | null;
   rater_id_hash: string; rubric_version: string; correctness_score: number; faithfulness_score: number;
   completeness_score: number; citation_quality_score: number; usefulness_score: number;
-  comments: string | null; is_blinded: boolean; shown_mode_label: boolean; created_at: string;
+  comments: string | null; is_blinded: boolean; shown_mode_label: boolean;
+  payload: Record<string, never>; created_at: string;
 }
 
 export interface ExportEvidenceCoverageV2 {

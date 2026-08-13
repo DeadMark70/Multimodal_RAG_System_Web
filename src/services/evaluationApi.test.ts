@@ -573,7 +573,15 @@ describe('evaluationApi', () => {
           schema_version: '2.0',
           export_metadata: {
             exported_at: '2026-07-08T00:00:00Z',
-            options: { include_run_observability: false },
+            options: {
+              include_run_observability: false,
+              include_raw_trace_payloads: true,
+              include_prompt_previews: false,
+              include_full_prompts: false,
+              include_answers: true,
+              include_retrieved_excerpts: true,
+              format: 'json',
+            },
             redaction: { provider_errors: 'excluded', stack_traces: 'excluded', credentials: 'redacted' },
             availability_warnings: [],
           },
@@ -621,7 +629,15 @@ describe('evaluationApi', () => {
       schema_version: '2.0',
       export_metadata: {
         exported_at: '2026-07-08T00:00:00Z',
-        options: { include_run_observability: false },
+        options: {
+          include_run_observability: false,
+          include_raw_trace_payloads: true,
+          include_prompt_previews: false,
+          include_full_prompts: false,
+          include_answers: true,
+          include_retrieved_excerpts: true,
+          format: 'json',
+        },
         redaction: { provider_errors: 'excluded', stack_traces: 'excluded', credentials: 'redacted' },
         availability_warnings: [],
       },

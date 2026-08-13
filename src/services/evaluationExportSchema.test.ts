@@ -117,6 +117,35 @@ function comparison() {
   };
 }
 
+function notApplicableRelease() {
+  const metric = { value: null, reason: "benchmark_not_configured" };
+  return {
+    benchmark_id: "",
+    benchmark_kind: "not_applicable",
+    comparable: false,
+    availability: "not_applicable",
+    not_applicable_reason: "benchmark_not_configured",
+    gate_reasons: ["benchmark_not_configured"],
+    manifest: {},
+    arms: [],
+    required_slot_coverage: metric,
+    important_unsupported_claim_rate: metric,
+    provenance_failure_rate: metric,
+    pack_efficiency: metric,
+    graph_locator_success: metric,
+    graph_locator_fallback: metric,
+    final_generation_count: metric,
+    latency_p95_ms: metric,
+    token_ratio: metric,
+    paired_quality_delta: metric,
+    paired_quality_ci_lower: metric,
+    paired_quality_ci_upper: metric,
+    category_quality_deltas: {},
+    per_question_quality_deltas: {},
+    statistics: {},
+  };
+}
+
 function validExportV2() {
   return {
     schema_version: "2.0",
@@ -301,6 +330,84 @@ describe("Export Schema v2 runtime decoder", () => {
     expect(parsed.runs[0].result.answer).toBeNull();
     expect(parsed.sections.human_evaluation.data?.queue.rows).toHaveLength(1);
     expect(parsed.runs[0].observability.data?.agentic_v9?.schema_version).toBe("1");
+  });
+
+  it("accepts the exact no-benchmark release shape with strict empty objects", () => {
+    const value = validExportV2();
+    value.sections.overview = {
+      availability: availability(),
+      data: {
+        research_summary: researchSummary(),
+        release_metrics: {
+          availability: availability("not_applicable"),
+          data: notApplicableRelease(),
+        },
+      },
+    } as never;
+
+    const parsed = parseExportCampaignResponse(value);
+
+    expect(parsed.sections.overview.data?.release_metrics.data?.manifest).toEqual({});
+    expect(parsed.sections.overview.data?.release_metrics.data?.statistics).toEqual({});
+  });
+
+  it("rejects a wrong nested no-benchmark release shape", () => {
+    const value = validExportV2();
+    const release = notApplicableRelease();
+    release.manifest = { unexpected: true } as never;
+    value.sections.overview = {
+      availability: availability(),
+      data: {
+        research_summary: researchSummary(),
+        release_metrics: {
+          availability: availability("not_applicable"),
+          data: release,
+        },
+      },
+    } as never;
+
+    expect(() => parseExportCampaignResponse(value)).toThrow("Invalid export response.");
+  });
+
+  it("rejects observability marked included when its data is null", () => {
+    const value = validExportV2();
+    (value.runs[0].observability as { data: unknown }).data = null;
+
+    expect(() => parseExportCampaignResponse(value)).toThrow("Invalid export response.");
+  });
+
+  it("accepts only explicit empty safe fields added by the backend projection", () => {
+    const value = validExportV2();
+    value.runs[0].observability.data.trace_events = [
+      {
+        event_id: "event-1",
+        run_id: "run-1",
+        campaign_id: "cmp-1",
+        span_id: "span-1",
+        parent_event_id: null,
+        parent_span_id: null,
+        event_type: "generation",
+        event_schema_version: "1.0",
+        sequence: 1,
+        stage_type: "generation",
+        stage_name: "final_answer",
+        started_at: createdAt,
+        ended_at: createdAt,
+        duration_ms: 1,
+        status: "success",
+        retry_count: 0,
+        payload: {},
+        error: {},
+        created_at: createdAt,
+      },
+    ] as never;
+
+    expect(parseExportCampaignResponse(value).runs[0].observability.data?.trace_events).toHaveLength(1);
+    const trace = value.runs[0].observability.data.trace_events[0] as unknown as {
+      error: unknown;
+    };
+    trace.error = { message: "must reject" };
+    expect(() => parseExportCampaignResponse(value)).toThrow("Invalid export response.");
   });
 
   it.each([
