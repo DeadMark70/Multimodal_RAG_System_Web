@@ -731,6 +731,7 @@ export interface V9ResolvedSourceScope {
   requested_source_names?: string[];
   resolved_doc_ids?: string[];
   authorized_doc_ids?: string[];
+  source_name_to_doc_ids?: Record<string, string[]>;
   rejected_source_names?: string[];
 }
 
@@ -742,6 +743,7 @@ export interface V9QueryContract {
   entities?: string[];
   locator_hints?: string[];
   graph_policy?: V9GraphPolicy | null;
+  visual_requested?: boolean;
   visual_required?: boolean;
   evidence_extraction_required?: boolean;
   max_retrieval_rounds?: number;
@@ -751,6 +753,7 @@ export interface V9QueryContract {
   resolved_source_scope?: V9ResolvedSourceScope | null;
   strategy_tier?: string | null;
   route_decision?: V9RouteDecision | null;
+  comparison_plan?: V9ComparisonPlan | null;
   slot_plan_status?: string | null;
   slot_semantics?: string | null;
   atomic_completeness?: boolean | null;
@@ -875,6 +878,7 @@ export interface V9RetrievalTask {
   target_slot_ids: string[];
   source_scope: V9ResolvedSourceScope;
   source_group_id?: string;
+  subject_id?: string | null;
   locator_hints?: string[];
   graph_policy?: V9GraphPolicy;
   visual_required?: boolean;
@@ -884,6 +888,7 @@ export interface V9RetrievalTask {
 export interface V9RepairPlan {
   repair_round_index: number;
   tasks?: V9RetrievalTask[];
+  resulting_evidence_ids?: string[];
   stop_reason?: string | null;
 }
 
@@ -911,6 +916,20 @@ export interface V9ContextPack {
   packed_evidence_ids?: string[];
   dropped_evidence_ids?: string[];
   token_count?: number | null;
+  selection_policy_version?: string | null;
+  candidate_count?: number | null;
+  selection_decisions?: V9ContextSelectionDecision[];
+}
+
+export interface V9ContextSelectionDecision {
+  evidence_id: string;
+  selected: boolean;
+  base_quality: number;
+  source_bonus: number;
+  redundancy_penalty: number;
+  visual_penalty: number;
+  utility: number;
+  reason: string;
 }
 
 export interface V9ExecutionMetrics {
@@ -977,6 +996,19 @@ export interface EvaluationRunSummary {
   total_tokens?: number | null;
   accounting_status?: 'complete' | 'partial' | 'not_available';
   created_at: string;
+}
+
+export interface V9ComparisonSubject {
+  subject_id: string;
+  display_name: string;
+  aliases?: string[];
+  retrieval_query: string;
+}
+
+export interface V9ComparisonPlan {
+  subjects: V9ComparisonSubject[];
+  dimensions?: string[];
+  qualification?: string | null;
 }
 
 export interface EvaluationTraceEvent {
@@ -1273,32 +1305,304 @@ export interface EvaluationRunObservabilityDetail {
 }
 
 export interface ExportCampaignRequest {
-  include_raw_trace_payloads?: boolean;
-  include_prompt_previews?: boolean;
-  include_full_prompts?: boolean;
-  include_answers?: boolean;
-  include_retrieved_excerpts?: boolean;
-  format?: 'json';
+  include_run_observability: boolean;
+  include_raw_trace_payloads: boolean;
+  include_prompt_previews: boolean;
+  include_full_prompts: boolean;
+  include_answers: boolean;
+  include_retrieved_excerpts: boolean;
+  format: 'json';
 }
 
-export interface ExportCampaignResponse extends Record<string, unknown> {
-  campaign?: Record<string, unknown>;
-  redaction?: Record<string, unknown>;
-  runs?: Array<Record<string, unknown>>;
-  metrics?: Record<string, unknown>;
-  trace_events?: Array<Record<string, unknown>>;
-  llm_calls?: Array<Record<string, unknown>>;
-  retrieval_summary?: Array<Record<string, unknown>>;
-  claim_summary?: Array<Record<string, unknown>>;
-  summary?: {
-    run_count?: number;
-    llm_call_count?: number;
-    per_phase_counts?: Record<string, number>;
-    prompt_hash_availability?: Record<string, number>;
-    prompt_preview_availability?: Record<string, number>;
-    full_prompt_availability?: Record<string, number>;
-  };
-  availability_warnings?: string[];
+export type ExportAvailabilityStatus =
+  | 'complete'
+  | 'partial'
+  | 'not_instrumented'
+  | 'not_available'
+  | 'not_applicable';
+
+export interface ExportAvailabilityV2 {
+  status: ExportAvailabilityStatus;
+  reasons: string[];
+}
+
+export interface ExportSectionV2<T> {
+  availability: ExportAvailabilityV2;
+  data: T | null;
+}
+
+export interface ExportCampaignIdentityV2 {
+  id: string;
+  name: string | null;
+  status: CampaignLifecycleStatus;
+  benchmark_id: string | null;
+  modes: CampaignMode[];
+  repeat_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExportResultV2 {
+  run_id: string;
+  campaign_id: string;
+  question_id: string;
+  question: string;
+  mode: CampaignMode;
+  run_number: number;
+  repeat_number: number;
+  condition_id: string | null;
+  execution_profile: string | null;
+  context_policy_version: string | null;
+  agentic_execution_version: AgenticExecutionVersion;
+  execution_identity: string | null;
+  response_status: string | null;
+  status: CampaignResultStatus;
+  answer: string | null;
+  ground_truth: string | null;
+  ground_truth_short: string | null;
+  contexts: string[] | null;
+  source_doc_ids: string[];
+  latency_ms?: number | null;
+  total_latency_ms?: number | null;
+  total_tokens?: number | null;
+  created_at: string;
+}
+
+export interface ExportTokenBreakdownV2 {
+  input_tokens?: number | null;
+  output_text_tokens?: number | null;
+  reasoning_tokens?: number | null;
+  other_tokens?: number | null;
+  total_tokens?: number | null;
+  by_phase?: Record<string, number>;
+  observed_call_count?: number;
+  measured_call_count?: number;
+  missing_usage_call_count?: number;
+  unbalanced_call_count?: number;
+  unclassified_phase_call_count?: number;
+  missing_usage_by_phase?: Record<string, number>;
+  missing_usage_by_purpose?: Record<string, number>;
+  missing_usage_by_provider?: Record<string, number>;
+  accounting_status: TokenAccountingStatus;
+  phase_attribution_status: PhaseAttributionStatus;
+  phase_attribution_reasons?: string[];
+}
+
+export interface ExportRunLatencyV2 {
+  latency_ms?: number | null;
+  total_latency_ms?: number | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
+export interface ExportEvidenceReferenceV2 {
+  evidence_id?: string | null;
+  doc_id?: string | null;
+  chunk_id?: string | null;
+  page?: number | null;
+}
+
+export interface ExportTraceEventV2 {
+  event_id: string; run_id: string; campaign_id: string; span_id: string;
+  parent_event_id?: string | null; parent_span_id?: string | null; event_type: string;
+  event_schema_version: string; sequence: number; stage_type: string; stage_name: string;
+  started_at: string; ended_at?: string | null; duration_ms?: number | null;
+  status: string; retry_count: number; payload?: Record<string, unknown>; created_at: string;
+}
+
+export interface ExportLlmCallV2 {
+  llm_call_id: string; run_id: string; campaign_id: string; span_id?: string | null;
+  provider?: string | null; model_name?: string | null; phase: string; purpose: string;
+  reservation_id?: string | null; provider_attempt?: number | null; prompt_tokens: number;
+  completion_tokens: number; total_tokens: number; reasoning_tokens?: number | null;
+  other_tokens?: number | null; estimated_cost_usd?: number | null;
+  estimated_cost_twd?: number | null; latency_ms?: number | null; status: string;
+  prompt_hash?: string | null; response_hash?: string | null; prompt_capture_status: string;
+  full_prompt_capture_status: string; prompt_preview?: string | null; full_prompt?: string | null;
+  created_at: string;
+}
+
+export interface ExportRetrievalEventV2 {
+  retrieval_event_id: string; run_id: string; campaign_id: string; span_id?: string | null;
+  query?: string | null; query_hash?: string | null; retriever_name?: string | null;
+  top_k?: number | null; result_count: number; latency_ms?: number | null; created_at: string;
+}
+
+export interface ExportRetrievalChunkV2 {
+  retrieval_chunk_id: string; run_id: string; campaign_id: string; span_id?: string | null;
+  retrieval_event_id: string; chunk_id: string; doc_id?: string | null; page_start?: number | null;
+  page_end?: number | null; modality?: string | null; rank_before_rerank?: number | null;
+  rank_after_rerank?: number | null; dense_score?: number | null; bm25_score?: number | null;
+  rerank_score?: number | null; used_in_context?: boolean | null; used_in_answer?: boolean | null;
+  expected_evidence_match?: boolean | null; excerpt?: string | null; content_hash?: string | null;
+  provenance: 'measured' | 'persisted' | 'derived' | 'heuristic';
+  availability: ExportAvailabilityV2; created_at: string;
+}
+
+export interface ExportContextPackV2 {
+  context_pack_id: string; run_id: string; campaign_id: string; attempt_id?: string | null;
+  condition_id: string; schema_version: string; span_id?: string | null; input_chunk_count: number;
+  packed_chunk_count: number; token_count: number;
+  retrieved_but_not_packed_evidence: ExportEvidenceReferenceV2[]; created_at: string;
+}
+
+export interface ExportToolCallV2 {
+  tool_call_id: string; run_id: string; campaign_id: string; span_id?: string | null;
+  tool_name: string; action?: string | null; latency_ms?: number | null; status: string; created_at: string;
+}
+
+export interface ExportRoutingDecisionV2 {
+  routing_decision_id: string; run_id: string; campaign_id: string; span_id?: string | null;
+  selected_mode: CampaignMode; analysis_type: 'retrospective' | 'actual';
+  decision_source: 'deterministic' | 'llm_planner' | 'safe_fallback' | null;
+  candidate_routes: string[]; matched_rules: string[]; fallback_reason: string | null;
+  confidence: number | null; reason: string | null; created_at: string;
+}
+
+export interface ExportGraphEventV2 {
+  graph_event_id: string; run_id: string; campaign_id: string | null; span_id: string | null;
+  graph_query: string; graph_search_mode: string; graph_evidence_mode: string; graph_route: string;
+  router_reason: string | null; graph_snapshot_version: string | null; graph_schema_version: string | null;
+  graph_extraction_prompt_version: string | null; matched_entity_ids: string[]; community_ids: number[];
+  node_count: number; edge_count: number; path_count: number; graph_latency_ms?: number | null;
+  graph_context_tokens: number; graph_to_chunk_success_rate?: number | null;
+  graph_noise_ratio?: number | null; created_at: string;
+}
+
+export interface ExportGraphEvidenceItemV2 {
+  graph_evidence_item_id: string; graph_event_id: string; node_ids: string[]; edge_ids: string[];
+  relation_path: string[]; source_doc_ids: string[]; source_chunk_ids: string[]; pages: number[];
+  asset_ids: string[]; confidence: number; provenance_status: 'full' | 'partial' | 'missing';
+  used_as_locator: boolean; packed_in_context: boolean; used_in_answer: boolean;
+  supported_claim_ids: string[]; created_at: string;
+}
+
+export interface ExportClaimV2 {
+  claim_id: string; run_id: string; campaign_id: string; attempt_id: string | null;
+  condition_id: string; schema_version: string; span_id: string | null; claim_text: string | null;
+  claim_type: string | null; support_status: 'supported' | 'partially_supported' | 'unsupported' | 'contradicted';
+  evidence_refs: ExportEvidenceReferenceV2[]; unsupported_reason: string | null;
+  repair_action: string | null; post_repair_status: string | null;
+  extraction_status: 'recorded' | 'empty' | 'not_instrumented'; created_at: string;
+}
+
+export interface ExportHumanRatingV2 {
+  human_rating_id: string; run_id: string; campaign_id: string; span_id: string | null;
+  rater_id_hash: string; rubric_version: string; correctness_score: number; faithfulness_score: number;
+  completeness_score: number; citation_quality_score: number; usefulness_score: number;
+  comments: string | null; is_blinded: boolean; shown_mode_label: boolean; created_at: string;
+}
+
+export interface ExportEvidenceCoverageV2 {
+  atomic_fact_id: string; fact_text: string | null; retrieved: boolean; packed: boolean;
+  mentioned: boolean; cited: boolean; expected_doc_ids: string[];
+}
+
+export interface ExportV9EvidencePacketDataV2 {
+  schema_version: string; evidence_id: string; task_id: string; round_id: string; query_id: string;
+  slot_ids: string[]; statement: string | null; support_type: V9EvidenceSupportType;
+  source: V9EvidenceSource; scope: V9EvidenceScope; locator: V9SourceLocator;
+  raw_value?: string | number | null; normalized_value?: string | number | null; unit?: string | null;
+  calculation_operation?: string | null; premise_evidence_ids?: string[]; display_precision?: number | null;
+  rounding_mode?: string | null; extractor_version?: string | null; prompt_version?: string | null;
+  validation_status?: 'deterministic_valid' | 'quote_bound' | 'derived_non_evidence' | 'invalid';
+}
+
+export interface ExportV9EvidencePacketV2 { evidence_id: string; packet: ExportV9EvidencePacketDataV2; }
+
+export interface ExportV9FinalClaimV2 {
+  claim_id: string; slot_id?: string | null; statement: string | null; support_type: V9ClaimSupportType;
+  evidence_ids?: string[]; premise_evidence_ids?: string[]; qualified_reason?: string | null;
+}
+
+export interface ExportV9ExecutionObservabilityV2 {
+  schema_version?: string;
+  contract?: V9QueryContract | null;
+  slot_resolutions?: V9SlotResolution[];
+  evidence_packets?: ExportV9EvidencePacketV2[];
+  sufficiency?: V9SufficiencyReport | null;
+  context_pack?: V9ContextPack | null;
+  budget?: V9BudgetReservation[];
+  repairs?: V9RepairPlan[];
+  conflicts?: V9ConflictCandidate[];
+  final_claims?: ExportV9FinalClaimV2[];
+  metrics?: V9ExecutionMetrics;
+  comparison?: Record<string, unknown> | null;
+}
+
+export interface ExportRunSummaryV2 {
+  run_id: string; campaign_id: string; question_id: string; mode: CampaignMode; repeat_number: number;
+  answer_preview: string | null; latency_ms?: number | null; total_tokens?: number | null;
+  accounting_status: 'complete' | 'partial' | 'not_available'; created_at: string;
+}
+
+export interface ExportRunObservabilityDataV2 {
+  run_id: string; campaign_id: string; run_summary: ExportRunSummaryV2;
+  accounting_diagnostics: ExportTokenBreakdownV2; trace_events: ExportTraceEventV2[];
+  llm_calls: ExportLlmCallV2[]; retrieval_events: ExportRetrievalEventV2[];
+  retrieval_chunks: ExportRetrievalChunkV2[]; context_packs: ExportContextPackV2[];
+  tool_calls: ExportToolCallV2[]; routing_decisions: ExportRoutingDecisionV2[];
+  graph_events: ExportGraphEventV2[]; graph_evidence_items: ExportGraphEvidenceItemV2[];
+  graph_observability_status: 'recorded' | 'fallback' | 'not_instrumented'; claims: ExportClaimV2[];
+  claim_extraction_status: 'recorded' | 'empty' | 'not_instrumented'; human_ratings: ExportHumanRatingV2[];
+  evidence_coverage: ExportEvidenceCoverageV2[] | null;
+  evidence_coverage_status: 'complete' | 'partial' | 'not_available' | 'not_instrumented';
+  agentic_v9: ExportV9ExecutionObservabilityV2 | null;
+}
+
+export interface ExportRunObservabilityV2 {
+  included: boolean; availability: ExportAvailabilityV2; data: ExportRunObservabilityDataV2 | null;
+}
+
+export interface ExportRunV2 {
+  result: ExportResultV2;
+  ragas_metrics: Record<string, number>;
+  accounting: ExportTokenBreakdownV2;
+  latency: ExportRunLatencyV2;
+  observability: ExportRunObservabilityV2;
+}
+
+export interface ExportHumanEvalQueueItemV2 {
+  run_id: string; campaign_id: string; question_id: string; question: string; mode: CampaignMode;
+  run_number: number; repeat_number: number; answer_preview: string | null;
+  existing_rating_count: number; already_rated_by_current_user: boolean;
+}
+
+export interface ExportHumanEvalQueueV2 { campaign_id: string; rows: ExportHumanEvalQueueItemV2[]; }
+export interface ExportHumanEvaluationDataV2 { comparison: HumanVsAutoResponse; queue: ExportHumanEvalQueueV2; }
+export interface ExportDiagnosticsDataV2 { errors: CampaignErrorsResponse; stage_warnings: CampaignStageWarningsResponse; }
+export interface ExportOverviewDataV2 {
+  research_summary: CampaignResearchSummaryResponse;
+  release_metrics: ExportSectionV2<ReleaseMetricsReport>;
+}
+
+export interface ExportSectionsV2 {
+  overview: ExportSectionV2<ExportOverviewDataV2>;
+  question_analysis: ExportSectionV2<ResearchQuestionComparisonResponse>;
+  agent_behavior: ExportSectionV2<AgentBehaviorResponse>;
+  router_analysis: ExportSectionV2<RouterAnalysisResponse>;
+  ablation: ExportSectionV2<AblationResponse>;
+  human_evaluation: ExportSectionV2<ExportHumanEvaluationDataV2>;
+  diagnostics: ExportSectionV2<ExportDiagnosticsDataV2>;
+}
+
+export interface ExportRedactionMetadataV2 {
+  provider_errors: 'excluded'; stack_traces: 'excluded'; credentials: 'redacted';
+}
+
+export interface ExportMetadataV2 {
+  exported_at: string;
+  options: ExportCampaignRequest;
+  redaction: ExportRedactionMetadataV2;
+  availability_warnings: string[];
+}
+
+export interface ExportCampaignResponse {
+  schema_version: '2.0';
+  export_metadata: ExportMetadataV2;
+  campaign: ExportCampaignIdentityV2;
+  sections: ExportSectionsV2;
+  runs: ExportRunV2[];
 }
 
 export interface HumanRatingRequest {

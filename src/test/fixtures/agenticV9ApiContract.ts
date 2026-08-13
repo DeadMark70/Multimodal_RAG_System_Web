@@ -3,7 +3,7 @@
  * Update this fixture only when the generated OpenAPI contract changes.
  */
 export const AGENTIC_V9_API_CONTRACT = {
-  openapi_sha256: '77c3c7d3d4cf4fd1c0861fbc86dc23372a854dc92addcd67b835472df647f21c',
+  openapi_sha256: 'e736a2e267fde9f14aa66eaa41b22345efd804b2cedc554e53dd554f961354e6',
   frontend_baseline_commit: '1ab15449af756886039614fab6b6cc64781d1d23',
   control_plane_fields: {
     campaign_config: ['agentic_execution_version', 'shadow_evaluation_policy'],

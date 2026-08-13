@@ -570,9 +570,27 @@ describe('evaluationApi', () => {
     mockedApi.post
       .mockResolvedValueOnce({
         data: {
-          campaign_id: 'cmp-1',
-          exported_at: '2026-07-08T00:00:00Z',
-          export_options: { include_prompt_previews: true },
+          schema_version: '2.0',
+          export_metadata: {
+            exported_at: '2026-07-08T00:00:00Z',
+            options: { include_run_observability: false },
+            redaction: { provider_errors: 'excluded', stack_traces: 'excluded', credentials: 'redacted' },
+            availability_warnings: [],
+          },
+          campaign: {
+            id: 'cmp-1', name: null, status: 'completed', benchmark_id: null, modes: ['agentic'],
+            repeat_count: 1, created_at: '2026-07-08T00:00:00Z', updated_at: '2026-07-08T00:00:00Z',
+          },
+          sections: {
+            overview: { availability: { status: 'not_available', reasons: [] }, data: null },
+            question_analysis: { availability: { status: 'not_available', reasons: [] }, data: null },
+            agent_behavior: { availability: { status: 'not_available', reasons: [] }, data: null },
+            router_analysis: { availability: { status: 'not_available', reasons: [] }, data: null },
+            ablation: { availability: { status: 'not_available', reasons: [] }, data: null },
+            human_evaluation: { availability: { status: 'not_available', reasons: [] }, data: null },
+            diagnostics: { availability: { status: 'not_available', reasons: [] }, data: null },
+          },
+          runs: [],
         },
       })
       .mockResolvedValueOnce({
@@ -591,6 +609,7 @@ describe('evaluationApi', () => {
 
     expect(
       await exportCampaignAnalysis('cmp-1', {
+        include_run_observability: false,
         include_raw_trace_payloads: true,
         include_prompt_previews: false,
         include_full_prompts: false,
@@ -599,11 +618,30 @@ describe('evaluationApi', () => {
         format: 'json',
       })
     ).toEqual({
-      campaign_id: 'cmp-1',
-      exported_at: '2026-07-08T00:00:00Z',
-      export_options: { include_prompt_previews: true },
+      schema_version: '2.0',
+      export_metadata: {
+        exported_at: '2026-07-08T00:00:00Z',
+        options: { include_run_observability: false },
+        redaction: { provider_errors: 'excluded', stack_traces: 'excluded', credentials: 'redacted' },
+        availability_warnings: [],
+      },
+      campaign: {
+        id: 'cmp-1', name: null, status: 'completed', benchmark_id: null, modes: ['agentic'], repeat_count: 1,
+        created_at: '2026-07-08T00:00:00Z', updated_at: '2026-07-08T00:00:00Z',
+      },
+      sections: {
+        overview: { availability: { status: 'not_available', reasons: [] }, data: null },
+        question_analysis: { availability: { status: 'not_available', reasons: [] }, data: null },
+        agent_behavior: { availability: { status: 'not_available', reasons: [] }, data: null },
+        router_analysis: { availability: { status: 'not_available', reasons: [] }, data: null },
+        ablation: { availability: { status: 'not_available', reasons: [] }, data: null },
+        human_evaluation: { availability: { status: 'not_available', reasons: [] }, data: null },
+        diagnostics: { availability: { status: 'not_available', reasons: [] }, data: null },
+      },
+      runs: [],
     });
     expect(mockedApi.post).toHaveBeenNthCalledWith(1, '/api/evaluation/campaigns/cmp-1/export', {
+      include_run_observability: false,
       include_raw_trace_payloads: true,
       include_prompt_previews: false,
       include_full_prompts: false,
@@ -646,6 +684,30 @@ describe('evaluationApi', () => {
       is_blinded: true,
       shown_mode_label: false,
     });
+  });
+
+  it('rejects a malformed export response at the API runtime boundary', async () => {
+    mockedApi.post.mockResolvedValueOnce({
+      data: {
+        schema_version: '2.0',
+        export_metadata: { availability_warnings: [] },
+        campaign: { id: 'cmp-1' },
+        sections: {},
+        runs: [{ result: { arbitrary: 'server-payload-sentinel' } }],
+      },
+    });
+
+    await expect(
+      exportCampaignAnalysis('cmp-1', {
+        include_run_observability: false,
+        include_raw_trace_payloads: false,
+        include_prompt_previews: true,
+        include_full_prompts: false,
+        include_answers: true,
+        include_retrieved_excerpts: true,
+        format: 'json',
+      })
+    ).rejects.toThrow('Invalid export response.');
   });
 
   it('fetches canonical run observability from the selected campaign endpoint', async () => {

@@ -170,7 +170,9 @@ Human-maintained inventory of the current frontend surface.
   - displays `Paired Delta (guided - baseline)`, completed and metric-pair counts, and numeric exclusion reasons; it does not aggregate metrics or read runtime flags
   - preserves the legacy ablation sections when condition comparison data is absent; `Mode Comparison` remains a separate mode-level surface
   - groups ablation counts, human-eval queue, export preview options, and sanitized errors into separate sections
-  - current export button is presentational; the page uses a prefetched `exportCampaignAnalysis(...)` preview rather than issuing a new request from the button
+  - export button posts the complete Export Schema v2 request; run observability is off by default and labeled as a larger file
+  - validates the unknown response through the strict v2 decoder before preview/download, then reads only authoritative export metadata, redaction, warnings, sections, and runs
+  - names downloads by summary/observability plus redacted/custom v2 scope, guards pending and stale responses, preserves the prior preview on rejection, and revokes object URLs
 - `StabilityChart.tsx`
   - reads generic `metric_values` instead of only two hard-coded metrics
 

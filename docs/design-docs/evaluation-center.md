@@ -170,7 +170,10 @@ Before the tab list, `EvaluationJobPanel` is mounted with `key={selectedCampaign
      - `exportCampaignAnalysis(...)`
    - rendering behavior:
      - one tab owns ablation counts, human-calibration queue, export preview, and sanitized errors
-     - export option checkboxes are local UI state; the visible button does not issue a fresh export request
+     - the visible button sends a strict Export Schema v2 request with required `include_run_observability` (default `false`) and decodes the unknown response before preview or download
+     - preview content is backend-authoritative (`export_metadata`, redaction, warnings, sections, runs) with no legacy `summary`, `llm_calls`, or top-level redaction fallback
+     - exact filenames distinguish summary/observability and redacted/custom exports; only full prompts or raw trace payloads select `custom`
+     - pending, rejection, campaign-change, stale-response, and object-URL cleanup behavior is guarded in the tab
 
 ## Setup / Admin Surfaces
 

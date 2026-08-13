@@ -40,6 +40,7 @@ interface AblationDashboardData {
 }
 
 const defaultExportOptions: Required<ExportCampaignRequest> = {
+  include_run_observability: false,
   include_raw_trace_payloads: false,
   include_prompt_previews: true,
   include_full_prompts: false,
@@ -47,6 +48,11 @@ const defaultExportOptions: Required<ExportCampaignRequest> = {
   include_retrieved_excerpts: true,
   format: 'json',
 };
+
+const exportSectionNames = [
+  'overview', 'question_analysis', 'agent_behavior', 'router_analysis',
+  'ablation', 'human_evaluation', 'diagnostics',
+] as const;
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
@@ -58,32 +64,6 @@ function formatNumber(value: unknown, digits = 2): string {
 
 function formatCount(value: unknown): string {
   return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : 'N/A';
-}
-
-function summaryCount(value: unknown, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
-}
-
-function exportAvailabilityWarnings(
-  response: ExportCampaignResponse | undefined,
-  fullPromptsRequested: boolean
-): string[] {
-  if (!response) {
-    return [];
-  }
-  const warnings = new Set(response.availability_warnings ?? []);
-  const fullPromptAvailability = response.summary?.full_prompt_availability ?? {};
-  const missingAtExecution = fullPromptAvailability.not_captured_at_execution ?? 0;
-  if (fullPromptsRequested && missingAtExecution > 0) {
-    warnings.add('full_prompts_not_captured_at_execution');
-  }
-  return Array.from(warnings);
-}
-
-function availabilityText(label: string, availability: Record<string, number> | undefined): string {
-  if (!availability) return `${label}: N/A`;
-  const counts = Object.entries(availability).map(([status, count]) => `${status}: ${formatCount(count)}`);
-  return `${label}: ${counts.length ? counts.join(' · ') : 'N/A'}`;
 }
 
 function conditionRows(data?: AblationResponse) {
@@ -243,13 +223,19 @@ function toggleOption(
 function downloadExport(campaignId: string, response: ExportCampaignResponse) {
   const blob = new Blob([JSON.stringify(response, null, 2)], { type: 'application/json' });
   const href = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = href;
-  anchor.download = `${campaignId}-redacted.json`;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(href);
+  const options = response.export_metadata.options;
+  const scope = options.include_run_observability ? 'observability' : 'summary';
+  const content = options.include_full_prompts || options.include_raw_trace_payloads ? 'custom' : 'redacted';
+  try {
+    const anchor = document.createElement('a');
+    anchor.href = href;
+    anchor.download = `${campaignId}-${scope}-${content}-v2.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  } finally {
+    URL.revokeObjectURL(href);
+  }
 }
 
 interface AblationDashboardTabProps {
@@ -267,29 +253,31 @@ export default function AblationDashboardTab({
   const [exportPreview, setExportPreview] = useState<ExportCampaignResponse | undefined>();
   const [exporting, setExporting] = useState(false);
   const exportGenerationRef = useRef(0);
+  const exportPendingRef = useRef(false);
   const ablationRows = conditionRows(data?.ablation);
   const conditionMetrics = conditionComparison(data?.ablation);
   const graphFamilies = graphFamilyRows(data?.ablation);
   const humanSummaries = asRecord(data?.humanVsAuto?.summaries);
-  const exportRedaction = asRecord(exportPreview?.redaction);
-  const exportRuns = summaryCount(exportPreview?.summary?.run_count, Array.isArray(exportPreview?.runs) ? exportPreview.runs.length : 0);
-  const exportLlmCalls = summaryCount(exportPreview?.summary?.llm_call_count, Array.isArray(exportPreview?.llm_calls) ? exportPreview.llm_calls.length : 0);
-  const exportPhaseCounts = exportPreview?.summary?.per_phase_counts ?? {};
-  const exportWarnings = exportAvailabilityWarnings(exportPreview, exportOptions.include_full_prompts);
+  const exportRuns = exportPreview?.runs.length ?? 0;
+  const exportLlmCalls = exportPreview?.export_metadata.options.include_run_observability
+    ? exportPreview.runs.reduce((count, run) => count + (run.observability.data?.llm_calls.length ?? 0), 0)
+    : undefined;
   const errorRows = data?.errors?.rows ?? [];
   const stageWarningRows = data?.stageWarnings?.rows ?? [];
   const humanQueueRows = data?.humanQueue?.rows ?? [];
 
   useEffect(() => {
     exportGenerationRef.current += 1;
+    exportPendingRef.current = false;
     setExportPreview(undefined);
     setExporting(false);
   }, [campaignId]);
 
   const handleExport = async () => {
-    if (!campaignId || exporting) {
+    if (!campaignId || exportPendingRef.current) {
       return;
     }
+    exportPendingRef.current = true;
     const exportGeneration = exportGenerationRef.current;
     setExporting(true);
     try {
@@ -305,6 +293,7 @@ export default function AblationDashboardTab({
       }
     } finally {
       if (exportGeneration === exportGenerationRef.current) {
+        exportPendingRef.current = false;
         setExporting(false);
       }
     }
@@ -449,6 +438,7 @@ export default function AblationDashboardTab({
           <HStack wrap="wrap" gap={3}>
             {(
               [
+                ['include_run_observability', 'Include all run observability'],
                 ['include_raw_trace_payloads', 'Raw trace payloads'],
                 ['include_prompt_previews', 'Prompt previews'],
                 ['include_full_prompts', 'Full prompts'],
@@ -458,10 +448,13 @@ export default function AblationDashboardTab({
             ).map(([key, label]) => (
               <Checkbox
                 key={key}
+                aria-label={label}
                 isChecked={exportOptions[key]}
+                isDisabled={exporting}
                 onChange={() => setExportOptions((current) => toggleOption(current, key))}
               >
                 {label}
+                {key === 'include_run_observability' ? <Text as="span" ml={1} color="text.secondary">Larger file</Text> : null}
               </Checkbox>
             ))}
           </HStack>
@@ -477,21 +470,21 @@ export default function AblationDashboardTab({
             </Button>
             {exportPreview ? (
               <Stack spacing={1} align="flex-start">
-                <Badge colorScheme={exportRedaction.include_full_prompts ? 'orange' : 'green'}>
-                  export option: full prompts {exportRedaction.include_full_prompts ? 'requested' : 'redacted'}
+                <Badge colorScheme={exportPreview.export_metadata.options.include_full_prompts ? 'orange' : 'green'}>
+                  full prompts {exportPreview.export_metadata.options.include_full_prompts ? 'requested' : 'redacted'}
                 </Badge>
                 <Text color="text.secondary">
-                  Preview: {exportRuns.toLocaleString()} runs, {exportLlmCalls.toLocaleString()} LLM calls
+                  Preview: {exportRuns.toLocaleString()} runs{exportLlmCalls === undefined ? '' : `, ${exportLlmCalls.toLocaleString()} LLM calls`}
                 </Text>
-                {Object.entries(exportPhaseCounts).map(([phase, count]) => (
-                  <Text key={phase} color="text.secondary" fontSize="sm">
-                    {phase}: {formatCount(count)}
+                {exportSectionNames.map((section) => (
+                  <Text key={section} color="text.secondary" fontSize="sm">
+                    {section}: {exportPreview.sections[section].availability.status}
                   </Text>
                 ))}
-                <Text color="text.secondary" fontSize="sm">{availabilityText('Prompt hash availability', exportPreview.summary?.prompt_hash_availability)}</Text>
-                <Text color="text.secondary" fontSize="sm">{availabilityText('Prompt preview availability', exportPreview.summary?.prompt_preview_availability)}</Text>
-                <Text color="text.secondary" fontSize="sm">{availabilityText('Full prompt availability', exportPreview.summary?.full_prompt_availability)}</Text>
-                {exportWarnings.map((warning) => (
+                <Text color="text.secondary" fontSize="sm">
+                  credentials: {exportPreview.export_metadata.redaction.credentials}
+                </Text>
+                {exportPreview.export_metadata.availability_warnings.map((warning) => (
                   <Text key={warning} color="orange.600" fontSize="sm">
                     {warning}
                   </Text>

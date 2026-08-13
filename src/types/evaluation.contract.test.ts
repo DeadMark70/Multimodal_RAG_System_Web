@@ -6,6 +6,9 @@ import type {
   CampaignPreflightRequest,
   EvaluationRunListItem,
   EvaluationRunObservabilityDetail,
+  ExportCampaignRequest,
+  ExportCampaignResponse,
+  ExportRunV2,
   RouterAnalysisResponse,
   RouterAnalysisRow,
   V9ExecutionObservability,
@@ -48,12 +51,22 @@ type RouterAnalysisResponseRowsMatchBackend = Expect<
 type CampaignProgressHasNoLatestResultId = Expect<
   'latest_result_id' extends keyof CampaignProgressEvent ? false : true
 >;
+type ExportResponseTopLevelMatchesV2 = Expect<
+  Equal<keyof ExportCampaignResponse, 'schema_version' | 'export_metadata' | 'campaign' | 'sections' | 'runs'>
+>;
+type ExportRunOwnsItsResult = Expect<
+  Equal<keyof ExportRunV2, 'result' | 'ragas_metrics' | 'accounting' | 'latency' | 'observability'>
+>;
+type ExportHasNoLegacySummary = Expect<'summary' extends keyof ExportCampaignResponse ? false : true>;
 
 const activeContractTypeChecks: [
   RouterAnalysisRowMatchesBackend,
   RouterAnalysisResponseRowsMatchBackend,
   CampaignProgressHasNoLatestResultId,
-] = [true, true, true];
+  ExportResponseTopLevelMatchesV2,
+  ExportRunOwnsItsResult,
+  ExportHasNoLegacySummary,
+] = [true, true, true, true, true, true];
 
 describe('agentic v9 evaluation contract', () => {
   it('pins the backend OpenAPI hash and frontend baseline', () => {
@@ -125,7 +138,7 @@ describe('agentic v9 evaluation contract', () => {
     expect('latest_result_id' in progress).toBe(false);
     expect(routerAnalysis.rows[0].analysis_type).toBe('retrospective');
     expect(routerAnalysis.rows[0]).not.toHaveProperty('payload');
-    expect(activeContractTypeChecks).toEqual([true, true, true]);
+    expect(activeContractTypeChecks).toEqual([true, true, true, true, true, true]);
   });
 
   it('keeps historical v8 observability valid when v9 observability is null', () => {
@@ -170,6 +183,21 @@ describe('agentic v9 evaluation contract', () => {
     };
 
     expect(v8Detail.agentic_v9).toBeNull();
+  });
+
+  it('requires the UI to send the complete Export v2 request shape', () => {
+    const request: ExportCampaignRequest = {
+      include_run_observability: false,
+      include_raw_trace_payloads: false,
+      include_prompt_previews: true,
+      include_full_prompts: false,
+      include_answers: true,
+      include_retrieved_excerpts: true,
+      format: 'json',
+    };
+
+    expect(request.include_run_observability).toBe(false);
+    expect(activeContractTypeChecks).toEqual([true, true, true, true, true, true]);
   });
 
   it('models a non-empty serialized canonical observability response', () => {

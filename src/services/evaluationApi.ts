@@ -1,4 +1,5 @@
 import api from './api';
+import { parseExportCampaignResponse } from './evaluationExportSchema';
 import type {
   AgentBehaviorResponse,
   AgentTraceDetail,
@@ -359,8 +360,8 @@ export async function exportCampaignAnalysis(
   campaignId: string,
   payload: ExportCampaignRequest
 ): Promise<ExportCampaignResponse> {
-  const response = await api.post<ExportCampaignResponse>(`/api/evaluation/campaigns/${campaignId}/export`, payload);
-  return response.data;
+  const response = await api.post<unknown>(`/api/evaluation/campaigns/${campaignId}/export`, payload);
+  return parseExportCampaignResponse(response.data);
 }
 
 export async function getHumanEvalQueue(campaignId: string): Promise<HumanEvalQueueResponse> {

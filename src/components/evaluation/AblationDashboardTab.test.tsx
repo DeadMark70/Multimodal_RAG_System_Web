@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import theme from '../../theme';
 import { exportCampaignAnalysis } from '../../services/evaluationApi';
+import type { ExportCampaignResponse } from '../../types/evaluation';
 import AblationDashboardTab from './AblationDashboardTab';
 
 vi.mock('../../services/evaluationApi', () => ({
@@ -161,6 +162,45 @@ function renderWithTheme(node: React.ReactNode) {
   return render(<ChakraProvider theme={theme}>{node}</ChakraProvider>);
 }
 
+function exportV2(
+  options: Partial<ExportCampaignResponse['export_metadata']['options']> = {},
+  overrides: Partial<Pick<ExportCampaignResponse, 'runs'>> = {}
+): ExportCampaignResponse {
+  const includeRunObservability = options.include_run_observability ?? false;
+  return {
+    schema_version: '2.0',
+    export_metadata: {
+      exported_at: '2026-08-13T00:00:00Z',
+      options: {
+        include_run_observability: includeRunObservability,
+        include_raw_trace_payloads: options.include_raw_trace_payloads ?? false,
+        include_prompt_previews: options.include_prompt_previews ?? true,
+        include_full_prompts: options.include_full_prompts ?? false,
+        include_answers: options.include_answers ?? true,
+        include_retrieved_excerpts: options.include_retrieved_excerpts ?? true,
+        format: 'json',
+      },
+      redaction: { provider_errors: 'excluded', stack_traces: 'excluded', credentials: 'redacted' },
+      availability_warnings: ['authoritative warning'],
+    },
+    campaign: {
+      id: 'cmp-1', name: 'Campaign', status: 'completed', benchmark_id: 'benchmark-1',
+      modes: ['agentic-v9'], repeat_count: 1,
+      created_at: '2026-08-13T00:00:00Z', updated_at: '2026-08-13T00:00:00Z',
+    },
+    sections: {
+      overview: { availability: { status: 'not_available', reasons: ['summary unavailable'] }, data: null },
+      question_analysis: { availability: { status: 'not_available', reasons: [] }, data: null },
+      agent_behavior: { availability: { status: 'not_available', reasons: [] }, data: null },
+      router_analysis: { availability: { status: 'not_available', reasons: [] }, data: null },
+      ablation: { availability: { status: 'not_available', reasons: [] }, data: null },
+      human_evaluation: { availability: { status: 'not_available', reasons: [] }, data: null },
+      diagnostics: { availability: { status: 'partial', reasons: ['diagnostics partial'] }, data: null },
+    },
+    runs: overrides.runs ?? [],
+  };
+}
+
 describe('AblationDashboardTab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -229,8 +269,12 @@ describe('AblationDashboardTab', () => {
     expect(within(failedCard as HTMLElement).getByText('0')).toBeInTheDocument();
   });
 
-  it('allows export redaction options to be toggled locally', () => {
+  it('offers run observability as a larger-file option that is off by default', () => {
     renderWithTheme(<AblationDashboardTab campaignId="cmp-1" data={dashboardData} />);
+
+    const observability = screen.getByRole('checkbox', { name: 'Include all run observability' });
+    expect(observability).not.toBeChecked();
+    expect(screen.getByText('Larger file')).toBeInTheDocument();
 
     const fullPrompts = screen.getByRole('checkbox', { name: 'Full prompts' });
     expect(fullPrompts).not.toBeChecked();
@@ -238,13 +282,8 @@ describe('AblationDashboardTab', () => {
     expect(fullPrompts).toBeChecked();
   });
 
-  it('exports the selected redaction options and previews the returned export', async () => {
-    vi.mocked(exportCampaignAnalysis).mockResolvedValue({
-      campaign: { id: 'cmp-1' },
-      redaction: { include_full_prompts: false },
-      runs: [{ run_id: 'run-1' }, { run_id: 'run-2' }],
-      llm_calls: [{ llm_call_id: 'call-1' }],
-    });
+  it('sends include_run_observability false by default and previews only authoritative v2 fields', async () => {
+    vi.mocked(exportCampaignAnalysis).mockResolvedValue(exportV2());
     vi.stubGlobal('URL', {
       createObjectURL: vi.fn(() => 'blob:campaign-export'),
       revokeObjectURL: vi.fn(),
@@ -256,6 +295,7 @@ describe('AblationDashboardTab', () => {
 
     await waitFor(() => {
       expect(exportCampaignAnalysis).toHaveBeenCalledWith('cmp-1', {
+        include_run_observability: false,
         include_raw_trace_payloads: false,
         include_prompt_previews: true,
         include_full_prompts: false,
@@ -264,67 +304,84 @@ describe('AblationDashboardTab', () => {
         format: 'json',
       });
     });
-    expect(await screen.findByText('Preview: 2 runs, 1 LLM calls')).toBeInTheDocument();
+    expect(await screen.findByText('Preview: 0 runs')).toBeInTheDocument();
+    expect(screen.queryByText(/0 LLM calls/)).not.toBeInTheDocument();
+    expect(screen.getByText('authoritative warning')).toBeInTheDocument();
+    expect(screen.getByText(/diagnostics: partial/)).toBeInTheDocument();
+    expect(screen.getByText(/full prompts redacted/)).toBeInTheDocument();
     expect(anchorClick).toHaveBeenCalledOnce();
   });
 
-  it('reports execution-time prompt availability rather than implying export can recover uncaptured full prompts', async () => {
-    vi.mocked(exportCampaignAnalysis).mockResolvedValue({
-      campaign: { id: 'cmp-1' },
-      redaction: { include_full_prompts: true },
-      summary: {
-        run_count: 2,
-        llm_call_count: 3,
-        per_phase_counts: { final_generation: 2 },
-        full_prompt_availability: { not_captured_at_execution: 3 },
-      },
-      availability_warnings: [],
-      runs: [],
-      llm_calls: [],
+  it.each([
+    [false, false, 'cmp-1-summary-redacted-v2.json'],
+    [true, false, 'cmp-1-observability-redacted-v2.json'],
+    [false, true, 'cmp-1-summary-custom-v2.json'],
+    [true, true, 'cmp-1-observability-custom-v2.json'],
+  ])('downloads the exact v2 filename for observability=%s custom=%s', async (observability, custom, filename) => {
+    vi.mocked(exportCampaignAnalysis).mockResolvedValue(exportV2({
+      include_run_observability: observability,
+      include_full_prompts: custom,
+    }));
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:campaign-export'), revokeObjectURL });
+    let downloaded = '';
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      downloaded = this.download;
     });
-    vi.stubGlobal('URL', {
-      createObjectURL: vi.fn(() => 'blob:campaign-export'),
-      revokeObjectURL: vi.fn(),
-    });
-    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
     renderWithTheme(<AblationDashboardTab campaignId="cmp-1" data={dashboardData} />);
-
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Full prompts' }));
+    if (observability) fireEvent.click(screen.getByRole('checkbox', { name: 'Include all run observability' }));
+    if (custom) fireEvent.click(screen.getByRole('checkbox', { name: 'Full prompts' }));
     fireEvent.click(screen.getByRole('button', { name: 'Export redacted JSON' }));
-
-    expect(await screen.findByText('Preview: 2 runs, 3 LLM calls')).toBeInTheDocument();
-    expect(screen.getByText('final_generation: 2')).toBeInTheDocument();
-    expect(screen.getByText('full_prompts_not_captured_at_execution')).toBeInTheDocument();
+    await waitFor(() => expect(downloaded).toBe(filename));
   });
 
-  it('renders every returned prompt-capture availability map without rendering prompt content', async () => {
-    vi.mocked(exportCampaignAnalysis).mockResolvedValue({
-      campaign: { id: 'cmp-1' }, redaction: {}, runs: [], llm_calls: [],
-      summary: {
-        run_count: 1, llm_call_count: 2,
-        prompt_hash_availability: { captured: 2 },
-        prompt_preview_availability: { captured: 1, not_captured_at_execution: 1 },
-        full_prompt_availability: { not_captured_at_execution: 2 },
-      },
-    });
+  it('uses custom filename when raw trace payloads are requested', async () => {
+    vi.mocked(exportCampaignAnalysis).mockResolvedValue(exportV2({ include_raw_trace_payloads: true }));
     vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:campaign-export'), revokeObjectURL: vi.fn() });
-    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    let downloaded = '';
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { downloaded = this.download; });
     renderWithTheme(<AblationDashboardTab campaignId="cmp-1" data={dashboardData} />);
-
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Raw trace payloads' }));
     fireEvent.click(screen.getByRole('button', { name: 'Export redacted JSON' }));
+    await waitFor(() => expect(downloaded).toBe('cmp-1-summary-custom-v2.json'));
+  });
 
-    expect(await screen.findByText('Prompt hash availability: captured: 2')).toBeInTheDocument();
-    expect(screen.getByText('Prompt preview availability: captured: 1 · not_captured_at_execution: 1')).toBeInTheDocument();
-    expect(screen.getByText('Full prompt availability: not_captured_at_execution: 2')).toBeInTheDocument();
+  it('disables every export control while pending and one click creates one request and download', async () => {
+    let resolveExport!: (value: ExportCampaignResponse) => void;
+    vi.mocked(exportCampaignAnalysis).mockReturnValue(new Promise((resolve) => { resolveExport = resolve; }));
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:campaign-export'), revokeObjectURL });
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    renderWithTheme(<AblationDashboardTab campaignId="cmp-1" data={dashboardData} />);
+    const button = screen.getByRole('button', { name: 'Export redacted JSON' });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(button).toBeDisabled();
+    for (const checkbox of screen.getAllByRole('checkbox')) expect(checkbox).toBeDisabled();
+    expect(exportCampaignAnalysis).toHaveBeenCalledOnce();
+    resolveExport(exportV2());
+    await waitFor(() => expect(anchorClick).toHaveBeenCalledOnce());
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:campaign-export');
+  });
+
+  it('on rejection creates no download, preserves prior preview, and restores controls', async () => {
+    vi.mocked(exportCampaignAnalysis).mockResolvedValueOnce(exportV2()).mockRejectedValueOnce(new Error('Invalid export response.'));
+    vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:campaign-export'), revokeObjectURL: vi.fn() });
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const onExportError = vi.fn();
+    renderWithTheme(<AblationDashboardTab campaignId="cmp-1" data={dashboardData} onExportError={onExportError} />);
+    const button = screen.getByRole('button', { name: 'Export redacted JSON' });
+    fireEvent.click(button);
+    expect(await screen.findByText('Preview: 0 runs')).toBeInTheDocument();
+    fireEvent.click(button);
+    await waitFor(() => expect(onExportError).toHaveBeenCalledWith('Invalid export response.'));
+    expect(screen.getByText('Preview: 0 runs')).toBeInTheDocument();
+    expect(button).not.toBeDisabled();
+    expect(anchorClick).toHaveBeenCalledOnce();
   });
 
   it('clears a prior export preview when the selected campaign changes', async () => {
-    vi.mocked(exportCampaignAnalysis).mockResolvedValue({
-      campaign: { id: 'cmp-1' },
-      redaction: { include_full_prompts: false },
-      runs: [{ run_id: 'run-1' }],
-      llm_calls: [],
-    });
+    vi.mocked(exportCampaignAnalysis).mockResolvedValue(exportV2());
     vi.stubGlobal('URL', {
       createObjectURL: vi.fn(() => 'blob:campaign-export'),
       revokeObjectURL: vi.fn(),
@@ -333,7 +390,7 @@ describe('AblationDashboardTab', () => {
     const rendered = renderWithTheme(<AblationDashboardTab campaignId="cmp-1" data={dashboardData} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Export redacted JSON' }));
-    expect(await screen.findByText('Preview: 1 runs, 0 LLM calls')).toBeInTheDocument();
+    expect(await screen.findByText('Preview: 0 runs')).toBeInTheDocument();
 
     rendered.rerender(
       <ChakraProvider theme={theme}>
@@ -364,12 +421,7 @@ describe('AblationDashboardTab', () => {
         <AblationDashboardTab campaignId="cmp-2" data={dashboardData} />
       </ChakraProvider>
     );
-    resolveExport!({
-      campaign: { id: 'cmp-1' },
-      redaction: { include_full_prompts: false },
-      runs: [{ run_id: 'run-1' }],
-      llm_calls: [],
-    });
+    resolveExport!(exportV2());
 
     await waitFor(() => expect(exportCampaignAnalysis).toHaveBeenCalledOnce());
     expect(screen.getByText('Preview: not generated')).toBeInTheDocument();
