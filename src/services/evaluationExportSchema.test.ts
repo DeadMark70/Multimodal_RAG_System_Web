@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { parseExportCampaignResponse } from './evaluationExportSchema';
+import { describe, expect, it } from "vitest";
+import { parseExportCampaignResponse } from "./evaluationExportSchema";
 
-const createdAt = '2026-08-13T00:00:00Z';
+const createdAt = "2026-08-13T00:00:00Z";
 
-function availability(status = 'complete') {
+function availability(status = "complete") {
   return { status, reasons: [] };
 }
 
@@ -23,29 +23,103 @@ function tokenBreakdown() {
     missing_usage_by_phase: {},
     missing_usage_by_purpose: {},
     missing_usage_by_provider: {},
-    accounting_status: 'complete',
-    phase_attribution_status: 'complete',
+    accounting_status: "complete",
+    phase_attribution_status: "complete",
     phase_attribution_reasons: [],
   };
 }
 
 function aggregate() {
   return {
-    campaign_id: 'cmp-1',
-    analysis_unit: 'execution',
+    campaign_id: "cmp-1",
+    analysis_unit: "execution",
     sample_count: 1,
     independent_question_count: 1,
     repeat_count: 1,
-    sample_note: 'one execution sample',
+    sample_note: "one execution sample",
     warnings: [],
     rows: [],
-    summaries: {},
+    summaries: {
+      human_rating_count: 0,
+      paired_sample_count: 0,
+      human_correctness_mean: null,
+      human_faithfulness_mean: null,
+      ragas_human_pearson_r: null,
+      ragas_human_spearman_r: null,
+      inter_rater_agreement: null,
+    },
+  };
+}
+
+function researchSummary() {
+  return {
+    campaign_id: "cmp-1",
+    research_schema_version: "2",
+    completed_run_count: 1,
+    total_run_count: 1,
+    failed_run_count: 0,
+    quality_status: "complete",
+    token_accounting_status: "complete",
+    pricing_status: "complete",
+    phase_attribution_status: "complete",
+    sample_count: 1,
+    quality: {},
+    latency: {
+      mean_ms: 12,
+      p50_ms: 12,
+      p95_ms: 12,
+      sample_count: 1,
+      method: "nearest_rank",
+      low_sample_size: true,
+    },
+    tokens: tokenBreakdown(),
+    execution_cost: {
+      benchmark_usd: 0,
+      operational_usd: 0,
+      pricing_status: "complete",
+      priced_call_count: 1,
+      unpriced_call_count: 0,
+    },
+    modes: [],
+    evaluation_overhead: {
+      tokens: tokenBreakdown(),
+      cost_usd: 0,
+      pricing_status: "complete",
+      evaluator_models: [],
+      metric_names: [],
+      batch_count: 0,
+      retry_count: 0,
+    },
+    warnings: [],
+  };
+}
+
+function comparison() {
+  return {
+    planner_status: "planned",
+    planner_latency_ms: 1,
+    planner_fallback_reason: null,
+    fallback_stage: null,
+    validation_issues: [],
+    is_comparison: true,
+    subjects: [],
+    dimensions: [],
+    task_diagnostics: [],
+    coverage_before_repair: [],
+    missing_before_repair: [],
+    repair_executed: false,
+    coverage_after_repair: [],
+    missing_after_repair: [],
+    final_status: "complete",
+    final_evidence_subjects: [],
+    final_evidence_count: 0,
+    final_evidence: [],
   };
 }
 
 function validExportV2() {
   return {
-    schema_version: '2.0',
+    schema_version: "2.0",
     export_metadata: {
       exported_at: createdAt,
       options: {
@@ -55,137 +129,309 @@ function validExportV2() {
         include_full_prompts: false,
         include_answers: false,
         include_retrieved_excerpts: false,
-        format: 'json',
+        format: "json",
       },
       redaction: {
-        provider_errors: 'excluded',
-        stack_traces: 'excluded',
-        credentials: 'redacted',
+        provider_errors: "excluded",
+        stack_traces: "excluded",
+        credentials: "redacted",
       },
-      availability_warnings: ['redacted fixture warning'],
+      availability_warnings: ["redacted fixture warning"],
     },
     campaign: {
-      id: 'cmp-1',
-      name: 'Redacted export fixture',
-      status: 'completed',
-      benchmark_id: 'benchmark-1',
-      modes: ['agentic-v9'],
+      id: "cmp-1",
+      name: "Redacted export fixture",
+      status: "completed",
+      benchmark_id: "benchmark-1",
+      modes: ["agentic-v9"],
       repeat_count: 1,
       created_at: createdAt,
       updated_at: createdAt,
     },
     sections: {
-      overview: { availability: availability('not_available'), data: null },
-      question_analysis: { availability: availability('not_available'), data: null },
-      agent_behavior: { availability: availability('not_available'), data: null },
-      router_analysis: { availability: availability('not_available'), data: null },
-      ablation: { availability: availability('not_available'), data: null },
+      overview: { availability: availability("not_available"), data: null },
+      question_analysis: {
+        availability: availability("not_available"),
+        data: null,
+      },
+      agent_behavior: {
+        availability: availability("not_available"),
+        data: null,
+      },
+      router_analysis: {
+        availability: availability("not_available"),
+        data: null,
+      },
+      ablation: { availability: availability("not_available"), data: null },
       human_evaluation: {
         availability: availability(),
         data: {
           comparison: aggregate(),
           queue: {
-            campaign_id: 'cmp-1',
-            rows: [{
-              run_id: 'run-1', campaign_id: 'cmp-1', question_id: 'Q1',
-              question: 'redacted question', mode: 'agentic-v9', run_number: 1,
-              repeat_number: 1, answer_preview: null, existing_rating_count: 0,
-              already_rated_by_current_user: false,
-            }],
+            campaign_id: "cmp-1",
+            rows: [
+              {
+                run_id: "run-1",
+                campaign_id: "cmp-1",
+                question_id: "Q1",
+                question: "redacted question",
+                mode: "agentic-v9",
+                run_number: 1,
+                repeat_number: 1,
+                answer_preview: null,
+                existing_rating_count: 0,
+                already_rated_by_current_user: false,
+              },
+            ],
           },
         },
       },
       diagnostics: {
         availability: availability(),
         data: {
-          errors: { campaign_id: 'cmp-1', rows: [] },
-          stage_warnings: { campaign_id: 'cmp-1', rows: [] },
+          errors: { campaign_id: "cmp-1", rows: [] },
+          stage_warnings: { campaign_id: "cmp-1", rows: [] },
         },
       },
     },
-    runs: [{
-      result: {
-        run_id: 'run-1', campaign_id: 'cmp-1', question_id: 'Q1',
-        question: 'redacted question', mode: 'agentic-v9', run_number: 1,
-        repeat_number: 1, condition_id: 'guided', execution_profile: 'evaluation_v9',
-        context_policy_version: 'context-v1', agentic_execution_version: 'v9',
-        execution_identity: 'identity-v1', response_status: 'complete', status: 'completed',
-        answer: null, ground_truth: null, ground_truth_short: null, contexts: null,
-        source_doc_ids: ['doc-1'], latency_ms: 12, total_latency_ms: 15,
-        total_tokens: 10, created_at: createdAt,
-      },
-      ragas_metrics: { faithfulness: 0.9 },
-      accounting: tokenBreakdown(),
-      latency: { latency_ms: 12, total_latency_ms: 15, started_at: createdAt, completed_at: createdAt },
-      observability: {
-        included: true,
-        availability: availability(),
-        data: {
-          run_id: 'run-1', campaign_id: 'cmp-1',
-          run_summary: {
-            run_id: 'run-1', campaign_id: 'cmp-1', question_id: 'Q1', mode: 'agentic-v9',
-            repeat_number: 1, answer_preview: null, latency_ms: 12, total_tokens: 10,
-            accounting_status: 'complete', created_at: createdAt,
-          },
-          accounting_diagnostics: tokenBreakdown(),
-          trace_events: [], llm_calls: [], retrieval_events: [], retrieval_chunks: [],
-          context_packs: [], tool_calls: [], routing_decisions: [], graph_events: [],
-          graph_evidence_items: [], graph_observability_status: 'recorded', claims: [],
-          claim_extraction_status: 'empty', human_ratings: [], evidence_coverage: null,
-          evidence_coverage_status: 'not_available',
-          agentic_v9: {
-            schema_version: '1', contract: null, slot_resolutions: [], evidence_packets: [],
-            sufficiency: null, context_pack: null, budget: [], repairs: [], conflicts: [],
-            final_claims: [], metrics: {}, comparison: null,
+    runs: [
+      {
+        result: {
+          run_id: "run-1",
+          campaign_id: "cmp-1",
+          question_id: "Q1",
+          question: "redacted question",
+          mode: "agentic-v9",
+          run_number: 1,
+          repeat_number: 1,
+          condition_id: "guided",
+          execution_profile: "evaluation_v9",
+          context_policy_version: "context-v1",
+          agentic_execution_version: "v9",
+          execution_identity: "identity-v1",
+          response_status: "complete",
+          status: "completed",
+          answer: null,
+          ground_truth: null,
+          ground_truth_short: null,
+          contexts: null,
+          source_doc_ids: ["doc-1"],
+          latency_ms: 12,
+          total_latency_ms: 15,
+          total_tokens: 10,
+          created_at: createdAt,
+        },
+        ragas_metrics: { faithfulness: 0.9 },
+        accounting: tokenBreakdown(),
+        latency: {
+          latency_ms: 12,
+          total_latency_ms: 15,
+          started_at: createdAt,
+          completed_at: createdAt,
+        },
+        observability: {
+          included: true,
+          availability: availability(),
+          data: {
+            run_id: "run-1",
+            campaign_id: "cmp-1",
+            run_summary: {
+              run_id: "run-1",
+              campaign_id: "cmp-1",
+              question_id: "Q1",
+              mode: "agentic-v9",
+              repeat_number: 1,
+              answer_preview: null,
+              latency_ms: 12,
+              total_tokens: 10,
+              accounting_status: "complete",
+              created_at: createdAt,
+            },
+            accounting_diagnostics: tokenBreakdown(),
+            trace_events: [],
+            llm_calls: [],
+            retrieval_events: [],
+            retrieval_chunks: [],
+            context_packs: [],
+            tool_calls: [],
+            routing_decisions: [],
+            graph_events: [],
+            graph_evidence_items: [],
+            graph_observability_status: "recorded",
+            claims: [],
+            claim_extraction_status: "empty",
+            human_ratings: [],
+            evidence_coverage: null,
+            evidence_coverage_status: "not_available",
+            agentic_v9: {
+              schema_version: "1",
+              contract: null,
+              slot_resolutions: [],
+              evidence_packets: [],
+              sufficiency: null,
+              context_pack: null,
+              budget: [],
+              repairs: [],
+              conflicts: [],
+              final_claims: [],
+              metrics: {
+                provider_attempt_count: 0,
+                tool_operation_count: 0,
+                retrieval_query_count: 0,
+                final_generation_count: 0,
+                subtask_answer_count: 0,
+                prose_curator_call_count: 0,
+                arbitration_call_count: 0,
+                reserved_tokens: 0,
+                reconciled_tokens: 0,
+              },
+              comparison: null,
+            },
           },
         },
       },
-    }],
+    ],
   };
 }
 
-describe('Export Schema v2 runtime decoder', () => {
-  it('parses a fully populated non-empty redacted v2 response', () => {
+describe("Export Schema v2 runtime decoder", () => {
+  it("parses a fully populated non-empty redacted v2 response", () => {
     const parsed = parseExportCampaignResponse(validExportV2());
-    expect(parsed.schema_version).toBe('2.0');
+    expect(parsed.schema_version).toBe("2.0");
     expect(parsed.runs[0].result.answer).toBeNull();
     expect(parsed.sections.human_evaluation.data?.queue.rows).toHaveLength(1);
-    expect(parsed.runs[0].observability.data?.agentic_v9?.schema_version).toBe('1');
+    expect(parsed.runs[0].observability.data?.agentic_v9?.schema_version).toBe("1");
   });
 
   it.each([
-    ['missing diagnostics section', (value: ReturnType<typeof validExportV2>) => { delete (value.sections as Partial<typeof value.sections>).diagnostics; }],
-    ['wrong schema version', (value: ReturnType<typeof validExportV2>) => { value.schema_version = '1.0'; }],
-    ['legacy response', (value: ReturnType<typeof validExportV2>) => {
-      Object.assign(value, { redaction: {}, llm_calls: [], summary: {} });
-      delete (value as Partial<typeof value>).export_metadata;
-    }],
-    ['arbitrary run result', (value: ReturnType<typeof validExportV2>) => {
-      value.runs[0].result = { arbitrary: 'answer-text-sentinel' } as never;
-    }],
-    ['missing nullable v9 wrapper', (value: ReturnType<typeof validExportV2>) => {
-      delete (value.runs[0].observability.data as { agentic_v9?: unknown }).agentic_v9;
-    }],
-    ['nullable human queue wrapper', (value: ReturnType<typeof validExportV2>) => {
-      value.sections.human_evaluation.data.queue = null as never;
-    }],
-  ])('rejects %s', (_name, mutate) => {
+    [
+      "missing diagnostics section",
+      (value: ReturnType<typeof validExportV2>) => {
+        delete (value.sections as Partial<typeof value.sections>).diagnostics;
+      },
+    ],
+    [
+      "wrong schema version",
+      (value: ReturnType<typeof validExportV2>) => {
+        value.schema_version = "1.0";
+      },
+    ],
+    [
+      "legacy response",
+      (value: ReturnType<typeof validExportV2>) => {
+        Object.assign(value, { redaction: {}, llm_calls: [], summary: {} });
+        delete (value as Partial<typeof value>).export_metadata;
+      },
+    ],
+    [
+      "arbitrary run result",
+      (value: ReturnType<typeof validExportV2>) => {
+        value.runs[0].result = { arbitrary: "answer-text-sentinel" } as never;
+      },
+    ],
+    [
+      "missing nullable v9 wrapper",
+      (value: ReturnType<typeof validExportV2>) => {
+        delete (value.runs[0].observability.data as { agentic_v9?: unknown }).agentic_v9;
+      },
+    ],
+    [
+      "nullable human queue wrapper",
+      (value: ReturnType<typeof validExportV2>) => {
+        value.sections.human_evaluation.data.queue = null as never;
+      },
+    ],
+    [
+      "missing accounting field",
+      (value: ReturnType<typeof validExportV2>) => {
+        delete (value.runs[0].accounting as Partial<ReturnType<typeof tokenBreakdown>>).observed_call_count;
+      },
+    ],
+    [
+      "missing nested overview field",
+      (value: ReturnType<typeof validExportV2>) => {
+        const overview = {
+          availability: availability(),
+          data: {
+            research_summary: researchSummary(),
+            release_metrics: {
+              availability: availability("not_available"),
+              data: null,
+            },
+          },
+        };
+        delete (overview.data.research_summary as Partial<ReturnType<typeof researchSummary>>).completed_run_count;
+        value.sections.overview = overview as never;
+      },
+    ],
+    [
+      "missing nested release availability field",
+      (value: ReturnType<typeof validExportV2>) => {
+        const overview = {
+          availability: availability(),
+          data: {
+            research_summary: researchSummary(),
+            release_metrics: {
+              availability: availability("not_available"),
+              data: null,
+            },
+          },
+        };
+        delete (overview.data.release_metrics.availability as { reasons?: string[] }).reasons;
+        value.sections.overview = overview as never;
+      },
+    ],
+    [
+      "arbitrary question analysis property",
+      (value: ReturnType<typeof validExportV2>) => {
+        value.sections.question_analysis = {
+          availability: availability(),
+          data: { ...aggregate(), summaries: {}, unexpected: true },
+        } as never;
+      },
+    ],
+    [
+      "arbitrary diagnostics row property",
+      (value: ReturnType<typeof validExportV2>) => {
+        value.sections.diagnostics.data.errors.rows = [
+          {
+            run_id: "run-1",
+            campaign_id: "cmp-1",
+            stage_name: "retrieval",
+            code: null,
+            message: "sanitized",
+            source: "run",
+            created_at: createdAt,
+            unexpected: true,
+          },
+        ] as never;
+      },
+    ],
+    [
+      "missing v9 comparison field",
+      (value: ReturnType<typeof validExportV2>) => {
+        const invalidComparison: Partial<ReturnType<typeof comparison>> = comparison();
+        delete invalidComparison.planner_status;
+        value.runs[0].observability.data.agentic_v9.comparison = invalidComparison as never;
+      },
+    ],
+  ])("rejects %s", (_name, mutate) => {
     const value = validExportV2();
     mutate(value);
-    expect(() => parseExportCampaignResponse(value)).toThrow('Invalid export response.');
+    expect(() => parseExportCampaignResponse(value)).toThrow("Invalid export response.");
   });
 
-  it('sanitizes validation errors without echoing server payload content', () => {
+  it("sanitizes validation errors without echoing server payload content", () => {
     const value = validExportV2();
-    value.runs[0].result.question = 'prompt-text-sentinel';
+    value.runs[0].result.question = "prompt-text-sentinel";
     value.runs[0].result.run_number = -1;
 
-    expect(() => parseExportCampaignResponse(value)).toThrow('Invalid export response.');
+    expect(() => parseExportCampaignResponse(value)).toThrow("Invalid export response.");
     try {
       parseExportCampaignResponse(value);
     } catch (error) {
-      expect(String(error)).not.toContain('prompt-text-sentinel');
-      expect(String(error)).not.toContain('answer-text-sentinel');
+      expect(String(error)).not.toContain("prompt-text-sentinel");
+      expect(String(error)).not.toContain("answer-text-sentinel");
     }
   });
 });
