@@ -313,7 +313,105 @@ function validExportV2() {
             evidence_coverage_status: "not_available",
             agentic_v9: {
               schema_version: "1",
-              contract: null,
+              contract: {
+                contract_version: "2",
+                route: "bounded_compare",
+                intent: "Compare A and B",
+                required_slots: [
+                  {
+                    slot_id: "S1",
+                    description: "Report A's value.",
+                    required: true,
+                    entity_ids: ["a"],
+                    locator_hints: [],
+                    source_name_hints: [],
+                    authorized_source_doc_ids: ["doc-1"],
+                    expected_answer_type: "number",
+                    depends_on_slot_ids: [],
+                    visual_policy: "never",
+                  },
+                  {
+                    slot_id: "S2",
+                    description: "Report B's value.",
+                    required: true,
+                    entity_ids: ["b"],
+                    locator_hints: [],
+                    source_name_hints: [],
+                    authorized_source_doc_ids: ["doc-1"],
+                    expected_answer_type: "number",
+                    depends_on_slot_ids: [],
+                    visual_policy: "never",
+                  },
+                ],
+                synthesis_obligations: [{
+                  obligation_id: "O1",
+                  kind: "comparison",
+                  description: "Compare the reported values.",
+                  depends_on_slot_ids: ["S1", "S2"],
+                }],
+                response_constraints: [{
+                  constraint_id: "C1",
+                  kind: "prohibition",
+                  description: "Do not claim a universal ranking.",
+                }],
+                entities: ["a", "b"],
+                locator_hints: [],
+                graph_policy: "never",
+                visual_requested: false,
+                visual_required: false,
+                evidence_extraction_required: false,
+                max_retrieval_rounds: 1,
+                max_repair_rounds: 1,
+                max_llm_calls: 3,
+                runtime_token_budget: 2048,
+                resolved_source_scope: {
+                  requested_doc_ids: ["doc-1"],
+                  requested_source_names: [],
+                  resolved_doc_ids: ["doc-1"],
+                  authorized_doc_ids: ["doc-1"],
+                  source_name_to_doc_ids: {},
+                  rejected_source_names: [],
+                },
+                strategy_tier: null,
+                route_decision: {
+                  selected_route: "bounded_compare",
+                  decision_source: "deterministic",
+                  matched_rules: ["comparison"],
+                  candidate_routes: ["bounded_compare"],
+                  route_reason: "Comparison question.",
+                  planner_call_used: false,
+                  fallback_reason: null,
+                  confidence: 1,
+                },
+                comparison_plan: {
+                  subjects: [
+                    {
+                      subject_id: "a",
+                      display_name: "A",
+                      aliases: [],
+                      retrieval_query: "A value",
+                      evidence_slot_ids: ["S1"],
+                    },
+                    {
+                      subject_id: "b",
+                      display_name: "B",
+                      aliases: [],
+                      retrieval_query: "B value",
+                      evidence_slot_ids: ["S2"],
+                    },
+                  ],
+                  dimensions: ["reported value"],
+                  qualification: null,
+                },
+                slot_plan_status: "complete",
+                slot_plan_source: "llm_planner",
+                slot_plan_confidence: "medium",
+                slot_plan_fallback_reason: null,
+                truncated_requirement_count: 0,
+                slot_semantics: "heuristic_experimental",
+                atomic_completeness: null,
+                atomic_completeness_reason: "atomic_slot_matching_experimental",
+              },
               slot_resolutions: [],
               evidence_packets: [],
               sufficiency: null,
@@ -330,6 +428,10 @@ function validExportV2() {
                 subtask_answer_count: 0,
                 prose_curator_call_count: 0,
                 arbitration_call_count: 0,
+                atomic_planner_call_count: 1,
+                comparison_planner_call_count: 0,
+                slot_binding_method: "task_target_inherited",
+                semantic_qualification: "not_enabled",
                 reserved_tokens: 0,
                 reconciled_tokens: 0,
               },
@@ -349,6 +451,9 @@ describe("Export Schema v2 runtime decoder", () => {
     expect(parsed.runs[0].result.answer).toBeNull();
     expect(parsed.sections.human_evaluation.data?.queue.rows).toHaveLength(1);
     expect(parsed.runs[0].observability.data?.agentic_v9?.schema_version).toBe("1");
+    expect(parsed.runs[0].observability.data?.agentic_v9?.contract?.synthesis_obligations).toHaveLength(1);
+    expect(parsed.runs[0].observability.data?.agentic_v9?.contract?.comparison_plan?.subjects[0].evidence_slot_ids).toEqual(["S1"]);
+    expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.atomic_planner_call_count).toBe(1);
   });
 
   it("accepts the exact no-benchmark release shape with strict empty objects", () => {
@@ -551,6 +656,36 @@ describe("Export Schema v2 runtime decoder", () => {
         const invalidComparison: Partial<ReturnType<typeof comparison>> = comparison();
         delete invalidComparison.planner_status;
         value.runs[0].observability.data.agentic_v9.comparison = invalidComparison as never;
+      },
+    ],
+    [
+      "unknown synthesis obligation kind",
+      (value: ReturnType<typeof validExportV2>) => {
+        value.runs[0].observability.data.agentic_v9.contract.synthesis_obligations[0].kind = "unknown" as never;
+      },
+    ],
+    [
+      "unknown response constraint kind",
+      (value: ReturnType<typeof validExportV2>) => {
+        value.runs[0].observability.data.agentic_v9.contract.response_constraints[0].kind = "unknown" as never;
+      },
+    ],
+    [
+      "atomic planner count above one",
+      (value: ReturnType<typeof validExportV2>) => {
+        value.runs[0].observability.data.agentic_v9.metrics.atomic_planner_call_count = 2;
+      },
+    ],
+    [
+      "independent comparison planner call",
+      (value: ReturnType<typeof validExportV2>) => {
+        value.runs[0].observability.data.agentic_v9.metrics.comparison_planner_call_count = 1;
+      },
+    ],
+    [
+      "unsupported semantic qualification",
+      (value: ReturnType<typeof validExportV2>) => {
+        value.runs[0].observability.data.agentic_v9.metrics.semantic_qualification = "enabled" as never;
       },
     ],
   ])("rejects %s", (_name, mutate) => {

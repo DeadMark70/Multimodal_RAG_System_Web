@@ -364,6 +364,17 @@ const v9RouteDecisionSchema = z.strictObject({
   fallback_reason: nullableString,
   confidence: z.number().finite().nullable(),
 });
+const v9SynthesisObligationSchema = z.strictObject({
+  obligation_id: z.string(),
+  kind: z.enum(["comparison", "selection", "causal", "aggregation", "qualification"]),
+  description: z.string(),
+  depends_on_slot_ids: z.array(z.string()).min(1).max(8),
+});
+const v9ResponseConstraintSchema = z.strictObject({
+  constraint_id: z.string(),
+  kind: z.enum(["conditional_scope", "output_format", "prohibition", "allowed_labels"]),
+  description: z.string(),
+});
 const v9ComparisonPlanSchema = z.strictObject({
   subjects: z.array(
     z.strictObject({
@@ -371,6 +382,7 @@ const v9ComparisonPlanSchema = z.strictObject({
       display_name: z.string(),
       aliases: z.array(z.string()),
       retrieval_query: z.string(),
+      evidence_slot_ids: z.array(z.string()).max(8).optional(),
     }),
   ),
   dimensions: z.array(z.string()),
@@ -381,6 +393,8 @@ const v9ContractSchema = z.strictObject({
   route: v9RouteSchema,
   intent: z.string(),
   required_slots: z.array(v9RequiredSlotSchema),
+  synthesis_obligations: z.array(v9SynthesisObligationSchema).max(8).optional(),
+  response_constraints: z.array(v9ResponseConstraintSchema).max(8).optional(),
   entities: z.array(z.string()),
   locator_hints: z.array(z.string()),
   graph_policy: z.enum(["never", "locator_fallback", "required_locator"]).nullable(),
@@ -395,7 +409,11 @@ const v9ContractSchema = z.strictObject({
   strategy_tier: nullableString,
   route_decision: v9RouteDecisionSchema.nullable(),
   comparison_plan: v9ComparisonPlanSchema.nullable(),
-  slot_plan_status: nullableString,
+  slot_plan_status: z.enum(["complete", "degraded"]).nullable(),
+  slot_plan_source: z.enum(["deterministic", "llm_planner", "safe_fallback"]).optional(),
+  slot_plan_confidence: z.enum(["high", "medium", "low"]).optional(),
+  slot_plan_fallback_reason: nullableString.optional(),
+  truncated_requirement_count: nonNegativeInteger.optional(),
   slot_semantics: nullableString,
   atomic_completeness: z.boolean().nullable(),
   atomic_completeness_reason: nullableString,
@@ -546,6 +564,10 @@ const v9MetricsSchema = z.strictObject({
   subtask_answer_count: z.literal(0),
   prose_curator_call_count: nonNegativeInteger.max(1),
   arbitration_call_count: nonNegativeInteger.max(1),
+  atomic_planner_call_count: nonNegativeInteger.max(1),
+  comparison_planner_call_count: z.literal(0),
+  slot_binding_method: z.enum(["task_target_inherited", "not_instrumented"]),
+  semantic_qualification: z.enum(["not_enabled", "not_instrumented"]),
   reserved_tokens: nonNegativeInteger,
   reconciled_tokens: nonNegativeInteger,
 });

@@ -711,6 +711,32 @@ export type V9SlotResolutionStatus =
   | 'explicitly_unavailable'
   | 'not_found';
 export type V9ResponseStatus = 'complete' | 'qualified_partial' | 'insufficient';
+export type V9SynthesisObligationKind =
+  | 'comparison'
+  | 'selection'
+  | 'causal'
+  | 'aggregation'
+  | 'qualification';
+export type V9ResponseConstraintKind =
+  | 'conditional_scope'
+  | 'output_format'
+  | 'prohibition'
+  | 'allowed_labels';
+export type V9SlotPlanSource = 'deterministic' | 'llm_planner' | 'safe_fallback';
+export type V9SlotPlanConfidence = 'high' | 'medium' | 'low';
+
+export interface V9SynthesisObligation {
+  obligation_id: string;
+  kind: V9SynthesisObligationKind;
+  description: string;
+  depends_on_slot_ids: string[];
+}
+
+export interface V9ResponseConstraint {
+  constraint_id: string;
+  kind: V9ResponseConstraintKind;
+  description: string;
+}
 
 export interface V9RequiredSlot {
   slot_id: string;
@@ -740,6 +766,9 @@ export interface V9QueryContract {
   route: V9Route;
   intent: string;
   required_slots?: V9RequiredSlot[];
+  /** Additive v2 fields; absent historical values must remain N/A. */
+  synthesis_obligations?: V9SynthesisObligation[];
+  response_constraints?: V9ResponseConstraint[];
   entities?: string[];
   locator_hints?: string[];
   graph_policy?: V9GraphPolicy | null;
@@ -754,7 +783,11 @@ export interface V9QueryContract {
   strategy_tier?: string | null;
   route_decision?: V9RouteDecision | null;
   comparison_plan?: V9ComparisonPlan | null;
-  slot_plan_status?: string | null;
+  slot_plan_status?: 'complete' | 'degraded' | null;
+  slot_plan_source?: V9SlotPlanSource | null;
+  slot_plan_confidence?: V9SlotPlanConfidence | null;
+  slot_plan_fallback_reason?: string | null;
+  truncated_requirement_count?: number | null;
   slot_semantics?: string | null;
   atomic_completeness?: boolean | null;
   atomic_completeness_reason?: string | null;
@@ -940,6 +973,10 @@ export interface V9ExecutionMetrics {
   subtask_answer_count?: number;
   prose_curator_call_count?: number;
   arbitration_call_count?: number;
+  atomic_planner_call_count?: number;
+  comparison_planner_call_count?: 0;
+  slot_binding_method?: 'task_target_inherited' | 'not_instrumented';
+  semantic_qualification?: 'not_enabled' | 'not_instrumented';
   reserved_tokens?: number;
   reconciled_tokens?: number;
 }
@@ -1003,6 +1040,8 @@ export interface V9ComparisonSubject {
   display_name: string;
   aliases?: string[];
   retrieval_query: string;
+  /** Present on active v2 subjects; absent historical subjects remain readable. */
+  evidence_slot_ids?: string[];
 }
 
 export interface V9ComparisonPlan {

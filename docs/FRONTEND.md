@@ -176,6 +176,9 @@
     - `getCampaignStageWarnings`
     - `exportCampaignAnalysis`
     - `getRunObservability` only after a run-detail tab is activated; its TypeScript contract mirrors canonical backend field names/nullability, including nullable `agentic_v9`, typed LLM/accounting fields, and persisted human ratings
+  - new Agentic v9 runs expose the Active Atomic Contract v2 plan in `Run Trace`: evidence requirements remain distinct from synthesis obligations and response constraints, with planner provenance, bounded counts/previews, and degraded fallback reason shown explicitly
+  - `slot_binding_method=task_target_inherited` records structural task-to-slot inheritance only; `semantic_qualification=not_enabled` means the current checkpoint does not prove that retrieved text semantically supports a slot
+  - historical v1 or partially instrumented runs render missing Atomic planning fields as `N/A`, never inferred zero, complete, or semantically qualified
   - maps raw API payloads into simpler tab props; tab components stay presentation-focused
   - preserves the backend `claim_extraction_status` distinction: `empty` means extraction ran with zero claims, while `not_instrumented` means telemetry is absent
   - `exportCampaignAnalysis(...)` treats the response as `unknown` until the strict Zod Export Schema v2 decoder accepts the exact top-level, section, export-owned run/result, human-queue, and nullable `agentic_v9` wrappers; validation failures expose only `Invalid export response.` The decoder also enforces `observability.included`/`data` consistency, the no-benchmark release `{}` manifest/statistics shape, and typed empty safe payload/error fields.

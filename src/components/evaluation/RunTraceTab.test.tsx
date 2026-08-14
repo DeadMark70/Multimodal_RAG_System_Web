@@ -161,6 +161,42 @@ const agenticV9Evidence = {
   },
 };
 
+const activeAtomicEvidence = {
+  ...agenticV9Evidence,
+  schemaVersion: '1',
+  queryContract: {
+    ...agenticV9Evidence.queryContract,
+    contract_version: '2',
+    required_slots: [
+      { slot_id: 'S1', description: 'Report A value', required: true },
+      { slot_id: 'S2', description: 'Report B value', required: true },
+    ],
+    synthesis_obligations: [{
+      obligation_id: 'O1',
+      kind: 'comparison' as const,
+      description: 'Compare the reported values.',
+      depends_on_slot_ids: ['S1', 'S2'],
+    }],
+    response_constraints: [{
+      constraint_id: 'C1',
+      kind: 'prohibition' as const,
+      description: 'Do not claim a universal ranking.',
+    }],
+    slot_plan_status: 'complete' as const,
+    slot_plan_source: 'llm_planner' as const,
+    slot_plan_confidence: 'medium' as const,
+    slot_plan_fallback_reason: null,
+    truncated_requirement_count: 0,
+  },
+  metrics: {
+    ...agenticV9Evidence.metrics,
+    atomic_planner_call_count: 1,
+    comparison_planner_call_count: 0 as const,
+    slot_binding_method: 'task_target_inherited' as const,
+    semantic_qualification: 'not_enabled' as const,
+  },
+};
+
 function renderWithTheme(node: React.ReactNode) {
   return render(<ChakraProvider theme={theme}>{node}</ChakraProvider>);
 }
@@ -309,6 +345,43 @@ describe('RunTraceTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show raw v9 trace' }));
     expect(screen.getByText(/Raw-only evidence payload/)).toBeInTheDocument();
     expect(screen.queryByText('FULL_PROMPT_SECRET_SENTINEL')).not.toBeInTheDocument();
+  });
+
+  it('renders active atomic planning provenance, counts, and honest instrumentation limits', () => {
+    renderWithTheme(
+      <RunTraceTab selectedRunId="run-v9" agenticV9Evidence={activeAtomicEvidence} />,
+    );
+
+    const section = screen.getByText('Atomic planning').parentElement;
+    expect(section).not.toBeNull();
+    const atomicPlanning = within(section as HTMLElement);
+    expect(atomicPlanning.getByText(/Source: llm_planner/)).toBeInTheDocument();
+    expect(atomicPlanning.getByText(/Status: complete/)).toBeInTheDocument();
+    expect(atomicPlanning.getByText(/Evidence requirements: 2/)).toBeInTheDocument();
+    expect(atomicPlanning.getByText(/Synthesis obligations: 1/)).toBeInTheDocument();
+    expect(atomicPlanning.getByText(/Response constraints: 1/)).toBeInTheDocument();
+    expect(atomicPlanning.getByText(/Atomic planner calls: 1/)).toBeInTheDocument();
+    expect(atomicPlanning.getByText(/Independent comparison planner calls: 0/)).toBeInTheDocument();
+    expect(atomicPlanning.getByText(/Binding method: task_target_inherited/)).toBeInTheDocument();
+    expect(atomicPlanning.getByText(/Semantic qualification: not_enabled/)).toBeInTheDocument();
+    expect(atomicPlanning.getByText('Compare the reported values.')).toBeInTheDocument();
+    expect(atomicPlanning.getByText('Do not claim a universal ranking.')).toBeInTheDocument();
+  });
+
+  it('renders historical v1 atomic planning fields as N/A instead of inferred zero or complete', () => {
+    renderWithTheme(
+      <RunTraceTab selectedRunId="run-v9" agenticV9Evidence={agenticV9Evidence} />,
+    );
+
+    const section = screen.getByText('Atomic planning').parentElement;
+    expect(section).not.toBeNull();
+    const atomicPlanning = within(section as HTMLElement);
+    expect(atomicPlanning.getByText(/Status: N\/A/)).toBeInTheDocument();
+    expect(atomicPlanning.getByText(/Source: N\/A/)).toBeInTheDocument();
+    expect(atomicPlanning.getByText(/Atomic planner calls: N\/A/)).toBeInTheDocument();
+    expect(atomicPlanning.getByText(/Independent comparison planner calls: N\/A/)).toBeInTheDocument();
+    expect(atomicPlanning.getByText(/Binding method: N\/A/)).toBeInTheDocument();
+    expect(atomicPlanning.getByText(/Semantic qualification: N\/A/)).toBeInTheDocument();
   });
 });
 

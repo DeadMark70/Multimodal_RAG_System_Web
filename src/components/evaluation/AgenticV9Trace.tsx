@@ -102,6 +102,8 @@ export default function AgenticV9Trace({
   const finalClaimCount = formatCount(data.finalClaims);
   const contextPack = data.contextPack;
   const metrics = data.metrics;
+  const synthesisObligations = contract?.synthesis_obligations;
+  const responseConstraints = contract?.response_constraints;
 
   return (
     <Stack spacing={3} data-testid="agentic-v9-trace">
@@ -123,6 +125,27 @@ export default function AgenticV9Trace({
 
         <TraceSection title="Authorized source scope">
           <PreviewList values={scope?.authorized_doc_ids} empty="No authorized documents" />
+        </TraceSection>
+
+        <TraceSection title="Atomic planning">
+          <Stack spacing={1}>
+            <MetricLine label="Status" value={formatOptionalText(contract?.slot_plan_status)} />
+            <MetricLine label="Source" value={formatOptionalText(contract?.slot_plan_source)} />
+            <MetricLine label="Confidence" value={formatOptionalText(contract?.slot_plan_confidence)} />
+            <MetricLine label="Fallback reason" value={formatOptionalText(contract?.slot_plan_fallback_reason)} />
+            <MetricLine label="Evidence requirements" value={formatCount(contract?.required_slots)} />
+            <MetricLine label="Synthesis obligations" value={formatCount(synthesisObligations)} />
+            <MetricLine label="Response constraints" value={formatCount(responseConstraints)} />
+            <MetricLine label="Truncated requirements" value={contract?.truncated_requirement_count == null ? 'N/A' : String(contract.truncated_requirement_count)} />
+            <MetricLine label="Atomic planner calls" value={metrics?.atomic_planner_call_count == null ? 'N/A' : String(metrics.atomic_planner_call_count)} />
+            <MetricLine label="Independent comparison planner calls" value={metrics?.comparison_planner_call_count == null ? 'N/A' : String(metrics.comparison_planner_call_count)} />
+            <MetricLine label="Binding method" value={formatOptionalText(metrics?.slot_binding_method)} />
+            <MetricLine label="Semantic qualification" value={formatOptionalText(metrics?.semantic_qualification)} />
+            <Text fontSize="xs" fontWeight="semibold" pt={1}>Synthesis obligation preview</Text>
+            <PreviewList values={synthesisObligations?.map((item) => item.description)} empty="No synthesis obligations" />
+            <Text fontSize="xs" fontWeight="semibold" pt={1}>Response constraint preview</Text>
+            <PreviewList values={responseConstraints?.map((item) => item.description)} empty="No response constraints" />
+          </Stack>
         </TraceSection>
 
         <TraceSection title="Required slots">
