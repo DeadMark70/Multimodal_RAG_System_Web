@@ -496,6 +496,58 @@ describe("Export Schema v2 runtime decoder", () => {
     ).toBe(3);
   });
 
+  it("accepts a non-comparison contract when the backend omits comparison_plan", () => {
+    const value = validExportV2();
+    const contract = value.runs[0].observability.data.agentic_v9.contract as {
+      comparison_plan?: unknown;
+    };
+    delete contract.comparison_plan;
+
+    const parsed = parseExportCampaignResponse(value);
+
+    expect(parsed.runs[0].observability.data?.agentic_v9?.contract?.comparison_plan).toBeUndefined();
+  });
+
+  it("accepts a repair retrieval task when the backend omits subject_id", () => {
+    const value = validExportV2();
+    const repairs = [
+      {
+        repair_round_index: 1,
+        tasks: [
+          {
+            task_id: "repair-task-1",
+            round_id: "repair-round-1",
+            query_id: "repair-query-1",
+            query: "Find direct evidence for S1",
+            target_slot_ids: ["S1"],
+            source_scope: {
+              requested_doc_ids: ["doc-1"],
+              requested_source_names: [],
+              resolved_doc_ids: ["doc-1"],
+              authorized_doc_ids: ["doc-1"],
+              source_name_to_doc_ids: {},
+              rejected_source_names: [],
+            },
+            source_group_id: "source-group-1",
+            locator_hints: [],
+            graph_policy: "never",
+            visual_required: false,
+            depends_on_task_ids: [],
+          },
+        ],
+        resulting_evidence_ids: [],
+        stop_reason: "repair_budget_exhausted",
+      },
+    ];
+    (value.runs[0].observability.data.agentic_v9 as unknown as { repairs: typeof repairs }).repairs = repairs;
+
+    const parsed = parseExportCampaignResponse(value);
+    const task = parsed.runs.at(0)?.observability?.data?.agentic_v9?.repairs?.at(0)?.tasks?.at(0);
+
+    expect(task).toBeDefined();
+    expect(task?.subject_id).toBeUndefined();
+  });
+
   it("accepts the exact no-benchmark release shape with strict empty objects", () => {
     const value = validExportV2();
     value.sections.overview = {
@@ -743,6 +795,7 @@ describe("Export Schema v2 runtime decoder", () => {
     try {
       parseExportCampaignResponse(value);
     } catch (error) {
+      expect(String(error)).toContain("runs.0.result.run_number (too_small)");
       expect(String(error)).not.toContain("prompt-text-sentinel");
       expect(String(error)).not.toContain("answer-text-sentinel");
     }

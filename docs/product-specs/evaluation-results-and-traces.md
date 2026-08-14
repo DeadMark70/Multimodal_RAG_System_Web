@@ -18,6 +18,7 @@
 - Claim Evidence and Run Trace must preserve selected-run claim telemetry semantics: `empty` reports that extraction ran with zero claims; `not_instrumented` reports that claim extraction telemetry is absent.
 - Retrieval Evidence must display provenance, availability status, and availability reasons within the matching chunk row, using the canonical retrieval chunk ID for row identity.
 - The selected-run observability client contract must use canonical backend field names and preserve required, nullable, zero, and unknown values without compatibility aliases.
+- Export Schema v2 validation must accept fields that the backend contract explicitly omits when not applicable, while continuing to reject unknown shapes. Rejections may expose bounded schema paths and validation codes for diagnosis, but must not echo question, answer, prompt, evidence, or trace values.
 
 ## Campaign Overview: Research Accounting
 

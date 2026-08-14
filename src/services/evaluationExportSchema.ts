@@ -408,7 +408,7 @@ const v9ContractSchema = z.strictObject({
   resolved_source_scope: v9ScopeSchema.nullable(),
   strategy_tier: nullableString,
   route_decision: v9RouteDecisionSchema.nullable(),
-  comparison_plan: v9ComparisonPlanSchema.nullable(),
+  comparison_plan: v9ComparisonPlanSchema.nullable().optional(),
   slot_plan_status: z.enum(["complete", "degraded"]).nullable(),
   slot_plan_source: z.enum(["deterministic", "llm_planner", "safe_fallback"]).optional(),
   slot_plan_confidence: z.enum(["high", "medium", "low"]).optional(),
@@ -527,7 +527,7 @@ const v9RetrievalTaskSchema = z.strictObject({
   target_slot_ids: z.array(z.string()),
   source_scope: v9ScopeSchema,
   source_group_id: z.string(),
-  subject_id: nullableString,
+  subject_id: nullableString.optional(),
   locator_hints: z.array(z.string()),
   graph_policy: z.enum(["never", "locator_fallback", "required_locator"]),
   visual_required: z.boolean(),
@@ -1140,7 +1140,11 @@ export const evaluationExportV2Schema = z.strictObject({
 export function parseExportCampaignResponse(value: unknown): ExportCampaignResponse {
   const parsed = evaluationExportV2Schema.safeParse(value);
   if (!parsed.success) {
-    throw new Error("Invalid export response.");
+    const diagnostics = parsed.error.issues
+      .slice(0, 3)
+      .map((issue) => `${issue.path.map(String).join(".") || "<root>"} (${issue.code})`)
+      .join(", ");
+    throw new Error(`Invalid export response.${diagnostics ? ` ${diagnostics}` : ""}`);
   }
   return parsed.data as ExportCampaignResponse;
 }

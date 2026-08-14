@@ -181,7 +181,7 @@
   - historical v1 or partially instrumented runs render missing Atomic planning fields as `N/A`, never inferred zero, complete, or semantically qualified
   - maps raw API payloads into simpler tab props; tab components stay presentation-focused
   - preserves the backend `claim_extraction_status` distinction: `empty` means extraction ran with zero claims, while `not_instrumented` means telemetry is absent
-  - `exportCampaignAnalysis(...)` treats the response as `unknown` until the strict Zod Export Schema v2 decoder accepts the exact top-level, section, export-owned run/result, human-queue, and nullable `agentic_v9` wrappers; validation failures expose only `Invalid export response.` The decoder also enforces `observability.included`/`data` consistency, the no-benchmark release `{}` manifest/statistics shape, and typed empty safe payload/error fields.
+  - `exportCampaignAnalysis(...)` treats the response as `unknown` until the strict Zod Export Schema v2 decoder accepts the exact top-level, section, export-owned run/result, human-queue, and nullable `agentic_v9` wrappers. Validation failures expose bounded field paths and validation codes but never response values. The decoder preserves backend-defined omitted optional fields such as non-comparison `comparison_plan` and retrieval-task `subject_id`, while still enforcing `observability.included`/`data` consistency, the no-benchmark release `{}` manifest/statistics shape, and typed empty safe payload/error fields.
   - renders retrieval provenance, availability status, and reasons inside the corresponding chunk row keyed by `retrieval_chunk_id`
 - `EvaluationSetupDrawer.tsx`
   - contains setup CRUD/execution surfaces; does not share page-local selection state with the analytics tabs
