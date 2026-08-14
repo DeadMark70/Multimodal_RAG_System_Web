@@ -435,7 +435,36 @@ function validExportV2() {
                 reserved_tokens: 0,
                 reconciled_tokens: 0,
               },
-              comparison: null,
+              comparison: {
+                planner_status: "planned",
+                planner_latency_ms: 1.5,
+                planner_fallback_reason: null,
+                fallback_stage: null,
+                validation_issues: [],
+                is_comparison: true,
+                subjects: [{
+                  subject_id: "a",
+                  display_name: "A",
+                  aliases: [],
+                  evidence_slot_ids: ["S1"],
+                }],
+                dimensions: ["reported value"],
+                task_diagnostics: [],
+                coverage_before_repair: ["a"],
+                missing_before_repair: [],
+                repair_executed: false,
+                coverage_after_repair: ["a"],
+                missing_after_repair: [],
+                final_status: "complete",
+                final_evidence_subjects: ["a"],
+                final_evidence_count: 1,
+                final_evidence: [{
+                  evidence_id: "evidence-1",
+                  doc_id: "doc-1",
+                  chunk_id: "chunk-1",
+                  subject_ids: ["a"],
+                }],
+              },
             },
           },
         },
@@ -454,6 +483,17 @@ describe("Export Schema v2 runtime decoder", () => {
     expect(parsed.runs[0].observability.data?.agentic_v9?.contract?.synthesis_obligations).toHaveLength(1);
     expect(parsed.runs[0].observability.data?.agentic_v9?.contract?.comparison_plan?.subjects[0].evidence_slot_ids).toEqual(["S1"]);
     expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.atomic_planner_call_count).toBe(1);
+    expect(parsed.runs[0].observability.data?.agentic_v9?.comparison?.subjects[0].evidence_slot_ids).toEqual(["S1"]);
+  });
+
+  it("accepts the backend prose curator call-count limit in full observability", () => {
+    const value = validExportV2();
+    value.runs[0].observability.data.agentic_v9.comparison = null as never;
+    value.runs[0].observability.data.agentic_v9.metrics.prose_curator_call_count = 3;
+
+    expect(
+      parseExportCampaignResponse(value).runs[0].observability.data?.agentic_v9?.metrics.prose_curator_call_count,
+    ).toBe(3);
   });
 
   it("accepts the exact no-benchmark release shape with strict empty objects", () => {

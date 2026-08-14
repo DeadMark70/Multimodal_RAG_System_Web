@@ -1568,7 +1568,12 @@ export interface ExportV9ComparisonV2 {
   fallback_stage: 'response_decode' | 'transport_schema' | 'subject_validation' | 'trusted_plan_validation' | 'numeric_guard' | 'unknown' | null;
   validation_issues: Array<{ path: string; type: string }>;
   is_comparison: boolean;
-  subjects: Array<{ subject_id: string; display_name: string; aliases: string[] }>;
+  subjects: Array<{
+    subject_id: string;
+    display_name: string;
+    aliases: string[];
+    evidence_slot_ids: string[];
+  }>;
   dimensions: string[];
   task_diagnostics: Array<{
     task_id: string; subject_id: string; query_hash: string; query_preview: string;

@@ -225,6 +225,34 @@ function exportV2WithOmittedConditionComparison(): ExportCampaignResponse {
   return response;
 }
 
+function exportV2WithComparisonObservability(): ExportCampaignResponse {
+  const response = exportV2({ include_run_observability: true });
+  response.runs = [{
+    result: { run_id: 'run-1' },
+    ragas_metrics: {},
+    accounting: {},
+    latency: {},
+    observability: {
+      included: true,
+      availability: { status: 'complete', reasons: [] },
+      data: {
+        llm_calls: [],
+        agentic_v9: {
+          comparison: {
+            subjects: [{
+              subject_id: 'model-a',
+              display_name: 'Model A',
+              aliases: [],
+              evidence_slot_ids: ['S1'],
+            }],
+          },
+        },
+      },
+    },
+  } as never];
+  return response;
+}
+
 describe('AblationDashboardTab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -349,6 +377,44 @@ describe('AblationDashboardTab', () => {
 
     await waitFor(() => expect(anchorClick).toHaveBeenCalledOnce());
     expect(await screen.findByText('Preview: 0 runs')).toBeInTheDocument();
+  });
+
+  it('downloads full observability with non-null comparison slot bindings intact', async () => {
+    vi.mocked(exportCampaignAnalysis).mockResolvedValue(exportV2WithComparisonObservability());
+    let exportedBlob: Blob | undefined;
+    const createObjectURL = vi.fn((blob: Blob) => {
+      exportedBlob = blob;
+      return 'blob:campaign-export';
+    });
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL: vi.fn() });
+    let downloaded = '';
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      downloaded = this.download;
+    });
+    renderWithTheme(<AblationDashboardTab campaignId="cmp-1" data={dashboardData} />);
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Include all run observability' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Export redacted JSON' }));
+
+    await waitFor(() => expect(downloaded).toBe('cmp-1-observability-redacted-v2.json'));
+    expect(await screen.findByText('Preview: 1 runs, 0 LLM calls')).toBeInTheDocument();
+    expect(exportedBlob).toBeDefined();
+    const exportedText = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+          return;
+        }
+        reject(new Error('Exported JSON blob did not contain text.'));
+      });
+      reader.addEventListener('error', () => reject(reader.error ?? new Error('Failed to read exported JSON blob.')));
+      reader.readAsText(exportedBlob as Blob);
+    });
+    const serialized = JSON.parse(exportedText) as ExportCampaignResponse;
+    expect(
+      serialized.runs[0].observability.data?.agentic_v9?.comparison?.subjects[0].evidence_slot_ids,
+    ).toEqual(['S1']);
   });
 
   it.each([
