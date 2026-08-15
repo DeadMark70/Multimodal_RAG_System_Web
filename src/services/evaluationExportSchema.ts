@@ -570,6 +570,11 @@ const v9MetricsSchema = z.strictObject({
   semantic_qualification: z.enum(["not_enabled", "not_instrumented"]),
   reserved_tokens: nonNegativeInteger,
   reconciled_tokens: nonNegativeInteger,
+  candidate_packet_count: nonNegativeInteger,
+  qualified_packet_count: nonNegativeInteger,
+  qualification_round_count: nonNegativeInteger,
+  qualification_provider_call_count: nonNegativeInteger,
+  qualification_failure_code: z.string().max(96).nullable(),
 });
 const atomicPlannerDiagnosticsSchema = z.strictObject({
   outcome: z.enum(["deterministic", "planned", "degraded"]),
@@ -938,6 +943,11 @@ const v9BehaviorSchema = z.strictObject({
   final_claim_count: nonNegativeInteger.nullable(),
   reserved_tokens: nonNegativeInteger.nullable(),
   reconciled_tokens: nonNegativeInteger.nullable(),
+  candidate_packet_count: nonNegativeInteger.nullable(),
+  qualified_packet_count: nonNegativeInteger.nullable(),
+  qualification_round_count: nonNegativeInteger.nullable(),
+  qualification_provider_call_count: nonNegativeInteger.nullable(),
+  qualification_failure_code: nullableString,
   graph_execution: z.enum(["not_requested", "not_triggered", "executed", "failed", "required_but_not_satisfied", "attempted_without_evidence", "not_instrumented"]),
   visual_execution: z.enum(["not_requested", "not_triggered", "executed", "failed", "required_but_not_satisfied", "attempted_without_evidence", "not_instrumented"]),
 });

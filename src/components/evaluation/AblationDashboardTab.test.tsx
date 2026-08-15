@@ -238,6 +238,13 @@ function exportV2WithComparisonObservability(): ExportCampaignResponse {
       data: {
         llm_calls: [],
         agentic_v9: {
+          metrics: {
+            candidate_packet_count: 4,
+            qualified_packet_count: 2,
+            qualification_round_count: 1,
+            qualification_provider_call_count: 1,
+            qualification_failure_code: null,
+          },
           planner_diagnostics: {
             outcome: 'planned',
             failure_stage: null,
@@ -426,6 +433,21 @@ describe('AblationDashboardTab', () => {
     expect(
       serialized.runs[0].observability.data?.agentic_v9?.planner_diagnostics?.retrieval_query_strategy,
     ).toBe('atomic_slots');
+    expect(
+      serialized.runs[0].observability.data?.agentic_v9?.metrics.candidate_packet_count,
+    ).toBe(4);
+    expect(
+      serialized.runs[0].observability.data?.agentic_v9?.metrics.qualified_packet_count,
+    ).toBe(2);
+    expect(
+      serialized.runs[0].observability.data?.agentic_v9?.metrics.qualification_round_count,
+    ).toBe(1);
+    expect(
+      serialized.runs[0].observability.data?.agentic_v9?.metrics.qualification_provider_call_count,
+    ).toBe(1);
+    expect(
+      serialized.runs[0].observability.data?.agentic_v9?.metrics.qualification_failure_code,
+    ).toBeNull();
   });
 
   it.each([

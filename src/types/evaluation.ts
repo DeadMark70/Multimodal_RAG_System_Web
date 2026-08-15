@@ -482,6 +482,11 @@ export interface V9AgentBehaviorMetrics {
   final_claim_count: number | null;
   reserved_tokens: number | null;
   reconciled_tokens: number | null;
+  candidate_packet_count?: number | null;
+  qualified_packet_count?: number | null;
+  qualification_round_count?: number | null;
+  qualification_provider_call_count?: number | null;
+  qualification_failure_code?: string | null;
   graph_execution: BehaviorExecutionState;
   visual_execution: BehaviorExecutionState;
 }
@@ -979,6 +984,11 @@ export interface V9ExecutionMetrics {
   semantic_qualification?: 'not_enabled' | 'not_instrumented';
   reserved_tokens?: number;
   reconciled_tokens?: number;
+  candidate_packet_count?: number;
+  qualified_packet_count?: number;
+  qualification_round_count?: number;
+  qualification_provider_call_count?: number;
+  qualification_failure_code?: string | null;
 }
 
 export interface AtomicPlannerDiagnostics {

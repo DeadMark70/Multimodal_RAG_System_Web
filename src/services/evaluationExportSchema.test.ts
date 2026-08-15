@@ -434,6 +434,11 @@ function validExportV2() {
                 semantic_qualification: "not_enabled",
                 reserved_tokens: 0,
                 reconciled_tokens: 0,
+                candidate_packet_count: 0,
+                qualified_packet_count: 0,
+                qualification_round_count: 0,
+                qualification_provider_call_count: 0,
+                qualification_failure_code: null as string | null,
               },
               planner_diagnostics: {
                 outcome: "planned",
@@ -491,6 +496,11 @@ describe("Export Schema v2 runtime decoder", () => {
     expect(parsed.runs[0].observability.data?.agentic_v9?.contract?.synthesis_obligations).toHaveLength(1);
     expect(parsed.runs[0].observability.data?.agentic_v9?.contract?.comparison_plan?.subjects[0].evidence_slot_ids).toEqual(["S1"]);
     expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.atomic_planner_call_count).toBe(1);
+    expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.candidate_packet_count).toBe(0);
+    expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.qualified_packet_count).toBe(0);
+    expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.qualification_round_count).toBe(0);
+    expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.qualification_provider_call_count).toBe(0);
+    expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.qualification_failure_code).toBeNull();
     expect(parsed.runs[0].observability.data?.agentic_v9?.planner_diagnostics?.outcome).toBe("planned");
     expect(parsed.runs[0].observability.data?.agentic_v9?.comparison?.subjects[0].evidence_slot_ids).toEqual(["S1"]);
   });
@@ -532,6 +542,107 @@ describe("Export Schema v2 runtime decoder", () => {
     expect(
       parseExportCampaignResponse(value).runs[0].observability.data?.agentic_v9?.metrics.prose_curator_call_count,
     ).toBe(3);
+  });
+
+  it("accepts full observability with populated qualification metrics and failure code", () => {
+    const value = validExportV2();
+    Object.assign(value.runs[0].observability.data.agentic_v9.metrics, {
+      candidate_packet_count: 5,
+      qualified_packet_count: 3,
+      qualification_round_count: 2,
+      qualification_provider_call_count: 2,
+      qualification_failure_code: "qualification_insufficient",
+    });
+
+    const parsed = parseExportCampaignResponse(value);
+    const metrics = parsed.runs[0].observability.data?.agentic_v9?.metrics;
+
+    expect(metrics?.candidate_packet_count).toBe(5);
+    expect(metrics?.qualified_packet_count).toBe(3);
+    expect(metrics?.qualification_round_count).toBe(2);
+    expect(metrics?.qualification_provider_call_count).toBe(2);
+    expect(metrics?.qualification_failure_code).toBe("qualification_insufficient");
+  });
+
+  it("accepts agent behavior metrics with populated qualification fields", () => {
+    const value = validExportV2();
+    value.sections.agent_behavior = {
+      availability: availability(),
+      data: {
+        campaign_id: "cmp-1",
+        analysis_unit: "execution",
+        sample_count: 1,
+        independent_question_count: 1,
+        repeat_count: 1,
+        sample_note: "one sample",
+        warnings: [],
+        behavior_schema_version: "2",
+        rows: [
+          {
+            run_id: "run-1",
+            campaign_id: "cmp-1",
+            question_id: "Q1",
+            mode: "agentic-v9",
+            repeat_number: 1,
+            behavior_schema: "v9",
+            trace_status: "completed",
+            failure_reason: null,
+            accounting_status: "complete",
+            subtasks: null,
+            tool_calls: null,
+            visual_calls: null,
+            graph_calls: null,
+            drilldown_depth: null,
+            correctness: 1.0,
+            faithfulness: 1.0,
+            unsupported_claim_ratio: 0.0,
+            supported_claim_ratio: 1.0,
+            total_tokens: 10,
+            legacy: null,
+            v9: {
+              route: "bounded_compare",
+              contract_version: "2",
+              slot_plan_status: "complete",
+              slot_semantics: "heuristic_experimental",
+              atomic_completeness: null,
+              atomic_completeness_reason: null,
+              graph_policy: "never",
+              visual_requested: false,
+              visual_required: false,
+              evidence_extraction_required: false,
+              retrieval_query_count: 1,
+              provider_attempt_count: 1,
+              final_generation_count: 1,
+              evidence_packet_count: 2,
+              packed_evidence_count: 2,
+              slot_resolution_count: 2,
+              required_slot_count: 2,
+              supported_slot_count: 2,
+              repair_count: 0,
+              final_claim_count: 1,
+              reserved_tokens: 0,
+              reconciled_tokens: 0,
+              candidate_packet_count: 4,
+              qualified_packet_count: 2,
+              qualification_round_count: 1,
+              qualification_provider_call_count: 1,
+              qualification_failure_code: "qualification_insufficient",
+              graph_execution: "not_requested",
+              visual_execution: "not_requested",
+            },
+          },
+        ],
+        summaries: {},
+      },
+    } as never;
+
+    const parsed = parseExportCampaignResponse(value);
+    const behaviorV9 = parsed.sections.agent_behavior.data?.rows[0].v9;
+    expect(behaviorV9?.candidate_packet_count).toBe(4);
+    expect(behaviorV9?.qualified_packet_count).toBe(2);
+    expect(behaviorV9?.qualification_round_count).toBe(1);
+    expect(behaviorV9?.qualification_provider_call_count).toBe(1);
+    expect(behaviorV9?.qualification_failure_code).toBe("qualification_insufficient");
   });
 
   it("accepts a non-comparison contract when the backend omits comparison_plan", () => {
@@ -816,6 +927,71 @@ describe("Export Schema v2 runtime decoder", () => {
       "unsupported semantic qualification",
       (value: ReturnType<typeof validExportV2>) => {
         value.runs[0].observability.data.agentic_v9.metrics.semantic_qualification = "enabled" as never;
+      },
+    ],
+    [
+      "negative candidate packet count",
+      (value: ReturnType<typeof validExportV2>) => {
+        value.runs[0].observability.data.agentic_v9.metrics.candidate_packet_count = -1;
+      },
+    ],
+    [
+      "negative qualified packet count",
+      (value: ReturnType<typeof validExportV2>) => {
+        value.runs[0].observability.data.agentic_v9.metrics.qualified_packet_count = -1;
+      },
+    ],
+    [
+      "negative qualification round count",
+      (value: ReturnType<typeof validExportV2>) => {
+        value.runs[0].observability.data.agentic_v9.metrics.qualification_round_count = -1;
+      },
+    ],
+    [
+      "negative qualification provider call count",
+      (value: ReturnType<typeof validExportV2>) => {
+        value.runs[0].observability.data.agentic_v9.metrics.qualification_provider_call_count = -1;
+      },
+    ],
+    [
+      "qualification failure code exceeds max length",
+      (value: ReturnType<typeof validExportV2>) => {
+        value.runs[0].observability.data.agentic_v9.metrics.qualification_failure_code = "a".repeat(97);
+      },
+    ],
+    [
+      "omitted candidate packet count",
+      (value: ReturnType<typeof validExportV2>) => {
+        delete (value.runs[0].observability.data.agentic_v9.metrics as { candidate_packet_count?: unknown })
+          .candidate_packet_count;
+      },
+    ],
+    [
+      "omitted qualified packet count",
+      (value: ReturnType<typeof validExportV2>) => {
+        delete (value.runs[0].observability.data.agentic_v9.metrics as { qualified_packet_count?: unknown })
+          .qualified_packet_count;
+      },
+    ],
+    [
+      "omitted qualification round count",
+      (value: ReturnType<typeof validExportV2>) => {
+        delete (value.runs[0].observability.data.agentic_v9.metrics as { qualification_round_count?: unknown })
+          .qualification_round_count;
+      },
+    ],
+    [
+      "omitted qualification provider call count",
+      (value: ReturnType<typeof validExportV2>) => {
+        delete (value.runs[0].observability.data.agentic_v9.metrics as { qualification_provider_call_count?: unknown })
+          .qualification_provider_call_count;
+      },
+    ],
+    [
+      "omitted qualification failure code",
+      (value: ReturnType<typeof validExportV2>) => {
+        delete (value.runs[0].observability.data.agentic_v9.metrics as { qualification_failure_code?: unknown })
+          .qualification_failure_code;
       },
     ],
   ])("rejects %s", (_name, mutate) => {

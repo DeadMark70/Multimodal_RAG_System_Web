@@ -90,6 +90,26 @@ type ExportV9PlannerDiagnosticsIsRequired = Expect<
   >
 >;
 
+type ExportV9ExecutionMetricsMatchesBackend = Expect<
+  Equal<
+    Pick<
+      ExportV9ExecutionObservabilityV2['metrics'],
+      | 'candidate_packet_count'
+      | 'qualified_packet_count'
+      | 'qualification_round_count'
+      | 'qualification_provider_call_count'
+      | 'qualification_failure_code'
+    >,
+    {
+      candidate_packet_count?: number;
+      qualified_packet_count?: number;
+      qualification_round_count?: number;
+      qualification_provider_call_count?: number;
+      qualification_failure_code?: string | null;
+    }
+  >
+>;
+
 const activeContractTypeChecks: [
   RouterAnalysisRowMatchesBackend,
   RouterAnalysisResponseRowsMatchBackend,
@@ -102,7 +122,8 @@ const activeContractTypeChecks: [
   ExportGraphHasSafeFlags,
   ExportClaimHasSafeEvidence,
   ExportV9PlannerDiagnosticsIsRequired,
-] = [true, true, true, true, true, true, true, true, true, true, true];
+  ExportV9ExecutionMetricsMatchesBackend,
+] = [true, true, true, true, true, true, true, true, true, true, true, true];
 
 describe('agentic v9 evaluation contract', () => {
   it('pins the backend OpenAPI hash and frontend baseline', () => {
@@ -174,7 +195,7 @@ describe('agentic v9 evaluation contract', () => {
     expect('latest_result_id' in progress).toBe(false);
     expect(routerAnalysis.rows[0].analysis_type).toBe('retrospective');
     expect(routerAnalysis.rows[0]).not.toHaveProperty('payload');
-    expect(activeContractTypeChecks).toEqual(Array(11).fill(true));
+    expect(activeContractTypeChecks).toEqual(Array(12).fill(true));
   });
 
   it('keeps historical v8 observability valid when v9 observability is null', () => {
@@ -233,7 +254,7 @@ describe('agentic v9 evaluation contract', () => {
     };
 
     expect(request.include_run_observability).toBe(false);
-    expect(activeContractTypeChecks).toEqual(Array(11).fill(true));
+    expect(activeContractTypeChecks).toEqual(Array(12).fill(true));
   });
 
   it('models a non-empty serialized canonical observability response', () => {
@@ -417,6 +438,11 @@ describe('agentic v9 evaluation contract', () => {
         semantic_qualification: 'not_enabled',
         reserved_tokens: 0,
         reconciled_tokens: 0,
+        candidate_packet_count: 0,
+        qualified_packet_count: 0,
+        qualification_round_count: 0,
+        qualification_provider_call_count: 0,
+        qualification_failure_code: null,
       },
     };
     const preflight: CampaignPreflightRequest = {
