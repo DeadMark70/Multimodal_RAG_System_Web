@@ -99,6 +99,9 @@ type ExportV9ExecutionMetricsMatchesBackend = Expect<
       | 'qualification_round_count'
       | 'qualification_provider_call_count'
       | 'qualification_failure_code'
+      | 'qualification_unknown_source_id_count'
+      | 'qualification_unauthorized_source_slot_count'
+      | 'qualification_statement_not_verbatim_count'
     >,
     {
       candidate_packet_count?: number;
@@ -106,6 +109,9 @@ type ExportV9ExecutionMetricsMatchesBackend = Expect<
       qualification_round_count?: number;
       qualification_provider_call_count?: number;
       qualification_failure_code?: string | null;
+      qualification_unknown_source_id_count?: number;
+      qualification_unauthorized_source_slot_count?: number;
+      qualification_statement_not_verbatim_count?: number;
     }
   >
 >;
@@ -443,6 +449,9 @@ describe('agentic v9 evaluation contract', () => {
         qualification_round_count: 0,
         qualification_provider_call_count: 0,
         qualification_failure_code: 'provider_attempt_failed',
+        qualification_unknown_source_id_count: 1,
+        qualification_unauthorized_source_slot_count: 2,
+        qualification_statement_not_verbatim_count: 3,
       },
     };
     const preflight: CampaignPreflightRequest = {

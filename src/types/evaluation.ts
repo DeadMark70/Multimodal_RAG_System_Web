@@ -487,6 +487,9 @@ export interface V9AgentBehaviorMetrics {
   qualification_round_count?: number | null;
   qualification_provider_call_count?: number | null;
   qualification_failure_code?: string | null;
+  qualification_unknown_source_id_count?: number | null;
+  qualification_unauthorized_source_slot_count?: number | null;
+  qualification_statement_not_verbatim_count?: number | null;
   graph_execution: BehaviorExecutionState;
   visual_execution: BehaviorExecutionState;
 }
@@ -997,6 +1000,9 @@ export interface V9ExecutionMetrics {
   qualification_round_count?: number;
   qualification_provider_call_count?: number;
   qualification_failure_code?: string | null;
+  qualification_unknown_source_id_count?: number;
+  qualification_unauthorized_source_slot_count?: number;
+  qualification_statement_not_verbatim_count?: number;
 }
 
 export interface AtomicPlannerDiagnostics {

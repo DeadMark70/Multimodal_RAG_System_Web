@@ -439,6 +439,9 @@ function validExportV2() {
                 qualification_round_count: 0,
                 qualification_provider_call_count: 0,
                 qualification_failure_code: null as string | null,
+                qualification_unknown_source_id_count: 0,
+                qualification_unauthorized_source_slot_count: 0,
+                qualification_statement_not_verbatim_count: 0,
               },
               planner_diagnostics: {
                 outcome: "planned",
@@ -501,6 +504,9 @@ describe("Export Schema v2 runtime decoder", () => {
     expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.qualification_round_count).toBe(0);
     expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.qualification_provider_call_count).toBe(0);
     expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.qualification_failure_code).toBeNull();
+    expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.qualification_unknown_source_id_count).toBe(0);
+    expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.qualification_unauthorized_source_slot_count).toBe(0);
+    expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.qualification_statement_not_verbatim_count).toBe(0);
     expect(parsed.runs[0].observability.data?.agentic_v9?.planner_diagnostics?.outcome).toBe("planned");
     expect(parsed.runs[0].observability.data?.agentic_v9?.comparison?.subjects[0].evidence_slot_ids).toEqual(["S1"]);
   });
@@ -552,6 +558,9 @@ describe("Export Schema v2 runtime decoder", () => {
       qualification_round_count: 2,
       qualification_provider_call_count: 2,
       qualification_failure_code: "qualification_insufficient",
+      qualification_unknown_source_id_count: 4,
+      qualification_unauthorized_source_slot_count: 5,
+      qualification_statement_not_verbatim_count: 6,
     });
 
     const parsed = parseExportCampaignResponse(value);
@@ -562,6 +571,9 @@ describe("Export Schema v2 runtime decoder", () => {
     expect(metrics?.qualification_round_count).toBe(2);
     expect(metrics?.qualification_provider_call_count).toBe(2);
     expect(metrics?.qualification_failure_code).toBe("qualification_insufficient");
+    expect(metrics?.qualification_unknown_source_id_count).toBe(4);
+    expect(metrics?.qualification_unauthorized_source_slot_count).toBe(5);
+    expect(metrics?.qualification_statement_not_verbatim_count).toBe(6);
   });
 
   it.each([
@@ -646,6 +658,9 @@ describe("Export Schema v2 runtime decoder", () => {
               qualification_round_count: 1,
               qualification_provider_call_count: 1,
               qualification_failure_code: "qualification_insufficient",
+              qualification_unknown_source_id_count: 4,
+              qualification_unauthorized_source_slot_count: 5,
+              qualification_statement_not_verbatim_count: 6,
               graph_execution: "not_requested",
               visual_execution: "not_requested",
             },
@@ -662,6 +677,9 @@ describe("Export Schema v2 runtime decoder", () => {
     expect(behaviorV9?.qualification_round_count).toBe(1);
     expect(behaviorV9?.qualification_provider_call_count).toBe(1);
     expect(behaviorV9?.qualification_failure_code).toBe("qualification_insufficient");
+    expect(behaviorV9?.qualification_unknown_source_id_count).toBe(4);
+    expect(behaviorV9?.qualification_unauthorized_source_slot_count).toBe(5);
+    expect(behaviorV9?.qualification_statement_not_verbatim_count).toBe(6);
   });
 
   it("accepts a non-comparison contract when the backend omits comparison_plan", () => {
@@ -976,6 +994,12 @@ describe("Export Schema v2 runtime decoder", () => {
       "qualification failure code exceeds max length",
       (value: ReturnType<typeof validExportV2>) => {
         value.runs[0].observability.data.agentic_v9.metrics.qualification_failure_code = "a".repeat(97);
+      },
+    ],
+    [
+      "negative qualification statement not verbatim count",
+      (value: ReturnType<typeof validExportV2>) => {
+        value.runs[0].observability.data.agentic_v9.metrics.qualification_statement_not_verbatim_count = -1;
       },
     ],
     [
