@@ -981,7 +981,15 @@ export interface V9ExecutionMetrics {
   atomic_planner_call_count?: number;
   comparison_planner_call_count?: 0;
   slot_binding_method?: 'task_target_inherited' | 'not_instrumented';
-  semantic_qualification?: 'not_enabled' | 'not_instrumented';
+  semantic_qualification?:
+    | 'not_attempted'
+    | 'deterministic'
+    | 'provider_qualified'
+    | 'no_match'
+    | 'provider_failed'
+    | 'invalid_response'
+    | 'not_enabled'
+    | 'not_instrumented';
   reserved_tokens?: number;
   reconciled_tokens?: number;
   candidate_packet_count?: number;

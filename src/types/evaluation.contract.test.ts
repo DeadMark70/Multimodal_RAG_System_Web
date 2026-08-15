@@ -435,14 +435,14 @@ describe('agentic v9 evaluation contract', () => {
         atomic_planner_call_count: 1,
         comparison_planner_call_count: 0,
         slot_binding_method: 'task_target_inherited',
-        semantic_qualification: 'not_enabled',
+        semantic_qualification: 'provider_failed',
         reserved_tokens: 0,
         reconciled_tokens: 0,
         candidate_packet_count: 0,
         qualified_packet_count: 0,
         qualification_round_count: 0,
         qualification_provider_call_count: 0,
-        qualification_failure_code: null,
+        qualification_failure_code: 'provider_attempt_failed',
       },
     };
     const preflight: CampaignPreflightRequest = {

@@ -431,7 +431,7 @@ function validExportV2() {
                 atomic_planner_call_count: 1,
                 comparison_planner_call_count: 0,
                 slot_binding_method: "task_target_inherited",
-                semantic_qualification: "not_enabled",
+                semantic_qualification: "provider_qualified",
                 reserved_tokens: 0,
                 reconciled_tokens: 0,
                 candidate_packet_count: 0,
@@ -562,6 +562,25 @@ describe("Export Schema v2 runtime decoder", () => {
     expect(metrics?.qualification_round_count).toBe(2);
     expect(metrics?.qualification_provider_call_count).toBe(2);
     expect(metrics?.qualification_failure_code).toBe("qualification_insufficient");
+  });
+
+  it.each([
+    ["not_attempted", "budget_not_admitted"],
+    ["deterministic", null],
+    ["provider_qualified", null],
+    ["no_match", null],
+    ["provider_failed", "provider_attempt_failed"],
+    ["invalid_response", "invalid_provider_response"],
+  ] as const)("accepts semantic qualification status %s", (status, failureCode) => {
+    const value = validExportV2();
+    Object.assign(value.runs[0].observability.data.agentic_v9.metrics, {
+      semantic_qualification: status,
+      qualification_failure_code: failureCode,
+    });
+
+    const parsed = parseExportCampaignResponse(value);
+
+    expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.semantic_qualification).toBe(status);
   });
 
   it("accepts agent behavior metrics with populated qualification fields", () => {

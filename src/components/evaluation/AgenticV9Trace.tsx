@@ -104,6 +104,10 @@ export default function AgenticV9Trace({
   const metrics = data.metrics;
   const synthesisObligations = contract?.synthesis_obligations;
   const responseConstraints = contract?.response_constraints;
+  const qualifiedPackets = metrics?.qualified_packet_count == null
+    || metrics?.candidate_packet_count == null
+    ? 'N/A'
+    : `${metrics.qualified_packet_count} / ${metrics.candidate_packet_count}`;
 
   return (
     <Stack spacing={3} data-testid="agentic-v9-trace">
@@ -141,6 +145,9 @@ export default function AgenticV9Trace({
             <MetricLine label="Independent comparison planner calls" value={metrics?.comparison_planner_call_count == null ? 'N/A' : String(metrics.comparison_planner_call_count)} />
             <MetricLine label="Binding method" value={formatOptionalText(metrics?.slot_binding_method)} />
             <MetricLine label="Semantic qualification" value={formatOptionalText(metrics?.semantic_qualification)} />
+            <MetricLine label="Qualified packets" value={qualifiedPackets} />
+            <MetricLine label="Qualification calls" value={metrics?.qualification_provider_call_count == null ? 'N/A' : String(metrics.qualification_provider_call_count)} />
+            <MetricLine label="Qualification failure" value={formatOptionalText(metrics?.qualification_failure_code)} />
             <Text fontSize="xs" fontWeight="semibold" pt={1}>Synthesis obligation preview</Text>
             <PreviewList values={synthesisObligations?.map((item) => item.description)} empty="No synthesis obligations" />
             <Text fontSize="xs" fontWeight="semibold" pt={1}>Response constraint preview</Text>
