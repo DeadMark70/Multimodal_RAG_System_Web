@@ -571,6 +571,23 @@ const v9MetricsSchema = z.strictObject({
   reserved_tokens: nonNegativeInteger,
   reconciled_tokens: nonNegativeInteger,
 });
+const atomicPlannerDiagnosticsSchema = z.strictObject({
+  outcome: z.enum(["deterministic", "planned", "degraded"]),
+  failure_stage: z
+    .enum([
+      "budget_rejected",
+      "provider_invocation",
+      "provider_empty_response",
+      "response_decode",
+      "schema_validation",
+      "semantic_validation",
+    ])
+    .nullable(),
+  failure_code: z.string().max(96).nullable(),
+  provider_response_received: z.boolean(),
+  retrieval_query_strategy: z.enum(["atomic_slots", "safe_fallback_original_question"]),
+  compiled_retrieval_task_count: nonNegativeInteger,
+});
 const v9ComparisonSchema = z.strictObject({
   planner_status: z.enum(["not_requested", "planned", "fallback", "unknown"]),
   planner_latency_ms: z.number().finite().nonnegative(),
@@ -630,6 +647,7 @@ const v9Schema = z.strictObject({
   conflicts: z.array(v9ConflictSchema),
   final_claims: z.array(v9FinalClaimSchema),
   metrics: v9MetricsSchema,
+  planner_diagnostics: atomicPlannerDiagnosticsSchema.nullable(),
   comparison: v9ComparisonSchema.nullable(),
 });
 const runSummarySchema = z.strictObject({

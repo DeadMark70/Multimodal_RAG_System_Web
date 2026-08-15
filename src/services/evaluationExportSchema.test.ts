@@ -435,6 +435,14 @@ function validExportV2() {
                 reserved_tokens: 0,
                 reconciled_tokens: 0,
               },
+              planner_diagnostics: {
+                outcome: "planned",
+                failure_stage: null,
+                failure_code: null,
+                provider_response_received: true,
+                retrieval_query_strategy: "atomic_slots",
+                compiled_retrieval_task_count: 2,
+              },
               comparison: {
                 planner_status: "planned",
                 planner_latency_ms: 1.5,
@@ -483,7 +491,37 @@ describe("Export Schema v2 runtime decoder", () => {
     expect(parsed.runs[0].observability.data?.agentic_v9?.contract?.synthesis_obligations).toHaveLength(1);
     expect(parsed.runs[0].observability.data?.agentic_v9?.contract?.comparison_plan?.subjects[0].evidence_slot_ids).toEqual(["S1"]);
     expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.atomic_planner_call_count).toBe(1);
+    expect(parsed.runs[0].observability.data?.agentic_v9?.planner_diagnostics?.outcome).toBe("planned");
     expect(parsed.runs[0].observability.data?.agentic_v9?.comparison?.subjects[0].evidence_slot_ids).toEqual(["S1"]);
+  });
+
+  it("accepts an explicitly unavailable planner diagnostic", () => {
+    const value = validExportV2();
+    (value.runs[0].observability.data.agentic_v9 as unknown as { planner_diagnostics: unknown })
+      .planner_diagnostics = null;
+
+    expect(
+      parseExportCampaignResponse(value).runs[0].observability.data?.agentic_v9?.planner_diagnostics,
+    ).toBeNull();
+  });
+
+  it("rejects full observability when the required planner diagnostic field is omitted", () => {
+    const value = validExportV2();
+    delete (value.runs[0].observability.data.agentic_v9 as { planner_diagnostics?: unknown })
+      .planner_diagnostics;
+
+    expect(() => parseExportCampaignResponse(value)).toThrow("Invalid export response.");
+  });
+
+  it.each([
+    ["unknown outcome", { outcome: "unknown" }],
+    ["unknown failure stage", { failure_stage: "transport" }],
+    ["negative task count", { compiled_retrieval_task_count: -1 }],
+  ])("rejects planner diagnostics with %s", (_label, override) => {
+    const value = validExportV2();
+    Object.assign(value.runs[0].observability.data.agentic_v9.planner_diagnostics, override);
+
+    expect(() => parseExportCampaignResponse(value)).toThrow("Invalid export response.");
   });
 
   it("accepts the backend prose curator call-count limit in full observability", () => {

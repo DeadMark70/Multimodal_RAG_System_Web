@@ -238,6 +238,14 @@ function exportV2WithComparisonObservability(): ExportCampaignResponse {
       data: {
         llm_calls: [],
         agentic_v9: {
+          planner_diagnostics: {
+            outcome: 'planned',
+            failure_stage: null,
+            failure_code: null,
+            provider_response_received: true,
+            retrieval_query_strategy: 'atomic_slots',
+            compiled_retrieval_task_count: 1,
+          },
           comparison: {
             subjects: [{
               subject_id: 'model-a',
@@ -415,6 +423,9 @@ describe('AblationDashboardTab', () => {
     expect(
       serialized.runs[0].observability.data?.agentic_v9?.comparison?.subjects[0].evidence_slot_ids,
     ).toEqual(['S1']);
+    expect(
+      serialized.runs[0].observability.data?.agentic_v9?.planner_diagnostics?.retrieval_query_strategy,
+    ).toBe('atomic_slots');
   });
 
   it.each([

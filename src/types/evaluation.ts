@@ -981,6 +981,22 @@ export interface V9ExecutionMetrics {
   reconciled_tokens?: number;
 }
 
+export interface AtomicPlannerDiagnostics {
+  outcome: 'deterministic' | 'planned' | 'degraded';
+  failure_stage:
+    | 'budget_rejected'
+    | 'provider_invocation'
+    | 'provider_empty_response'
+    | 'response_decode'
+    | 'schema_validation'
+    | 'semantic_validation'
+    | null;
+  failure_code: string | null;
+  provider_response_received: boolean;
+  retrieval_query_strategy: 'atomic_slots' | 'safe_fallback_original_question';
+  compiled_retrieval_task_count: number;
+}
+
 /** Token-only, versioned observability; no untyped v9 payload is accepted here. */
 export interface V9ExecutionObservability {
   schema_version?: string;
@@ -994,6 +1010,7 @@ export interface V9ExecutionObservability {
   conflicts?: V9ConflictCandidate[];
   final_claims?: V9FinalClaim[];
   metrics?: V9ExecutionMetrics;
+  planner_diagnostics?: AtomicPlannerDiagnostics | null;
   prompt_capture?: V9PromptCaptureAvailability | null;
 }
 
@@ -1601,6 +1618,7 @@ export interface ExportV9ExecutionObservabilityV2 {
   conflicts: V9ConflictCandidate[];
   final_claims: ExportV9FinalClaimV2[];
   metrics: V9ExecutionMetrics;
+  planner_diagnostics: AtomicPlannerDiagnostics | null;
   comparison: ExportV9ComparisonV2 | null;
 }
 

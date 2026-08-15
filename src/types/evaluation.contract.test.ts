@@ -13,6 +13,7 @@ import type {
   ExportLlmCallV2,
   ExportRunV2,
   ExportTraceEventV2,
+  ExportV9ExecutionObservabilityV2,
   RouterAnalysisResponse,
   RouterAnalysisRow,
   V9ExecutionObservability,
@@ -66,6 +67,28 @@ type ExportTraceHasSafeError = Expect<'error' extends keyof ExportTraceEventV2 ?
 type ExportLlmHasSafePayload = Expect<'payload' extends keyof ExportLlmCallV2 ? true : false>;
 type ExportGraphHasSafeFlags = Expect<'graph_feature_flags' extends keyof ExportGraphEventV2 ? true : false>;
 type ExportClaimHasSafeEvidence = Expect<'evidence' extends keyof ExportClaimV2 ? true : false>;
+type ExportV9PlannerDiagnosticsIsRequired = Expect<
+  Equal<
+    Pick<ExportV9ExecutionObservabilityV2, 'planner_diagnostics'>,
+    {
+      planner_diagnostics: {
+        outcome: 'deterministic' | 'planned' | 'degraded';
+        failure_stage:
+          | 'budget_rejected'
+          | 'provider_invocation'
+          | 'provider_empty_response'
+          | 'response_decode'
+          | 'schema_validation'
+          | 'semantic_validation'
+          | null;
+        failure_code: string | null;
+        provider_response_received: boolean;
+        retrieval_query_strategy: 'atomic_slots' | 'safe_fallback_original_question';
+        compiled_retrieval_task_count: number;
+      } | null;
+    }
+  >
+>;
 
 const activeContractTypeChecks: [
   RouterAnalysisRowMatchesBackend,
@@ -78,7 +101,8 @@ const activeContractTypeChecks: [
   ExportLlmHasSafePayload,
   ExportGraphHasSafeFlags,
   ExportClaimHasSafeEvidence,
-] = [true, true, true, true, true, true, true, true, true, true];
+  ExportV9PlannerDiagnosticsIsRequired,
+] = [true, true, true, true, true, true, true, true, true, true, true];
 
 describe('agentic v9 evaluation contract', () => {
   it('pins the backend OpenAPI hash and frontend baseline', () => {
@@ -150,7 +174,7 @@ describe('agentic v9 evaluation contract', () => {
     expect('latest_result_id' in progress).toBe(false);
     expect(routerAnalysis.rows[0].analysis_type).toBe('retrospective');
     expect(routerAnalysis.rows[0]).not.toHaveProperty('payload');
-    expect(activeContractTypeChecks).toEqual(Array(10).fill(true));
+    expect(activeContractTypeChecks).toEqual(Array(11).fill(true));
   });
 
   it('keeps historical v8 observability valid when v9 observability is null', () => {
@@ -209,7 +233,7 @@ describe('agentic v9 evaluation contract', () => {
     };
 
     expect(request.include_run_observability).toBe(false);
-    expect(activeContractTypeChecks).toEqual(Array(10).fill(true));
+    expect(activeContractTypeChecks).toEqual(Array(11).fill(true));
   });
 
   it('models a non-empty serialized canonical observability response', () => {
