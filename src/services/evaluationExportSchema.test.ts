@@ -419,7 +419,7 @@ function validExportV2() {
               budget: [],
               repairs: [],
               conflicts: [],
-              final_claims: [],
+              final_claims: [] as Array<Record<string, unknown>>,
               metrics: {
                 provider_attempt_count: 0,
                 tool_operation_count: 0,
@@ -442,6 +442,9 @@ function validExportV2() {
                 qualification_unknown_source_id_count: 0,
                 qualification_unauthorized_source_slot_count: 0,
                 qualification_statement_not_verbatim_count: 0,
+                used_evidence_count: null as number | null,
+                unresolved_requirement_count: null as number | null,
+                claim_verifier_call_count: null as number | null,
               },
               planner_diagnostics: {
                 outcome: "planned",
@@ -1056,5 +1059,79 @@ describe("Export Schema v2 runtime decoder", () => {
       expect(String(error)).not.toContain("prompt-text-sentinel");
       expect(String(error)).not.toContain("answer-text-sentinel");
     }
+  });
+
+  it("accepts valid direct and obligation claims and grounded metrics", () => {
+    const value = validExportV2();
+    const v9 = value.runs[0].observability.data.agentic_v9;
+    v9.final_claims = [
+      {
+        claim_id: "claim-1",
+        slot_id: "S1",
+        obligation_id: null,
+        statement: "Score is 0.85.",
+        support_type: "direct",
+        evidence_ids: ["E1"],
+        premise_evidence_ids: [],
+        qualified_reason: null,
+      },
+      {
+        claim_id: "claim-2",
+        slot_id: null,
+        obligation_id: "O1",
+        statement: "Model A is faster than Model B.",
+        support_type: "comparative_inference",
+        evidence_ids: [],
+        premise_evidence_ids: ["E1", "E2"],
+        qualified_reason: null,
+      },
+    ];
+    v9.metrics.used_evidence_count = 2;
+    v9.metrics.unresolved_requirement_count = 0;
+    v9.metrics.claim_verifier_call_count = 1;
+
+    const parsed = parseExportCampaignResponse(value);
+    expect(parsed.runs[0].observability.data?.agentic_v9?.final_claims).toHaveLength(2);
+    expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.used_evidence_count).toBe(2);
+    expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.unresolved_requirement_count).toBe(0);
+    expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.claim_verifier_call_count).toBe(1);
+  });
+
+  it("rejects claim with neither slot_id nor obligation_id", () => {
+    const value = validExportV2();
+    const v9 = value.runs[0].observability.data.agentic_v9;
+    v9.final_claims = [
+      {
+        claim_id: "claim-1",
+        slot_id: null,
+        obligation_id: null,
+        statement: "No target claim",
+        support_type: "direct",
+        evidence_ids: ["E1"],
+        premise_evidence_ids: [],
+        qualified_reason: null,
+      },
+    ];
+
+    expect(() => parseExportCampaignResponse(value)).toThrow("Invalid export response.");
+  });
+
+  it("rejects claim with both slot_id and obligation_id", () => {
+    const value = validExportV2();
+    const v9 = value.runs[0].observability.data.agentic_v9;
+    v9.final_claims = [
+      {
+        claim_id: "claim-1",
+        slot_id: "S1",
+        obligation_id: "O1",
+        statement: "Both targets claim",
+        support_type: "direct",
+        evidence_ids: ["E1"],
+        premise_evidence_ids: [],
+        qualified_reason: null,
+      },
+    ];
+
+    expect(() => parseExportCampaignResponse(value)).toThrow("Invalid export response.");
   });
 });

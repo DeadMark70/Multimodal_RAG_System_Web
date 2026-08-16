@@ -209,6 +209,9 @@ export default function AgenticV9Trace({
           <Stack spacing={1}>
             <Text fontSize="sm" whiteSpace="pre-wrap">{formatOptionalText(finalAnswerPreview)}</Text>
             <MetricLine label="Final verified claims" value={finalClaimCount} />
+            <MetricLine label="Used evidence count" value={metrics?.used_evidence_count == null ? 'N/A' : String(metrics.used_evidence_count)} />
+            <MetricLine label="Unresolved requirements" value={metrics?.unresolved_requirement_count == null ? 'N/A' : String(metrics.unresolved_requirement_count)} />
+            <MetricLine label="Claim verifier calls" value={metrics?.claim_verifier_call_count == null ? 'N/A' : String(metrics.claim_verifier_call_count)} />
             <MetricLine label="Verification stop reason" value={formatOptionalText(data.sufficiency?.stop_reason)} />
           </Stack>
         </TraceSection>

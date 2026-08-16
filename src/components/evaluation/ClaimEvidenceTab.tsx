@@ -114,6 +114,28 @@ function V9ClaimSlotAlignment({ data }: { data: AgenticV9RunEvidence }) {
           })}</Tbody>
         </Table></Box>
       )}
+      {data.queryContract?.synthesis_obligations?.length ? (
+        <Box mt={3} data-testid="synthesis-obligations-alignment">
+          <Heading size="xs" mb={2}>Synthesis Obligations</Heading>
+          <Box overflowX="auto"><Table size="sm">
+            <Thead><Tr><Th>Obligation</Th><Th>Kind</Th><Th>Description</Th><Th>Dependencies</Th><Th>Claims</Th></Tr></Thead>
+            <Tbody>{data.queryContract.synthesis_obligations.map((ob) => {
+              const claimIds = (data.finalClaims ?? [])
+                .filter((claim) => claim.obligationId === ob.obligation_id)
+                .map((claim) => claim.claimId);
+              return (
+                <Tr key={ob.obligation_id}>
+                  <Td>{ob.obligation_id}</Td>
+                  <Td>{ob.kind}</Td>
+                  <Td>{ob.description}</Td>
+                  <Td data-testid={`obligation-dependencies-${ob.obligation_id}`}>{ob.depends_on_slot_ids?.join(', ') || 'N/A'}</Td>
+                  <Td data-testid={`obligation-claims-${ob.obligation_id}`}>{claimIds.join(', ') || 'N/A'}</Td>
+                </Tr>
+              );
+            })}</Tbody>
+          </Table></Box>
+        </Box>
+      ) : null}
       <Heading size="xs" mt={3} mb={2}>Repair rounds</Heading>
       {data.repairs === undefined ? <Text fontSize="sm" color="text.secondary">Repair rounds: N/A</Text> : !data.repairs.length ? <Text fontSize="sm" color="text.secondary">No repair rounds recorded.</Text> : <Stack spacing={2}>{data.repairs.map((repair) => (
         <Box key={repair.repair_round_index} borderWidth="1px" borderRadius="sm" p={2} fontSize="sm">

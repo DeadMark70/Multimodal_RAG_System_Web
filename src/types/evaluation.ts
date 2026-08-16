@@ -946,6 +946,7 @@ export interface V9FinalClaim {
   claim_id: string;
   /** Optional for historical payloads; only this persisted relation may bind a claim to a slot. */
   slot_id?: string | null;
+  obligation_id?: string | null;
   statement: string;
   support_type: V9ClaimSupportType;
   evidence_ids?: string[];
@@ -1003,6 +1004,9 @@ export interface V9ExecutionMetrics {
   qualification_unknown_source_id_count?: number;
   qualification_unauthorized_source_slot_count?: number;
   qualification_statement_not_verbatim_count?: number;
+  used_evidence_count?: number | null;
+  unresolved_requirement_count?: number | null;
+  claim_verifier_call_count?: number | null;
 }
 
 export interface AtomicPlannerDiagnostics {
@@ -1598,7 +1602,7 @@ export interface ExportV9EvidencePacketDataV2 {
 export interface ExportV9EvidencePacketV2 { evidence_id: string; packet: ExportV9EvidencePacketDataV2; }
 
 export interface ExportV9FinalClaimV2 {
-  claim_id: string; slot_id: string | null; statement: string | null; support_type: V9ClaimSupportType;
+  claim_id: string; slot_id: string | null; obligation_id: string | null; statement: string | null; support_type: V9ClaimSupportType;
   evidence_ids: string[]; premise_evidence_ids: string[]; qualified_reason: string | null;
 }
 
