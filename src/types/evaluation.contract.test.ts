@@ -102,6 +102,7 @@ type ExportV9ExecutionMetricsMatchesBackend = Expect<
       | 'qualification_unknown_source_id_count'
       | 'qualification_unauthorized_source_slot_count'
       | 'qualification_statement_not_verbatim_count'
+      | 'claim_verifier_diagnostic_code'
     >,
     {
       candidate_packet_count?: number;
@@ -112,6 +113,13 @@ type ExportV9ExecutionMetricsMatchesBackend = Expect<
       qualification_unknown_source_id_count?: number;
       qualification_unauthorized_source_slot_count?: number;
       qualification_statement_not_verbatim_count?: number;
+      claim_verifier_diagnostic_code?:
+        | 'budget_rejected'
+        | 'provider_failure'
+        | 'invalid_provider_response'
+        | 'claim_rejected'
+        | 'accepted'
+        | null;
     }
   >
 >;

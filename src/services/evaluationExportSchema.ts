@@ -602,6 +602,17 @@ const v9MetricsSchema = z.strictObject({
   used_evidence_count: nonNegativeInteger.nullable().optional().default(null),
   unresolved_requirement_count: nonNegativeInteger.nullable().optional().default(null),
   claim_verifier_call_count: nonNegativeInteger.max(1).nullable().optional().default(null),
+  claim_verifier_diagnostic_code: z
+    .enum([
+      "budget_rejected",
+      "provider_failure",
+      "invalid_provider_response",
+      "claim_rejected",
+      "accepted",
+    ])
+    .nullable()
+    .optional()
+    .default(null),
 });
 const atomicPlannerDiagnosticsSchema = z.strictObject({
   outcome: z.enum(["deterministic", "planned", "degraded"]),

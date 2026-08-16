@@ -580,6 +580,33 @@ describe("Export Schema v2 runtime decoder", () => {
   });
 
   it.each([
+    "budget_rejected",
+    "provider_failure",
+    "invalid_provider_response",
+    "claim_rejected",
+    "accepted",
+  ] as const)("accepts claim verifier diagnostic code %s", (diagnosticCode) => {
+    const value = validExportV2();
+    Object.assign(value.runs[0].observability.data.agentic_v9.metrics, {
+      claim_verifier_diagnostic_code: diagnosticCode,
+    });
+
+    const parsed = parseExportCampaignResponse(value);
+
+    expect(parsed.runs[0].observability.data?.agentic_v9?.metrics.claim_verifier_diagnostic_code)
+      .toBe(diagnosticCode);
+  });
+
+  it("rejects an unknown claim verifier diagnostic code", () => {
+    const value = validExportV2();
+    Object.assign(value.runs[0].observability.data.agentic_v9.metrics, {
+      claim_verifier_diagnostic_code: "unknown_code",
+    });
+
+    expect(() => parseExportCampaignResponse(value)).toThrow("Invalid export response.");
+  });
+
+  it.each([
     ["not_attempted", "budget_not_admitted"],
     ["deterministic", null],
     ["provider_qualified", null],

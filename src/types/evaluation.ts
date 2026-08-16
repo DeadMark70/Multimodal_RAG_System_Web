@@ -1007,6 +1007,13 @@ export interface V9ExecutionMetrics {
   used_evidence_count?: number | null;
   unresolved_requirement_count?: number | null;
   claim_verifier_call_count?: number | null;
+  claim_verifier_diagnostic_code?:
+    | 'budget_rejected'
+    | 'provider_failure'
+    | 'invalid_provider_response'
+    | 'claim_rejected'
+    | 'accepted'
+    | null;
 }
 
 export interface AtomicPlannerDiagnostics {
