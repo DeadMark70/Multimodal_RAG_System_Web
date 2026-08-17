@@ -1,4 +1,5 @@
 import { Grid, GridItem, Select, Text } from '@chakra-ui/react';
+import type { AgenticExecutionVersion } from '../../types/evaluation';
 
 export interface EvaluationRunOption {
   runId: string;
@@ -8,18 +9,18 @@ export interface EvaluationRunOption {
   repeat: number;
   conditionId?: string | null;
   executionProfile?: string | null;
-  agenticExecutionVersion?: 'v8' | 'v9';
+  agenticExecutionVersion?: AgenticExecutionVersion;
   responseStatus?: string | null;
 }
 
 function displayMode(option: EvaluationRunOption): string {
-  const isAgentic = option.mode === 'agentic' || option.mode.startsWith('agentic-') || option.mode === 'v8' || option.mode === 'v9';
+  const isAgentic = option.mode === 'agentic' || option.mode.startsWith('agentic-') || option.mode === 'v8' || option.mode === 'v9' || option.mode === 'v10';
   if (!isAgentic) {
     return option.mode;
   }
 
   const isShadow = option.executionProfile === 'shadow' || option.mode === 'agentic-v9-shadow';
-  const version = option.agenticExecutionVersion ?? (option.mode.includes('v9') ? 'v9' : 'v8');
+  const version = option.agenticExecutionVersion ?? (option.mode.includes('v10') ? 'v10' : option.mode.includes('v9') ? 'v9' : 'v8');
   return `Agentic ${version}${isShadow ? ' shadow' : ''}`;
 }
 
