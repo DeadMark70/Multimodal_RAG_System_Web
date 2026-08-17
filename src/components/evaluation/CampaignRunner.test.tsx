@@ -625,8 +625,6 @@ describe('CampaignRunner', () => {
 
     await waitFor(() => expect(screen.getByText('已選擇 1 題')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('checkbox', { name: 'Agentic RAG' }));
-    expect(screen.getByLabelText('Agentic 執行版本')).toHaveValue('v10');
-    fireEvent.change(screen.getByLabelText('Agentic 執行版本'), { target: { value: 'v9' } });
     expect(screen.getByLabelText('Agentic 執行版本')).toHaveValue('v9');
     expect(screen.getByText(/^Evidence-First：/)).toBeInTheDocument();
 

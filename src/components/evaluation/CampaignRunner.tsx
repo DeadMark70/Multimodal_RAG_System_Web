@@ -233,7 +233,7 @@ export default function CampaignRunner() {
   const [selectedModes, setSelectedModes] = useState<CampaignMode[]>(['naive', 'advanced']);
   const [naiveK4Ablation, setNaiveK4Ablation] = useState(false);
   const [requirementGuidedAblation, setRequirementGuidedAblation] = useState(false);
-  const [agenticExecutionVersion, setAgenticExecutionVersion] = useState<AgenticExecutionVersion>('v10');
+  const [agenticExecutionVersion, setAgenticExecutionVersion] = useState<AgenticExecutionVersion>('v9');
   const [agenticV9Shadow, setAgenticV9Shadow] = useState(false);
   const [shadowEvaluationPolicy, setShadowEvaluationPolicy] = useState<ShadowEvaluationPolicy | ''>('');
   const [promptCapturePolicy, setPromptCapturePolicy] = useState<Required<PromptCapturePolicy>>(
@@ -578,7 +578,7 @@ export default function CampaignRunner() {
       const authoritativeModes: CampaignMode[] = requirementGuidedAblation
         ? ['agentic-v9']
         : selectedModes.map((mode) => (
-          mode === 'agentic' && agenticExecutionVersion === 'v10' ? 'agentic-v10' : mode === 'agentic' && agenticExecutionVersion === 'v9' ? 'agentic-v9' : mode
+          mode === 'agentic' && agenticExecutionVersion === 'v9' ? 'agentic-v9' : mode
         ));
       const ablationConditions: AblationCondition[] | undefined = requirementGuidedAblation
         ? buildRequirementGuidedConditions()
@@ -847,9 +847,8 @@ export default function CampaignRunner() {
                         value={agenticExecutionVersion}
                         onChange={(event) => setAgenticExecutionVersion(event.target.value as AgenticExecutionVersion)}
                       >
-                        <option value="v10">v10 (Sub-Query + Sequential Rerank — default)</option>
+                        <option value="v8">v8 (default)</option>
                         <option value="v9">v9 — Evidence-First</option>
-                        <option value="v8">v8 (Legacy Single-Path)</option>
                       </Select>
                       {agenticExecutionVersion === 'v9' && (
                         <Text mt={1} color="blue.700" fontSize="sm">
