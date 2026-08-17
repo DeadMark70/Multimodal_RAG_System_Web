@@ -44,7 +44,6 @@ export interface AgenticV9RunEvidence {
     claimId: string;
     /** The authoritative persisted claim → slot relation; undefined for historical payloads. */
     slotId?: string | null;
-    obligationId?: string | null;
     statement: string;
     supportType: V9FinalClaim['support_type'];
     evidenceIds: string[] | undefined;
@@ -124,7 +123,6 @@ export function mapAgenticV9RunEvidence(
     finalClaims: v9.final_claims?.map((claim) => ({
       claimId: claim.claim_id,
       slotId: claim.slot_id,
-      obligationId: claim.obligation_id,
       statement: claim.statement,
       supportType: claim.support_type,
       evidenceIds: claim.evidence_ids,

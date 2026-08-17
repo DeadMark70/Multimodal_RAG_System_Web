@@ -438,14 +438,9 @@ describe('Evaluation Center data mappers', () => {
             fallback_reason: null, confidence: 1,
           },
         },
-        final_claims: [
-          {
-            claim_id: 'claim-v2', slot_id: 'S1', statement: 'first fact', support_type: 'direct', evidence_ids: [],
-          },
-          {
-            claim_id: 'claim-ob', obligation_id: 'O1', statement: 'synthesized fact', support_type: 'comparative_inference', evidence_ids: [],
-          },
-        ],
+        final_claims: [{
+          claim_id: 'claim-v2', slot_id: 'S1', statement: 'first fact', support_type: 'direct', evidence_ids: [],
+        }],
         prompt_capture: {
           hash: 'captured',
           preview: 'captured',
@@ -458,10 +453,7 @@ describe('Evaluation Center data mappers', () => {
       schemaVersion: '2',
       queryContract: { slot_plan_status: 'complete', slot_semantics: 'atomic', atomic_completeness: true },
       promptCapture: { fullPromptAvailability: 'captured' },
-      finalClaims: [
-        { claimId: 'claim-v2', slotId: 'S1' },
-        { claimId: 'claim-ob', obligationId: 'O1' },
-      ],
+      finalClaims: [{ claimId: 'claim-v2', slotId: 'S1' }],
     });
     expect(JSON.stringify(v2)).not.toContain('FULL_PROMPT_SECRET_SENTINEL');
 

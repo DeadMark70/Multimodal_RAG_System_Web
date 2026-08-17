@@ -547,27 +547,15 @@ const v9ConflictSchema = z.strictObject({
   reason: z.string(),
   unresolved: z.boolean(),
 });
-const v9FinalClaimSchema = z
-  .strictObject({
-    claim_id: z.string(),
-    slot_id: nullableString.optional().default(null),
-    obligation_id: nullableString.optional().default(null),
-    statement: nullableString,
-    support_type: z.enum(["direct", "calculated", "comparative_inference", "qualified"]),
-    evidence_ids: z.array(z.string()),
-    premise_evidence_ids: z.array(z.string()),
-    qualified_reason: nullableString,
-  })
-  .superRefine((claim, ctx) => {
-    const hasSlot = Boolean(claim.slot_id);
-    const hasOb = Boolean(claim.obligation_id);
-    if (hasSlot === hasOb) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "FinalClaim must target exactly one of slot_id or obligation_id",
-      });
-    }
-  });
+const v9FinalClaimSchema = z.strictObject({
+  claim_id: z.string(),
+  slot_id: nullableString,
+  statement: nullableString,
+  support_type: z.enum(["direct", "calculated", "comparative_inference", "qualified"]),
+  evidence_ids: z.array(z.string()),
+  premise_evidence_ids: z.array(z.string()),
+  qualified_reason: nullableString,
+});
 const v9MetricsSchema = z.strictObject({
   provider_attempt_count: nonNegativeInteger,
   tool_operation_count: nonNegativeInteger,
@@ -599,20 +587,6 @@ const v9MetricsSchema = z.strictObject({
   qualification_unknown_source_id_count: nonNegativeInteger,
   qualification_unauthorized_source_slot_count: nonNegativeInteger,
   qualification_statement_not_verbatim_count: nonNegativeInteger,
-  used_evidence_count: nonNegativeInteger.nullable().optional().default(null),
-  unresolved_requirement_count: nonNegativeInteger.nullable().optional().default(null),
-  claim_verifier_call_count: nonNegativeInteger.max(1).nullable().optional().default(null),
-  claim_verifier_diagnostic_code: z
-    .enum([
-      "budget_rejected",
-      "provider_failure",
-      "invalid_provider_response",
-      "claim_rejected",
-      "accepted",
-    ])
-    .nullable()
-    .optional()
-    .default(null),
 });
 const atomicPlannerDiagnosticsSchema = z.strictObject({
   outcome: z.enum(["deterministic", "planned", "degraded"]),

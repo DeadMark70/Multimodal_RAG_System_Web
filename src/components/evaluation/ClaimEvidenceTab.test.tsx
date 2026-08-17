@@ -205,32 +205,6 @@ describe('ClaimEvidenceTab', () => {
     expect(screen.getByTestId('slot-visual-legacy')).toHaveTextContent('N/A');
     expect(screen.getByText('Repair rounds: N/A')).toBeInTheDocument();
   });
-
-  it('renders synthesis obligations and links claims by obligationId', () => {
-    renderWithTheme(<ClaimEvidenceTab
-      claims={[]}
-      agenticV9Evidence={{
-        runId: 'run-ob', schemaVersion: '2', queryContract: {
-          route: 'bounded_compare', intent: 'compare models',
-          required_slots: [{ slot_id: 'S1', description: 'score A' }, { slot_id: 'S2', description: 'score B' }],
-          synthesis_obligations: [{
-            obligation_id: 'O1', kind: 'comparison', description: 'Compare score A and score B', depends_on_slot_ids: ['S1', 'S2'],
-          }],
-        },
-        slotResolutions: [], evidencePackets: [], contextPack: undefined, sufficiency: null, budget: undefined,
-        repairs: [], conflicts: undefined,
-        finalClaims: [{
-          claimId: 'claim-o1', statement: 'Model A is higher than Model B.', supportType: 'comparative_inference',
-          obligationId: 'O1', evidenceIds: [], premiseEvidenceIds: ['E1', 'E2'], qualifiedReason: undefined,
-        }],
-        metrics: undefined,
-      } as never}
-    />);
-
-    expect(screen.getByText('Synthesis Obligations')).toBeInTheDocument();
-    expect(screen.getByTestId('obligation-dependencies-O1')).toHaveTextContent('S1, S2');
-    expect(screen.getByTestId('obligation-claims-O1')).toHaveTextContent('claim-o1');
-  });
 });
 
 describe('ClaimEvidenceTable', () => {
