@@ -89,8 +89,6 @@ export type CampaignMode =
   | 'agentic-v9'
   | 'v9'
   | 'agentic-v9-shadow'
-  | 'agentic-v10'
-  | 'v10'
   | 'router'
   | 'graph_raw_current'
   | 'graph_provenance_gated'
@@ -106,7 +104,7 @@ export type CampaignMode =
   | 'graph_path_pruned'
   | 'graph_planning_only';
 export type CampaignEvaluationPhase = 'execution' | 'evaluation';
-export type AgenticExecutionVersion = 'v8' | 'v9' | 'v10';
+export type AgenticExecutionVersion = 'v8' | 'v9';
 export type ShadowEvaluationPolicy = 'operational' | 'research';
 export type CampaignMetricName = string;
 export type ReferenceSource = 'ground_truth_short' | 'ground_truth_fallback_long';

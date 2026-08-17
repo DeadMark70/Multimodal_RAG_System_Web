@@ -20,8 +20,6 @@ const campaignModeSchema = z.enum([
   "agentic-v9",
   "v9",
   "agentic-v9-shadow",
-  "agentic-v10",
-  "v10",
   "router",
   "graph_raw_current",
   "graph_provenance_gated",
@@ -89,7 +87,7 @@ const resultSchema = z.strictObject({
   condition_id: nullableString,
   execution_profile: nullableString,
   context_policy_version: nullableString,
-  agentic_execution_version: z.enum(["v8", "v9", "v10"]),
+  agentic_execution_version: z.enum(["v8", "v9"]),
   execution_identity: nullableString,
   response_status: nullableString,
   status: z.enum(["completed", "failed"]),
@@ -669,26 +667,6 @@ const v9Schema = z.strictObject({
   planner_diagnostics: atomicPlannerDiagnosticsSchema.nullable(),
   comparison: v9ComparisonSchema.nullable(),
 });
-const v10SubQuerySchema = z.strictObject({
-  id: z.string(),
-  query: z.string(),
-  focus: z.string(),
-  target_entity: z.string().optional(),
-});
-const v10BranchDiagnosticSchema = z.strictObject({
-  subquery_id: z.string(),
-  query: z.string(),
-  focus: z.string(),
-  raw_candidate_count: nonNegativeInteger,
-  reranked_count: nonNegativeInteger,
-  scores: z.array(z.number()),
-});
-const v10Schema = z.strictObject({
-  sub_queries: z.array(v10SubQuerySchema),
-  branch_diagnostics: z.array(v10BranchDiagnosticSchema),
-  total_unique_evidence_count: nonNegativeInteger,
-  referenced_doc_ids: z.array(z.string()),
-});
 const runSummarySchema = z.strictObject({
   run_id: z.string(),
   campaign_id: z.string(),
@@ -722,7 +700,6 @@ const observabilityDataSchema = z.strictObject({
   evidence_coverage: z.array(evidenceCoverageSchema).nullable(),
   evidence_coverage_status: z.enum(["complete", "partial", "not_available", "not_instrumented"]),
   agentic_v9: v9Schema.nullable(),
-  agentic_v10: v10Schema.nullable().optional(),
 });
 const observabilityEnvelopeSchema = z
   .strictObject({
