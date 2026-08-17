@@ -184,6 +184,9 @@ function hasAgenticMode(modes: CampaignMode[]): boolean {
 }
 
 function modeLabel(mode: CampaignMode): string {
+  if (mode === 'agentic-v10') {
+    return 'Agentic v10';
+  }
   if (mode === 'agentic-v9') {
     return 'Agentic v9';
   }
@@ -191,7 +194,7 @@ function modeLabel(mode: CampaignMode): string {
 }
 
 function usesAgenticIdentity(modes: CampaignMode[]): boolean {
-  return modes.some((mode) => mode === 'agentic' || mode === 'agentic-v8' || mode === 'agentic-v9' || mode === 'agentic-v9-shadow');
+  return modes.some((mode) => mode === 'agentic' || mode === 'agentic-v8' || mode === 'agentic-v9' || mode === 'agentic-v9-shadow' || mode === 'agentic-v10');
 }
 
 function storedAgenticIdentity(campaign: CampaignStatus): string | null {
@@ -201,6 +204,9 @@ function storedAgenticIdentity(campaign: CampaignStatus): string | null {
   }
   if (modes.includes('agentic-v9-shadow')) {
     return `Agentic v9 shadow (${policy ?? 'policy N/A'})`;
+  }
+  if (modes.includes('agentic-v10')) {
+    return 'Agentic v10';
   }
   if (modes.includes('agentic-v9')) {
     return 'Agentic v9 Evidence-First';
