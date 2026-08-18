@@ -611,38 +611,30 @@ describe('CampaignRunner', () => {
     });
   });
 
-  it('preflights selected v9 Agentic cases before creating the Evidence-First campaign', async () => {
+  it('uses v10 by default and persists full prompts for the Agentic campaign', async () => {
     mockListTestCases.mockResolvedValue(baseTestCases);
     mockListModelConfigs.mockResolvedValue([baseConfig]);
     mockListCampaigns.mockResolvedValue([]);
-    mockPreflightCampaign.mockResolvedValue({
-      questions: [{ question_id: 'Q1', status: 'feasible', issues: [] }],
-    });
-    mockCreateCampaign.mockResolvedValue({ campaign_id: 'cmp-v9', status: 'pending' });
+    mockCreateCampaign.mockResolvedValue({ campaign_id: 'cmp-v10', status: 'pending' });
     mockStreamCampaign.mockResolvedValue(undefined);
 
     renderRunner();
 
     await waitFor(() => expect(screen.getByText('已選擇 1 題')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('checkbox', { name: 'Agentic RAG' }));
-    expect(screen.getByLabelText('Agentic 執行版本')).toHaveValue('v9');
-    expect(screen.getByText(/^Evidence-First：/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Agentic 執行版本')).toHaveValue('v10');
+    expect(screen.getByText(/^v10：/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '開始評估' }));
 
-    await waitFor(() => {
-      expect(mockPreflightCampaign).toHaveBeenCalledWith({
-        test_case_ids: ['Q1'],
-        model_config: baseConfig,
-        runtime_token_budget: 50000,
-        max_llm_calls: 5,
-      });
-    });
+    await waitFor(() => expect(mockCreateCampaign).toHaveBeenCalled());
+    expect(mockPreflightCampaign).not.toHaveBeenCalled();
     const request = mockCreateCampaign.mock.calls[0]?.[0];
-    expect(request?.modes).toContain('agentic-v9');
-    expect(request?.agentic_execution_version).toBe('v9');
+    expect(request?.modes).toContain('agentic-v10');
+    expect(request?.agentic_execution_version).toBe('v10');
     expect(request?.shadow_evaluation_policy).toBeNull();
     expect(request?.ablation_conditions).toBeUndefined();
+    expect(request?.prompt_capture_policy?.full_prompt).toBe(true);
   });
 
   it('creates a fixed requirement-guided v9 off/on ablation campaign', async () => {

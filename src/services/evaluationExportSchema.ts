@@ -19,6 +19,8 @@ const campaignModeSchema = z.enum([
   "v8",
   "agentic-v9",
   "v9",
+  "agentic-v10",
+  "v10",
   "agentic-v9-shadow",
   "router",
   "graph_raw_current",
@@ -87,7 +89,7 @@ const resultSchema = z.strictObject({
   condition_id: nullableString,
   execution_profile: nullableString,
   context_policy_version: nullableString,
-  agentic_execution_version: z.enum(["v8", "v9"]),
+  agentic_execution_version: z.enum(["v8", "v9", "v10"]),
   execution_identity: nullableString,
   response_status: nullableString,
   status: z.enum(["completed", "failed"]),
@@ -700,6 +702,7 @@ const observabilityDataSchema = z.strictObject({
   evidence_coverage: z.array(evidenceCoverageSchema).nullable(),
   evidence_coverage_status: z.enum(["complete", "partial", "not_available", "not_instrumented"]),
   agentic_v9: v9Schema.nullable(),
+  agentic_v10: z.record(z.string(), jsonValueSchema).nullable().optional(),
 });
 const observabilityEnvelopeSchema = z
   .strictObject({

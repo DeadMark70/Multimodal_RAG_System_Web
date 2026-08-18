@@ -184,6 +184,9 @@ function hasAgenticMode(modes: CampaignMode[]): boolean {
 }
 
 function modeLabel(mode: CampaignMode): string {
+  if (mode === 'agentic-v10') {
+    return 'Agentic v10';
+  }
   if (mode === 'agentic-v9') {
     return 'Agentic v9';
   }
@@ -191,7 +194,7 @@ function modeLabel(mode: CampaignMode): string {
 }
 
 function usesAgenticIdentity(modes: CampaignMode[]): boolean {
-  return modes.some((mode) => mode === 'agentic' || mode === 'agentic-v8' || mode === 'agentic-v9' || mode === 'agentic-v9-shadow');
+  return modes.some((mode) => mode === 'agentic' || mode === 'agentic-v8' || mode === 'agentic-v9' || mode === 'agentic-v9-shadow' || mode === 'agentic-v10');
 }
 
 function storedAgenticIdentity(campaign: CampaignStatus): string | null {
@@ -204,6 +207,9 @@ function storedAgenticIdentity(campaign: CampaignStatus): string | null {
   }
   if (modes.includes('agentic-v9')) {
     return 'Agentic v9 Evidence-First';
+  }
+  if (modes.includes('agentic-v10')) {
+    return 'Agentic v10 Sub-query Retrieval';
   }
   if (modes.includes('agentic-v8')) {
     return 'Agentic v8';
@@ -227,7 +233,7 @@ export default function CampaignRunner() {
   const [selectedModes, setSelectedModes] = useState<CampaignMode[]>(['naive', 'advanced']);
   const [naiveK4Ablation, setNaiveK4Ablation] = useState(false);
   const [requirementGuidedAblation, setRequirementGuidedAblation] = useState(false);
-  const [agenticExecutionVersion, setAgenticExecutionVersion] = useState<AgenticExecutionVersion>('v9');
+  const [agenticExecutionVersion, setAgenticExecutionVersion] = useState<AgenticExecutionVersion>('v10');
   const [agenticV9Shadow, setAgenticV9Shadow] = useState(false);
   const [shadowEvaluationPolicy, setShadowEvaluationPolicy] = useState<ShadowEvaluationPolicy | ''>('');
   const [promptCapturePolicy, setPromptCapturePolicy] = useState<Required<PromptCapturePolicy>>(
@@ -572,7 +578,7 @@ export default function CampaignRunner() {
       const authoritativeModes: CampaignMode[] = requirementGuidedAblation
         ? ['agentic-v9']
         : selectedModes.map((mode) => (
-          mode === 'agentic' && agenticExecutionVersion === 'v9' ? 'agentic-v9' : mode
+          mode === 'agentic' && agenticExecutionVersion === 'v10' ? 'agentic-v10' : mode === 'agentic' && agenticExecutionVersion === 'v9' ? 'agentic-v9' : mode
         ));
       const ablationConditions: AblationCondition[] | undefined = requirementGuidedAblation
         ? buildRequirementGuidedConditions()
@@ -610,7 +616,10 @@ export default function CampaignRunner() {
         ragas_rpm_limit: ragasRpmLimit,
         // This is an execution-time snapshot. Export can only report what the
         // run captured; it cannot recover a prompt omitted here.
-        prompt_capture_policy: { ...promptCapturePolicy },
+              prompt_capture_policy: {
+                ...promptCapturePolicy,
+                full_prompt: agenticSelected && agenticExecutionVersion === 'v10' ? true : promptCapturePolicy.full_prompt,
+              },
         ...(agenticSelected
           ? {
               agentic_execution_version: agenticExecutionVersion,
@@ -841,12 +850,18 @@ export default function CampaignRunner() {
                         value={agenticExecutionVersion}
                         onChange={(event) => setAgenticExecutionVersion(event.target.value as AgenticExecutionVersion)}
                       >
-                        <option value="v8">v8 (default)</option>
+                        <option value="v8">v8</option>
                         <option value="v9">v9 — Evidence-First</option>
+                        <option value="v10">v10 — Sub-query Retrieval (default)</option>
                       </Select>
                       {agenticExecutionVersion === 'v9' && (
                         <Text mt={1} color="blue.700" fontSize="sm">
                           Evidence-First：v9 會先檢查證據與 runtime feasibility，並保留版本化的 evidence trace。
+                        </Text>
+                      )}
+                      {agenticExecutionVersion === 'v10' && (
+                        <Text mt={1} color="teal.700" fontSize="sm">
+                          v10：以子查詢檢索與序列 rerank 整合證據；會保存完整 prompt 與可匯出的執行 trace。
                         </Text>
                       )}
                     </FormControl>

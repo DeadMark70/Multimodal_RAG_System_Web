@@ -88,6 +88,8 @@ export type CampaignMode =
   | 'v8'
   | 'agentic-v9'
   | 'v9'
+  | 'agentic-v10'
+  | 'v10'
   | 'agentic-v9-shadow'
   | 'router'
   | 'graph_raw_current'
@@ -104,7 +106,7 @@ export type CampaignMode =
   | 'graph_path_pruned'
   | 'graph_planning_only';
 export type CampaignEvaluationPhase = 'execution' | 'evaluation';
-export type AgenticExecutionVersion = 'v8' | 'v9';
+export type AgenticExecutionVersion = 'v8' | 'v9' | 'v10';
 export type ShadowEvaluationPolicy = 'operational' | 'research';
 export type CampaignMetricName = string;
 export type ReferenceSource = 'ground_truth_short' | 'ground_truth_fallback_long';
@@ -1382,6 +1384,8 @@ export interface EvaluationRunObservabilityDetail {
   accounting_diagnostics: EvaluationAccountingDiagnostics;
   /** Historical v8 executions explicitly return null instead of a fabricated v9 envelope. */
   agentic_v9: V9ExecutionObservability | null;
+  /** Flexible, versioned diagnostics owned by the evaluation-only v10 runtime. */
+  agentic_v10?: Record<string, unknown> | null;
 }
 
 export interface ExportCampaignRequest {
@@ -1664,6 +1668,7 @@ export interface ExportRunObservabilityDataV2 {
   evidence_coverage: ExportEvidenceCoverageV2[] | null;
   evidence_coverage_status: 'complete' | 'partial' | 'not_available' | 'not_instrumented';
   agentic_v9: ExportV9ExecutionObservabilityV2 | null;
+  agentic_v10?: Record<string, unknown> | null;
 }
 
 export interface ExportRunObservabilityV2 {
@@ -1959,6 +1964,8 @@ export interface AgentTraceDetail extends AgentTraceSummary {
   coverage_gaps?: string[];
   subtask_coverage_status?: Record<string, boolean>;
   steps: AgentTraceStep[];
+  /** Full, versioned evaluation-only v10 trace. The UI intentionally treats it as opaque. */
+  agentic_v10?: Record<string, unknown> | null;
 }
 
 export interface CampaignGranularStreamEventData {
