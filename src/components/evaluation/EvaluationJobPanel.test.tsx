@@ -102,7 +102,7 @@ describe('EvaluationJobPanel', () => {
     expect(screen.getByText('Interrupted: 1')).toBeInTheDocument();
     expect(screen.getByText('Missing: 1')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'RAGAS only' }));
+    fireEvent.click(screen.getByRole('button', { name: '重評全部指標' }));
     await waitFor(() => {
       expect(mockCreateCampaignRerun).toHaveBeenCalledWith('cmp-1', {
         scope: 'all',
@@ -125,6 +125,31 @@ describe('EvaluationJobPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show attempt history' }));
     await waitFor(() => expect(mockListWorkItemAttempts).toHaveBeenCalledWith('work-1'));
     expect(screen.getByText('Provider response details were redacted.')).toBeInTheDocument();
+  });
+
+  it('repairs only the selected missing metric and mode', async () => {
+    renderPanel();
+    await screen.findByText('部分重跑');
+    fireEvent.change(screen.getByLabelText('重跑題目'), { target: { value: 'Q30' } });
+    fireEvent.change(screen.getByLabelText('重跑模式'), { target: { value: 'naive' } });
+    fireEvent.change(screen.getByLabelText('評分指標'), { target: { value: 'faithfulness' } });
+    fireEvent.click(screen.getByRole('button', { name: '補齊缺少的評分' }));
+    await waitFor(() => expect(mockCreateCampaignRerun).toHaveBeenCalledWith('cmp-1', {
+      scope: 'missing_only', stages: 'ragas', question_ids: ['Q30'], modes: ['naive'], metric_names: ['faithfulness'],
+    }));
+  });
+
+  it('reruns an answer with all its metrics and the selected mode only', async () => {
+    renderPanel();
+    await screen.findByText('部分重跑');
+    fireEvent.change(screen.getByLabelText('重跑題目'), { target: { value: 'Q13' } });
+    fireEvent.change(screen.getByLabelText('重跑模式'), { target: { value: 'agentic-v10' } });
+    fireEvent.change(screen.getByLabelText('評分指標'), { target: { value: 'faithfulness' } });
+    fireEvent.change(screen.getByLabelText('重跑階段'), { target: { value: 'execution_and_ragas' } });
+    fireEvent.click(screen.getByRole('button', { name: '重跑所選項目' }));
+    await waitFor(() => expect(mockCreateCampaignRerun).toHaveBeenCalledWith('cmp-1', {
+      scope: 'selected', stages: 'execution_and_ragas', question_ids: ['Q13'], modes: ['agentic-v10'], metric_names: [],
+    }));
   });
 
   it('keeps the durable jobs heading visible for an empty campaign', async () => {

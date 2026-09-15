@@ -5,6 +5,8 @@ import {
   Button,
   HStack,
   Heading,
+  Input,
+  Select,
   Spinner,
   Stack,
   Text,
@@ -194,6 +196,10 @@ export default function EvaluationJobPanel({
   const [durableApiUnavailable, setDurableApiUnavailable] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAttempts, setShowAttempts] = useState(false);
+  const [rerunQuestions, setRerunQuestions] = useState('');
+  const [rerunMode, setRerunMode] = useState('');
+  const [rerunMetric, setRerunMetric] = useState('');
+  const [rerunStage, setRerunStage] = useState<EvaluationRerunRequest['stages']>('ragas');
   const notifiedTerminalJobIdsRef = useRef(new Set<string>());
   const onJobTerminalRef = useRef(onJobTerminal);
   const toast = useToast();
@@ -500,6 +506,16 @@ export default function EvaluationJobPanel({
     );
   };
 
+  const selectedQuestionIds = rerunQuestions.split(/[,，\s]+/).filter(Boolean);
+  const submitSelectedRerun = (missingOnly: boolean) => submitRerun({
+    scope: missingOnly ? 'missing_only' : 'selected',
+    stages: missingOnly ? 'ragas' : rerunStage,
+    question_ids: selectedQuestionIds,
+    modes: rerunMode ? [rerunMode] : [],
+    metric_names: !missingOnly && rerunStage === 'execution_and_ragas'
+      ? [] : rerunMetric ? [rerunMetric] : [],
+  }, missingOnly ? '補齊缺少的評分' : '重跑所選項目');
+
   if (loading || !selectedJob) {
     return (
       <Box borderWidth="1px" borderRadius="lg" p={4} bg="bg.panel">
@@ -560,7 +576,7 @@ export default function EvaluationJobPanel({
           isDisabled={disabledActions}
           isLoading={action === 'RAGAS only'}
         >
-          RAGAS only
+          重評全部指標
         </Button>
         {activeJob && (
           <Button size="sm" colorScheme="orange" variant="outline" onClick={() => void handleCancel()} isLoading={action === 'cancel'}>
@@ -571,6 +587,45 @@ export default function EvaluationJobPanel({
           {showAttempts ? 'Hide attempt history' : 'Show attempt history'}
         </Button>
       </HStack>
+      <Stack spacing={2} borderTopWidth="1px" pt={3}>
+        <Text fontWeight="semibold">部分重跑</Text>
+        <HStack flexWrap="wrap">
+          <Input aria-label="重跑題目" placeholder="題目 ID，例如 Q13、Q30" value={rerunQuestions}
+            onChange={(event) => setRerunQuestions(event.target.value)} maxW="280px" />
+          <Select aria-label="重跑模式" value={rerunMode} onChange={(event) => setRerunMode(event.target.value)} maxW="210px">
+            <option value="">全部模式</option>
+            <option value="naive">Naive RAG</option>
+            <option value="advanced">Advanced RAG</option>
+            <option value="graph">Graph RAG</option>
+            <option value="agentic-v8">Agentic v8</option>
+            <option value="agentic-v9">Agentic v9</option>
+            <option value="agentic-v10">Agentic v10</option>
+          </Select>
+          <Select aria-label="重跑階段" value={rerunStage}
+            onChange={(event) => setRerunStage(event.target.value as EvaluationRerunRequest['stages'])} maxW="240px">
+            <option value="ragas">只重新評分</option>
+            <option value="execution_and_ragas">重新作答並評分</option>
+          </Select>
+          <Select aria-label="評分指標" value={rerunMetric} onChange={(event) => setRerunMetric(event.target.value)}
+            isDisabled={rerunStage !== 'ragas'} maxW="210px">
+            <option value="">全部指標</option>
+            <option value="answer_correctness">正確度</option>
+            <option value="faithfulness">忠實度</option>
+            <option value="answer_relevancy">相關性</option>
+          </Select>
+        </HStack>
+        <Text fontSize="sm" color="text.secondary">
+          缺少分數可只補評分；答案失敗或補查不完整，請選「重新作答並評分」。
+          重新作答會沿用原始設定，並更新所選模式的答案與評分。
+        </Text>
+        <HStack>
+          <Button size="sm" isDisabled={disabledActions || selectedQuestionIds.length === 0}
+            isLoading={action === '重跑所選項目'} onClick={() => void submitSelectedRerun(false)}>重跑所選項目</Button>
+          <Button size="sm" isDisabled={disabledActions || rerunStage !== 'ragas'}
+            isLoading={action === '補齊缺少的評分'} onClick={() => void submitSelectedRerun(true)}>補齊缺少的評分</Button>
+        </HStack>
+        <Text fontSize="sm" color="text.secondary">補評分時可留空題目，檢查全批；已有分數會保留。</Text>
+      </Stack>
       {showAttempts && (
         <Stack mt={3} spacing={2}>
           <Text fontWeight="600" fontSize="sm">Attempt history</Text>

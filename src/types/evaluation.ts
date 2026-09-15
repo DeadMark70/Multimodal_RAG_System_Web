@@ -2013,7 +2013,7 @@ export type EvaluationAttemptStatus =
   | 'failed'
   | 'interrupted'
   | 'cancelled';
-export type EvaluationRerunScope = 'failed_only' | 'selected' | 'all';
+export type EvaluationRerunScope = 'failed_only' | 'missing_only' | 'selected' | 'all';
 export type EvaluationRerunStages = 'execution' | 'ragas' | 'execution_and_ragas';
 export type EvaluationJobStatus =
   | 'pending'
@@ -2028,6 +2028,7 @@ export interface EvaluationRerunRequest {
   stages: EvaluationRerunStages;
   question_ids: string[];
   metric_names: string[];
+  modes?: string[];
 }
 
 export interface EvaluationJobItemCounts {
