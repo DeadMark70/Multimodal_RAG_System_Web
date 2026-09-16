@@ -129,6 +129,8 @@ export default function CampaignOverviewTab({
 
   return (
     <Stack spacing={5}>
+      {data.analysis_status === 'updating' ? <Alert status="info"><AlertIcon />統計更新中，目前顯示上一版摘要。</Alert> : null}
+      {data.analysis_updated_at ? <Text fontSize="xs" color="text.secondary">摘要更新時間：{new Date(data.analysis_updated_at).toLocaleString()}</Text> : null}
       <Stack direction={{ base: 'column', md: 'row' }} spacing={2} aria-label="Research accounting statuses"><Badge>Quality: {data.quality_status}</Badge><Badge>Tokens: {data.token_accounting_status}</Badge><Badge>Phase attribution: {data.phase_attribution_status}</Badge></Stack>
       {data.token_accounting_status === 'incomplete_legacy' ? <Alert status="warning"><AlertIcon />Legacy accounting: token totals may be incomplete.</Alert> : null}
       {data.token_accounting_status === 'partial' ? <Alert status="warning"><AlertIcon />Token accounting is partial; token-derived comparisons are marked N/A when incomplete.</Alert> : null}

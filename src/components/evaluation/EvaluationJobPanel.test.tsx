@@ -1,5 +1,5 @@
 import { ChakraProvider } from '@chakra-ui/react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   cancelEvaluationJob as cancelEvaluationJobFn,
@@ -223,7 +223,7 @@ describe('EvaluationJobPanel', () => {
 
     await waitFor(
       () => expect(mockGetEvaluationJob).toHaveBeenCalledWith('job-older-running'),
-      { timeout: 3500 },
+      { timeout: 5000 },
     );
     await waitFor(
       () => expect(onJobTerminal.mock.calls.filter(([notifiedJob]) => (
@@ -233,19 +233,18 @@ describe('EvaluationJobPanel', () => {
     );
 
     const pollCountAfterTerminal = mockGetEvaluationJob.mock.calls.length;
+    mockListCampaignJobs.mockResolvedValue([newerTerminalJob, olderTerminalJob]);
     rerender(
       <ChakraProvider theme={theme}>
         <EvaluationJobPanel campaignId="cmp-1" onJobTerminal={onJobTerminal} />
       </ChakraProvider>,
     );
-    await waitFor(
-      () => expect(mockGetEvaluationJob.mock.calls.length).toBeGreaterThan(pollCountAfterTerminal),
-      { timeout: 3500 },
-    );
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 4500)); });
+    expect(mockGetEvaluationJob).toHaveBeenCalledTimes(pollCountAfterTerminal);
     expect(onJobTerminal.mock.calls.filter(([notifiedJob]) => (
       notifiedJob.job_id === 'job-older-running'
     ))).toHaveLength(1);
-  }, 10_000);
+  }, 15_000);
 
   it('selects the newest terminal job without relabeling cancelled or unknown counts', async () => {
     const older = { ...job, job_id: 'job-old', created_at: '2026-07-13T00:00:00Z', status: 'completed' as const, counts: undefined };

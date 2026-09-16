@@ -298,6 +298,22 @@ function renderPage() {
 }
 
 describe('Evaluation Center real data flow', () => {
+  it('appends question pages without losing earlier rows', async () => {
+    const base = { campaign_id: campaign.id, analysis_unit: 'question', sample_count: 104,
+      independent_question_count: 52, repeat_count: 1, sample_note: '', warnings: [], summaries: {} };
+    apiMocks.getResearchQuestionComparison
+      .mockResolvedValueOnce({ ...base, rows: [{ question_id: 'Q-first-page', by_mode: [] }], next_offset: 50 })
+      .mockResolvedValueOnce({ ...base, rows: [{ question_id: 'Q-next-page', by_mode: [] }], next_offset: null });
+    render(<ChakraProvider theme={theme}><EvaluationCenter /></ChakraProvider>);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Question Analysis' }));
+    expect((await screen.findAllByText('Q-first-page')).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: '載入更多分析' }));
+    expect((await screen.findAllByText('Q-next-page')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Q-first-page').length).toBeGreaterThan(0);
+    expect(apiMocks.getResearchQuestionComparison).toHaveBeenLastCalledWith(campaign.id, 50);
+    expect(screen.queryByRole('button', { name: '載入更多分析' })).not.toBeInTheDocument();
+  });
+
   it('renders release-gated, unavailable values without converting them into zeros', async () => {
     renderPage();
 

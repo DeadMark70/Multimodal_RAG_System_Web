@@ -335,6 +335,7 @@ export default function EvaluationJobPanel({
     if (typeof getEvaluationJob !== 'function') return;
     let cancelled = false;
     const timer = window.setInterval(() => {
+      if (document.visibilityState === 'hidden') return;
       void getEvaluationJob(jobKey(activeJob))
         .then((nextJob) => {
           if (cancelled) return;
@@ -357,7 +358,7 @@ export default function EvaluationJobPanel({
             });
           }
         });
-    }, 1500);
+    }, 4000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
@@ -374,6 +375,7 @@ export default function EvaluationJobPanel({
       || typeof listCampaignJobs !== 'function'
     ) return;
     const timer = window.setInterval(() => {
+      if (document.visibilityState === 'hidden') return;
       void listCampaignJobs(campaignId)
         .then((nextJobs) => {
           setLoadError(null);
@@ -391,7 +393,7 @@ export default function EvaluationJobPanel({
             status: 'error',
           });
         });
-    }, 1500);
+    }, activeJob ? 5000 : 30000);
     return () => window.clearInterval(timer);
   }, [activeJob, campaignId, controlledJobs, durableApiUnavailable, toast, updateJobs]);
 

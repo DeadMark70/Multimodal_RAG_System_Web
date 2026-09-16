@@ -357,6 +357,8 @@ export interface ResearchWarning {
 }
 
 export interface CampaignResearchSummaryResponse {
+  analysis_status?: 'ready' | 'updating';
+  analysis_updated_at?: string | null;
   campaign_id: string;
   research_schema_version: '2';
   completed_run_count: number;
@@ -424,6 +426,9 @@ export interface QuestionComparisonRow {
 
 export interface ResearchQuestionComparisonResponse extends AnalyticsAggregateResponse<QuestionComparisonRow> {
   rows: QuestionComparisonRow[];
+  next_offset?: number | null;
+  analysis_status?: 'ready' | 'updating';
+  analysis_updated_at?: string | null;
 }
 
 export interface AgentBehaviorRow {
@@ -499,6 +504,9 @@ export interface V9AgentBehaviorMetrics {
 export interface AgentBehaviorResponse extends AnalyticsAggregateResponse<AgentBehaviorRow> {
   behavior_schema_version?: '2';
   rows: AgentBehaviorRow[];
+  next_offset?: number | null;
+  analysis_status?: 'ready' | 'updating';
+  analysis_updated_at?: string | null;
 }
 
 export type QuestionComparisonResponse = AnalyticsAggregateResponse;
@@ -597,6 +605,7 @@ export interface EvaluationRunListItem {
 }
 
 export interface EvaluationRunListResponse {
+  next_offset?: number | null;
   campaign_id: string;
   runs: EvaluationRunListItem[];
 }

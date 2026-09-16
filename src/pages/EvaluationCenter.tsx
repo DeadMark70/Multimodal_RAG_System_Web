@@ -130,6 +130,10 @@ export default function EvaluationCenter() {
   const [selectedRunId, setSelectedRunId] = useState('');
   const [tabRefreshToken, setTabRefreshToken] = useState(0);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const [moreCampaigns, setMoreCampaigns] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const runsCache = useRef(new Map<string, Promise<EvaluationRunListResponse>>());
+  const detailCache = useRef(new Map<string, Promise<EvaluationRunObservabilityDetail>>());
   const loadedTabsRef = useRef(new Set<string>());
   const requestGenerationRef = useRef(0);
   const overviewRequestRef = useRef(0);
@@ -137,13 +141,41 @@ export default function EvaluationCenter() {
   const selectedCampaignIdRef = useRef('');
   const selectedCampaignHasBenchmarkRef = useRef(false);
 
+  const loadRuns = useCallback((campaignId: string) => {
+    let request = runsCache.current.get(campaignId);
+    if (!request) {
+      request = getCampaignRuns(campaignId).catch((error) => {
+        runsCache.current.delete(campaignId);
+        throw error;
+      });
+      runsCache.current.set(campaignId, request);
+    }
+    return request;
+  }, []);
+
+  const loadRunDetail = useCallback((campaignId: string, runId: string) => {
+    const key = `${campaignId}:${runId}`;
+    let request = detailCache.current.get(key);
+    if (!request) {
+      request = getRunObservability(campaignId, runId).catch((error) => {
+        detailCache.current.delete(key);
+        throw error;
+      });
+      detailCache.current.set(key, request);
+    }
+    return request;
+  }, []);
+
   useEffect(() => {
     selectedCampaignIdRef.current = selectedCampaignId;
   }, [selectedCampaignId]);
 
   const loadCampaignInventory = useCallback(async (): Promise<CampaignStatus[]> => {
     const campaigns = await listCampaigns();
-    setDashboardData((current) => ({ ...current, campaigns }));
+    setMoreCampaigns(campaigns.length === 50);
+    setDashboardData((current) => ({ ...current, campaigns: [
+      ...campaigns, ...current.campaigns.filter((old) => !campaigns.some((item) => item.id === old.id)),
+    ] }));
     setSelectedCampaignId((current) => current || campaigns[0]?.id || '');
     return campaigns;
   }, []);
@@ -198,6 +230,8 @@ export default function EvaluationCenter() {
     overviewRequestRef.current = overviewRequest;
     runDetailRequestRef.current += 1;
     loadedTabsRef.current = new Set();
+    runsCache.current.clear();
+    detailCache.current.clear();
     setSelectedRunId('');
     setDashboardData((current) => ({ campaigns: current.campaigns }));
     const loadDashboard = async () => {
@@ -241,12 +275,12 @@ export default function EvaluationCenter() {
       case 2:
       case 3:
       case 5: {
-        const runs = await getCampaignRuns(campaignId);
+        const runs = await loadRuns(campaignId);
         const effectiveRunId =
           (preferredRunId && runs.runs.some((run) => run.run_id === preferredRunId)
             ? preferredRunId
             : runs.runs[0]?.run_id) ?? '';
-        const runDetail = effectiveRunId ? await getRunObservability(campaignId, effectiveRunId) : undefined;
+        const runDetail = effectiveRunId ? await loadRunDetail(campaignId, effectiveRunId) : undefined;
         return {
           runs,
           runDetail,
@@ -257,13 +291,13 @@ export default function EvaluationCenter() {
         return { agentBehavior: await getAgentBehavior(campaignId) };
       case 6: {
         const routerRequest = getRouterAnalysis(campaignId);
-        const selectedRunRequest = getCampaignRuns(campaignId).then(async (runs) => {
+        const selectedRunRequest = loadRuns(campaignId).then(async (runs) => {
           const effectiveRunId =
             (preferredRunId && runs.runs.some((run) => run.run_id === preferredRunId)
               ? preferredRunId
               : runs.runs[0]?.run_id) ?? '';
           const runDetail = effectiveRunId
-            ? await getRunObservability(campaignId, effectiveRunId).catch(() => undefined)
+            ? await loadRunDetail(campaignId, effectiveRunId).catch(() => undefined)
             : undefined;
           return {
             runs,
@@ -296,7 +330,7 @@ export default function EvaluationCenter() {
       default:
         return {};
     }
-  }, []);
+  }, [loadRuns, loadRunDetail]);
 
   useEffect(() => {
     if (!selectedCampaignId || !dashboardData.researchSummary) {
@@ -343,6 +377,8 @@ export default function EvaluationCenter() {
 
   const handleJobTerminal = useCallback(
     (sourceCampaignId: string, job: EvaluationJob) => {
+      runsCache.current.delete(sourceCampaignId);
+      detailCache.current.clear();
       if (
         sourceCampaignId !== selectedCampaignIdRef.current
         || (job.campaign_id && job.campaign_id !== sourceCampaignId)
@@ -400,7 +436,7 @@ export default function EvaluationCenter() {
       const requestId = runDetailRequestRef.current + 1;
       const campaignGeneration = requestGenerationRef.current;
       runDetailRequestRef.current = requestId;
-      void getRunObservability(selectedCampaignId, runId)
+      void loadRunDetail(selectedCampaignId, runId)
         .then((runDetail) => {
           if (
             requestId === runDetailRequestRef.current &&
@@ -422,8 +458,119 @@ export default function EvaluationCenter() {
           }
         });
     },
-    [selectedCampaignId, selectedRunId]
+    [selectedCampaignId, selectedRunId, loadRunDetail]
   );
+
+  useEffect(() => {
+    if (!selectedCampaignId || !dashboardData.researchSummary) return;
+    let cancelled = false;
+    const updating = dashboardData.researchSummary.analysis_status === 'updating'
+      || ['pending', 'running', 'evaluating'].includes(selectedCampaign?.status ?? '');
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'hidden') return;
+      void getCampaignResearchSummary(selectedCampaignId).then((summary) => {
+        if (cancelled || selectedCampaignIdRef.current !== selectedCampaignId) return;
+        if (summary.analysis_updated_at && summary.analysis_updated_at !== dashboardData.researchSummary?.analysis_updated_at) {
+          runsCache.current.clear();
+          detailCache.current.clear();
+          loadedTabsRef.current.clear();
+          setTabRefreshToken((value) => value + 1);
+        }
+        setDashboardData((current) => ({ ...current, researchSummary: summary }));
+      }).catch((error: unknown) => {
+        if (!cancelled) setDashboardError(error instanceof Error ? error.message : 'Unable to refresh summary');
+      });
+    }, updating ? 4000 : 30000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [selectedCampaignId, selectedCampaign?.status, dashboardData.researchSummary]);
+
+  const analysisUpdating = (activeTabIndex === 1 && dashboardData.questionComparison?.analysis_status === 'updating')
+    || (activeTabIndex === 4 && dashboardData.agentBehavior?.analysis_status === 'updating');
+
+  useEffect(() => {
+    if (!analysisUpdating) return;
+    let cancelled = false;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'hidden') return;
+      void loadTabData(activeTabIndex, selectedCampaignId).then((partial) => {
+        if (!cancelled && selectedCampaignId === selectedCampaignIdRef.current) {
+          setDashboardData((current) => ({ ...current, ...partial }));
+        }
+      }).catch((error: unknown) => {
+        if (!cancelled) setDashboardError(error instanceof Error ? error.message : 'Unable to refresh analysis');
+      });
+    }, 4000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [analysisUpdating, activeTabIndex, selectedCampaignId, loadTabData]);
+
+  const loadMoreCampaigns = async () => {
+    setLoadingMore(true);
+    try {
+      const page = await listCampaigns(dashboardData.campaigns.length);
+      setMoreCampaigns(page.length === 50);
+      setDashboardData((current) => ({ ...current, campaigns: [
+        ...current.campaigns, ...page.filter((item) => !current.campaigns.some((old) => old.id === item.id)),
+      ] }));
+    } catch (error) {
+      setDashboardError(error instanceof Error ? error.message : 'Unable to load campaigns');
+    } finally { setLoadingMore(false); }
+  };
+
+  const loadMoreRuns = async () => {
+    const offset = dashboardData.runs?.next_offset;
+    if (offset == null) return;
+    const campaignId = selectedCampaignId;
+    setLoadingMore(true);
+    try {
+      const page = await getCampaignRuns(campaignId, offset);
+      if (campaignId !== selectedCampaignIdRef.current) return;
+      const combined = { ...page, runs: [
+        ...(dashboardData.runs?.runs ?? []),
+        ...page.runs.filter((item) => !dashboardData.runs?.runs.some((old) => old.run_id === item.run_id)),
+      ] };
+      runsCache.current.set(campaignId, Promise.resolve(combined));
+      setDashboardData((current) => ({ ...current, runs: combined }));
+    } catch (error) {
+      setDashboardError(error instanceof Error ? error.message : 'Unable to load runs');
+    } finally { setLoadingMore(false); }
+  };
+
+  const loadMoreAnalysis = async () => {
+    const campaignId = selectedCampaignId;
+    setLoadingMore(true);
+    try {
+      if (activeTabIndex === 1 && dashboardData.questionComparison?.next_offset != null) {
+        const previous = dashboardData.questionComparison;
+        const page = await getResearchQuestionComparison(campaignId, previous.next_offset!);
+        if (campaignId !== selectedCampaignIdRef.current) return;
+        const changed = page.analysis_updated_at !== previous.analysis_updated_at;
+        const next = changed ? await getResearchQuestionComparison(campaignId) : {
+          ...page,
+          rows: [...previous.rows, ...page.rows.filter((row) => !previous.rows.some((old) => old.question_id === row.question_id))],
+          summaries: { ...previous.summaries, ...page.summaries },
+        };
+        if (campaignId === selectedCampaignIdRef.current) {
+          setDashboardData((current) => ({ ...current, questionComparison: next }));
+        }
+      } else if (activeTabIndex === 4 && dashboardData.agentBehavior?.next_offset != null) {
+        const previous = dashboardData.agentBehavior;
+        const page = await getAgentBehavior(campaignId, previous.next_offset!);
+        if (campaignId !== selectedCampaignIdRef.current) return;
+        const changed = page.analysis_updated_at !== previous.analysis_updated_at;
+        const next = changed ? await getAgentBehavior(campaignId) : {
+          ...page,
+          rows: [...previous.rows, ...page.rows.filter((row) => !previous.rows.some((old) => old.run_id === row.run_id))],
+        };
+        if (campaignId === selectedCampaignIdRef.current) {
+          setDashboardData((current) => ({ ...current, agentBehavior: next }));
+        }
+      }
+    } catch (error) {
+      if (campaignId === selectedCampaignIdRef.current) {
+        setDashboardError(error instanceof Error ? error.message : 'Unable to load analysis');
+      }
+    } finally { setLoadingMore(false); }
+  };
 
   const runOptions = mapRunOptions(dashboardData.runs);
   const selectedRun = runOptions.find((run) => run.runId === selectedRunId) ?? runOptions[0];
@@ -563,6 +710,7 @@ export default function EvaluationCenter() {
                 </option>
               ))}
             </Select>
+            {moreCampaigns ? <Button size="sm" isLoading={loadingMore} onClick={() => void loadMoreCampaigns()}>載入較早的評估</Button> : null}
             <Button flexShrink={0} onClick={setupDrawer.onOpen}>
               Setup evaluation
             </Button>
@@ -601,6 +749,14 @@ export default function EvaluationCenter() {
               onJobTerminal={(job) => handleJobTerminal(selectedCampaignId, job)}
             />
           ) : null}
+          {analysisUpdating ? <Text fontSize="sm">分析更新中，目前顯示上次計算結果。</Text> : null}
+          {[2, 3, 5, 6].includes(activeTabIndex) && dashboardData.runs?.next_offset != null ? (
+            <Button size="sm" my={2} isLoading={loadingMore} onClick={() => void loadMoreRuns()}>載入更多 Runs</Button>
+          ) : null}
+          {(activeTabIndex === 1 && dashboardData.questionComparison?.next_offset != null)
+            || (activeTabIndex === 4 && dashboardData.agentBehavior?.next_offset != null) ? (
+              <Button size="sm" my={2} isLoading={loadingMore} onClick={() => void loadMoreAnalysis()}>載入更多分析</Button>
+            ) : null}
           <Suspense fallback={<Text py={4}>Loading evaluation view...</Text>}>
             <Tabs
               variant="enclosed"

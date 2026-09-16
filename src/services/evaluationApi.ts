@@ -210,8 +210,8 @@ export async function preflightCampaign(
   return response.data;
 }
 
-export async function listCampaigns(): Promise<CampaignStatus[]> {
-  const response = await api.get<CampaignStatus[]>('/api/evaluation/campaigns');
+export async function listCampaigns(offset = 0): Promise<CampaignStatus[]> {
+  const response = await api.get<CampaignStatus[]>('/api/evaluation/campaigns', { params: { limit: 50, offset } });
   return response.data;
 }
 
@@ -285,13 +285,27 @@ export async function getCampaignOverview(campaignId: string): Promise<CampaignO
   return response.data;
 }
 
+async function readAnalysisPage<T>(path: string, offset?: number): Promise<T> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const response = offset === undefined
+        ? await api.get<T>(path)
+        : await api.get<T>(path, { params: { limit: 50, offset } });
+      return response.data;
+    } catch (error) {
+      if (attempt >= 2 || !(error instanceof Error) || !('status' in error)
+        || error.status !== 503 || error.message !== 'Analysis updating') throw error;
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  }
+}
+
 export async function getCampaignResearchSummary(
   campaignId: string,
 ): Promise<CampaignResearchSummaryResponse> {
-  const response = await api.get<CampaignResearchSummaryResponse>(
+  return readAnalysisPage<CampaignResearchSummaryResponse>(
     `/api/evaluation/campaigns/${campaignId}/research-summary`,
   );
-  return response.data;
 }
 
 export async function getCampaignReleaseMetrics(campaignId: string): Promise<ReleaseMetricsReport> {
@@ -299,8 +313,8 @@ export async function getCampaignReleaseMetrics(campaignId: string): Promise<Rel
   return response.data;
 }
 
-export async function getCampaignRuns(campaignId: string): Promise<EvaluationRunListResponse> {
-  const response = await api.get<EvaluationRunListResponse>(`/api/evaluation/campaigns/${campaignId}/runs`);
+export async function getCampaignRuns(campaignId: string, offset = 0): Promise<EvaluationRunListResponse> {
+  const response = await api.get<EvaluationRunListResponse>(`/api/evaluation/campaigns/${campaignId}/runs`, { params: { limit: 50, offset } });
   return response.data;
 }
 
@@ -325,18 +339,18 @@ export async function getQuestionComparison(campaignId: string): Promise<Questio
   return response.data;
 }
 
-export async function getResearchQuestionComparison(campaignId: string): Promise<ResearchQuestionComparisonResponse> {
-  const response = await api.get<ResearchQuestionComparisonResponse>(
+export async function getResearchQuestionComparison(campaignId: string, offset = 0): Promise<ResearchQuestionComparisonResponse> {
+  return readAnalysisPage<ResearchQuestionComparisonResponse>(
     `/api/evaluation/campaigns/${campaignId}/research-question-comparison`,
+    offset,
   );
-  return response.data;
 }
 
-export async function getAgentBehavior(campaignId: string): Promise<AgentBehaviorResponse> {
-  const response = await api.get<AgentBehaviorResponse>(
-    `/api/evaluation/campaigns/${campaignId}/agent-behavior`
+export async function getAgentBehavior(campaignId: string, offset = 0): Promise<AgentBehaviorResponse> {
+  return readAnalysisPage<AgentBehaviorResponse>(
+    `/api/evaluation/campaigns/${campaignId}/agent-behavior`,
+    offset,
   );
-  return response.data;
 }
 
 export async function getCostLatency(campaignId: string): Promise<CostLatencyResponse> {

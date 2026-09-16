@@ -345,7 +345,7 @@ describe('evaluationApi', () => {
     expect(mockedApi.post).toHaveBeenNthCalledWith(1, '/api/evaluation/campaigns', expect.any(Object));
 
     await listCampaigns();
-    expect(mockedApi.get).toHaveBeenNthCalledWith(1, '/api/evaluation/campaigns');
+    expect(mockedApi.get).toHaveBeenNthCalledWith(1, '/api/evaluation/campaigns', { params: { limit: 50, offset: 0 } });
 
     await getCampaignResults('cmp-1');
     expect(mockedApi.get).toHaveBeenNthCalledWith(2, '/api/evaluation/campaigns/cmp-1/results');
@@ -375,6 +375,21 @@ describe('evaluationApi', () => {
 
     expect(await getCampaignResearchSummary('cmp-1')).toEqual(researchSummaryFixture);
     expect(mockedApi.get).toHaveBeenCalledWith('/api/evaluation/campaigns/cmp-1/research-summary');
+  });
+
+  it('retries a cold analysis conflict but does not retry authorization errors', async () => {
+    vi.useFakeTimers();
+    try {
+      mockedApi.get.mockRejectedValueOnce(Object.assign(new Error('Analysis updating'), { status: 503 }))
+        .mockResolvedValueOnce({ data: researchSummaryFixture });
+      const pending = getCampaignResearchSummary('cmp-1');
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(await pending).toEqual(researchSummaryFixture);
+      expect(mockedApi.get).toHaveBeenCalledTimes(2);
+      mockedApi.get.mockRejectedValueOnce(Object.assign(new Error('Forbidden'), { status: 403 }));
+      await expect(getCampaignResearchSummary('cmp-1')).rejects.toThrow('Forbidden');
+      expect(mockedApi.get).toHaveBeenCalledTimes(3);
+    } finally { vi.useRealTimers(); }
   });
 
   it('passes question_ids payload when rerunning selected questions', async () => {
@@ -506,7 +521,7 @@ describe('evaluationApi', () => {
       campaign_id: 'cmp-1',
       runs: [{ run_id: 'run-1' }],
     });
-    expect(mockedApi.get).toHaveBeenNthCalledWith(3, '/api/evaluation/campaigns/cmp-1/runs');
+    expect(mockedApi.get).toHaveBeenNthCalledWith(3, '/api/evaluation/campaigns/cmp-1/runs', { params: { limit: 50, offset: 0 } });
 
     expect(await getModeComparison('cmp-1')).toEqual({
       campaign_id: 'cmp-1',
