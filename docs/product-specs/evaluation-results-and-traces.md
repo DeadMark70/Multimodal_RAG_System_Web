@@ -20,6 +20,15 @@
 - The selected-run observability client contract must use canonical backend field names and preserve required, nullable, zero, and unknown values without compatibility aliases.
 - Export Schema v2 validation must accept fields that the backend contract explicitly omits when not applicable, while continuing to reject unknown shapes. Rejections may expose bounded schema paths and validation codes for diagnosis, but must not echo question, answer, prompt, evidence, or trace values.
 
+## Rerun Controls
+
+- Header buttons must keep readable labels and wrap with the campaign selector on narrow screens.
+- The job panel describes latest-job counts as work items, not question counts or accuracy, and places the technical job ID inside attempt history.
+- The collapsed rerun form defaults to `補齊缺少的評分`: `scope=missing_only`, `stages=ragas`, preserving existing answers and scores.
+- `重新評分（保留答案）` uses `stages=ragas` and `scope=selected` for explicit IDs or `scope=all` for blank IDs. Selected mode and metric filters remain in the request.
+- `重新作答並評分` requires explicit question IDs, uses `scope=selected`, `stages=execution_and_ragas`, and sends an empty metric list for all enabled metrics. Its disabled metric selector and selection preview must show this same scope.
+- Operation-specific guidance and a question/mode/metric summary appear before the submit button. Chinese separators and repeated question IDs are supported.
+
 ## Campaign Overview: Research Accounting
 
 The Campaign Overview is a strict, read-only view of `GET /api/evaluation/campaigns/{campaign_id}/research-summary`. Its response is the version-2 research-summary contract, not a compatibility projection of legacy result analytics.

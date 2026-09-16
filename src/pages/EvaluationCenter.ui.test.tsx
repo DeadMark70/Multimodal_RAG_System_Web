@@ -346,7 +346,7 @@ describe('EvaluationCenter UI', () => {
     });
     expect(exportCampaignAnalysis).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Setup evaluation' }));
+    fireEvent.click(screen.getByRole('button', { name: '建立／設定評估' }));
     expect(await screen.findByText('TestCaseManager')).toBeInTheDocument();
     expect(await screen.findByText('ModelConfigPanel')).toBeInTheDocument();
     expect(await screen.findByText('CampaignRunner')).toBeInTheDocument();

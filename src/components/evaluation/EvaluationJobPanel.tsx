@@ -5,8 +5,12 @@ import {
   Button,
   HStack,
   Heading,
+  FormControl,
+  FormLabel,
+  FormHelperText,
   Input,
   Select,
+  SimpleGrid,
   Spinner,
   Stack,
   Text,
@@ -35,6 +39,14 @@ const TERMINAL_JOB_STATUSES = new Set<EvaluationJob['status']>([
   'cancelled',
 ]);
 
+const MODE_LABELS: Record<string, string> = {
+  naive: 'Naive RAG', advanced: 'Advanced RAG', graph: 'Graph RAG',
+  'agentic-v8': 'Agentic v8', 'agentic-v9': 'Agentic v9', 'agentic-v10': 'Agentic v10',
+};
+const METRIC_LABELS: Record<string, string> = {
+  answer_correctness: '正確度', faithfulness: '忠實度', answer_relevancy: '相關性',
+};
+
 export interface EvaluationJobPanelProps {
   campaignId: string;
   /** Pass jobs to use the panel in controlled mode (for example from EvaluationResults). */
@@ -48,20 +60,23 @@ function jobKey(job: EvaluationJob): string {
   return job.job_id || job.id || `${job.campaign_id ?? 'campaign'}-${job.created_at}`;
 }
 
-function statusLabel(status: EvaluationJob['status']): string {
+function statusLabel(status: EvaluationJob['status'] | EvaluationAttempt['status']): string {
   switch (status) {
     case 'pending':
-      return 'Pending';
+      return '等待執行';
     case 'running':
-      return 'Running';
+      return '執行中';
     case 'completed':
-      return 'Completed';
+    case 'succeeded':
+      return '已完成';
+    case 'interrupted':
+      return '已中斷';
     case 'completed_with_errors':
-      return 'Completed with errors';
+      return '已結束，部分項目未完成';
     case 'failed':
-      return 'Failed';
+      return '執行失敗';
     case 'cancelled':
-      return 'Cancelled';
+      return '已取消';
     default:
       return status;
   }
@@ -196,10 +211,11 @@ export default function EvaluationJobPanel({
   const [durableApiUnavailable, setDurableApiUnavailable] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAttempts, setShowAttempts] = useState(false);
+  const [showRerun, setShowRerun] = useState(false);
   const [rerunQuestions, setRerunQuestions] = useState('');
   const [rerunMode, setRerunMode] = useState('');
   const [rerunMetric, setRerunMetric] = useState('');
-  const [rerunStage, setRerunStage] = useState<EvaluationRerunRequest['stages']>('ragas');
+  const [rerunStage, setRerunStage] = useState<'missing' | 'ragas' | 'execution_and_ragas'>('missing');
   const notifiedTerminalJobIdsRef = useRef(new Set<string>());
   const onJobTerminalRef = useRef(onJobTerminal);
   const toast = useToast();
@@ -270,7 +286,7 @@ export default function EvaluationJobPanel({
           if (isDurableEndpointUnavailable(error)) return;
           setLoadError(error instanceof Error ? error.message : 'Unknown error');
           toast({
-            title: 'Unable to load evaluation jobs',
+            title: '無法載入執行狀態',
             description: error instanceof Error ? error.message : 'Unknown error',
             status: 'error',
           });
@@ -316,7 +332,7 @@ export default function EvaluationJobPanel({
       .catch((error: unknown) => {
         if (cancelled || isDurableEndpointUnavailable(error)) return;
         toast({
-          title: 'Unable to load evaluation job items',
+          title: '無法載入工作項目',
           description: error instanceof Error ? error.message : 'Unknown error',
           status: 'error',
         });
@@ -352,7 +368,7 @@ export default function EvaluationJobPanel({
             }
             setLoadError(error instanceof Error ? error.message : 'Unknown error');
             toast({
-              title: 'Unable to refresh evaluation job',
+              title: '無法更新執行狀態',
               description: error instanceof Error ? error.message : 'Unknown error',
               status: 'error',
             });
@@ -388,7 +404,7 @@ export default function EvaluationJobPanel({
           }
           setLoadError(error instanceof Error ? error.message : 'Unknown error');
           toast({
-            title: 'Unable to refresh evaluation jobs',
+            title: '無法更新執行狀態',
             description: error instanceof Error ? error.message : 'Unknown error',
             status: 'error',
           });
@@ -403,10 +419,10 @@ export default function EvaluationJobPanel({
     try {
       const nextJob = await createCampaignRerun(campaignId, request);
       updateJobs([nextJob, ...jobs.filter((job) => jobKey(job) !== jobKey(nextJob))]);
-      toast({ title: `${label} queued`, status: 'success' });
+      toast({ title: `${label}已排入佇列`, status: 'success' });
     } catch (error) {
       toast({
-        title: `${label} failed`,
+        title: `${label}未能送出`,
         description: error instanceof Error ? error.message : 'Unknown error',
         status: 'error',
       });
@@ -468,7 +484,7 @@ export default function EvaluationJobPanel({
       setShowAttempts(true);
     } catch (error) {
       toast({
-        title: 'Unable to load attempt history',
+        title: '無法載入執行紀錄',
         description: error instanceof Error ? error.message : 'Unknown error',
         status: 'error',
       });
@@ -486,7 +502,7 @@ export default function EvaluationJobPanel({
       updateJobs([nextJob, ...jobs.filter((job) => jobKey(job) !== jobKey(nextJob))]);
     } catch (error) {
       toast({
-        title: 'Unable to cancel evaluation job',
+        title: '無法取消執行',
         description: error instanceof Error ? error.message : 'Unknown error',
         status: 'error',
       });
@@ -504,40 +520,47 @@ export default function EvaluationJobPanel({
         question_ids: [],
         metric_names: [],
       },
-      'Retry failed',
+      '重試失敗或中斷項目',
     );
   };
 
-  const selectedQuestionIds = rerunQuestions.split(/[,，\s]+/).filter(Boolean);
-  const submitSelectedRerun = (missingOnly: boolean) => submitRerun({
-    scope: missingOnly ? 'missing_only' : 'selected',
-    stages: missingOnly ? 'ragas' : rerunStage,
+  const selectedQuestionIds = [...new Set(rerunQuestions.split(/[,，、\s]+/).filter(Boolean))];
+  const rerunLabel = rerunStage === 'missing' ? '補齊缺少的評分'
+    : rerunStage === 'ragas' ? '重新評分' : '重新作答並評分';
+  const rerunDescription = rerunStage === 'missing'
+    ? '保留現有答案與已有評分，只為已完成作答但尚無分數的項目補評分。適合答案正常、部分指標缺少分數時使用。'
+    : rerunStage === 'ragas'
+      ? '保留現有答案，重新計算所選指標。成功後會更新原有分數；適合想重新檢查評分時使用。'
+      : '沿用這批評估的原始設定，重新檢索資料、產生答案，再計算全部啟用的指標。成功後更新所選題目與模式的答案及評分；適合答案失敗或內容不完整時使用。';
+  const submitSelectedRerun = () => submitRerun({
+    scope: rerunStage === 'missing' ? 'missing_only' : selectedQuestionIds.length ? 'selected' : 'all',
+    stages: rerunStage === 'missing' ? 'ragas' : rerunStage,
     question_ids: selectedQuestionIds,
     modes: rerunMode ? [rerunMode] : [],
-    metric_names: !missingOnly && rerunStage === 'execution_and_ragas'
+    metric_names: rerunStage === 'execution_and_ragas'
       ? [] : rerunMetric ? [rerunMetric] : [],
-  }, missingOnly ? '補齊缺少的評分' : '重跑所選項目');
+  }, rerunLabel);
 
   if (loading || !selectedJob) {
     return (
       <Box borderWidth="1px" borderRadius="lg" p={4} bg="bg.panel">
-        <Heading size="sm" mb={3}>Durable evaluation jobs</Heading>
-        {loading ? <HStack><Spinner size="sm" /><Text>Loading evaluation jobs...</Text></HStack> : null}
-        {loadError ? <Text role="alert" color="red.500">Unable to load evaluation jobs: {loadError}</Text> : null}
-        {!loading && !loadError ? <Text color="text.secondary">No durable evaluation jobs</Text> : null}
+        <Heading size="sm" mb={3}>執行狀態與重跑</Heading>
+        {loading ? <HStack><Spinner size="sm" /><Text>正在載入執行狀態…</Text></HStack> : null}
+        {loadError ? <Text role="alert" color="red.500">無法載入執行狀態：{loadError}</Text> : null}
+        {!loading && !loadError ? <Text color="text.secondary">這批評估尚無執行工作紀錄。</Text> : null}
       </Box>
     );
   }
 
-  const disabledActions = isDisabled || activeJob !== null;
+  const disabledActions = isDisabled || activeJob !== null || action !== null;
   const itemsLoaded = jobItemsKey === selectedJobKey;
   const counts: Array<[string, number | null]> = [
-    ['Valid', countValue(selectedJob, 'valid', jobItems, itemsLoaded)],
-    ['Failed', countValue(selectedJob, 'failed', jobItems, itemsLoaded)],
-    ['Retrying', countValue(selectedJob, 'retrying', jobItems, itemsLoaded)],
-    ['Interrupted', countValue(selectedJob, 'interrupted', jobItems, itemsLoaded)],
-    ['Missing', countValue(selectedJob, 'missing', jobItems, itemsLoaded)],
-    ['Cancelled', countValue(selectedJob, 'cancelled', jobItems, itemsLoaded)],
+    ['已完成', countValue(selectedJob, 'valid', jobItems, itemsLoaded)],
+    ['失敗', countValue(selectedJob, 'failed', jobItems, itemsLoaded)],
+    ['重試中', countValue(selectedJob, 'retrying', jobItems, itemsLoaded)],
+    ['已中斷', countValue(selectedJob, 'interrupted', jobItems, itemsLoaded)],
+    ['缺少項目', countValue(selectedJob, 'missing', jobItems, itemsLoaded)],
+    ['已取消', countValue(selectedJob, 'cancelled', jobItems, itemsLoaded)],
   ];
   const knownAttempts = mergeAttempts(jobItems, attempts);
   const latestSafeError = newestAttempt(
@@ -545,95 +568,114 @@ export default function EvaluationJobPanel({
   )?.safe_error_message;
 
   return (
-    <Box borderWidth="1px" borderRadius="lg" p={4} bg="bg.panel">
-      <HStack justify="space-between" align="flex-start" mb={3}>
-        <Box>
-          <Heading size="sm">Durable evaluation jobs</Heading>
-          <Text color="text.secondary" fontSize="sm">{jobKey(selectedJob)}</Text>
+    <Box borderWidth="1px" borderRadius="lg" p={{ base: 4, md: 5 }} mb={4} bg="bg.panel">
+      <HStack justify="space-between" align="flex-start" flexWrap="wrap" gap={3} mb={3}>
+        <Box minW={0}>
+          <Heading size="sm">執行狀態與重跑</Heading>
+          <Text color="text.secondary" fontSize="sm" mt={1}>
+            最近一次執行 · {new Date(selectedJob.created_at).toLocaleString('zh-TW')}
+          </Text>
         </Box>
-        <Badge colorScheme={statusColor(selectedJob.status)}>{statusLabel(selectedJob.status)}</Badge>
+        <Badge px={2} py={1} flexShrink={0} colorScheme={statusColor(selectedJob.status)}>{statusLabel(selectedJob.status)}</Badge>
       </HStack>
-      <HStack spacing={4} flexWrap="wrap" mb={4}>
-        {counts.map(([label, value]) => <Text key={label} fontSize="sm">{label}: {value ?? '—'}</Text>)}
+      <HStack spacing={0} gap={2} flexWrap="wrap" mb={2}>
+        {counts.map(([label, value]) => (
+          <Text key={label} fontSize="sm" borderWidth="1px" borderRadius="md" px={3} py={1}>
+            {label}: {value ?? '—'}
+          </Text>
+        ))}
       </HStack>
+      <Text fontSize="sm" color="text.secondary" mb={4}>
+        以上是最近一次執行的工作項目數，例如 32 份答案 × 3 個評分指標 = 96 個評分項目，不代表 96 題或正確率。
+      </Text>
       {(latestSafeError ?? selectedJob.latest_safe_error_message) && (
         <Text color="orange.600" fontSize="sm" mb={3}>
           {latestSafeError ?? selectedJob.latest_safe_error_message}
         </Text>
       )}
-      {loadError ? <Text role="alert" color="red.500" fontSize="sm" mb={3}>Unable to load evaluation jobs: {loadError}</Text> : null}
-      <HStack spacing={2} flexWrap="wrap">
-        <Button
-          size="sm"
-          onClick={() => void handleRetryFailed()}
-          isDisabled={disabledActions}
-          isLoading={action === 'Retry failed'}
-        >
-          Retry failed
+      {loadError ? <Text role="alert" color="red.500" fontSize="sm" mb={3}>無法載入執行狀態：{loadError}</Text> : null}
+      <HStack spacing={0} gap={2} flexWrap="wrap" sx={{ '& button': { flexShrink: 0, whiteSpace: 'nowrap' } }}>
+        <Button size="sm" onClick={() => setShowRerun(!showRerun)} aria-expanded={showRerun}>
+          {showRerun ? '收合重跑設定' : '補分／重跑設定'}
         </Button>
         <Button
           size="sm"
           variant="outline"
-          onClick={() => void submitRerun({ scope: 'all', stages: 'ragas', question_ids: [], metric_names: [] }, 'RAGAS only')}
+          onClick={() => void handleRetryFailed()}
           isDisabled={disabledActions}
-          isLoading={action === 'RAGAS only'}
+          isLoading={action === '重試失敗或中斷項目'}
         >
-          重評全部指標
+          重試失敗或中斷項目
         </Button>
         {activeJob && (
           <Button size="sm" colorScheme="orange" variant="outline" onClick={() => void handleCancel()} isLoading={action === 'cancel'}>
-            Cancel
+            取消執行
           </Button>
         )}
-        <Button size="sm" variant="ghost" onClick={() => void loadAttempts()} isLoading={action === 'attempts'}>
-          {showAttempts ? 'Hide attempt history' : 'Show attempt history'}
+        <Button size="sm" variant="ghost" aria-expanded={showAttempts}
+          onClick={() => { if (showAttempts) setShowAttempts(false); else void loadAttempts(); }} isLoading={action === 'attempts'}>
+          {showAttempts ? '收合執行紀錄' : '查看執行紀錄'}
         </Button>
       </HStack>
-      <Stack spacing={2} borderTopWidth="1px" pt={3}>
-        <Text fontWeight="semibold">部分重跑</Text>
-        <HStack flexWrap="wrap">
-          <Input aria-label="重跑題目" placeholder="題目 ID，例如 Q13、Q30" value={rerunQuestions}
-            onChange={(event) => setRerunQuestions(event.target.value)} maxW="280px" />
-          <Select aria-label="重跑模式" value={rerunMode} onChange={(event) => setRerunMode(event.target.value)} maxW="210px">
-            <option value="">全部模式</option>
-            <option value="naive">Naive RAG</option>
-            <option value="advanced">Advanced RAG</option>
-            <option value="graph">Graph RAG</option>
-            <option value="agentic-v8">Agentic v8</option>
-            <option value="agentic-v9">Agentic v9</option>
-            <option value="agentic-v10">Agentic v10</option>
-          </Select>
-          <Select aria-label="重跑階段" value={rerunStage}
-            onChange={(event) => setRerunStage(event.target.value as EvaluationRerunRequest['stages'])} maxW="240px">
-            <option value="ragas">只重新評分</option>
+      {activeJob ? <Text fontSize="sm" color="text.secondary" mt={2}>仍有工作執行中，完成或取消後才能送出新的重跑工作。</Text> : null}
+      {showRerun && <Stack spacing={4} borderTopWidth="1px" mt={4} pt={4}>
+        <FormControl>
+          <FormLabel fontSize="sm" fontWeight="semibold">1. 選擇操作</FormLabel>
+          <Select aria-label="重跑方式" value={rerunStage}
+            onChange={(event) => setRerunStage(event.target.value as typeof rerunStage)} maxW="360px">
+            <option value="missing">補齊缺少的評分</option>
+            <option value="ragas">重新評分（保留答案）</option>
             <option value="execution_and_ragas">重新作答並評分</option>
           </Select>
-          <Select aria-label="評分指標" value={rerunMetric} onChange={(event) => setRerunMetric(event.target.value)}
-            isDisabled={rerunStage !== 'ragas'} maxW="210px">
-            <option value="">全部指標</option>
-            <option value="answer_correctness">正確度</option>
-            <option value="faithfulness">忠實度</option>
-            <option value="answer_relevancy">相關性</option>
-          </Select>
-        </HStack>
-        <Text fontSize="sm" color="text.secondary">
-          缺少分數可只補評分；答案失敗或補查不完整，請選「重新作答並評分」。
-          重新作答會沿用原始設定，並更新所選模式的答案與評分。
-        </Text>
-        <HStack>
-          <Button size="sm" isDisabled={disabledActions || selectedQuestionIds.length === 0}
-            isLoading={action === '重跑所選項目'} onClick={() => void submitSelectedRerun(false)}>重跑所選項目</Button>
-          <Button size="sm" isDisabled={disabledActions || rerunStage !== 'ragas'}
-            isLoading={action === '補齊缺少的評分'} onClick={() => void submitSelectedRerun(true)}>補齊缺少的評分</Button>
-        </HStack>
-        <Text fontSize="sm" color="text.secondary">補評分時可留空題目，檢查全批；已有分數會保留。</Text>
-      </Stack>
+          <FormHelperText color="text.secondary" lineHeight="tall">{rerunDescription}</FormHelperText>
+        </FormControl>
+        <Box>
+          <Text fontSize="sm" fontWeight="semibold" mb={2}>2. 選擇範圍</Text>
+          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={3}>
+            <FormControl isRequired={rerunStage === 'execution_and_ragas'}>
+              <FormLabel fontSize="sm">題目 ID</FormLabel>
+              <Input aria-label="重跑題目" placeholder="例如 Q13、Q30" value={rerunQuestions}
+                onChange={(event) => setRerunQuestions(event.target.value)} />
+              <FormHelperText>{rerunStage === 'execution_and_ragas' ? '請指定要重新作答的題目。' : '留空表示全部題目。'}可用逗號、頓號或空白分隔。</FormHelperText>
+            </FormControl>
+            <FormControl>
+              <FormLabel fontSize="sm">RAG 模式</FormLabel>
+              <Select aria-label="重跑模式" value={rerunMode} onChange={(event) => setRerunMode(event.target.value)}>
+                <option value="">全部模式</option>
+                {Object.entries(MODE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </Select>
+              <FormHelperText>僅處理這批評估中符合的模式。</FormHelperText>
+            </FormControl>
+            <FormControl>
+              <FormLabel fontSize="sm">評分指標</FormLabel>
+              <Select aria-label="評分指標" value={rerunStage === 'execution_and_ragas' ? '' : rerunMetric} onChange={(event) => setRerunMetric(event.target.value)}
+                isDisabled={rerunStage === 'execution_and_ragas'}>
+                <option value="">全部啟用指標</option>
+                {Object.entries(METRIC_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </Select>
+              <FormHelperText>{rerunStage === 'execution_and_ragas' ? '新答案需重新計算全部啟用指標。' : rerunStage === 'missing' ? '只補齊選取指標中缺少的評分。' : '只重新計算選取的指標。'}</FormHelperText>
+            </FormControl>
+          </SimpleGrid>
+        </Box>
+        <Box borderWidth="1px" borderRadius="md" p={3}>
+          <Text fontSize="sm" fontWeight="semibold">本次操作：{rerunLabel}</Text>
+          <Text fontSize="sm" color="text.secondary" mt={1} overflowWrap="anywhere">
+            題目：{selectedQuestionIds.length ? selectedQuestionIds.join('、') : rerunStage === 'execution_and_ragas' ? '尚未指定' : '全部題目'}
+            {' · '}模式：{MODE_LABELS[rerunMode] || '全部模式'}
+            {' · '}指標：{rerunStage === 'execution_and_ragas' || !rerunMetric ? '全部啟用指標' : METRIC_LABELS[rerunMetric]}
+          </Text>
+        </Box>
+        <Button alignSelf="flex-start" flexShrink={0} whiteSpace="nowrap"
+          isDisabled={disabledActions || (rerunStage === 'execution_and_ragas' && selectedQuestionIds.length === 0)}
+          isLoading={action === rerunLabel} onClick={() => void submitSelectedRerun()}>{rerunLabel}</Button>
+      </Stack>}
       {showAttempts && (
         <Stack mt={3} spacing={2}>
-          <Text fontWeight="600" fontSize="sm">Attempt history</Text>
-          {attempts.length === 0 ? <Text color="text.secondary" fontSize="sm">No attempt history available.</Text> : attempts.map((attempt) => (
+          <Text fontWeight="600" fontSize="sm">執行紀錄</Text>
+          <Text fontSize="xs" color="text.secondary" overflowWrap="anywhere">工作 ID：{jobKey(selectedJob)}</Text>
+          {attempts.length === 0 ? <Text color="text.secondary" fontSize="sm">尚無執行紀錄。</Text> : attempts.map((attempt) => (
             <Text key={attempt.attempt_id} fontSize="sm">
-              Attempt {attempt.attempt_number}: {attempt.status}{attempt.safe_error_message ? ` — ${attempt.safe_error_message}` : ''}
+              第 {attempt.attempt_number} 次：{statusLabel(attempt.status)}{attempt.safe_error_message ? ` — ${attempt.safe_error_message}` : ''}
             </Text>
           ))}
         </Stack>

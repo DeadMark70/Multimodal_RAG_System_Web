@@ -95,24 +95,28 @@ describe('EvaluationJobPanel', () => {
   it('shows warning status, durable counts, safe attempt history, and rerun actions', async () => {
     renderPanel();
 
-    await waitFor(() => expect(screen.getByText('Completed with errors')).toBeInTheDocument());
-    expect(screen.getByText('Valid: 2')).toBeInTheDocument();
-    expect(screen.getByText('Failed: 1')).toBeInTheDocument();
-    expect(screen.getByText('Retrying: 1')).toBeInTheDocument();
-    expect(screen.getByText('Interrupted: 1')).toBeInTheDocument();
-    expect(screen.getByText('Missing: 1')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('已結束，部分項目未完成')).toBeInTheDocument());
+    expect(screen.getByText('已完成: 2')).toBeInTheDocument();
+    expect(screen.getByText('失敗: 1')).toBeInTheDocument();
+    expect(screen.getByText('重試中: 1')).toBeInTheDocument();
+    expect(screen.getByText('已中斷: 1')).toBeInTheDocument();
+    expect(screen.getByText('缺少項目: 1')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: '重評全部指標' }));
+    expect(screen.queryByLabelText('重跑題目')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '補分／重跑設定' }));
+    fireEvent.change(screen.getByLabelText('重跑方式'), { target: { value: 'ragas' } });
+    fireEvent.click(screen.getByRole('button', { name: '重新評分' }));
     await waitFor(() => {
       expect(mockCreateCampaignRerun).toHaveBeenCalledWith('cmp-1', {
         scope: 'all',
         stages: 'ragas',
         question_ids: [],
+        modes: [],
         metric_names: [],
       });
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retry failed' }));
+    fireEvent.click(screen.getByRole('button', { name: '重試失敗或中斷項目' }));
     await waitFor(() => {
       expect(mockCreateCampaignRerun).toHaveBeenCalledWith('cmp-1', {
         scope: 'failed_only',
@@ -122,14 +126,17 @@ describe('EvaluationJobPanel', () => {
       });
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show attempt history' }));
+    fireEvent.click(screen.getByRole('button', { name: '查看執行紀錄' }));
     await waitFor(() => expect(mockListWorkItemAttempts).toHaveBeenCalledWith('work-1'));
     expect(screen.getByText('Provider response details were redacted.')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: '收合執行紀錄' }));
+    expect(screen.queryByText(/工作 ID：/)).not.toBeInTheDocument();
+    expect(mockListWorkItemAttempts).toHaveBeenCalledTimes(1);
   });
 
   it('repairs only the selected missing metric and mode', async () => {
     renderPanel();
-    await screen.findByText('部分重跑');
+    fireEvent.click(await screen.findByRole('button', { name: '補分／重跑設定' }));
     fireEvent.change(screen.getByLabelText('重跑題目'), { target: { value: 'Q30' } });
     fireEvent.change(screen.getByLabelText('重跑模式'), { target: { value: 'naive' } });
     fireEvent.change(screen.getByLabelText('評分指標'), { target: { value: 'faithfulness' } });
@@ -141,14 +148,38 @@ describe('EvaluationJobPanel', () => {
 
   it('reruns an answer with all its metrics and the selected mode only', async () => {
     renderPanel();
-    await screen.findByText('部分重跑');
+    fireEvent.click(await screen.findByRole('button', { name: '補分／重跑設定' }));
     fireEvent.change(screen.getByLabelText('重跑題目'), { target: { value: 'Q13' } });
     fireEvent.change(screen.getByLabelText('重跑模式'), { target: { value: 'agentic-v10' } });
     fireEvent.change(screen.getByLabelText('評分指標'), { target: { value: 'faithfulness' } });
-    fireEvent.change(screen.getByLabelText('重跑階段'), { target: { value: 'execution_and_ragas' } });
-    fireEvent.click(screen.getByRole('button', { name: '重跑所選項目' }));
+    fireEvent.change(screen.getByLabelText('重跑方式'), { target: { value: 'execution_and_ragas' } });
+    expect(screen.getByLabelText('評分指標')).toBeDisabled();
+    expect(screen.getByLabelText('評分指標')).toHaveValue('');
+    fireEvent.click(screen.getByRole('button', { name: '重新作答並評分' }));
     await waitFor(() => expect(mockCreateCampaignRerun).toHaveBeenCalledWith('cmp-1', {
       scope: 'selected', stages: 'execution_and_ragas', question_ids: ['Q13'], modes: ['agentic-v10'], metric_names: [],
+    }));
+  });
+
+  it('fills missing scores across the campaign when questions are blank', async () => {
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: '補分／重跑設定' }));
+    expect(screen.getByLabelText('重跑方式')).toHaveValue('missing');
+    fireEvent.click(screen.getByRole('button', { name: '補齊缺少的評分' }));
+    await waitFor(() => expect(mockCreateCampaignRerun).toHaveBeenCalledWith('cmp-1', {
+      scope: 'missing_only', stages: 'ragas', question_ids: [], modes: [], metric_names: [],
+    }));
+  });
+
+  it('requires questions for new answers and accepts deduplicated Chinese separators', async () => {
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: '補分／重跑設定' }));
+    fireEvent.change(screen.getByLabelText('重跑方式'), { target: { value: 'execution_and_ragas' } });
+    expect(screen.getByRole('button', { name: '重新作答並評分' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('重跑題目'), { target: { value: 'Q13、Q30，Q13 Q30' } });
+    fireEvent.click(screen.getByRole('button', { name: '重新作答並評分' }));
+    await waitFor(() => expect(mockCreateCampaignRerun).toHaveBeenCalledWith('cmp-1', {
+      scope: 'selected', stages: 'execution_and_ragas', question_ids: ['Q13', 'Q30'], modes: [], metric_names: [],
     }));
   });
 
@@ -157,8 +188,8 @@ describe('EvaluationJobPanel', () => {
 
     renderPanel();
 
-    expect(await screen.findByRole('heading', { name: 'Durable evaluation jobs' })).toBeInTheDocument();
-    expect(screen.getByText('No durable evaluation jobs')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '執行狀態與重跑' })).toBeInTheDocument();
+    expect(screen.getByText('這批評估尚無執行工作紀錄。')).toBeInTheDocument();
   });
 
   it('keeps the durable jobs heading visible while jobs load', async () => {
@@ -166,8 +197,8 @@ describe('EvaluationJobPanel', () => {
 
     renderPanel();
 
-    expect(await screen.findByRole('heading', { name: 'Durable evaluation jobs' })).toBeInTheDocument();
-    expect(screen.getByText('Loading evaluation jobs...')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '執行狀態與重跑' })).toBeInTheDocument();
+    expect(screen.getByText('正在載入執行狀態…')).toBeInTheDocument();
   });
 
   it('keeps the durable jobs heading visible when loading jobs fails', async () => {
@@ -175,8 +206,8 @@ describe('EvaluationJobPanel', () => {
 
     renderPanel();
 
-    expect(await screen.findByRole('heading', { name: 'Durable evaluation jobs' })).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent('Unable to load evaluation jobs: Jobs service unavailable');
+    expect(await screen.findByRole('heading', { name: '執行狀態與重跑' })).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('無法載入執行狀態：Jobs service unavailable');
   });
 
   it('notifies a terminal job only once when the same job is rendered again', async () => {
@@ -258,10 +289,10 @@ describe('EvaluationJobPanel', () => {
       </ChakraProvider>,
     );
 
-    await waitFor(() => expect(screen.getByText('job-new')).toBeInTheDocument());
-    expect(screen.getByText('Interrupted: —')).toBeInTheDocument();
-    expect(screen.getByText('Missing: 5')).toBeInTheDocument();
-    expect(screen.getByText('Cancelled: 2')).toBeInTheDocument();
+    await screen.findByText('缺少項目: 5');
+    expect(screen.getByText('已中斷: —')).toBeInTheDocument();
+    expect(screen.getByText('缺少項目: 5')).toBeInTheDocument();
+    expect(screen.getByText('已取消: 2')).toBeInTheDocument();
     expect(onJobTerminal).toHaveBeenCalledWith(expect.objectContaining({ job_id: 'job-new' }));
   });
 
@@ -272,8 +303,8 @@ describe('EvaluationJobPanel', () => {
       { job_item_id: 'item-ragas', job_id: 'job-1', work_item_id: 'work-ragas', work_type: 'ragas_metric', status: 'failed' },
     ]);
     renderPanel();
-    await waitFor(() => expect(screen.getByText('Completed with errors')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Retry failed' }));
+    await waitFor(() => expect(screen.getByText('已結束，部分項目未完成')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: '重試失敗或中斷項目' }));
     await waitFor(() => expect(mockCreateCampaignRerun).toHaveBeenCalledWith('cmp-1', expect.objectContaining({
       scope: 'failed_only',
       stages: 'execution_and_ragas',
@@ -286,8 +317,8 @@ describe('EvaluationJobPanel', () => {
       { job_item_id: 'item-ragas', job_id: 'job-1', work_item_id: 'work-ragas', work_type: 'ragas_metric', status: 'interrupted' },
     ]);
     renderPanel();
-    await waitFor(() => expect(screen.getByText('Completed with errors')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Retry failed' }));
+    await waitFor(() => expect(screen.getByText('已結束，部分項目未完成')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: '重試失敗或中斷項目' }));
     await waitFor(() => expect(mockCreateCampaignRerun).toHaveBeenCalledWith('cmp-1', expect.objectContaining({
       scope: 'failed_only',
       stages: 'ragas',
@@ -333,14 +364,14 @@ describe('EvaluationJobPanel', () => {
 
     renderPanel();
 
-    await waitFor(() => expect(screen.getByText('Valid: 1')).toBeInTheDocument());
-    expect(screen.getByText('Failed: 1')).toBeInTheDocument();
-    expect(screen.getByText('Retrying: 1')).toBeInTheDocument();
-    expect(screen.getByText('Interrupted: 1')).toBeInTheDocument();
-    expect(screen.getByText('Cancelled: 1')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('已完成: 1')).toBeInTheDocument());
+    expect(screen.getByText('失敗: 1')).toBeInTheDocument();
+    expect(screen.getByText('重試中: 1')).toBeInTheDocument();
+    expect(screen.getByText('已中斷: 1')).toBeInTheDocument();
+    expect(screen.getByText('已取消: 1')).toBeInTheDocument();
     expect(screen.getByText('Safe error 1')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show attempt history' }));
+    fireEvent.click(screen.getByRole('button', { name: '查看執行紀錄' }));
     await waitFor(() => expect(mockListWorkItemAttempts).toHaveBeenCalledTimes(5));
     expect(screen.getAllByText(/Safe error 1/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/Safe error 5/).length).toBeGreaterThanOrEqual(1);
@@ -350,7 +381,7 @@ describe('EvaluationJobPanel', () => {
     const unavailable = Object.assign(new Error('Not found'), { response: { status: 404 } });
     mockListCampaignJobs.mockRejectedValue(unavailable);
     renderPanel();
-    await waitFor(() => expect(screen.queryByText('Unable to load evaluation jobs')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('無法載入執行狀態')).not.toBeInTheDocument());
     await new Promise((resolve) => setTimeout(resolve, 1600));
     expect(mockListCampaignJobs).toHaveBeenCalledTimes(1);
   });
@@ -365,7 +396,7 @@ describe('EvaluationJobPanel', () => {
     mockListCampaignJobs.mockResolvedValue([unsafeJob]);
     mockListEvaluationJobItems.mockResolvedValue([]);
     renderPanel();
-    await waitFor(() => expect(screen.getByText('Completed with errors')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('已結束，部分項目未完成')).toBeInTheDocument());
     expect(screen.queryByText('raw provider secret')).not.toBeInTheDocument();
   });
 });

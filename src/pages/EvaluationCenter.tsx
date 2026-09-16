@@ -698,20 +698,25 @@ export default function EvaluationCenter() {
   return (
     <Layout>
       <Flex direction="column" flex={1} minH={0} overflow="hidden">
-        <HStack flexShrink={0} align="flex-start" justify="space-between" gap={4}>
-          <PageHeader
-            title="評估中心"
-            subtitle={
-              selectedCampaign
-                ? `${selectedCampaign.name || selectedCampaign.id} · ${selectedCampaign.status}`
-                : '題庫管理與模型參數設定'
-            }
-            variant="dashboard"
-          />
-          <HStack mt={3} flexShrink={0} spacing={3}>
+        <Flex flexShrink={0} align="flex-start" justify="space-between" gap={3} wrap="wrap">
+          <Box flex="1 1 300px" minW={0}>
+            <PageHeader
+              title="評估中心"
+              subtitle={
+                selectedCampaign
+                  ? `${selectedCampaign.name || selectedCampaign.id} · ${selectedCampaign.status}`
+                  : '題庫管理與模型參數設定'
+              }
+              variant="dashboard"
+            />
+          </Box>
+          <Flex flex="1 1 540px" minW={0} mt={{ base: 0, xl: 3 }} mb={4} gap={3} wrap="wrap" align="center">
             <Select
               size="sm"
-              minW="220px"
+              flex="1 1 220px"
+              minW={0}
+              width="auto"
+              height={9}
               value={selectedCampaignId}
               onChange={(event) => setSelectedCampaignId(event.target.value)}
               aria-label="Campaign selector"
@@ -722,12 +727,12 @@ export default function EvaluationCenter() {
                 </option>
               ))}
             </Select>
-            {moreCampaigns ? <Button size="sm" isLoading={loadingMore} onClick={() => void loadMoreCampaigns()}>載入較早的評估</Button> : null}
-            <Button flexShrink={0} onClick={setupDrawer.onOpen}>
-              Setup evaluation
+            {moreCampaigns ? <Button size="sm" height={9} flexShrink={0} whiteSpace="nowrap" variant="outline" isLoading={loadingMore} onClick={() => void loadMoreCampaigns()}>載入較早的評估</Button> : null}
+            <Button size="sm" height={9} flexShrink={0} whiteSpace="nowrap" onClick={setupDrawer.onOpen}>
+              建立／設定評估
             </Button>
-          </HStack>
-        </HStack>
+          </Flex>
+        </Flex>
 
         <Box
           flex={1}

@@ -129,7 +129,7 @@
 - `/evaluation` is now an analytics-first shell owned by `src/pages/EvaluationCenter.tsx`.
   - Header actions:
     - campaign selector populated from `listCampaigns()`
-    - `Setup evaluation` button opening `EvaluationSetupDrawer.tsx`
+    - `建立／設定評估` button opening `EvaluationSetupDrawer.tsx`
   - Data loading:
     - page shell uses a stable `loadCampaignInventory()` loader for initial selection and terminal durable-job refreshes
     - terminal job refreshes invalidate only the selected campaign/current-tab cache key; the active tab does not reset
@@ -149,7 +149,7 @@
   - `Ablation` -> `AblationDashboardTab`
 - Durable campaign job surface:
   - `EvaluationJobPanel` is mounted before the tabs with `key={selectedCampaignId}`
-  - `Durable evaluation jobs` remains visible while jobs load, when none exist, on visible errors, and when jobs are populated
+  - `執行狀態與重跑` remains visible while jobs load, when none exist, on visible errors, and when jobs are populated
   - each terminal job ID refreshes the inventory once; stale callbacks from another campaign are ignored
 - Setup / admin drawer tabs (right-side `Drawer`, `size="xl"`):
   - `Test Cases` -> `TestCaseManager`
@@ -314,6 +314,12 @@
 - Results analysis shows the campaign model and reasoning setting in the metrics header so exported/inspected metrics can be traced back to the run configuration.
 
 ## Durable Evaluation Jobs
+
+- The campaign selector and header actions wrap at narrow widths; action buttons keep their text width.
+- `執行狀態與重跑` shows the latest job's work-item counts in Chinese, with an example explaining that 32 answers × 3 metrics is 96 scoring items, not 96 questions or an accuracy score. Job IDs live inside the collapsible attempt history.
+- `補分／重跑設定` starts collapsed and defaults to filling missing scores. Operators choose an action, then question IDs, mode, and metric; the panel previews the selection before submission.
+- `補齊缺少的評分` preserves existing answers and scores. `重新評分（保留答案）` recomputes selected metrics. Both accept blank question IDs for the whole campaign; `重新作答並評分` requires explicit question IDs and always uses all enabled metrics with the original campaign settings.
+- Question IDs accept commas, Chinese commas/ideographic commas, and whitespace; repeated IDs are removed. New reruns remain disabled while a job is active or a request is being submitted.
 
 - Evaluation results discover durable jobs and select the newest job after refresh; terminal `completed_with_errors` remains visible as a partial result.
 - Job panels show per-work-item status, retrying/interrupted/cancelled/missing counts, latest safe errors, and attempt history. Failed retries preserve the failed attempt and create a new attempt.

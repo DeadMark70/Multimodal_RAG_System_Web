@@ -14,7 +14,7 @@ Describe the current evaluation UI as a first-class subsystem rather than a rele
   - `evaluation-scroll-region` owns vertical scrolling for the route body
 - Header actions:
   - campaign selector fed by `listCampaigns()`
-  - `Setup evaluation` button opening `EvaluationSetupDrawer.tsx`
+  - `建立／設定評估` button opening `EvaluationSetupDrawer.tsx`
 - Data strategy:
   - this page does not use TanStack Query
   - it uses page-local `useState` + `useEffect`
@@ -69,7 +69,7 @@ Describe the current evaluation UI as a first-class subsystem rather than a rele
 
 The primary analytics surface is an 8-tab Chakra `Tabs` control rendered directly in `EvaluationCenter.tsx`.
 
-Before the tab list, `EvaluationJobPanel` is mounted with `key={selectedCampaignId}`. Its `Durable evaluation jobs` heading remains visible for loading, empty, visible-error, and populated states. Terminal notifications are de-duplicated by job ID for the active campaign. A terminal notification refreshes campaign inventory, invalidates only the active selected-campaign tab key, and refetches that tab without changing the active tab index; callbacks from a no-longer-selected campaign are ignored.
+Before the tab list, `EvaluationJobPanel` is mounted with `key={selectedCampaignId}`. Its `執行狀態與重跑` heading remains visible for loading, empty, visible-error, and populated states. Terminal notifications are de-duplicated by job ID for the active campaign. A terminal notification refreshes campaign inventory, invalidates only the active selected-campaign tab key, and refetches that tab without changing the active tab index; callbacks from a no-longer-selected campaign are ignored.
 
 1. `Campaign Overview`
    - component: `CampaignOverviewTab.tsx`
@@ -318,3 +318,9 @@ Before the tab list, `EvaluationJobPanel` is mounted with `key={selectedCampaign
 - Backend discovery returns a per-model `thinking` capability object; the frontend maps it to one of three UI states: budget slider/presets, level segmented buttons, or unavailable.
 - Saved presets and campaign snapshots carry normalized reasoning fields, which lets the campaign runner and legacy results analysis display the exact setting used.
 - UX goal: users should know before launching a campaign whether a preset is using budget, level, dynamic budget, or no reasoning control, and they should be able to audit that choice from history/results later.
+
+## Job Controls and Rerun UX
+
+Header actions wrap while preserving readable button widths. The job panel uses Chinese status labels and explains that counts refer to the latest execution's work items. The job ID and attempt records are behind `查看執行紀錄`; closing it does not fetch history again.
+
+Rerun controls are collapsed by default. The form presents operation-specific help, labelled question/mode/metric fields, and a selection summary. Filling missing scores keeps existing scores; rescoring keeps answers; regenerating answers uses original settings and all enabled metrics. Only answer regeneration requires explicit question IDs. The existing failed/interrupted retry shortcut and polling behavior remain in place.
