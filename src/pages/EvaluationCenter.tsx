@@ -253,7 +253,10 @@ export default function EvaluationCenter() {
         setDashboardError(null);
         setLoadingDashboard(false);
       } catch (error) {
-        if (mounted) {
+        if (mounted
+          && overviewRequest === overviewRequestRef.current
+          && generation === requestGenerationRef.current
+          && selectedCampaignId === selectedCampaignIdRef.current) {
           setDashboardError(error instanceof Error ? error.message : 'Failed to load evaluation analytics');
           setLoadingDashboard(false);
         }
@@ -334,10 +337,12 @@ export default function EvaluationCenter() {
 
   useEffect(() => {
     if (!selectedCampaignId || !dashboardData.researchSummary) {
+      setLoadingTab(false);
       return;
     }
     const tabKey = `${selectedCampaignId}:${activeTabIndex}`;
     if (loadedTabsRef.current.has(tabKey)) {
+      setLoadingTab(false);
       return;
     }
 
@@ -377,6 +382,7 @@ export default function EvaluationCenter() {
 
   const handleJobTerminal = useCallback(
     (sourceCampaignId: string, job: EvaluationJob) => {
+      let refreshedOverviewRequest: number | undefined;
       runsCache.current.delete(sourceCampaignId);
       detailCache.current.clear();
       if (
@@ -394,6 +400,7 @@ export default function EvaluationCenter() {
             const generation = requestGenerationRef.current;
             const refreshedCampaign = campaigns.find((campaign) => campaign.id === sourceCampaignId);
             const overviewRequest = overviewRequestRef.current + 1;
+            refreshedOverviewRequest = overviewRequest;
             overviewRequestRef.current = overviewRequest;
             const overviewData = await loadCampaignOverviewData(
               sourceCampaignId,
@@ -408,6 +415,7 @@ export default function EvaluationCenter() {
             }
             setDashboardData((current) => ({ ...current, ...overviewData }));
             setDashboardError(null);
+            setLoadingDashboard(false);
             return;
           }
           loadedTabsRef.current.delete(`${sourceCampaignId}:${activeTabIndex}`);
@@ -415,6 +423,10 @@ export default function EvaluationCenter() {
         })
         .catch((error: unknown) => {
           if (sourceCampaignId === selectedCampaignIdRef.current) {
+            if (refreshedOverviewRequest !== undefined) {
+              if (refreshedOverviewRequest !== overviewRequestRef.current) return;
+              setLoadingDashboard(false);
+            }
             setDashboardError(error instanceof Error ? error.message : 'Failed to refresh evaluation campaigns');
           }
         });

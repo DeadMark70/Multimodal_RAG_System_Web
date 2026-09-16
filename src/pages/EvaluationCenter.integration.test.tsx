@@ -422,6 +422,8 @@ describe('Evaluation Center real data flow', () => {
     expect(screen.getByText('Answer from run A')).toBeInTheDocument();
     expect(screen.getByText('Agent trace A')).toBeInTheDocument();
 
+    await waitFor(() => expect(screen.queryByText('Loading selected analytics...')).not.toBeInTheDocument());
+
     let resolveLateB!: (value: ReturnType<typeof detailFor>) => void;
     apiMocks.getRunObservability.mockImplementation((_campaignId: string, runId: string) => (
       runId === 'run-b'
@@ -605,6 +607,8 @@ describe('Evaluation Center real data flow', () => {
     await waitFor(() => expect(apiMocks.getCampaignResearchSummary).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(apiMocks.getCampaignReleaseMetrics).toHaveBeenCalledTimes(2));
     expect(await screen.findByText('3 / 3')).toBeInTheDocument();
+
+    await waitFor(() => expect(screen.queryByText('Loading evaluation analytics...')).not.toBeInTheDocument());
     expect(screen.queryByText('2 / 3')).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Campaign Overview' })).toHaveAttribute('aria-selected', 'true');
   });
@@ -635,6 +639,8 @@ describe('Evaluation Center real data flow', () => {
 
     await waitFor(() => expect(apiMocks.getCampaignResearchSummary).toHaveBeenCalledTimes(2));
     expect(await screen.findByText('3 / 3')).toBeInTheDocument();
+
+    await waitFor(() => expect(screen.queryByText('Loading evaluation analytics...')).not.toBeInTheDocument());
 
     await act(async () => {
       resolveInitialSummary({
