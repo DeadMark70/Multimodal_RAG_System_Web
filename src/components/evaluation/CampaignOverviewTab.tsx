@@ -3,6 +3,7 @@ import type { CampaignResearchSummaryResponse, ReleaseMetric, ReleaseMetricsRepo
 import LatencyWaterfall from './LatencyWaterfall';
 import MetricCard from './MetricCard';
 import ModeComparisonChart from './ModeComparisonChart';
+import ModeCostComparison from './ModeCostComparison';
 import TokenQualityTable from './TokenQualityTable';
 import TokenBreakdownChart from './TokenBreakdownChart';
 import EvaluationPricingPanel from './EvaluationPricingPanel';
@@ -162,6 +163,10 @@ export default function CampaignOverviewTab({
             <TokenQualityTable modes={data.modes} />
           </GridItem>
         </Grid>
+        <Divider />
+        <ModeCostComparison rows={data.mode_costs ?? data.modes.map((row) => ({
+          mode: row.mode, completed_run_count: row.sample_count, execution_cost: row.execution_cost,
+        }))} />
         <Divider />
         <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gap={5}>
           <GridItem>

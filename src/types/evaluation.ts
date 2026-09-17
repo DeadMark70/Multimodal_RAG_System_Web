@@ -334,9 +334,16 @@ export interface EvaluationAccountingDiagnostics extends ResearchTokenBreakdown 
 export interface ResearchCostSummary {
   benchmark_usd: number | null;
   operational_usd: number | null;
+  known_cost_usd?: number | null;
   pricing_status: ResearchPricingStatus;
   priced_call_count: number;
   unpriced_call_count: number;
+}
+
+export interface ModeCostSummary {
+  mode: string;
+  completed_run_count: number;
+  execution_cost: ResearchCostSummary;
 }
 
 export interface ModeResearchSummary {
@@ -371,6 +378,7 @@ export interface ResearchWarning {
 }
 
 export interface CampaignResearchSummaryResponse {
+  mode_costs?: ModeCostSummary[];
   analysis_status?: 'ready' | 'updating';
   analysis_updated_at?: string | null;
   campaign_id: string;

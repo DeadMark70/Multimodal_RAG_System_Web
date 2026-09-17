@@ -2,6 +2,11 @@
 
 ## Evaluation inference controls
 
+Overview includes a full-width per-mode answer-cost table: current retained
+answer cost, average per completed answer, and cumulative cost including failed
+attempts/reruns. Partial cumulative costs display known subtotals. Scoring cost
+remains separate; modes with only failed attempts can still display spending.
+
 RAGAS cost displays complete totals or explicitly partial known-call subtotals,
 with priced/unpriced call counts and reasons. Unknown cache use is labelled
 separately from a measured 0% hit rate.

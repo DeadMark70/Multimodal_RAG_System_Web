@@ -2,6 +2,9 @@
 
 Human-maintained inventory of the current frontend surface.
 
+Campaign Overview includes per-mode answer-cost comparison with per-answer
+averages and cumulative spending, independently of RAGAS scoring overhead.
+
 RAGAS cost exposes known-call subtotals and unpriced reasons instead of hiding
 all prices when a retry lacks usage; cache diagnostics explain N/A versus zero.
 

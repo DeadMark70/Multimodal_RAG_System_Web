@@ -69,3 +69,9 @@ deadline. Standard fallback is shown when Flex is selected.
 RAGAS cost shows a full estimate when all calls are priced; otherwise it displays
 the known-call subtotal, priced/unpriced counts and the reasons for gaps. No
 priced calls means N/A, not zero. Missing cache telemetry is labelled explicitly.
+Per-mode answer costs use `mode_costs` from the research summary, with legacy
+`modes[].execution_cost` fallback. Current-answer cost includes retained official
+answers; cumulative cost also includes failed/superseded attempts and reruns.
+Average cost divides current-answer cost by completed answer count, remaining
+N/A when either is unavailable. Partial estimates are labelled as known subtotals.
+The full-width table scrolls horizontally on narrow screens. RAGAS is separate.

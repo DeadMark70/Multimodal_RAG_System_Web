@@ -119,6 +119,10 @@ function researchSummary() {
       batch_count: 0,
       retry_count: 0,
     },
+    mode_costs: [{ mode: 'naive', completed_run_count: 2, execution_cost: {
+      benchmark_usd: 0.1, operational_usd: null, known_cost_usd: 0.15,
+      pricing_status: 'partial', priced_call_count: 3, unpriced_call_count: 1,
+    } }],
     warnings: [],
   };
 }

@@ -769,6 +769,7 @@ const latencySummarySchema = z.strictObject({
 const costSummarySchema = z.strictObject({
   benchmark_usd: nullableNumber,
   operational_usd: nullableNumber,
+  known_cost_usd: nullableNumber.optional(),
   pricing_status: z.enum(["complete", "partial", "unknown"]),
   priced_call_count: nonNegativeInteger,
   unpriced_call_count: nonNegativeInteger,
@@ -785,6 +786,9 @@ const researchModeSchema = z.strictObject({
 });
 const researchSummarySchema = z.strictObject({
   campaign_id: z.string(),
+  mode_costs: z.array(z.strictObject({
+    mode: z.string(), completed_run_count: nonNegativeInteger, execution_cost: costSummarySchema,
+  })).optional(),
   research_schema_version: z.literal("2"),
   completed_run_count: nonNegativeInteger,
   total_run_count: nonNegativeInteger,
