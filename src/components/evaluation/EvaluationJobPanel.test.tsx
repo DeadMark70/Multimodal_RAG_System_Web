@@ -12,6 +12,7 @@ import type {
 import type { EvaluationJob, EvaluationJobItemSummary } from '../../types/evaluation';
 import theme from '../../theme';
 import EvaluationJobPanel from './EvaluationJobPanel';
+import { completeFixture } from './researchSummaryFixtures';
 
 const {
   mockCancelEvaluationJob,
@@ -63,6 +64,25 @@ function renderPanel() {
 }
 
 describe('EvaluationJobPanel', () => {
+  it('keeps campaign totals separate from a smaller successful rerun', async () => {
+    const summary = { ...completeFixture, campaign_id: 'cmp-1',
+      completed_run_count: 64, total_run_count: 64,
+      quality: Object.fromEntries(['answer_correctness', 'faithfulness', 'answer_relevancy'].map((metric) => [metric, {
+        value: 0.8, status: 'complete' as const, valid_samples: 64, failed_samples: 0,
+        missing_samples: 0, evaluator_model: 'judge', metric_version: 'v1',
+      }])),
+    };
+    const rerun = { ...job, status: 'completed' as const, counts: { valid: 15, failed: 0 } };
+    const view = render(<ChakraProvider theme={theme}><EvaluationJobPanel campaignId="cmp-1" jobs={[rerun]} summary={summary} /></ChakraProvider>);
+    expect(screen.getByText('作答完成：64 / 64')).toBeInTheDocument();
+    expect(screen.getByText('有效評分：192')).toBeInTheDocument();
+    expect(screen.getByText('評分失敗：0')).toBeInTheDocument();
+    expect(screen.getByText('最近一次重跑的工作項目')).toBeInTheDocument();
+    expect(screen.getByText('已完成: 15')).toBeInTheDocument();
+    view.rerender(<ChakraProvider theme={theme}><EvaluationJobPanel campaignId="cmp-1" jobs={[rerun]} summary={{ ...summary, analysis_status: 'updating' }} /></ChakraProvider>);
+    expect(screen.getByText('摘要更新中，暫時顯示上次統計。')).toBeInTheDocument();
+    await waitFor(() => expect(mockListEvaluationJobItems).toHaveBeenCalled());
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     mockListCampaignJobs.mockResolvedValue([job]);

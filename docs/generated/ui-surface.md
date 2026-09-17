@@ -2,6 +2,9 @@
 
 Human-maintained inventory of the current frontend surface.
 
+Evaluation job status shows campaign-wide completion/quality totals separately
+from the most recent execution or rerun's work counts, with summary refresh state.
+
 Evaluation Setup includes evaluator Standard/Flex, timeout, attempts, opt-in
 Standard fallback, concurrency and RPM. Overview includes Gemini prompt-cache
 tokens/hit ratios/coverage, evaluator model and official-price refresh/freshness.

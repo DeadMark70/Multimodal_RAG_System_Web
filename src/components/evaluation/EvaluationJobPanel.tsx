@@ -25,6 +25,7 @@ import {
   listWorkItemAttempts,
 } from '../../services/evaluationApi';
 import type {
+  CampaignResearchSummaryResponse,
   EvaluationAttempt,
   EvaluationJob,
   EvaluationJobItemCounts,
@@ -49,6 +50,7 @@ const METRIC_LABELS: Record<string, string> = {
 
 export interface EvaluationJobPanelProps {
   campaignId: string;
+  summary?: CampaignResearchSummaryResponse | null;
   /** Pass jobs to use the panel in controlled mode (for example from EvaluationResults). */
   jobs?: EvaluationJob[];
   onJobsChange?: (jobs: EvaluationJob[]) => void;
@@ -198,6 +200,7 @@ function itemsForJob(items: EvaluationJobItemSummary[], selectedKey: string): Ev
 
 export default function EvaluationJobPanel({
   campaignId,
+  summary,
   jobs: controlledJobs,
   onJobsChange,
   onJobTerminal,
@@ -564,6 +567,14 @@ export default function EvaluationJobPanel({
     ['已取消', countValue(selectedJob, 'cancelled', jobItems, itemsLoaded)],
   ];
   const knownAttempts = mergeAttempts(jobItems, attempts);
+  const campaignSummary = summary?.campaign_id === campaignId ? summary : null;
+  const qualityTotals = Object.values(campaignSummary?.quality ?? {})
+    .filter((metric) => metric.status !== 'not_requested')
+    .reduce((total, metric) => ({
+      valid: total.valid + metric.valid_samples,
+      failed: total.failed + metric.failed_samples,
+      missing: total.missing + metric.missing_samples,
+    }), { valid: 0, failed: 0, missing: 0 });
   const latestSafeError = newestAttempt(
     knownAttempts.filter((attempt) => Boolean(attempt.safe_error_message)),
   )?.safe_error_message;
@@ -574,11 +585,22 @@ export default function EvaluationJobPanel({
         <Box minW={0}>
           <Heading size="sm">執行狀態與重跑</Heading>
           <Text color="text.secondary" fontSize="sm" mt={1}>
-            最近一次執行 · {new Date(selectedJob.created_at).toLocaleString('zh-TW')}
+            最近一次{selectedJob.job_type === 'rerun' ? '重跑' : '執行'} · {new Date(selectedJob.created_at).toLocaleString('zh-TW')}
           </Text>
         </Box>
         <Badge px={2} py={1} flexShrink={0} colorScheme={statusColor(selectedJob.status)}>{statusLabel(selectedJob.status)}</Badge>
       </HStack>
+      {campaignSummary ? <Box borderBottomWidth="1px" pb={3} mb={3}>
+        <Text fontWeight="medium" mb={1}>整批評估目前結果</Text>
+        <HStack gap={3} flexWrap="wrap" fontSize="sm">
+          <Text>作答完成：{campaignSummary.completed_run_count} / {campaignSummary.total_run_count}</Text>
+          <Text>有效評分：{qualityTotals.valid}</Text>
+          <Text>評分失敗：{qualityTotals.failed}</Text>
+          <Text>尚無評分：{qualityTotals.missing}</Text>
+        </HStack>
+        {campaignSummary.analysis_status === 'updating' ? <Text fontSize="sm" color="text.secondary">摘要更新中，暫時顯示上次統計。</Text> : null}
+      </Box> : null}
+      <Text fontWeight="medium" fontSize="sm" mb={2}>最近一次{selectedJob.job_type === 'rerun' ? '重跑' : '執行'}的工作項目</Text>
       <HStack spacing={0} gap={2} flexWrap="wrap" mb={2}>
         {counts.map(([label, value]) => (
           <Text key={label} fontSize="sm" borderWidth="1px" borderRadius="md" px={3} py={1}>
@@ -587,7 +609,7 @@ export default function EvaluationJobPanel({
         ))}
       </HStack>
       <Text fontSize="sm" color="text.secondary" mb={4}>
-        以上是最近一次執行的工作項目數，例如 32 份答案 × 3 個評分指標 = 96 個評分項目，不代表 96 題或正確率。
+        這組數字只計算本次執行或重跑的項目，不是整批評估的總數。每份答案的每個評分指標各算一項。
       </Text>
       {(latestSafeError ?? selectedJob.latest_safe_error_message) && (
         <Text color="orange.600" fontSize="sm" mb={3}>

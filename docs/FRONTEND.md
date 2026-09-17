@@ -2,6 +2,10 @@
 
 ## Evaluation inference controls
 
+The job panel separates campaign-wide answer/score totals from the latest job's
+work counts. Campaign totals use the shared research summary, show refresh state,
+and never add historical job counts together.
+
 Setup exposes Standard/Flex, request timeout, attempts, optional Standard fallback
 and effective parallelism/RPM. Batch size is removed because scoring checkpoints
 each item. Overview separates answering/scoring Gemini cache ratios and coverage,

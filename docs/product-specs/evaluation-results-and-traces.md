@@ -57,3 +57,7 @@ price panel shows evaluator model, price freshness and manual refresh. A server
 price-file override is labelled explicitly. Setup controls apply only to scoring:
 Flex, request timeout, attempts and opt-in Standard fallback. Campaigns retain
 their saved settings and historical costs retain their price snapshot.
+The execution/rerun panel displays current campaign answer and score totals from
+the research summary. Latest-job counts are labelled separately so a 15-item
+partial rerun does not appear to replace the campaign's complete score count.
+An updating summary is explicitly labelled until fresh aggregates arrive.

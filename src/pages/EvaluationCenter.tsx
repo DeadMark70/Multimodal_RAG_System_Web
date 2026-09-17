@@ -763,6 +763,7 @@ export default function EvaluationCenter() {
             <EvaluationJobPanel
               key={selectedCampaignId}
               campaignId={selectedCampaignId}
+              summary={dashboardData.researchSummary}
               onJobTerminal={(job) => handleJobTerminal(selectedCampaignId, job)}
             />
           ) : null}
