@@ -223,6 +223,7 @@ describe('CampaignRunner', () => {
       expect(screen.getByText('已選擇 1 題')).toBeInTheDocument();
     });
 
+    fireEvent.change(screen.getByRole('combobox', { name: '評分服務等級' }), { target: { value: 'flex' } });
     fireEvent.click(screen.getByRole('button', { name: '開始評估' }));
 
     await waitFor(() => {
@@ -233,6 +234,10 @@ describe('CampaignRunner', () => {
         ragas_batch_size: 8,
         ragas_parallel_batches: 8,
         ragas_rpm_limit: 1000,
+        ragas_service_tier: 'flex',
+        ragas_request_timeout_seconds: 900,
+        ragas_max_attempts: 5,
+        ragas_standard_fallback: false,
       })
     );
     await waitFor(() => {

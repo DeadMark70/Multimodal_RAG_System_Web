@@ -148,6 +148,10 @@ export interface CampaignConfigInput {
   ragas_batch_size: number;
   ragas_parallel_batches: number;
   ragas_rpm_limit: number;
+  ragas_service_tier?: 'standard' | 'flex';
+  ragas_request_timeout_seconds?: number;
+  ragas_max_attempts?: number;
+  ragas_standard_fallback?: boolean;
   /** Stored execution identity; omitted by historical v8 campaign payloads. */
   agentic_execution_version?: AgenticExecutionVersion;
   /** Only meaningful for an explicit v9 shadow condition. */
@@ -289,6 +293,12 @@ export interface ResearchLatencySummary {
 }
 
 export interface ResearchTokenBreakdown {
+  cached_input_tokens?: number | null;
+  cache_observed_input_tokens?: number | null;
+  cache_read_ratio?: number | null;
+  cache_hit_call_ratio?: number | null;
+  cache_usage_coverage?: number | null;
+  service_tiers?: string[];
   input_tokens: number | null;
   output_text_tokens: number | null;
   reasoning_tokens: number | null;
@@ -1462,6 +1472,12 @@ export interface ExportResultV2 {
 }
 
 export interface ExportTokenBreakdownV2 {
+  cached_input_tokens?: number | null;
+  cache_observed_input_tokens?: number | null;
+  cache_read_ratio?: number | null;
+  cache_hit_call_ratio?: number | null;
+  cache_usage_coverage?: number | null;
+  service_tiers?: string[];
   input_tokens: number | null;
   output_text_tokens: number | null;
   reasoning_tokens: number | null;

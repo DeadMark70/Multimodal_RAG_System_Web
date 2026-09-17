@@ -59,6 +59,12 @@ const exportOptionsSchema = z.strictObject({
 });
 
 const tokenBreakdownSchema = z.strictObject({
+  cached_input_tokens: nullableNumber.optional(),
+  cache_observed_input_tokens: nullableNumber.optional(),
+  cache_read_ratio: nullableNumber.optional(),
+  cache_hit_call_ratio: nullableNumber.optional(),
+  cache_usage_coverage: nullableNumber.optional(),
+  service_tiers: z.array(z.string()).optional(),
   input_tokens: nullableNumber,
   output_text_tokens: nullableNumber,
   reasoning_tokens: nullableNumber,

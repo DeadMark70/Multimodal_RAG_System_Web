@@ -5,6 +5,7 @@ import MetricCard from './MetricCard';
 import ModeComparisonChart from './ModeComparisonChart';
 import TokenQualityTable from './TokenQualityTable';
 import TokenBreakdownChart from './TokenBreakdownChart';
+import EvaluationPricingPanel from './EvaluationPricingPanel';
 
 const percent = (value: number | null) => value == null ? 'N/A' : `${(value * 100).toFixed(1)}%`;
 const number = (value: number | null) => value == null ? 'N/A' : value.toLocaleString();
@@ -174,6 +175,7 @@ export default function CampaignOverviewTab({
               Token Breakdown
             </Heading>
             <TokenBreakdownChart rows={data.modes} evaluationOverhead={data.evaluation_overhead} />
+            <EvaluationPricingPanel />
           </GridItem>
         </Grid>
       </Stack>

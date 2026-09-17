@@ -2,6 +2,10 @@
 
 Human-maintained inventory of the current frontend surface.
 
+Evaluation Setup includes evaluator Standard/Flex, timeout, attempts, opt-in
+Standard fallback, concurrency and RPM. Overview includes Gemini prompt-cache
+tokens/hit ratios/coverage, evaluator model and official-price refresh/freshness.
+
 ## Routes
 
 <!-- BEGIN GENERATED UI ROUTES -->

@@ -49,3 +49,11 @@ The Campaign Overview is a strict, read-only view of `GET /api/evaluation/campai
 - Each condition row displays the persisted condition ID, label, flags, completed/failed run counts, and backend-provided finite means for answer correctness, faithfulness, answer relevancy, tokens, and latency.
 - A compatible two-arm campaign also displays `Paired Delta (guided - baseline)`, matching `(question_id, repeat_number)` and showing completed-pair count, per-metric valid pairs, guided-minus-baseline deltas, and exclusion reasons for failed, unpaired, or missing-metric rows.
 - Missing or non-finite measurements render as `N/A`; the client never treats them as zero or recomputes the paired statistics. Campaigns without condition comparison data retain the existing generic ablation display.
+# Gemini cache and pricing (2026-09-17)
+
+Overview reports Gemini server-side prompt cache, not answer reuse. Cached/input
+ratio, request hit ratio and coverage are distinct; missing data is N/A. The
+price panel shows evaluator model, price freshness and manual refresh. A server
+price-file override is labelled explicitly. Setup controls apply only to scoring:
+Flex, request timeout, attempts and opt-in Standard fallback. Campaigns retain
+their saved settings and historical costs retain their price snapshot.

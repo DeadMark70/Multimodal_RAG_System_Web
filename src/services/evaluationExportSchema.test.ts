@@ -9,6 +9,12 @@ function availability(status = "complete") {
 
 function tokenBreakdown() {
   return {
+    cached_input_tokens: 2,
+    cache_observed_input_tokens: 3,
+    cache_read_ratio: 2 / 3,
+    cache_hit_call_ratio: 1,
+    cache_usage_coverage: 1,
+    service_tiers: ['flex'],
     input_tokens: 3,
     output_text_tokens: 5,
     reasoning_tokens: 2,

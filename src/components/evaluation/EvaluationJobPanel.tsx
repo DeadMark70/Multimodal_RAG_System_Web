@@ -96,14 +96,15 @@ function countValue(
   items: EvaluationJobItemSummary[] = [],
   itemsLoaded = items.length > 0,
 ): number | null {
+  const providerRetries = key === 'retrying' ? items.filter((item) => item.status === 'running' && item.latest_attempt?.error_type === 'provider_retry').length : 0;
   const explicit = job.counts?.[key];
-  if (typeof explicit === 'number') return explicit;
+  if (typeof explicit === 'number') return explicit + providerRetries;
   if (key === 'valid' && typeof job.valid_items === 'number') return job.valid_items;
   if (key === 'valid' && typeof job.succeeded_items === 'number') return job.succeeded_items;
   if (key === 'failed' && typeof job.failed_items === 'number') return job.failed_items;
   if (key === 'retrying') {
-    if (typeof job.retrying_items === 'number') return job.retrying_items;
-    if (typeof job.retry_wait_items === 'number') return job.retry_wait_items;
+    if (typeof job.retrying_items === 'number') return job.retrying_items + providerRetries;
+    if (typeof job.retry_wait_items === 'number') return job.retry_wait_items + providerRetries;
   }
   if (key === 'interrupted' && typeof job.interrupted_items === 'number') return job.interrupted_items;
   if (key === 'missing' && typeof job.missing_items === 'number') return job.missing_items;
@@ -125,7 +126,7 @@ function countValue(
     );
     if (key === 'valid') return derived.valid;
     if (key === 'failed') return derived.failed;
-    if (key === 'retrying') return derived.retrying;
+    if (key === 'retrying') return derived.retrying + providerRetries;
     if (key === 'interrupted') return derived.interrupted;
     if (key === 'cancelled') return derived.cancelled;
   }

@@ -1,5 +1,12 @@
 # FRONTEND
 
+## Evaluation inference controls
+
+Setup exposes Standard/Flex, request timeout, attempts, optional Standard fallback
+and effective parallelism/RPM. Batch size is removed because scoring checkpoints
+each item. Overview separates answering/scoring Gemini cache ratios and coverage,
+and offers price freshness plus authenticated official-price refresh.
+
 ## Stack
 
 - React 18 + TypeScript + Vite 7

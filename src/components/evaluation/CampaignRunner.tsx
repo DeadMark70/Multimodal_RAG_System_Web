@@ -244,9 +244,13 @@ export default function CampaignRunner() {
   const [repeatCount, setRepeatCount] = useState(1);
   const [batchSize, setBatchSize] = useState(1);
   const [rpmLimit, setRpmLimit] = useState(60);
-  const [ragasBatchSize, setRagasBatchSize] = useState(8);
+  const ragasBatchSize = 8; // Legacy API field; scoring now checkpoints each item.
   const [ragasParallelBatches, setRagasParallelBatches] = useState(8);
   const [ragasRpmLimit, setRagasRpmLimit] = useState(1000);
+  const [ragasTier, setRagasTier] = useState<'standard' | 'flex'>('standard');
+  const [ragasTimeout, setRagasTimeout] = useState(900);
+  const [ragasAttempts, setRagasAttempts] = useState(5);
+  const [ragasFallback, setRagasFallback] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [activeCampaign, setActiveCampaign] = useState<ActiveCampaignState>({ snapshot: null, progress: null });
   const [resultsView, setResultsView] = useState<CampaignResultsResponse | null>(null);
@@ -614,6 +618,10 @@ export default function CampaignRunner() {
         ragas_batch_size: ragasBatchSize,
         ragas_parallel_batches: ragasParallelBatches,
         ragas_rpm_limit: ragasRpmLimit,
+        ragas_service_tier: ragasTier,
+        ragas_request_timeout_seconds: ragasTimeout,
+        ragas_max_attempts: ragasAttempts,
+        ragas_standard_fallback: ragasFallback,
         // This is an execution-time snapshot. Export can only report what the
         // run captured; it cannot recover a prompt omitted here.
               prompt_capture_policy: {
@@ -958,17 +966,7 @@ export default function CampaignRunner() {
               <Grid templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={4}>
                 <GridItem>
                   <FormControl>
-                    <FormLabel>RAGAS Batch</FormLabel>
-                    <Select value={ragasBatchSize} onChange={(event) => setRagasBatchSize(Number(event.target.value))}>
-                      {[1, 2, 4, 6, 8].map((size) => (
-                        <option key={size} value={size}>{size}</option>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </GridItem>
-                <GridItem>
-                  <FormControl>
-                    <FormLabel>RAGAS 並行批次</FormLabel>
+                    <FormLabel>RAGAS 同時評分數</FormLabel>
                     <Select
                       value={ragasParallelBatches}
                       onChange={(event) => setRagasParallelBatches(Number(event.target.value))}
@@ -981,7 +979,7 @@ export default function CampaignRunner() {
                 </GridItem>
                 <GridItem>
                   <FormControl>
-                    <FormLabel>RAGAS RPM 上限</FormLabel>
+                    <FormLabel>RAGAS 每分鐘 LLM 請求上限（含重試）</FormLabel>
                     <Select value={ragasRpmLimit} onChange={(event) => setRagasRpmLimit(Number(event.target.value))}>
                       {[120, 240, 480, 720, 1000].map((value) => (
                         <option key={value} value={value}>{value}</option>
@@ -993,6 +991,27 @@ export default function CampaignRunner() {
 
               <Divider />
 
+              <Grid templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={4}>
+                <FormControl><FormLabel>評分服務等級</FormLabel>
+                  <Select aria-label="評分服務等級" value={ragasTier} onChange={(e) => setRagasTier(e.target.value as 'standard' | 'flex')}>
+                    <option value="standard">Standard：一般速度</option><option value="flex">Flex：較低價格，可能等待較久</option>
+                  </Select>
+                </FormControl>
+                <FormControl><FormLabel>單次評分請求等待時間</FormLabel>
+                  <Select value={ragasTimeout} onChange={(e) => setRagasTimeout(Number(e.target.value))}>
+                    {[180, 600, 900, 1800, 3600].map((seconds) => <option key={seconds} value={seconds}>{seconds / 60} 分鐘</option>)}
+                  </Select>
+                </FormControl>
+                <FormControl><FormLabel>暫時錯誤最多嘗試次數</FormLabel>
+                  <Select value={ragasAttempts} onChange={(e) => setRagasAttempts(Number(e.target.value))}>
+                    {[1, 3, 5, 10].map((attempts) => <option key={attempts} value={attempts}>{attempts} 次（含首次）</option>)}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Checkbox isChecked={ragasFallback} isDisabled={ragasTier !== 'flex'} onChange={(e) => setRagasFallback(e.target.checked)}>
+                Flex 重試後仍無容量時，允許改用 Standard（費用較高）
+              </Checkbox>
+              <Text fontSize="sm" color="text.secondary">以上只影響評分模型。每個指標完成即保存；Flex 建議至少等待 10 分鐘。相關性包含多次模型請求，仍受同時請求與 RPM 設定控制。</Text>
               <FormControl>
                 <FormLabel>題目選擇</FormLabel>
                 <HStack mb={3} spacing={3}>

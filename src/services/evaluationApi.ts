@@ -1,4 +1,21 @@
 import api from './api';
+
+export interface EvaluationPricingStatus {
+  snapshot_id: string | null;
+  fetched_at: string | null;
+  source: string;
+  model_count: number;
+  status: string;
+  evaluator_model: string;
+}
+
+export async function getEvaluationPricing(): Promise<EvaluationPricingStatus> {
+  return (await api.get<EvaluationPricingStatus>('/api/evaluation/pricing')).data;
+}
+
+export async function refreshEvaluationPricing(): Promise<EvaluationPricingStatus> {
+  return (await api.post<EvaluationPricingStatus>('/api/evaluation/pricing/refresh')).data;
+}
 import { parseExportCampaignResponse } from './evaluationExportSchema';
 import type {
   AgentBehaviorResponse,

@@ -5,6 +5,16 @@ import theme from '../../theme';
 import TokenBreakdownChart from './TokenBreakdownChart';
 import { completeFixture } from './researchSummaryFixtures';
 
+it('shows provider cache ratio and measurement coverage separately', () => {
+  const row = { ...completeFixture.modes[0], tokens: { ...completeFixture.modes[0].tokens,
+    cached_input_tokens: 800, cache_observed_input_tokens: 1000, cache_read_ratio: 0.8,
+    cache_hit_call_ratio: 0.5, cache_usage_coverage: 0.75, service_tiers: ['flex'] } };
+  render(<ChakraProvider theme={theme}><TokenBreakdownChart rows={[row]} /></ChakraProvider>);
+  expect(screen.getByText('Gemini prompt cache：80.0%')).toBeInTheDocument();
+  expect(screen.getByText('命中請求：50.0% · 資料涵蓋率：75.0%')).toBeInTheDocument();
+  expect(screen.getByText('服務等級：flex')).toBeInTheDocument();
+});
+
 it('renders the authoritative explicit unclassified phase subtotal', () => {
   const row = {
     ...completeFixture.modes[0],
