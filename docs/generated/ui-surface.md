@@ -2,6 +2,9 @@
 
 Human-maintained inventory of the current frontend surface.
 
+Evaluation Setup scoring controls use container-width wrapping and short select
+labels; inline help distinguishes per-call timeout from total evaluation time.
+
 Evaluation job status shows campaign-wide completion/quality totals separately
 from the most recent execution or rerun's work counts, with summary refresh state.
 

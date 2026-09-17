@@ -2,6 +2,10 @@
 
 ## Evaluation inference controls
 
+Scoring controls wrap according to available container width. Service-tier option
+labels are short, with descriptions below. Timeout explicitly means each scoring
+API call, resets on retry, and is not a question/campaign deadline.
+
 The job panel separates campaign-wide answer/score totals from the latest job's
 work counts. Campaign totals use the shared research summary, show refresh state,
 and never add historical job counts together.

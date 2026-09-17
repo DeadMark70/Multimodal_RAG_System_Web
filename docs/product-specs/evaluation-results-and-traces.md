@@ -61,3 +61,8 @@ The execution/rerun panel displays current campaign answer and score totals from
 the research summary. Latest-job counts are labelled separately so a 15-item
 partial rerun does not appear to replace the campaign's complete score count.
 An updating summary is explicitly labelled until fresh aggregates arrive.
+
+Setup uses a full-width Standard/Flex selector and wrapping scoring controls.
+Descriptions remain outside selects so narrow drawers show complete option text.
+Timeout is per scoring API call, resets for each retry, and is not a campaign
+deadline. Standard fallback is shown when Flex is selected.

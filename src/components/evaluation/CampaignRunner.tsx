@@ -6,6 +6,7 @@ import {
   Checkbox,
   Divider,
   FormControl,
+  FormHelperText,
   FormLabel,
   Grid,
   GridItem,
@@ -963,8 +964,8 @@ export default function CampaignRunner() {
               <Text data-testid="campaign-execution-estimate" color="gray.600" fontSize="sm">
                 預估執行數：{expectedExecutionUnits}（{requirementGuidedAblation ? 2 : selectedModes.length} 個條件）
               </Text>
-              <Grid templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={4}>
-                <GridItem>
+              <Grid templateColumns="repeat(auto-fit, minmax(min(100%, 220px), 1fr))" gap={4}>
+                <GridItem minW={0}>
                   <FormControl>
                     <FormLabel>RAGAS 同時評分數</FormLabel>
                     <Select
@@ -977,41 +978,45 @@ export default function CampaignRunner() {
                     </Select>
                   </FormControl>
                 </GridItem>
-                <GridItem>
+                <GridItem minW={0}>
                   <FormControl>
-                    <FormLabel>RAGAS 每分鐘 LLM 請求上限（含重試）</FormLabel>
+                    <FormLabel>評分 API 每分鐘上限</FormLabel>
                     <Select value={ragasRpmLimit} onChange={(event) => setRagasRpmLimit(Number(event.target.value))}>
                       {[120, 240, 480, 720, 1000].map((value) => (
                         <option key={value} value={value}>{value}</option>
                       ))}
                     </Select>
+                    <FormHelperText color="text.secondary">LLM 請求次數，包含重試。</FormHelperText>
                   </FormControl>
                 </GridItem>
               </Grid>
 
               <Divider />
 
-              <Grid templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={4}>
-                <FormControl><FormLabel>評分服務等級</FormLabel>
+              <Grid templateColumns="repeat(auto-fit, minmax(min(100%, 220px), 1fr))" gap={4}>
+                <FormControl gridColumn="1 / -1" minW={0}><FormLabel>評分服務等級</FormLabel>
                   <Select aria-label="評分服務等級" value={ragasTier} onChange={(e) => setRagasTier(e.target.value as 'standard' | 'flex')}>
-                    <option value="standard">Standard：一般速度</option><option value="flex">Flex：較低價格，可能等待較久</option>
+                    <option value="standard">Standard</option><option value="flex">Flex</option>
                   </Select>
+                  <FormHelperText color="text.secondary">Standard 為一般速度；Flex 費用較低，但可能等待較久。</FormHelperText>
                 </FormControl>
-                <FormControl><FormLabel>單次評分請求等待時間</FormLabel>
+                <FormControl minW={0}><FormLabel>每次 API 呼叫逾時</FormLabel>
                   <Select value={ragasTimeout} onChange={(e) => setRagasTimeout(Number(e.target.value))}>
                     {[180, 600, 900, 1800, 3600].map((seconds) => <option key={seconds} value={seconds}>{seconds / 60} 分鐘</option>)}
                   </Select>
+                  <FormHelperText color="text.secondary">每次呼叫評分 API 最多等待多久，超過便視為逾時。Flex 建議至少 10 分鐘。</FormHelperText>
                 </FormControl>
-                <FormControl><FormLabel>暫時錯誤最多嘗試次數</FormLabel>
+                <FormControl minW={0}><FormLabel>每次呼叫最多嘗試</FormLabel>
                   <Select value={ragasAttempts} onChange={(e) => setRagasAttempts(Number(e.target.value))}>
-                    {[1, 3, 5, 10].map((attempts) => <option key={attempts} value={attempts}>{attempts} 次（含首次）</option>)}
+                    {[1, 3, 5, 10].map((attempts) => <option key={attempts} value={attempts}>{attempts} 次</option>)}
                   </Select>
+                  <FormHelperText color="text.secondary">包含首次呼叫，只在暫時性錯誤時重試。每次重試都重新計算逾時時間。</FormHelperText>
                 </FormControl>
               </Grid>
-              <Checkbox isChecked={ragasFallback} isDisabled={ragasTier !== 'flex'} onChange={(e) => setRagasFallback(e.target.checked)}>
+              {ragasTier === 'flex' ? <Checkbox alignItems="flex-start" isChecked={ragasFallback} onChange={(e) => setRagasFallback(e.target.checked)}>
                 Flex 重試後仍無容量時，允許改用 Standard（費用較高）
-              </Checkbox>
-              <Text fontSize="sm" color="text.secondary">以上只影響評分模型。每個指標完成即保存；Flex 建議至少等待 10 分鐘。相關性包含多次模型請求，仍受同時請求與 RPM 設定控制。</Text>
+              </Checkbox> : null}
+              <Text fontSize="sm" color="text.secondary">以上只影響評分模型。逾時時間不是整題或整批評估的總時限；一個指標可能需要多次 API 呼叫，加上重試與等待額度，總耗時可能更長。每個指標完成即保存。</Text>
               <FormControl>
                 <FormLabel>題目選擇</FormLabel>
                 <HStack mb={3} spacing={3}>
