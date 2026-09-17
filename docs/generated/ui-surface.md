@@ -2,6 +2,9 @@
 
 Human-maintained inventory of the current frontend surface.
 
+RAGAS cost exposes known-call subtotals and unpriced reasons instead of hiding
+all prices when a retry lacks usage; cache diagnostics explain N/A versus zero.
+
 Evaluation Setup scoring controls use container-width wrapping and short select
 labels; inline help distinguishes per-call timeout from total evaluation time.
 

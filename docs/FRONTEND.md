@@ -2,6 +2,10 @@
 
 ## Evaluation inference controls
 
+RAGAS cost displays complete totals or explicitly partial known-call subtotals,
+with priced/unpriced call counts and reasons. Unknown cache use is labelled
+separately from a measured 0% hit rate.
+
 Scoring controls wrap according to available container width. Service-tier option
 labels are short, with descriptions below. Timeout explicitly means each scoring
 API call, resets on retry, and is not a question/campaign deadline.

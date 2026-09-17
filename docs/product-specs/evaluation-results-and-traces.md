@@ -66,3 +66,6 @@ Setup uses a full-width Standard/Flex selector and wrapping scoring controls.
 Descriptions remain outside selects so narrow drawers show complete option text.
 Timeout is per scoring API call, resets for each retry, and is not a campaign
 deadline. Standard fallback is shown when Flex is selected.
+RAGAS cost shows a full estimate when all calls are priced; otherwise it displays
+the known-call subtotal, priced/unpriced counts and the reasons for gaps. No
+priced calls means N/A, not zero. Missing cache telemetry is labelled explicitly.

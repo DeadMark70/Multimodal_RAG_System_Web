@@ -109,6 +109,10 @@ function researchSummary() {
     evaluation_overhead: {
       tokens: tokenBreakdown(),
       cost_usd: 0,
+      known_cost_usd: 0,
+      priced_call_count: 1,
+      unpriced_call_count: 0,
+      unpriced_reasons: {},
       pricing_status: "complete",
       evaluator_models: [],
       metric_names: [],

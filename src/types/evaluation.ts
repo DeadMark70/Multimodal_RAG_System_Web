@@ -353,6 +353,10 @@ export interface ModeResearchSummary {
 export interface EvaluationOverheadSummary {
   tokens: ResearchTokenBreakdown;
   cost_usd: number | null;
+  known_cost_usd?: number | null;
+  priced_call_count?: number;
+  unpriced_call_count?: number;
+  unpriced_reasons?: Record<string, number>;
   pricing_status: ResearchPricingStatus;
   evaluator_models: string[];
   metric_names: string[];

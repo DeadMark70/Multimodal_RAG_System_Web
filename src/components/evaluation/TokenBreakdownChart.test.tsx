@@ -82,3 +82,22 @@ it('renders null token categories as N/A without synthesizing zero', () => {
   expect(screen.getAllByText('N/A')).toHaveLength(5);
   expect(screen.queryByText('0')).not.toBeInTheDocument();
 });
+it('shows known scoring cost without pretending missing retry usage is free', () => {
+  const overhead = { ...completeFixture.evaluation_overhead, cost_usd: null,
+    known_cost_usd: 0.0123, pricing_status: 'partial' as const,
+    priced_call_count: 12, unpriced_call_count: 1, unpriced_reasons: { unavailable_usage: 1 } };
+  render(<ChakraProvider theme={theme}><TokenBreakdownChart evaluationOverhead={overhead} /></ChakraProvider>);
+  expect(screen.getByText('已知呼叫小計：US$0.0123（部分估算）')).toBeInTheDocument();
+  expect(screen.getByText('已估價：12 次 · 未估價：1 次')).toBeInTheDocument();
+  expect(screen.getByText('缺少或不完整的用量：1 次')).toBeInTheDocument();
+});
+
+it('keeps costs unknown when no call can be priced', () => {
+  const overhead = { ...completeFixture.evaluation_overhead, cost_usd: null,
+    known_cost_usd: null, priced_call_count: 0, unpriced_call_count: 1,
+    unpriced_reasons: { missing_price: 1 } };
+  render(<ChakraProvider theme={theme}><TokenBreakdownChart evaluationOverhead={overhead} /></ChakraProvider>);
+  expect(screen.getByText('估算費用：N/A（尚無可估價的呼叫）')).toBeInTheDocument();
+  expect(screen.getByText('缺少對應費率：1 次')).toBeInTheDocument();
+  expect(screen.queryByText(/US\$0.0000/)).not.toBeInTheDocument();
+});

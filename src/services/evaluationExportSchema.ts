@@ -802,6 +802,10 @@ const researchSummarySchema = z.strictObject({
   evaluation_overhead: z.strictObject({
     tokens: tokenBreakdownSchema,
     cost_usd: nullableNumber,
+    known_cost_usd: nullableNumber.optional(),
+    priced_call_count: nonNegativeInteger.optional(),
+    unpriced_call_count: nonNegativeInteger.optional(),
+    unpriced_reasons: z.record(z.string(), nonNegativeInteger).optional(),
     pricing_status: z.enum(["complete", "partial", "unknown"]),
     evaluator_models: z.array(z.string()),
     metric_names: z.array(z.string()),
