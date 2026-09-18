@@ -64,6 +64,16 @@ function renderPanel() {
 }
 
 describe('EvaluationJobPanel', () => {
+  it('hides historical retry warnings after completion while retaining them in details', async () => {
+    const message = 'Provider temporarily unavailable; retrying request (attempt 2).';
+    const completed = { ...job, status: 'completed' as const, latest_safe_error_message: message };
+    render(<ChakraProvider theme={theme}><EvaluationJobPanel campaignId="cmp-1" jobs={[completed]} /></ChakraProvider>);
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
+    const historical = screen.getByText(`執行期間曾發生（目前已完成）：${message}`);
+    expect(historical.closest('details')).not.toHaveAttribute('open');
+    await waitFor(() => expect(mockListEvaluationJobItems).toHaveBeenCalled());
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
+  });
   it('keeps campaign totals separate from a smaller successful rerun', async () => {
     const summary = { ...completeFixture, campaign_id: 'cmp-1',
       completed_run_count: 64, total_run_count: 64,
@@ -148,7 +158,7 @@ describe('EvaluationJobPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '查看執行紀錄' }));
     await waitFor(() => expect(mockListWorkItemAttempts).toHaveBeenCalledWith('work-1'));
-    expect(screen.getByText('Provider response details were redacted.')).toBeInTheDocument();
+    expect(await screen.findByText(/第 1 次：執行失敗 — Provider response details were redacted\./)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: '收合執行紀錄' }));
     expect(screen.queryByText(/工作 ID：/)).not.toBeInTheDocument();
     expect(mockListWorkItemAttempts).toHaveBeenCalledTimes(1);
@@ -389,7 +399,8 @@ describe('EvaluationJobPanel', () => {
     expect(screen.getByText('重試中: 1')).toBeInTheDocument();
     expect(screen.getByText('已中斷: 1')).toBeInTheDocument();
     expect(screen.getByText('已取消: 1')).toBeInTheDocument();
-    expect(screen.getByText('Safe error 1')).toBeInTheDocument();
+    expect(screen.queryByText('Safe error 1')).not.toBeInTheDocument();
+    expect(screen.getByText('Safe error 2')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '查看執行紀錄' }));
     await waitFor(() => expect(mockListWorkItemAttempts).toHaveBeenCalledTimes(5));

@@ -1,5 +1,5 @@
 import { ChakraProvider } from '@chakra-ui/react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import theme from '../../theme';
 import type { ReleaseMetricsReport } from '../../types/evaluation';
@@ -23,6 +23,7 @@ const smokeReleaseFixture: ReleaseMetricsReport = {
 describe('CampaignOverviewTab strict research accounting', () => {
   it('renders backend-authoritative smoke metrics without inventing unavailable Graph values', () => {
     renderOverview(completeFixture, smokeReleaseFixture);
+    fireEvent.click(screen.getByText('基準測試指標'));
 
     expect(screen.getByRole('heading', { name: 'Release Metrics' })).toBeInTheDocument();
     expect(screen.getByText('Smoke')).toBeInTheDocument();
@@ -45,6 +46,7 @@ describe('CampaignOverviewTab strict research accounting', () => {
       },
     });
 
+    fireEvent.click(screen.getByText('基準測試指標'));
     expect(screen.getByRole('heading', { name: 'Category quality deltas' })).toBeInTheDocument();
     expect(screen.getByText('retrieval')).toBeInTheDocument();
     expect(screen.getAllByText('0.04').length).toBeGreaterThanOrEqual(3);
@@ -79,17 +81,17 @@ describe('CampaignOverviewTab strict research accounting', () => {
 
   it('renders missing RAGAS without requiring monetary pricing', () => {
     renderOverview(partialFixture);
-    expect(screen.getAllByText('N/A').length).toBeGreaterThan(0);
-    expect(screen.getByText(/Token accounting is partial/)).toBeInTheDocument();
+    expect(screen.getByText('估算費用：N/A（尚無可估價的呼叫）')).toBeInTheDocument();
+    expect(screen.getByText(/作答 Token 用量不完整/)).toBeInTheDocument();
     expect(screen.queryByText('Pricing: unknown')).not.toBeInTheDocument();
     expect(screen.queryByText('Benchmark Cost')).not.toBeInTheDocument();
   });
 
   it('shows measured percentiles and low sample warning', () => {
     renderOverview(completeFixture);
-    expect(screen.getByText('3,900 ms')).toBeInTheDocument();
-    expect(screen.getByText('7,100 ms')).toBeInTheDocument();
-    expect(screen.getAllByText(/Low sample size/).length).toBeGreaterThan(0);
+    expect(screen.getByText('3.90 秒')).toBeInTheDocument();
+    expect(screen.getByText('7.10 秒')).toBeInTheDocument();
+    expect(screen.getAllByText(/樣本較少/).length).toBeGreaterThan(0);
   });
 
   it('renders token-quality rows when monetary pricing is unavailable', () => {

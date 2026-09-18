@@ -40,7 +40,7 @@ The Campaign Overview is a strict, read-only view of `GET /api/evaluation/campai
 - Latency mean/P50/P95 are backend measurements. P50/P95 use nearest-rank observed percentiles, and one-to-four latency samples are explicitly flagged as low sample size.
 - Benchmark cost is official strict execution cost. Operational cost includes all associated execution calls. RAGAS overhead is separately priced evaluator work; it is not execution benchmark cost.
 - Token output preserves the input, output-text, reasoning, and other categories, plus measured phase attribution. An explicit `by_phase.unclassified` subtotal is authoritative; when that key is absent, `Unclassified` is `0` only for complete phase attribution and otherwise `N/A`. The client must not derive a remainder or fold partial values into another phase/category. Historical evaluation-overhead retry counts can be unknown (`null`) and must remain unknown rather than becoming zero.
-- A mode is eligible for the cost/quality comparison only when the backend marks it comparable and it has benchmark pricing plus correctness and faithfulness. Excluded modes remain visible with not-comparable/missing-data reasons.
+- Token/quality comparison uses backend comparability and observed quality. Complete total-token accounting does not require complete phase attribution or monetary pricing. Missing totals or quality remain unavailable.
 - Legacy accounting is supported as a display condition only: `incomplete_legacy` warns that totals may be incomplete. The overview must not reconstruct legacy totals or imply schema-v2 completeness.
 
 ## Ablation Condition Metrics
@@ -75,3 +75,11 @@ answers; cumulative cost also includes failed/superseded attempts and reruns.
 Average cost divides current-answer cost by completed answer count, remaining
 N/A when either is unavailable. Partial estimates are labelled as known subtotals.
 The full-width table scrolls horizontally on narrow screens. RAGAS is separate.
+
+## Evaluation overview simplification (2026-09-18)
+
+- Navigation keeps Overview, Question Analysis and Run Trace as the three primary tabs. A native advanced-analysis selector opens one additional selected tab; existing internal data-loading indexes, lazy mounting and campaign-switch isolation are preserved. The compact header shows the campaign name once. Main navigation/loading labels are Traditional Chinese and latency values use seconds.
+- Overview leads with per-mode quality, mean seconds and per-answer USD, followed by answer costs and separate RAGAS scoring costs.
+- Successful latest-job work counts and historical retry messages are collapsed; active warnings use unresolved current items, not errors from recovered attempts.
+- Token/cache/latency and benchmark details are expandable full-width sections. Existing per-tab requests and pagination are unchanged.
+- Question analysis uses one naturally sorted table, signed percentage-point deltas (Agentic minus Naive), quality sorting with missing values last, and per-question expandable diagnostics. Correctness-first ranking is not an overall winner.

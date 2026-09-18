@@ -1,5 +1,14 @@
 # Generated UI Surface
 
+## Evaluation overview simplification (2026-09-18)
+
+- Navigation keeps Overview, Question Analysis and Run Trace as the three primary tabs. A native advanced-analysis selector opens one additional selected tab; existing internal data-loading indexes, lazy mounting and campaign-switch isolation are preserved. The compact header shows the campaign name once. Main navigation/loading labels are Traditional Chinese and latency values use seconds.
+- Overview leads with per-mode quality, mean seconds and per-answer USD, followed by answer costs and separate RAGAS scoring costs.
+- Successful latest-job work counts and historical retry messages are collapsed; active warnings use unresolved current items, not errors from recovered attempts.
+- Token/cache/latency and benchmark details are expandable full-width sections. Existing per-tab requests and pagination are unchanged.
+- Question analysis uses one naturally sorted table, signed percentage-point deltas (Agentic minus Naive), quality sorting with missing values last, and per-question expandable diagnostics. Correctness-first ranking is not an overall winner.
+
+
 Human-maintained inventory of the current frontend surface.
 
 Campaign Overview includes per-mode answer-cost comparison with per-answer

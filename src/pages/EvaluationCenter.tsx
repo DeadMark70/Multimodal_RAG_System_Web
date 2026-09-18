@@ -4,6 +4,7 @@ import {
   Button,
   Flex,
   HStack,
+  Heading,
   Select,
   Spinner,
   Tab,
@@ -15,7 +16,6 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import Layout from '../components/layout/Layout';
-import PageHeader from '../components/common/PageHeader';
 import {
   asRecord,
   mapAgentRows,
@@ -606,7 +606,7 @@ export default function EvaluationCenter() {
   const claimData = mapClaims(selectedRunDetail);
   const dashboardTabs = [
     {
-      label: 'Campaign Overview',
+      label: '總覽',
       component: (
         <CampaignOverviewTab
           data={dashboardData.researchSummary}
@@ -615,9 +615,9 @@ export default function EvaluationCenter() {
         />
       ),
     },
-    { label: 'Question Analysis', component: <QuestionAnalysisTab rows={mapQuestionRows(dashboardData)} /> },
+    { label: '題目分析', component: <QuestionAnalysisTab rows={mapQuestionRows(dashboardData)} /> },
     {
-      label: 'Run Trace',
+      label: '執行追蹤',
       component: (
         <RunTraceTab
           runOptions={runOptions}
@@ -640,7 +640,7 @@ export default function EvaluationCenter() {
       ),
     },
     {
-      label: 'Retrieval Evidence',
+      label: '檢索證據',
       component: (
         <RetrievalEvidenceTab
           runOptions={runOptions}
@@ -655,9 +655,9 @@ export default function EvaluationCenter() {
         />
       ),
     },
-    { label: 'Agent Behavior', component: <AgentBehaviorTab rows={mapAgentRows(dashboardData)} /> },
+    { label: 'Agent 行為', component: <AgentBehaviorTab rows={mapAgentRows(dashboardData)} /> },
     {
-      label: 'Claim Evidence',
+      label: '陳述證據',
       component: (
         <ClaimEvidenceTab
           runOptions={runOptions}
@@ -671,14 +671,14 @@ export default function EvaluationCenter() {
       ),
     },
     {
-      label: 'Router Lab',
+      label: '路由分析',
       component: <RouterLabTab
         data={mapRouterData(dashboardData)}
         executionRoute={executionRoute}
       />,
     },
     {
-      label: 'Ablation',
+      label: '消融分析',
       component: (
         <AblationDashboardTab
           campaignId={selectedCampaignId}
@@ -695,22 +695,15 @@ export default function EvaluationCenter() {
     },
   ] as const;
 
+  const visibleTabs = activeTabIndex < 3 ? dashboardTabs.slice(0, 3)
+    : [...dashboardTabs.slice(0, 3), ...dashboardTabs.slice(activeTabIndex, activeTabIndex + 1)];
+
   return (
     <Layout>
       <Flex direction="column" flex={1} minH={0} overflow="hidden">
-        <Flex flexShrink={0} align="flex-start" justify="space-between" gap={3} wrap="wrap">
-          <Box flex="1 1 300px" minW={0}>
-            <PageHeader
-              title="評估中心"
-              subtitle={
-                selectedCampaign
-                  ? `${selectedCampaign.name || selectedCampaign.id} · ${selectedCampaign.status}`
-                  : '題庫管理與模型參數設定'
-              }
-              variant="dashboard"
-            />
-          </Box>
-          <Flex flex="1 1 540px" minW={0} mt={{ base: 0, xl: 3 }} mb={4} gap={3} wrap="wrap" align="center">
+        <Flex flexShrink={0} align="center" justify="space-between" gap={3} wrap="wrap" mb={4}>
+          <Heading size="lg" flexShrink={0}>評估中心</Heading>
+          <Flex flex="0 1 780px" minW={0} gap={3} wrap="wrap" align="center">
             <Select
               size="sm"
               flex="1 1 220px"
@@ -745,13 +738,13 @@ export default function EvaluationCenter() {
           {loadingDashboard ? (
             <HStack py={3} color="text.secondary">
               <Spinner size="sm" />
-              <Text>Loading evaluation analytics...</Text>
+              <Text>正在載入評估摘要…</Text>
             </HStack>
           ) : null}
           {!loadingDashboard && loadingTab ? (
             <HStack py={2} color="text.secondary">
               <Spinner size="sm" />
-              <Text>Loading selected analytics...</Text>
+              <Text>正在載入所選分析…</Text>
             </HStack>
           ) : null}
           {dashboardError ? (
@@ -769,29 +762,35 @@ export default function EvaluationCenter() {
           ) : null}
           {analysisUpdating ? <Text fontSize="sm">分析更新中，目前顯示上次計算結果。</Text> : null}
           {[2, 3, 5, 6].includes(activeTabIndex) && dashboardData.runs?.next_offset != null ? (
-            <Button size="sm" my={2} isLoading={loadingMore} onClick={() => void loadMoreRuns()}>載入更多 Runs</Button>
+            <Button size="sm" my={2} isLoading={loadingMore} onClick={() => void loadMoreRuns()}>載入更多作答紀錄</Button>
           ) : null}
           {(activeTabIndex === 1 && dashboardData.questionComparison?.next_offset != null)
             || (activeTabIndex === 4 && dashboardData.agentBehavior?.next_offset != null) ? (
               <Button size="sm" my={2} isLoading={loadingMore} onClick={() => void loadMoreAnalysis()}>載入更多分析</Button>
             ) : null}
-          <Suspense fallback={<Text py={4}>Loading evaluation view...</Text>}>
+          <Suspense fallback={<Text py={4}>正在載入評估畫面…</Text>}>
             <Tabs
               variant="enclosed"
               isLazy
-              index={activeTabIndex}
-              onChange={setActiveTabIndex}
+              index={Math.min(activeTabIndex, 3)}
+              onChange={(index) => { if (index < 3) setActiveTabIndex(index); }}
             >
-              <TabList overflowX="auto" overflowY="hidden" pb={1}>
-                {dashboardTabs.map((tab) => (
-                  <Tab key={tab.label} whiteSpace="nowrap">
-                    {tab.label}
-                  </Tab>
-                ))}
-              </TabList>
+              <Flex align="center" gap={3} wrap="wrap">
+                <TabList overflowX="auto" overflowY="hidden" pb={1} flex="1" minW={0}>
+                  {visibleTabs.map((tab) => (
+                    <Tab key={tab.label} whiteSpace="nowrap">{tab.label}</Tab>
+                  ))}
+                </TabList>
+                <Select aria-label="進階分析" size="sm" width="auto" minW="160px"
+                  value={activeTabIndex >= 3 ? String(activeTabIndex) : ''}
+                  onChange={(event) => { if (event.target.value) setActiveTabIndex(Number(event.target.value)); }}>
+                  <option value="" disabled>進階分析…</option>
+                  {dashboardTabs.slice(3).map((tab, index) => <option key={tab.label} value={index + 3}>{tab.label}</option>)}
+                </Select>
+              </Flex>
 
               <TabPanels>
-                {dashboardTabs.map((tab) => (
+                {visibleTabs.map((tab) => (
                   <TabPanel key={tab.label} px={0} pt={4}>
                     {tab.component}
                   </TabPanel>

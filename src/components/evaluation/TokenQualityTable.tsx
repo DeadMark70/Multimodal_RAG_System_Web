@@ -11,10 +11,10 @@ export default function TokenQualityTable({ modes, points }: { modes?: ModeResea
   const comparable = source.filter((mode) => mode.comparable && hasQuality(mode));
   const excluded = source.filter((mode) => !mode.comparable || !hasQuality(mode));
 
-  if (!comparable.length && !excluded.length) return <Text color="text.secondary">No token-quality rows are available for this campaign yet.</Text>;
+  if (!comparable.length && !excluded.length) return <Text color="text.secondary">尚無 Token 與品質比較資料。</Text>;
 
   return <VStack align="stretch" spacing={2}>
-    {comparable.length ? <Box overflowX="auto"><Table size="sm"><Thead><Tr><Th>Mode</Th><Th>Quality Mix</Th><Th isNumeric>Tokens</Th></Tr></Thead><Tbody>{comparable.map((point) => <Tr key={point.mode} data-testid={`token-quality-${point.mode}`}><Td fontWeight="medium">{point.mode}</Td><Td>{`${quality(point.quality.answer_correctness?.value)} / ${quality(point.quality.faithfulness?.value)}`}</Td><Td isNumeric>{point.tokens.total_tokens == null ? 'N/A' : point.tokens.total_tokens.toLocaleString()}</Td></Tr>)}</Tbody></Table></Box> : null}
+    {comparable.length ? <Box overflowX="auto"><Table size="sm"><Thead><Tr><Th>模式</Th><Th>正確度／忠實度</Th><Th isNumeric>Tokens</Th></Tr></Thead><Tbody>{comparable.map((point) => <Tr key={point.mode} data-testid={`token-quality-${point.mode}`}><Td fontWeight="medium">{point.mode}</Td><Td>{`${quality(point.quality.answer_correctness?.value)} / ${quality(point.quality.faithfulness?.value)}`}</Td><Td isNumeric>{point.tokens.total_tokens == null ? 'N/A' : point.tokens.total_tokens.toLocaleString()}</Td></Tr>)}</Tbody></Table></Box> : null}
     {excluded.map((point) => {
       const reasons = new Set(point.not_comparable_reasons.filter((reason) => !/pricing/i.test(reason)));
       if (!point.comparable) reasons.add('not comparable');

@@ -305,7 +305,7 @@ describe('Evaluation Center real data flow', () => {
       .mockResolvedValueOnce({ ...base, rows: [{ question_id: 'Q-first-page', by_mode: [] }], next_offset: 50 })
       .mockResolvedValueOnce({ ...base, rows: [{ question_id: 'Q-next-page', by_mode: [] }], next_offset: null });
     render(<ChakraProvider theme={theme}><EvaluationCenter /></ChakraProvider>);
-    fireEvent.click(await screen.findByRole('tab', { name: 'Question Analysis' }));
+    fireEvent.click(await screen.findByRole('tab', { name: '題目分析' }));
     expect((await screen.findAllByText('Q-first-page')).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: '載入更多分析' }));
     expect((await screen.findAllByText('Q-next-page')).length).toBeGreaterThan(0);
@@ -369,7 +369,7 @@ describe('Evaluation Center real data flow', () => {
     });
     renderPage();
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Run Trace' }));
+    fireEvent.click(await screen.findByRole('tab', { name: '執行追蹤' }));
     const selector = await screen.findByRole('combobox', { name: 'Run selector' });
     expect(screen.getByRole('option', { name: /Q-integrated · Agentic v8 · repeat 1/ })).toHaveValue('run-v8');
     expect(screen.getByRole('option', { name: /Q-integrated · Agentic v9 · repeat 1/ })).toHaveValue('run-v9');
@@ -383,22 +383,23 @@ describe('Evaluation Center real data flow', () => {
   it('keeps unavailable question metrics and measured zero retrieval scores distinct', async () => {
     renderPage();
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Question Analysis' }));
+    fireEvent.click(await screen.findByRole('tab', { name: '題目分析' }));
     expect((await screen.findAllByText('Q-integrated')).length).toBeGreaterThan(0);
-    expect(screen.getByText('+0.200')).toBeInTheDocument();
-    expect(screen.getByText('agentic')).toBeInTheDocument();
+    expect(screen.getByText('+20.0 個百分點')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '題目 Q-integrated 詳細資料' }));
+    expect(screen.getByText('正確度優先排名：Agentic RAG')).toBeInTheDocument();
     expect(screen.queryByText('advanced')).not.toBeInTheDocument();
     const questionRows = screen.getAllByRole('row').filter((row) => row.textContent?.includes('Q-integrated'));
     const questionRow = questionRows.at(-1);
     expect(questionRow).toBeTruthy();
     expect(questionRow).toHaveTextContent('neuro');
-    expect(questionRow).toHaveTextContent('hard');
-    expect(questionRow).toHaveTextContent('+0.200');
+    expect(screen.getByText('難度：hard')).toBeInTheDocument();
+    expect(questionRow).toHaveTextContent('+20.0 個百分點');
     expect(questionRow).toHaveTextContent('N/A');
-    expect(questionRow).toHaveTextContent('incomplete_accounting');
+    expect(questionRow).toHaveTextContent('用量不完整');
     expect(questionRow).not.toHaveTextContent('+0.000');
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Retrieval Evidence' }));
+    fireEvent.change(screen.getByRole('combobox', { name: '進階分析' }), { target: { value: '3' } });
     expect(await screen.findByText('0.00')).toBeInTheDocument();
     const missingChunkRow = screen.getAllByRole('row').find((row) => row.textContent?.includes('doc-a'));
     expect(missingChunkRow).toBeTruthy();
@@ -416,13 +417,13 @@ describe('Evaluation Center real data flow', () => {
   it('updates run-specific panels and keeps missing agent/router metrics unavailable', async () => {
     renderPage();
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Run Trace' }));
+    fireEvent.click(await screen.findByRole('tab', { name: '執行追蹤' }));
     const runSelector = await screen.findByRole('combobox', { name: 'Run selector' });
     await waitFor(() => expect(runSelector).toHaveValue('run-a'));
     expect(screen.getByText('Answer from run A')).toBeInTheDocument();
     expect(screen.getByText('Agent trace A')).toBeInTheDocument();
 
-    await waitFor(() => expect(screen.queryByText('Loading selected analytics...')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('正在載入所選分析…')).not.toBeInTheDocument());
 
     let resolveLateB!: (value: ReturnType<typeof detailFor>) => void;
     apiMocks.getRunObservability.mockImplementation((_campaignId: string, runId: string) => (
@@ -439,11 +440,11 @@ describe('Evaluation Center real data flow', () => {
     await waitFor(() => expect(screen.queryByText('Answer from run B')).not.toBeInTheDocument());
     expect(screen.getByText('Agent trace A')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Retrieval Evidence' }));
+    fireEvent.change(screen.getByRole('combobox', { name: '進階分析' }), { target: { value: '3' } });
     expect(await screen.findByText('doc-a')).toBeInTheDocument();
     expect(screen.getByText('doc-false')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Agent Behavior' }));
+    fireEvent.change(screen.getByRole('combobox', { name: '進階分析' }), { target: { value: '4' } });
     expect(await screen.findByText('run-a')).toBeInTheDocument();
     expect(screen.getByText('run-b')).toBeInTheDocument();
     const behaviorRows = screen.getAllByRole('row');
@@ -454,7 +455,7 @@ describe('Evaluation Center real data flow', () => {
     expect(naiveRow).toHaveTextContent('not_applicable');
     expect(naiveRow).toHaveTextContent('not_available');
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Router Lab' }));
+    fireEvent.change(screen.getByRole('combobox', { name: '進階分析' }), { target: { value: '6' } });
     expect(await screen.findByText('Retrospective Router Analysis')).toBeInTheDocument();
   });
 
@@ -466,7 +467,7 @@ describe('Evaluation Center real data flow', () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Router Lab' }));
+    fireEvent.change(screen.getByRole('combobox', { name: '進階分析' }), { target: { value: '6' } });
 
     await waitFor(() => expect(apiMocks.getRouterAnalysis).toHaveBeenCalledWith(campaign.id));
     expect(apiMocks.getCampaignRuns).toHaveBeenCalledWith(campaign.id);
@@ -488,7 +489,7 @@ describe('Evaluation Center real data flow', () => {
     apiMocks.getRunObservability.mockRejectedValue(new Error('selected run unavailable'));
 
     renderPage();
-    fireEvent.click(await screen.findByRole('tab', { name: 'Router Lab' }));
+    fireEvent.change(screen.getByRole('combobox', { name: '進階分析' }), { target: { value: '6' } });
 
     expect(await screen.findByText('Retrospective row survives selected-run failure.')).toBeInTheDocument();
     expect(apiMocks.getRunObservability).toHaveBeenCalledWith(campaign.id, 'run-a');
@@ -501,7 +502,7 @@ describe('Evaluation Center real data flow', () => {
     );
 
     renderPage();
-    fireEvent.click(await screen.findByRole('tab', { name: 'Router Lab' }));
+    fireEvent.change(screen.getByRole('combobox', { name: '進階分析' }), { target: { value: '6' } });
 
     expect(await screen.findByText('Route: graph_relational')).toBeInTheDocument();
     expect(apiMocks.getRouterAnalysis).toHaveBeenCalledWith(campaign.id);
@@ -539,7 +540,7 @@ describe('Evaluation Center real data flow', () => {
     });
 
     renderPage();
-    fireEvent.click(await screen.findByRole('tab', { name: 'Router Lab' }));
+    fireEvent.change(screen.getByRole('combobox', { name: '進階分析' }), { target: { value: '6' } });
     expect(await screen.findByText('Route: multi_hop')).toBeInTheDocument();
 
     jobPanelProps.at(-1)?.onJobTerminal?.({ job_id: 'router-refresh', campaign_id: campaign.id } as never);
@@ -549,7 +550,7 @@ describe('Evaluation Center real data flow', () => {
       target: { value: nextCampaign.id },
     });
 
-    expect(screen.getByRole('tab', { name: 'Router Lab' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: '路由分析' })).toHaveAttribute('aria-selected', 'true');
     await waitFor(() => expect(screen.queryByText('Route: multi_hop')).not.toBeInTheDocument());
     await waitFor(() => expect(apiMocks.getRouterAnalysis).toHaveBeenCalledWith(nextCampaign.id));
     expect(apiMocks.getCampaignRuns).toHaveBeenCalledWith(nextCampaign.id);
@@ -559,23 +560,23 @@ describe('Evaluation Center real data flow', () => {
     resolveLateOld(oldDetail);
     await waitFor(() => expect(screen.queryByText('Route: multi_hop')).not.toBeInTheDocument());
     expect(screen.getByText('Route: graph_relational')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Router Lab' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: '路由分析' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('refreshes the selected tab after a terminal job without returning to Campaign Overview', async () => {
     renderPage();
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Question Analysis' }));
+    fireEvent.click(await screen.findByRole('tab', { name: '題目分析' }));
     await waitFor(() => expect(apiMocks.getResearchQuestionComparison).toHaveBeenCalledTimes(1));
-    expect(screen.getByRole('tab', { name: 'Question Analysis' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: '題目分析' })).toHaveAttribute('aria-selected', 'true');
     await waitFor(() => expect(jobPanelProps.at(-1)?.campaignId).toBe(campaign.id));
 
     jobPanelProps.at(-1)?.onJobTerminal?.({ job_id: 'job-terminal' } as never);
 
     await waitFor(() => expect(apiMocks.listCampaigns).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(apiMocks.getResearchQuestionComparison).toHaveBeenCalledTimes(2));
-    expect(screen.getByRole('tab', { name: 'Question Analysis' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tab', { name: 'Campaign Overview' })).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('tab', { name: '題目分析' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: '總覽' })).toHaveAttribute('aria-selected', 'false');
   });
 
   it('refreshes campaign inventory and Overview data after a terminal job', async () => {
@@ -595,7 +596,7 @@ describe('Evaluation Center real data flow', () => {
 
     renderPage();
 
-    expect(await screen.findByText('2 / 3')).toBeInTheDocument();
+    expect(await screen.findByText(/作答完成：2 \/ 3/)).toBeInTheDocument();
     await waitFor(() => expect(jobPanelProps.at(-1)?.campaignId).toBe(campaign.id));
 
     jobPanelProps.at(-1)?.onJobTerminal?.({
@@ -606,11 +607,11 @@ describe('Evaluation Center real data flow', () => {
     await waitFor(() => expect(apiMocks.listCampaigns).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(apiMocks.getCampaignResearchSummary).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(apiMocks.getCampaignReleaseMetrics).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText('3 / 3')).toBeInTheDocument();
+    expect(await screen.findByText(/作答完成：3 \/ 3/)).toBeInTheDocument();
 
-    await waitFor(() => expect(screen.queryByText('Loading evaluation analytics...')).not.toBeInTheDocument());
-    expect(screen.queryByText('2 / 3')).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Campaign Overview' })).toHaveAttribute('aria-selected', 'true');
+    await waitFor(() => expect(screen.queryByText('正在載入評估摘要…')).not.toBeInTheDocument());
+    expect(screen.queryByText(/作答完成：2 \/ 3/)).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '總覽' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('keeps newer terminal Overview data when the initial same-campaign request resolves late', async () => {
@@ -638,9 +639,9 @@ describe('Evaluation Center real data flow', () => {
     } as never);
 
     await waitFor(() => expect(apiMocks.getCampaignResearchSummary).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText('3 / 3')).toBeInTheDocument();
+    expect(await screen.findByText(/作答完成：3 \/ 3/)).toBeInTheDocument();
 
-    await waitFor(() => expect(screen.queryByText('Loading evaluation analytics...')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('正在載入評估摘要…')).not.toBeInTheDocument());
 
     await act(async () => {
       resolveInitialSummary({
@@ -652,9 +653,9 @@ describe('Evaluation Center real data flow', () => {
       await initialSummary;
     });
 
-    expect(screen.getByText('3 / 3')).toBeInTheDocument();
-    expect(screen.queryByText('2 / 3')).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Campaign Overview' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText(/作答完成：3 \/ 3/)).toBeInTheDocument();
+    expect(screen.queryByText(/作答完成：2 \/ 3/)).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '總覽' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('lets the terminal refresh own Overview loading when benchmark applicability changes', async () => {
@@ -668,7 +669,7 @@ describe('Evaluation Center real data flow', () => {
 
     renderPage();
 
-    expect(await screen.findByText('2 / 2')).toBeInTheDocument();
+    expect(await screen.findByText(/作答完成：2 \/ 2/)).toBeInTheDocument();
     expect(apiMocks.getCampaignResearchSummary).toHaveBeenCalledTimes(1);
     expect(apiMocks.getCampaignReleaseMetrics).not.toHaveBeenCalled();
 
@@ -680,17 +681,17 @@ describe('Evaluation Center real data flow', () => {
     await waitFor(() => expect(apiMocks.listCampaigns).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(apiMocks.getCampaignReleaseMetrics).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(apiMocks.getCampaignResearchSummary).toHaveBeenCalledTimes(2));
-    expect(screen.getByRole('tab', { name: 'Campaign Overview' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: '總覽' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('propagates recorded-empty and not-instrumented claim extraction states by selected run', async () => {
     renderPage();
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Run Trace' }));
+    fireEvent.click(await screen.findByRole('tab', { name: '執行追蹤' }));
     await screen.findByRole('combobox', { name: 'Run selector' });
     expect(await screen.findByText('Claim extraction ran and recorded zero claims.')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Claim Evidence' }));
+    fireEvent.change(screen.getByRole('combobox', { name: '進階分析' }), { target: { value: '5' } });
     expect(await screen.findByText('Claim extraction ran and recorded zero claims.')).toBeInTheDocument();
 
     const claimRunSelector = await screen.findByRole('combobox', { name: 'Run selector' });
@@ -741,12 +742,12 @@ describe('Evaluation Center real data flow', () => {
     ));
 
     renderPage();
-    fireEvent.click(await screen.findByRole('tab', { name: 'Run Trace' }));
+    fireEvent.click(await screen.findByRole('tab', { name: '執行追蹤' }));
     await waitFor(() => expect(apiMocks.getRunObservability).toHaveBeenLastCalledWith(campaign.id, 'run-old'));
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Campaign selector' }), { target: { value: nextCampaign.id } });
     await waitFor(() => expect(apiMocks.getCampaignResearchSummary).toHaveBeenLastCalledWith(nextCampaign.id));
-    fireEvent.click(screen.getByRole('tab', { name: 'Run Trace' }));
+    fireEvent.click(screen.getByRole('tab', { name: '執行追蹤' }));
     await waitFor(() => expect(apiMocks.getRunObservability).toHaveBeenLastCalledWith(nextCampaign.id, 'run-new'));
     expect((await screen.findAllByText('Answer from new run')).length).toBeGreaterThan(0);
     expect(screen.getByTestId('agentic-v9-trace')).toHaveTextContent('v9 schema 1');

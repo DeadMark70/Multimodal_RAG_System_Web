@@ -3,7 +3,6 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import theme from '../../theme';
 import QuestionAnalysisTab from './QuestionAnalysisTab';
-import QuestionDeltaHeatmap from './QuestionDeltaHeatmap';
 
 const rows = [
   {
@@ -45,57 +44,43 @@ function renderWithTheme(node: React.ReactNode) {
 }
 
 describe('QuestionAnalysisTab', () => {
-  it('renders dense question analysis rows with required columns and risk badges', () => {
+  it('shows one comparison table, percentage-point deltas and expandable detail', () => {
     renderWithTheme(<QuestionAnalysisTab rows={rows} />);
-
-    expect(screen.getAllByText('Q-17').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('table-comparison').length).toBeGreaterThan(0);
-    expect(screen.getByText('hard')).toBeInTheDocument();
-    expect(screen.getByText('table, text')).toBeInTheDocument();
-    expect(screen.getAllByText('+0.220').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('-0.110').length).toBeGreaterThan(0);
-    expect(screen.getByText('9,200')).toBeInTheDocument();
-    expect(screen.getByText('6,100 ms')).toBeInTheDocument();
-    expect(screen.getByText('0.000024')).toBeInTheDocument();
-    expect(screen.getAllByText('agentic').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('naive').length).toBeGreaterThan(0);
-    expect(screen.getByText('58.0%')).toBeInTheDocument();
-    expect(screen.getAllByText('31.0%').length).toBeGreaterThan(0);
-    expect(screen.getByText('High cost')).toBeInTheDocument();
+    expect(screen.getAllByRole('table')).toHaveLength(1);
+    expect(screen.getAllByText('Q-17')).toHaveLength(1);
+    expect(screen.getByText('+22.0 個百分點')).toBeInTheDocument();
+    expect(screen.getByText('-11.0 個百分點')).toBeInTheDocument();
+    expect(screen.getByText('+6.10 秒')).toBeInTheDocument();
+    expect(screen.queryByText(/ECR 正確度效率/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '題目 Q-17 詳細資料' }));
+    expect(screen.getByText('Token 差異：9,200')).toBeInTheDocument();
+    expect(screen.getByText('正確度優先排名：Agentic RAG')).toBeInTheDocument();
+    expect(screen.getByText('證據涵蓋率：58.0%')).toBeInTheDocument();
     expect(screen.getByText('Faithfulness drop')).toBeInTheDocument();
-    expect(screen.getByText('Visual required but not triggered')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '題目 Q-17 詳細資料' }));
+    expect(screen.queryByText(/ECR 正確度效率/)).not.toBeInTheDocument();
   });
 
   it('filters rows by category and status', () => {
     renderWithTheme(<QuestionAnalysisTab rows={rows} />);
-
-    fireEvent.change(screen.getByLabelText('Category Filter'), {
-      target: { value: 'table-comparison' },
-    });
-    fireEvent.change(screen.getByLabelText('Status Filter'), {
-      target: { value: 'attention' },
-    });
-
-    expect(screen.getAllByText('Q-17').length).toBeGreaterThan(0);
-    expect(screen.queryAllByText('Q-02')).toHaveLength(0);
+    fireEvent.change(screen.getByLabelText('題目分類'), { target: { value: 'table-comparison' } });
+    fireEvent.change(screen.getByLabelText('資料狀態'), { target: { value: 'attention' } });
+    expect(screen.getByText('Q-17')).toBeInTheDocument();
+    expect(screen.queryByText('Q-02')).not.toBeInTheDocument();
   });
 
-  it('removes uninstrumented routing and ablation details from the question analysis section', () => {
-    renderWithTheme(<QuestionAnalysisTab rows={rows} />);
-
-    const section = screen.getByTestId('question-analysis-details');
-    expect(within(section).queryByRole('columnheader', { name: 'Router Selected Mode' })).not.toBeInTheDocument();
-    expect(within(section).getAllByTestId('capability-notice')).toHaveLength(1);
-  });
-});
-
-describe('QuestionDeltaHeatmap', () => {
-  it('renders question delta heatmap values', () => {
-    renderWithTheme(<QuestionDeltaHeatmap rows={rows} />);
-
-    expect(screen.getByText('Question Delta Heatmap')).toBeInTheDocument();
-    expect(screen.getByText('Delta Correctness')).toBeInTheDocument();
-    expect(screen.getByText('Delta Faithfulness')).toBeInTheDocument();
-    expect(screen.getByText('Unsupported Claim Ratio')).toBeInTheDocument();
+  it('naturally sorts IDs and puts missing values last when sorting quality', () => {
+    const unordered = [
+      { ...rows[0], questionId: 'Q10', deltaFaithfulness: null },
+      { ...rows[0], questionId: 'Q2', deltaFaithfulness: -0.2 },
+      { ...rows[1], questionId: 'Q1' },
+    ];
+    renderWithTheme(<QuestionAnalysisTab rows={unordered} />);
+    const ids = () => within(screen.getByRole('table')).getAllByRole('button').map((button) => button.textContent);
+    expect(ids()).toEqual(['Q1', 'Q2', 'Q10']);
+    fireEvent.change(screen.getByLabelText('排序'), { target: { value: 'faithfulness-asc' } });
+    expect(ids()).toEqual(['Q2', 'Q1', 'Q10']);
+    expect(screen.getByText('N/A')).toBeInTheDocument();
+    expect(unordered[0].questionId).toBe('Q10');
   });
 });

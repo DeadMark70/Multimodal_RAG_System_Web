@@ -325,14 +325,15 @@ describe('EvaluationCenter UI', () => {
 
     expect(screen.getByTestId('layout')).toBeInTheDocument();
     expect(screen.getByTestId('evaluation-scroll-region')).toBeInTheDocument();
-    expect(await screen.findByRole('tab', { name: 'Campaign Overview' })).toBeInTheDocument();
-    expect(await screen.findByRole('tab', { name: 'Question Analysis' })).toBeInTheDocument();
-    expect(await screen.findByRole('tab', { name: 'Run Trace' })).toBeInTheDocument();
-    expect(await screen.findByRole('tab', { name: 'Retrieval Evidence' })).toBeInTheDocument();
-    expect(await screen.findByRole('tab', { name: 'Agent Behavior' })).toBeInTheDocument();
-    expect(await screen.findByRole('tab', { name: 'Claim Evidence' })).toBeInTheDocument();
-    expect(await screen.findByRole('tab', { name: 'Router Lab' })).toBeInTheDocument();
-    expect(await screen.findByRole('tab', { name: 'Ablation' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: '總覽' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: '題目分析' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: '執行追蹤' })).toBeInTheDocument();
+    expect(screen.getAllByRole('tab')).toHaveLength(3);
+    expect(screen.getByRole('option', { name: '檢索證據' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Agent 行為' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '陳述證據' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '路由分析' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '消融分析' })).toBeInTheDocument();
     await waitFor(() => expect(getCampaignResearchSummary).toHaveBeenCalledWith('cmp-1'));
     expect(getCampaignReleaseMetrics).not.toHaveBeenCalled();
     expect(getModeComparison).not.toHaveBeenCalled();
@@ -359,7 +360,7 @@ describe('EvaluationCenter UI', () => {
       </ChakraProvider>
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Run Trace' }));
+    fireEvent.click(await screen.findByRole('tab', { name: '執行追蹤' }));
     const selector = await screen.findByRole('combobox', { name: 'Mock run selector' });
     await waitFor(() => expect(selector).toHaveValue('run-1'));
     expect(screen.getByTestId('mock-run-detail-preview')).toHaveTextContent('answer-run-1');
@@ -422,7 +423,15 @@ describe('EvaluationCenter UI', () => {
     expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
     expect(getCampaignErrors).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Ablation' }));
+    fireEvent.change(screen.getByRole('combobox', { name: '進階分析' }), { target: { value: '7' } });
     await waitFor(() => expect(getCampaignErrors).toHaveBeenCalledWith('cmp-1'));
+    expect(await screen.findByRole('tab', { name: '消融分析' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.click(screen.getByRole('tab', { name: '總覽' }));
+    expect(await screen.findByText('CampaignOverviewTab 2')).toBeInTheDocument();
+    expect(screen.getAllByRole('tab')).toHaveLength(3);
+    expect(screen.getByRole('combobox', { name: '進階分析' })).toHaveValue('');
+    fireEvent.change(screen.getByRole('combobox', { name: '進階分析' }), { target: { value: '7' } });
+    expect(await screen.findByText('AblationDashboardTab')).toBeInTheDocument();
+    expect(getCampaignErrors).toHaveBeenCalledTimes(1);
   });
 });

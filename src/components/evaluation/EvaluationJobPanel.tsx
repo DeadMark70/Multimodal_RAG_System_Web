@@ -566,7 +566,6 @@ export default function EvaluationJobPanel({
     ['缺少項目', countValue(selectedJob, 'missing', jobItems, itemsLoaded)],
     ['已取消', countValue(selectedJob, 'cancelled', jobItems, itemsLoaded)],
   ];
-  const knownAttempts = mergeAttempts(jobItems, attempts);
   const campaignSummary = summary?.campaign_id === campaignId ? summary : null;
   const qualityTotals = Object.values(campaignSummary?.quality ?? {})
     .filter((metric) => metric.status !== 'not_requested')
@@ -576,11 +575,14 @@ export default function EvaluationJobPanel({
       missing: total.missing + metric.missing_samples,
     }), { valid: 0, failed: 0, missing: 0 });
   const latestSafeError = newestAttempt(
-    knownAttempts.filter((attempt) => Boolean(attempt.safe_error_message)),
+    jobItems.filter((item) => ['failed', 'interrupted', 'running', 'retry_wait'].includes(item.status))
+      .flatMap((item) => item.latest_attempt?.safe_error_message ? [item.latest_attempt] : []),
   )?.safe_error_message;
+  const currentError = selectedJob.status === 'completed' || selectedJob.status === 'cancelled'
+    ? null : latestSafeError ?? (!itemsLoaded ? selectedJob.latest_safe_error_message : null);
 
   return (
-    <Box borderWidth="1px" borderRadius="lg" p={{ base: 4, md: 5 }} mb={4} bg="bg.panel">
+    <Box borderWidth="1px" borderRadius="lg" p={4} mb={4} bg="bg.panel">
       <HStack justify="space-between" align="flex-start" flexWrap="wrap" gap={3} mb={3}>
         <Box minW={0}>
           <Heading size="sm">執行狀態與重跑</Heading>
@@ -590,8 +592,7 @@ export default function EvaluationJobPanel({
         </Box>
         <Badge px={2} py={1} flexShrink={0} colorScheme={statusColor(selectedJob.status)}>{statusLabel(selectedJob.status)}</Badge>
       </HStack>
-      {campaignSummary ? <Box borderBottomWidth="1px" pb={3} mb={3}>
-        <Text fontWeight="medium" mb={1}>整批評估目前結果</Text>
+      {campaignSummary ? <Box mb={3}>
         <HStack gap={3} flexWrap="wrap" fontSize="sm">
           <Text>作答完成：{campaignSummary.completed_run_count} / {campaignSummary.total_run_count}</Text>
           <Text>有效評分：{qualityTotals.valid}</Text>
@@ -600,20 +601,23 @@ export default function EvaluationJobPanel({
         </HStack>
         {campaignSummary.analysis_status === 'updating' ? <Text fontSize="sm" color="text.secondary">摘要更新中，暫時顯示上次統計。</Text> : null}
       </Box> : null}
-      <Text fontWeight="medium" fontSize="sm" mb={2}>最近一次{selectedJob.job_type === 'rerun' ? '重跑' : '執行'}的工作項目</Text>
-      <HStack spacing={0} gap={2} flexWrap="wrap" mb={2}>
-        {counts.map(([label, value]) => (
-          <Text key={label} fontSize="sm" borderWidth="1px" borderRadius="md" px={3} py={1}>
-            {label}: {value ?? '—'}
-          </Text>
-        ))}
-      </HStack>
-      <Text fontSize="sm" color="text.secondary" mb={4}>
-        這組數字只計算本次執行或重跑的項目，不是整批評估的總數。每份答案的每個評分指標各算一項。
-      </Text>
-      {(latestSafeError ?? selectedJob.latest_safe_error_message) && (
+      <Box as="details" key={selectedJobKey} open={selectedJob.status !== 'completed'} mb={3}>
+        <Box as="summary" cursor="pointer" fontSize="sm" color="text.secondary">最近一次{selectedJob.job_type === 'rerun' ? '重跑' : '執行'}的工作項目</Box>
+        <HStack spacing={0} gap={2} flexWrap="wrap" mb={2}>
+          {counts.map(([label, value]) => (
+            <Text key={label} fontSize="sm" borderWidth="1px" borderRadius="md" px={3} py={1}>
+              {label}: {value ?? '—'}
+            </Text>
+          ))}
+        </HStack>
+        <Text fontSize="sm" color="text.secondary" mb={4}>
+          這組數字只計算本次執行或重跑的項目，不是整批評估的總數。每份答案的每個評分指標各算一項。
+        </Text>
+        {selectedJob.status === 'completed' && selectedJob.latest_safe_error_message ? <Text fontSize="sm" color="text.secondary">執行期間曾發生（目前已完成）：{selectedJob.latest_safe_error_message}</Text> : null}
+      </Box>
+      {currentError && (
         <Text color="orange.600" fontSize="sm" mb={3}>
-          {latestSafeError ?? selectedJob.latest_safe_error_message}
+          {currentError}
         </Text>
       )}
       {loadError ? <Text role="alert" color="red.500" fontSize="sm" mb={3}>無法載入執行狀態：{loadError}</Text> : null}

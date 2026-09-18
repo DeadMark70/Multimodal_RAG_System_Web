@@ -59,7 +59,7 @@ it('renders all five categories and evaluation overhead separately', () => {
   }
   expect(screen.getByText('170')).toBeInTheDocument();
   expect(screen.getByText('By phase: execution 150')).toBeInTheDocument();
-  expect(screen.getByText('Evaluation overhead (RAGAS)')).toBeInTheDocument();
+  expect(screen.getByText('評分用量與快取（RAGAS）')).toBeInTheDocument();
   expect(screen.getByText('By phase: ragas 35')).toBeInTheDocument();
 });
 

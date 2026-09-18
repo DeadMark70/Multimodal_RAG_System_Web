@@ -1,14 +1,13 @@
-import { Alert, AlertIcon, Badge, Divider, Grid, GridItem, Heading, Stack, Table, Tbody, Td, Text, Th, Thead, Tr } from '@chakra-ui/react';
-import type { CampaignResearchSummaryResponse, ReleaseMetric, ReleaseMetricsReport, ResearchMetricObservation } from '../../types/evaluation';
+import { Alert, AlertIcon, Badge, Box, Divider, Grid, Heading, Stack, Table, Tbody, Td, Text, Th, Thead, Tr } from '@chakra-ui/react';
+import type { CampaignResearchSummaryResponse, ReleaseMetric, ReleaseMetricsReport } from '../../types/evaluation';
 import LatencyWaterfall from './LatencyWaterfall';
 import MetricCard from './MetricCard';
 import ModeComparisonChart from './ModeComparisonChart';
 import ModeCostComparison from './ModeCostComparison';
 import TokenQualityTable from './TokenQualityTable';
-import TokenBreakdownChart from './TokenBreakdownChart';
+import TokenBreakdownChart, { ScoringCost } from './TokenBreakdownChart';
 import EvaluationPricingPanel from './EvaluationPricingPanel';
 
-const percent = (value: number | null) => value == null ? 'N/A' : `${(value * 100).toFixed(1)}%`;
 const number = (value: number | null) => value == null ? 'N/A' : value.toLocaleString();
 
 function releaseMetric(metric: ReleaseMetric | undefined, options?: { percent?: boolean; suffix?: string }) {
@@ -112,11 +111,6 @@ function ReleaseMetricsPanel({ report }: { report?: ReleaseMetricsReport }) {
   );
 }
 
-function QualityCard({ label, observation }: { label: string; observation?: ResearchMetricObservation }) {
-  if (!observation) return <MetricCard label={label} value="N/A" helper="No observation" />;
-  return <MetricCard label={label} value={percent(observation.value)} helper={`${observation.status}: ${observation.valid_samples} valid, ${observation.missing_samples} missing, ${observation.failed_samples} failed`} />;
-}
-
 export default function CampaignOverviewTab({
   data,
   releaseMetrics,
@@ -132,58 +126,37 @@ export default function CampaignOverviewTab({
   return (
     <Stack spacing={5}>
       {data.analysis_status === 'updating' ? <Alert status="info"><AlertIcon />統計更新中，目前顯示上一版摘要。</Alert> : null}
+      {data.token_accounting_status !== 'complete' ? <Alert status="warning"><AlertIcon />作答 Token 用量不完整；缺少資料的比較仍顯示 N/A。</Alert> : null}
+      <Box>
+        <Heading size="sm" mb={3}>模式比較</Heading>
+        <ModeComparisonChart rows={data.modes} />
+        <Text fontSize="xs" color="text.secondary" mt={2}>品質分數越高越好；時間與費用為每份完成答案的平均值。N/A 表示尚無完整資料。</Text>
+      </Box>
+      <Divider />
+      <ModeCostComparison rows={data.mode_costs ?? data.modes.map((row) => ({
+        mode: row.mode, completed_run_count: row.sample_count, execution_cost: row.execution_cost,
+      }))} />
+      <Box borderWidth="1px" borderRadius="md" p={4}>
+        <Heading size="sm" mb={2}>評分成本（RAGAS）</Heading>
+        <ScoringCost overhead={data.evaluation_overhead} />
+      </Box>
+      <Box as="details" borderWidth="1px" borderRadius="md" p={4}>
+        <Box as="summary" cursor="pointer" fontWeight="semibold">用量、快取與時間明細</Box>
+        <Stack spacing={5} mt={4}>
+          <Stack direction={{ base: 'column', md: 'row' }} spacing={2} aria-label="Research accounting statuses"><Badge>評分：{data.quality_status}</Badge><Badge>Token 用量：{data.token_accounting_status}</Badge><Badge>階段分類：{data.phase_attribution_status}</Badge></Stack>
+          {data.phase_attribution_status === 'partial' ? <Text fontSize="sm" color="text.secondary">部分 Token 尚未分類到作答階段；總用量完整的模式仍可比較。</Text> : null}
+          <Text fontSize="sm">作答完成：{data.completed_run_count} / {data.total_run_count} · 作答失敗：{data.failed_run_count} · 總 Token：{number(data.tokens.total_tokens)}</Text>
+          <Box><Heading size="sm" mb={3}>Token 與品質</Heading><TokenQualityTable modes={data.modes} /></Box>
+          <Box><Heading size="sm" mb={3}>作答時間分布</Heading><LatencyWaterfall rows={data.modes} /></Box>
+          <Box><Heading size="sm" mb={3}>Token 與 Gemini 快取明細</Heading><TokenBreakdownChart rows={data.modes} evaluationOverhead={data.evaluation_overhead} showScoringCost={false} /></Box>
+          <EvaluationPricingPanel />
+        </Stack>
+      </Box>
+      <Box as="details" borderWidth="1px" borderRadius="md" p={4}>
+        <Box as="summary" cursor="pointer" fontWeight="semibold">基準測試指標</Box>
+        <Box mt={4}>{releaseMetricsAreNotApplicable ? <Text color="text.secondary">Release Metrics 不適用：尚未設定 benchmark。</Text> : <ReleaseMetricsPanel report={releaseMetrics} />}</Box>
+      </Box>
       {data.analysis_updated_at ? <Text fontSize="xs" color="text.secondary">摘要更新時間：{new Date(data.analysis_updated_at).toLocaleString()}</Text> : null}
-      <Stack direction={{ base: 'column', md: 'row' }} spacing={2} aria-label="Research accounting statuses"><Badge>Quality: {data.quality_status}</Badge><Badge>Tokens: {data.token_accounting_status}</Badge><Badge>Phase attribution: {data.phase_attribution_status}</Badge></Stack>
-      {data.token_accounting_status === 'incomplete_legacy' ? <Alert status="warning"><AlertIcon />Legacy accounting: token totals may be incomplete.</Alert> : null}
-      {data.token_accounting_status === 'partial' ? <Alert status="warning"><AlertIcon />Token accounting is partial; token-derived comparisons are marked N/A when incomplete.</Alert> : null}
-      {data.phase_attribution_status === 'partial' ? <Alert status="warning"><AlertIcon />Phase attribution is partial; phase breakdowns may be incomplete.</Alert> : null}
-      {releaseMetricsAreNotApplicable ? <Alert status="info"><AlertIcon />Release Metrics 不適用：尚未設定 benchmark。</Alert> : <ReleaseMetricsPanel report={releaseMetrics} />}
-      <Grid templateColumns={{ base: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }} gap={3}>
-        <MetricCard label="Completed Runs" value={`${data.completed_run_count} / ${data.total_run_count}`} />
-        <MetricCard label="Failed Runs" value={data.failed_run_count.toLocaleString()} />
-        <QualityCard label="Average Correctness" observation={data.quality.answer_correctness} />
-        <QualityCard label="Average Faithfulness" observation={data.quality.faithfulness} />
-        <QualityCard label="Average Relevancy" observation={data.quality.answer_relevancy} />
-        <MetricCard label="Total Tokens" value={number(data.tokens.total_tokens)} helper={`Accounting: ${data.tokens.accounting_status}`} />
-        <MetricCard label="Mean Latency" value={data.latency.mean_ms == null ? 'N/A' : `${data.latency.mean_ms.toLocaleString()} ms`} />
-        <MetricCard label="Latency Samples" value={data.latency.sample_count.toLocaleString()} helper={data.latency.low_sample_size ? 'Low sample size' : data.latency.method} />
-      </Grid>
-      <Stack spacing={4}>
-        <Grid templateColumns={{ base: '1fr', xl: '1.2fr 1fr' }} gap={5}>
-          <GridItem>
-            <Heading size="sm" mb={3}>
-              Mode Comparison
-            </Heading>
-            <ModeComparisonChart rows={data.modes} />
-          </GridItem>
-          <GridItem>
-            <Heading size="sm" mb={3}>
-              Tokens vs Quality
-            </Heading>
-            <TokenQualityTable modes={data.modes} />
-          </GridItem>
-        </Grid>
-        <Divider />
-        <ModeCostComparison rows={data.mode_costs ?? data.modes.map((row) => ({
-          mode: row.mode, completed_run_count: row.sample_count, execution_cost: row.execution_cost,
-        }))} />
-        <Divider />
-        <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gap={5}>
-          <GridItem>
-            <Heading size="sm" mb={3}>
-              Latency Waterfall
-            </Heading>
-            <LatencyWaterfall rows={data.modes} />
-          </GridItem>
-          <GridItem>
-            <Heading size="sm" mb={3}>
-              Token Breakdown
-            </Heading>
-            <TokenBreakdownChart rows={data.modes} evaluationOverhead={data.evaluation_overhead} />
-            <EvaluationPricingPanel />
-          </GridItem>
-        </Grid>
-      </Stack>
     </Stack>
   );
 }

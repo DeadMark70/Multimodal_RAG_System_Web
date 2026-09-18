@@ -26,7 +26,7 @@ function CacheDetail({ breakdown }: { breakdown: ResearchTokenBreakdown }) {
   </VStack>;
 }
 
-function ScoringCost({ overhead }: { overhead: EvaluationOverheadSummary }) {
+export function ScoringCost({ overhead }: { overhead: EvaluationOverheadSummary }) {
   const reasons: Record<string, string> = {
     unavailable_usage: '缺少或不完整的用量', unknown_model: '無此模型的價格',
     missing_price: '缺少對應費率', missing_estimate: '缺少費用紀錄',
@@ -43,11 +43,11 @@ function ScoringCost({ overhead }: { overhead: EvaluationOverheadSummary }) {
   </VStack>;
 }
 
-export default function TokenBreakdownChart({ rows, evaluationOverhead }: { rows?: TokenBreakdownRow[]; evaluationOverhead?: EvaluationOverheadSummary }) {
+export default function TokenBreakdownChart({ rows, evaluationOverhead, showScoringCost = true }: { rows?: TokenBreakdownRow[]; evaluationOverhead?: EvaluationOverheadSummary; showScoringCost?: boolean }) {
   if (!rows?.length && !evaluationOverhead) return <Text color="text.secondary">No token breakdown is available yet.</Text>;
   return <VStack align="stretch" spacing={3}>
     {rows?.length ? <Box overflowX="auto"><Table size="sm"><Thead><Tr><Th>Mode</Th><Th isNumeric>Input</Th><Th isNumeric>Output text</Th><Th isNumeric>Reasoning</Th><Th isNumeric>Other</Th><Th isNumeric>Total</Th><Th>Status</Th></Tr></Thead><Tbody>{rows.map((row) => <Tr key={row.mode}><Td fontWeight="medium">{row.mode}</Td><Td isNumeric>{tokens(row.tokens.input_tokens)}</Td><Td isNumeric>{tokens(row.tokens.output_text_tokens)}</Td><Td isNumeric>{tokens(row.tokens.reasoning_tokens)}</Td><Td isNumeric>{tokens(row.tokens.other_tokens)}</Td><Td isNumeric>{tokens(row.tokens.total_tokens)}</Td><Td><PhaseDetail breakdown={row.tokens} /></Td></Tr>)}</Tbody></Table></Box> : null}
     {rows?.map((row) => <Box key={`cache-${row.mode}`}><Text fontWeight="medium">{row.mode} 作答快取</Text><CacheDetail breakdown={row.tokens} /></Box>)}
-    {evaluationOverhead ? <Box><Text fontWeight="medium">Evaluation overhead (RAGAS)</Text><ScoringCost overhead={evaluationOverhead} /><PhaseDetail breakdown={evaluationOverhead.tokens} /><CacheDetail breakdown={evaluationOverhead.tokens} /></Box> : null}
+    {evaluationOverhead ? <Box><Text fontWeight="medium">評分用量與快取（RAGAS）</Text>{showScoringCost ? <ScoringCost overhead={evaluationOverhead} /> : null}<PhaseDetail breakdown={evaluationOverhead.tokens} /><CacheDetail breakdown={evaluationOverhead.tokens} /></Box> : null}
   </VStack>;
 }
