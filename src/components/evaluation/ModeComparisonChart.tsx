@@ -5,7 +5,7 @@ export type ModeComparisonRow = ModeResearchSummary;
 
 function MetricCell({ observation }: { observation: ResearchMetricObservation | undefined }) {
   const metadata = observation ? `${observation.valid_samples} 有效 · ${observation.missing_samples} 缺少 · ${observation.failed_samples} 失敗` : '尚無評分';
-  return <VStack align="start" spacing={0}><Text>{observation?.value == null ? 'N/A' : `${(observation.value * 100).toFixed(1)}%`}</Text>{observation?.status !== 'complete' ? <Text fontSize="xs" color="text.secondary">{metadata}</Text> : null}</VStack>;
+  return <VStack align="start" spacing={0}><Text>{observation?.value == null ? 'N/A' : `${(observation.value * 100).toFixed(1)}%`}</Text><Text fontSize="xs" color="text.secondary">{observation?.status === 'complete' ? `${observation.valid_samples} 筆有效評分` : metadata}</Text></VStack>;
 }
 
 export default function ModeComparisonChart({ rows }: { rows?: ModeComparisonRow[] }) {

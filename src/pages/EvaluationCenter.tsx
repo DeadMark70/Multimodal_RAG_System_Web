@@ -610,12 +610,13 @@ export default function EvaluationCenter() {
       component: (
         <CampaignOverviewTab
           data={dashboardData.researchSummary}
+          config={selectedCampaign?.config}
           releaseMetrics={dashboardData.releaseMetrics}
           releaseMetricsNotApplicable={!selectedCampaign?.config.benchmark_id}
         />
       ),
     },
-    { label: '題目分析', component: <QuestionAnalysisTab rows={mapQuestionRows(dashboardData)} /> },
+    { label: '題目分析', component: <QuestionAnalysisTab key={selectedCampaignId} rows={mapQuestionRows(dashboardData)} /> },
     {
       label: '執行追蹤',
       component: (
@@ -761,8 +762,13 @@ export default function EvaluationCenter() {
             />
           ) : null}
           {analysisUpdating ? <Text fontSize="sm">分析更新中，目前顯示上次計算結果。</Text> : null}
-          {[2, 3, 5, 6].includes(activeTabIndex) && dashboardData.runs?.next_offset != null ? (
-            <Button size="sm" my={2} isLoading={loadingMore} onClick={() => void loadMoreRuns()}>載入更多作答紀錄</Button>
+          {[2, 3, 5, 6].includes(activeTabIndex) && dashboardData.runs ? (
+            <HStack my={2} flexWrap="wrap">
+              <Text fontSize="sm" color="text.secondary">
+                已載入 {dashboardData.runs.runs.length} 筆作答紀錄{dashboardData.runs.next_offset != null ? '，還有紀錄未載入。找不到題目或模式時，請載入更多。' : '（已全部載入）'}
+              </Text>
+              {dashboardData.runs.next_offset != null ? <Button size="sm" isLoading={loadingMore} onClick={() => void loadMoreRuns()}>載入更多作答紀錄</Button> : null}
+            </HStack>
           ) : null}
           {(activeTabIndex === 1 && dashboardData.questionComparison?.next_offset != null)
             || (activeTabIndex === 4 && dashboardData.agentBehavior?.next_offset != null) ? (

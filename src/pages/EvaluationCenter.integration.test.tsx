@@ -236,7 +236,10 @@ beforeEach(() => {
       category: 'neuro',
       difficulty: 'hard',
       required_modalities: ['text'],
-      by_mode: [],
+      by_mode: [
+        { mode: 'naive', sample_count: 1, answer_correctness: 0.5, faithfulness: 0.6, answer_relevancy: 0.7, mean_latency_ms: null, mean_tokens: null, quality_status: 'complete', accounting_status: 'partial' },
+        { mode: 'agentic', sample_count: 1, answer_correctness: 0.7, faithfulness: null, answer_relevancy: 0.7, mean_latency_ms: null, mean_tokens: null, quality_status: 'partial', accounting_status: 'partial' },
+      ],
       delta_correctness: 0.2,
       delta_faithfulness: null,
       delta_latency_ms: null,
@@ -370,10 +373,10 @@ describe('Evaluation Center real data flow', () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole('tab', { name: '執行追蹤' }));
-    const selector = await screen.findByRole('combobox', { name: 'Run selector' });
-    expect(screen.getByRole('option', { name: /Q-integrated · Agentic v8 · repeat 1/ })).toHaveValue('run-v8');
-    expect(screen.getByRole('option', { name: /Q-integrated · Agentic v9 · repeat 1/ })).toHaveValue('run-v9');
-    expect(screen.getByRole('option', { name: /Q-integrated · Agentic v9 shadow · repeat 1/ })).toHaveValue('run-v9-shadow');
+    const selector = await screen.findByRole('combobox', { name: 'Mode selector' });
+    expect(screen.getByRole('option', { name: /Agentic v8/ })).toHaveValue('run-v8');
+    expect(screen.getByRole('option', { name: /Agentic v9 ·/ })).toHaveValue('run-v9');
+    expect(screen.getByRole('option', { name: /Agentic v9 shadow/ })).toHaveValue('run-v9-shadow');
 
     fireEvent.change(selector, { target: { value: 'run-v9-shadow' } });
     await waitFor(() => expect(apiMocks.getRunObservability).toHaveBeenLastCalledWith('cmp-integration', 'run-v9-shadow'));
@@ -396,7 +399,7 @@ describe('Evaluation Center real data flow', () => {
     expect(screen.getByText('難度：hard')).toBeInTheDocument();
     expect(questionRow).toHaveTextContent('+20.0 個百分點');
     expect(questionRow).toHaveTextContent('N/A');
-    expect(questionRow).toHaveTextContent('用量不完整');
+    expect(questionRow).toHaveTextContent('評分不完整');
     expect(questionRow).not.toHaveTextContent('+0.000');
 
     fireEvent.change(screen.getByRole('combobox', { name: '進階分析' }), { target: { value: '3' } });
@@ -418,7 +421,7 @@ describe('Evaluation Center real data flow', () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole('tab', { name: '執行追蹤' }));
-    const runSelector = await screen.findByRole('combobox', { name: 'Run selector' });
+    const runSelector = await screen.findByRole('combobox', { name: 'Mode selector' });
     await waitFor(() => expect(runSelector).toHaveValue('run-a'));
     expect(screen.getByText('Answer from run A')).toBeInTheDocument();
     expect(screen.getByText('Agent trace A')).toBeInTheDocument();
@@ -688,13 +691,13 @@ describe('Evaluation Center real data flow', () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole('tab', { name: '執行追蹤' }));
-    await screen.findByRole('combobox', { name: 'Run selector' });
+    await screen.findByRole('combobox', { name: 'Mode selector' });
     expect(await screen.findByText('Claim extraction ran and recorded zero claims.')).toBeInTheDocument();
 
     fireEvent.change(screen.getByRole('combobox', { name: '進階分析' }), { target: { value: '5' } });
     expect(await screen.findByText('Claim extraction ran and recorded zero claims.')).toBeInTheDocument();
 
-    const claimRunSelector = await screen.findByRole('combobox', { name: 'Run selector' });
+    const claimRunSelector = await screen.findByRole('combobox', { name: 'Mode selector' });
     fireEvent.change(claimRunSelector, { target: { value: 'run-b' } });
     await waitFor(() => expect(apiMocks.getRunObservability).toHaveBeenLastCalledWith('cmp-integration', 'run-b'));
     expect(await screen.findByText('Claim extraction telemetry was not recorded for this run.')).toBeInTheDocument();

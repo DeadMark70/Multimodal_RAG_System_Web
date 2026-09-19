@@ -243,7 +243,7 @@ describe('RunTraceTab', () => {
     expect(screen.getByText('5,700')).toBeInTheDocument();
     expect(screen.getByText('Phase attribution: complete')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Run selector' }), { target: { value: 'run-2' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Mode selector' }), { target: { value: 'run-2' } });
     expect(onSelectedRunIdChange).toHaveBeenCalledWith('run-2');
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Payload' })[0]);

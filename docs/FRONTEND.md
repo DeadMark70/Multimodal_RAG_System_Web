@@ -1,5 +1,13 @@
 # FRONTEND
 
+## Question-first run navigation (2026-09-20)
+
+- Run Trace, Retrieval Evidence and Claim Evidence share separate Question, Mode/condition and Repeat controls. Questions sort naturally; a single loaded repeat is plain text. Version/profile/condition identities and actual run IDs stay distinct.
+- Question changes preserve the selected condition and repeat if loaded; otherwise select an available run. Actual run IDs, Agentic versions and shadow records stay distinct.
+- The page reports loaded run counts and whether more records exist. Loading remains manual and paginated; the selector does not fetch every run or generate answers.
+- Question Analysis selects baseline and comparison modes from loaded `by_mode` summaries (default Naive/Agentic), subtracts their backend means, preserves missing values and recalculates status/sorting/ECR for the chosen pair. It does not claim a paired-repeat statistical comparison. Expanded rows show both sample counts; campaign changes reset selection.
+- Overview separates configured question/mode/repeat counts from retained completed answers; metric cells show effective score samples. Mode means include repeats/conditions; retry and scoring jobs do not become extra experiment repeats. No API or scoring/pricing algorithm changes.
+
 ## Evaluation layout follow-up (2026-09-19)
 
 - Run Trace places the answer across the full content width, preserving line breaks; retrieval, claims and token summaries sit below it.

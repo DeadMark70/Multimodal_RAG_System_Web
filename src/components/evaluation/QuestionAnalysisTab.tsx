@@ -1,9 +1,11 @@
 import { Badge, Box, Button, HStack, Select, SimpleGrid, Stack, Table, Tbody, Td, Text, Th, Thead, Tr } from '@chakra-ui/react';
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useState } from 'react';
 import { formatOptionalNumber, formatOptionalPercent, formatOptionalText, formatOptionalTokens } from './evaluationDisplay';
+import type { QuestionModeComparison } from '../../types/evaluation';
 
 export interface QuestionDeltaRow {
   questionId: string;
+  byMode: QuestionModeComparison[];
   category: string | null;
   difficulty: string | null;
   requiredModalities: string[];
@@ -23,18 +25,45 @@ const signed = (value: number, digits = 1) => `${value > 0 ? '+' : ''}${value.to
 const percentPoints = (value: number | null) => value == null ? 'N/A' : `${signed(value * 100)} 個百分點`;
 const heat = (value: number | null) => value == null || value === 0 ? undefined : value > 0 ? 'green.50' : 'red.50';
 const modeLabel = (value: string | null) => ({ agentic: 'Agentic RAG', naive: 'Naive RAG', advanced: 'Advanced RAG', graph: 'Graph RAG' }[value ?? ''] ?? formatOptionalText(value));
-const statusLabel = (value: string) => ({ complete: '資料完整', incomplete_accounting: '用量不完整', incomplete_quality: '評分不完整', baseline_missing: '缺少 Naive 基準', comparison_mode_missing: '缺少 Agentic 結果', unknown: '尚無狀態' }[value] ?? value);
+const statusLabel = (value: string) => ({ complete: '資料完整', incomplete_accounting: '用量不完整', incomplete_quality: '評分不完整', baseline_missing: '缺少基準模式結果', comparison_mode_missing: '缺少比較模式結果', unknown: '尚無狀態' }[value] ?? value);
+
+function compareModes(row: QuestionDeltaRow, baselineMode: string, targetMode: string): QuestionDeltaRow {
+  const baseline = row.byMode.find((mode) => mode.mode === baselineMode && mode.sample_count > 0);
+  const target = row.byMode.find((mode) => mode.mode === targetMode && mode.sample_count > 0);
+  const difference = (key: 'answer_correctness' | 'faithfulness' | 'mean_latency_ms' | 'mean_tokens') => {
+    const a = baseline?.[key];
+    const b = target?.[key];
+    return a == null || b == null ? null : b - a;
+  };
+  const qualityComplete = baseline?.quality_status === 'complete' && target?.quality_status === 'complete';
+  const tokensComplete = baseline?.accounting_status === 'complete' && target?.accounting_status === 'complete';
+  const status = !baseline ? 'baseline_missing' : !target ? 'comparison_mode_missing'
+    : !qualityComplete ? 'incomplete_quality' : !tokensComplete ? 'incomplete_accounting' : 'complete';
+  const deltaCorrectness = difference('answer_correctness');
+  const deltaTokens = tokensComplete ? difference('mean_tokens') : null;
+  return { ...row, deltaCorrectness, deltaFaithfulness: difference('faithfulness'),
+    deltaLatencyMs: difference('mean_latency_ms'), deltaTokens,
+    ecrCorrectness: qualityComplete && deltaCorrectness != null && deltaTokens != null && deltaTokens > 0
+      ? 1000 * deltaCorrectness / deltaTokens : null,
+    status, risks: status === 'complete' ? [] : [status] };
+}
 
 export default function QuestionAnalysisTab({ rows }: { rows?: QuestionDeltaRow[] }) {
   const [category, setCategory] = useState('all');
   const [status, setStatus] = useState('all');
   const [sort, setSort] = useState('question');
   const [expanded, setExpanded] = useState<string | null>(null);
-  const categories = useMemo(() => ['all', ...new Set((rows ?? []).map((row) => row.category ?? 'n/a'))], [rows]);
-  const statuses = useMemo(() => ['all', ...new Set((rows ?? []).map((row) => row.status ?? 'unknown'))], [rows]);
-  const filteredRows = useMemo(() => {
-    const filtered = (rows ?? []).filter((row) => (category === 'all' || (row.category ?? 'n/a') === category) && (status === 'all' || (row.status ?? 'unknown') === status));
-    return filtered.sort((a, b) => {
+  const [baselineChoice, setBaselineChoice] = useState('naive');
+  const [targetChoice, setTargetChoice] = useState('agentic');
+  const modes = [...new Set((rows ?? []).flatMap((row) => row.byMode.map((mode) => mode.mode)))];
+  const baselineMode = modes.find((mode) => mode === baselineChoice) ?? modes.find((mode) => mode === 'naive') ?? modes[0] ?? '';
+  const targetModes = modes.filter((mode) => mode !== baselineMode);
+  const targetMode = targetModes.find((mode) => mode === targetChoice) ?? targetModes.find((mode) => mode === 'agentic') ?? targetModes[0] ?? '';
+  const comparedRows = (rows ?? []).map((row) => compareModes(row, baselineMode, targetMode));
+  const categories = ['all', ...new Set((rows ?? []).map((row) => row.category ?? 'n/a'))];
+  const statuses = ['all', ...new Set(comparedRows.map((row) => row.status ?? 'unknown'))];
+  const filteredRows = comparedRows.filter((row) => (category === 'all' || (row.category ?? 'n/a') === category) && (status === 'all' || (row.status ?? 'unknown') === status))
+    .sort((a, b) => {
       const byQuestion = a.questionId.localeCompare(b.questionId, undefined, { numeric: true });
       if (sort === 'question') return byQuestion;
       const aValue = sort.startsWith('faithfulness') ? a.deltaFaithfulness : a.deltaCorrectness;
@@ -43,11 +72,20 @@ export default function QuestionAnalysisTab({ rows }: { rows?: QuestionDeltaRow[
       if (bValue == null) return -1;
       return (sort.endsWith('desc') ? bValue - aValue : aValue - bValue) || byQuestion;
     });
-  }, [category, rows, sort, status]);
 
   if (!rows?.length) return <Text color="text.secondary">完成模式比較後，這裡會顯示逐題分析。</Text>;
   return <Stack spacing={4}>
-    <Text fontSize="sm" color="text.secondary">差異＝Agentic RAG − Naive RAG。品質為正值表示 Agentic 較高；時間為正值表示耗時較長。N/A 表示缺少比較資料。排序與篩選套用於目前已載入的題目。</Text>
+    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+      <Box><Text as="label" htmlFor="comparison-baseline" fontSize="sm">基準模式</Text>
+        <Select id="comparison-baseline" size="sm" value={baselineMode} onChange={(event) => { setBaselineChoice(event.target.value); setStatus('all'); }}>
+          {modes.map((mode) => <option key={mode} value={mode}>{modeLabel(mode)}</option>)}
+        </Select></Box>
+      <Box><Text as="label" htmlFor="comparison-target" fontSize="sm">比較模式</Text>
+        <Select id="comparison-target" size="sm" value={targetMode} isDisabled={!targetModes.length} onChange={(event) => { setTargetChoice(event.target.value); setStatus('all'); }}>
+          {targetModes.length ? targetModes.map((mode) => <option key={mode} value={mode}>{modeLabel(mode)}</option>) : <option value="">尚無其他模式</option>}
+        </Select></Box>
+    </SimpleGrid>
+    <Text fontSize="sm" color="text.secondary">{targetMode ? `差異＝${modeLabel(targetMode)} − ${modeLabel(baselineMode)}。品質為正值表示比較模式較高；時間為正值表示耗時較長。` : '至少需要兩種模式才能比較。'} 每題使用各模式跨次執行的平均值，並非逐次配對差異；展開題目可查看完成樣本數。N/A 表示缺少比較資料。排序與篩選套用於目前已載入的題目。</Text>
     <HStack spacing={3} align="end" flexWrap="wrap">
       <Box><Text as="label" htmlFor="question-category-filter" fontSize="sm">題目分類</Text>
         <Select id="question-category-filter" size="sm" value={category} onChange={(event) => setCategory(event.target.value)}>
@@ -75,6 +113,7 @@ export default function QuestionAnalysisTab({ rows }: { rows?: QuestionDeltaRow[
             <Td><Badge colorScheme={row.status === 'complete' ? 'green' : 'orange'} whiteSpace="normal" overflowWrap="anywhere">{statusLabel(row.status ?? 'unknown')}</Badge></Td>
           </Tr>
           {expanded === row.questionId ? <Tr><Td colSpan={6} bg="bg.panel"><Stack spacing={3} py={2}>
+            <Text fontSize="sm">完成樣本：{modeLabel(baselineMode)} {row.byMode.find((mode) => mode.mode === baselineMode)?.sample_count ?? 0} 份 · {modeLabel(targetMode)} {row.byMode.find((mode) => mode.mode === targetMode)?.sample_count ?? 0} 份。樣本數不一定相同；缺少分數不當成零分。</Text>
             <SimpleGrid columns={{ base: 1, md: 3 }} spacing={3} fontSize="sm">
               <Text>難度：{formatOptionalText(row.difficulty)}</Text>
               <Text>所需資料類型：{row.requiredModalities.join(', ') || '未紀錄'}</Text>
@@ -84,7 +123,7 @@ export default function QuestionAnalysisTab({ rows }: { rows?: QuestionDeltaRow[
               <Text>證據涵蓋率：{formatOptionalPercent(row.evidenceCoverage)}</Text>
               <Text>未支持陳述比例：{formatOptionalPercent(row.unsupportedClaimRatio)}</Text>
             </SimpleGrid>
-            <Text fontSize="xs" color="text.secondary">排名以正確度優先，同分再看忠實度、Token 用量與模式名稱；不代表每項指標都較好。N/A 的進階指標表示目前沒有可用數值。</Text>
+            <Text fontSize="xs" color="text.secondary">排名涵蓋全部模式，以正確度優先，同分再看忠實度、Token 用量與模式名稱；不代表每項指標都較好。N/A 的進階指標表示目前沒有可用數值。</Text>
             <HStack flexWrap="wrap">{(row.risks ?? []).map((risk) => <Badge key={risk} colorScheme="orange" whiteSpace="normal" overflowWrap="anywhere">{statusLabel(risk)}</Badge>)}</HStack>
           </Stack></Td></Tr> : null}
         </Fragment>)}</Tbody>

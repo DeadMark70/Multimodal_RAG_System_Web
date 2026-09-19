@@ -9,6 +9,11 @@
 
 ## Acceptance Notes
 
+- Run navigation separates naturally sorted Question, Mode/condition and Repeat controls. Preserve condition/repeat on question changes when available, and keep versions/shadow runs distinct by actual ID. A single loaded repeat is plain text; a later page can add repeat options without changing selection.
+- Show how many run records are loaded and whether more remain. Do not imply that a missing option is absent from the campaign while pagination is incomplete.
+- Question comparisons select two different modes from loaded per-mode summaries, defaulting to Naive versus Agentic when available. All pair-dependent means, status and ECR follow that selection. Missing modes/scores stay unavailable; sample counts are shown in expanded rows. These are differences of available mode means, not paired-repeat estimates. Best-mode ranking remains across all modes.
+- Overview shows configured question/mode/repeat counts independently of retained completed answers and effective metric samples. Four modes use four rows. Repeats/conditions contribute to means; failed retries and rescoring do not increase configured repeat counts. Historical spending remains in cumulative costs.
+
 - Run Trace answers use the full content width with preserved line breaks; supporting metadata follows below.
 - Setup must not reserve an empty progress column. The form is full width, and a current execution snapshot appears below, including its terminal feedback.
 - The six-column question comparison uses wrapping cells and page-owned vertical scrolling with a sticky header.

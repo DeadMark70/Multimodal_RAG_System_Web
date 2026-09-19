@@ -5,6 +5,7 @@ import theme from '../../theme';
 import type { ReleaseMetricsReport } from '../../types/evaluation';
 import CampaignOverviewTab from './CampaignOverviewTab';
 import { completeFixture, mixedFixture, partialFixture } from './researchSummaryFixtures';
+import { fourModes, fourModeSummary } from './multiModeFixtures';
 
 function renderOverview(data: typeof completeFixture, releaseMetrics?: ReleaseMetricsReport) {
   return render(<ChakraProvider theme={theme}><CampaignOverviewTab data={data} releaseMetrics={releaseMetrics} /></ChakraProvider>);
@@ -21,6 +22,12 @@ const smokeReleaseFixture: ReleaseMetricsReport = {
 };
 
 describe('CampaignOverviewTab strict research accounting', () => {
+  it('separates configured questions and repeats from retained answers and scoring retries for four modes', () => {
+    render(<ChakraProvider theme={theme}><CampaignOverviewTab data={fourModeSummary} config={{ test_case_ids: Array.from({ length: 32 }, (_, i) => `Q${i + 1}`), modes: fourModes, repeat_count: 3 }} /></ChakraProvider>);
+    expect(screen.getByText(/32 題 · 4 種模式 · 每題每個條件 3 次/)).toHaveTextContent('完成答案：384 / 384 份');
+    expect(screen.getByText(/失敗重試與補評分不增加/)).toBeInTheDocument();
+    expect(screen.getAllByText('96 筆有效評分')).toHaveLength(12);
+  });
   it('renders backend-authoritative smoke metrics without inventing unavailable Graph values', () => {
     renderOverview(completeFixture, smokeReleaseFixture);
     fireEvent.click(screen.getByText('基準測試指標'));

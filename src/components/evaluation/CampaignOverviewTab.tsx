@@ -1,5 +1,5 @@
 import { Alert, AlertIcon, Badge, Box, Divider, Grid, Heading, Stack, Table, Tbody, Td, Text, Th, Thead, Tr } from '@chakra-ui/react';
-import type { CampaignResearchSummaryResponse, ReleaseMetric, ReleaseMetricsReport } from '../../types/evaluation';
+import type { CampaignConfigInput, CampaignResearchSummaryResponse, ReleaseMetric, ReleaseMetricsReport } from '../../types/evaluation';
 import LatencyWaterfall from './LatencyWaterfall';
 import MetricCard from './MetricCard';
 import ModeComparisonChart from './ModeComparisonChart';
@@ -113,10 +113,12 @@ function ReleaseMetricsPanel({ report }: { report?: ReleaseMetricsReport }) {
 
 export default function CampaignOverviewTab({
   data,
+  config,
   releaseMetrics,
   releaseMetricsNotApplicable = false,
 }: {
   data?: CampaignResearchSummaryResponse;
+  config?: Pick<CampaignConfigInput, 'test_case_ids' | 'modes' | 'repeat_count'>;
   releaseMetrics?: ReleaseMetricsReport;
   releaseMetricsNotApplicable?: boolean;
 }) {
@@ -129,8 +131,13 @@ export default function CampaignOverviewTab({
       {data.token_accounting_status !== 'complete' ? <Alert status="warning"><AlertIcon />作答 Token 用量不完整；缺少資料的比較仍顯示 N/A。</Alert> : null}
       <Box>
         <Heading size="sm" mb={3}>模式比較</Heading>
+        <Text fontSize="sm" mb={2}>
+          {config ? `設定：${new Set(config.test_case_ids).size} 題 · ${new Set(config.modes).size} 種模式 · 每題每個條件 ${config.repeat_count} 次。` : '原始題數與重複次數設定未載入。'}
+          {` 完成答案：${number(data.completed_run_count)} / ${number(data.total_run_count)} 份`}
+        </Text>
         <ModeComparisonChart rows={data.modes} />
-        <Text fontSize="xs" color="text.secondary" mt={2}>品質分數越高越好；時間與費用為每份完成答案的平均值。N/A 表示尚無完整資料。</Text>
+        <Text fontSize="xs" color="text.secondary" mt={2}>各模式彙整目前保留的答案，跨題目、重複次數與實驗條件計算平均；有效評分數依指標列出。品質越高越好；時間與費用為每份完成答案的平均值。N/A 表示尚無完整資料。</Text>
+        <Text fontSize="xs" color="text.secondary" mt={1}>完成答案數包含重複執行；失敗重試與補評分不增加設定的重複次數。重新作答會更新保留答案，歷次費用另列於累計費用。</Text>
       </Box>
       <Divider />
       <ModeCostComparison rows={data.mode_costs ?? data.modes.map((row) => ({

@@ -232,6 +232,7 @@ export function mapClaims(
 export function mapQuestionRows(data: DashboardApiData) {
   return (data.questionComparison?.rows ?? []).map((row: QuestionComparisonRow) => ({
     questionId: row.question_id,
+    byMode: row.by_mode,
     category: row.category,
     difficulty: row.difficulty,
     requiredModalities: row.required_modalities ?? [],
