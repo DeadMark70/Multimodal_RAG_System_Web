@@ -24,7 +24,7 @@ export interface QuestionDeltaRow {
 const signed = (value: number, digits = 1) => `${value > 0 ? '+' : ''}${value.toFixed(digits)}`;
 const percentPoints = (value: number | null) => value == null ? 'N/A' : `${signed(value * 100)} 個百分點`;
 const heat = (value: number | null) => value == null || value === 0 ? undefined : value > 0 ? 'green.50' : 'red.50';
-const modeLabel = (value: string | null) => ({ agentic: 'Agentic RAG', naive: 'Naive RAG', advanced: 'Advanced RAG', graph: 'Graph RAG' }[value ?? ''] ?? formatOptionalText(value));
+const modeLabel = (value: string | null) => ({ agentic: 'Agentic RAG', 'agentic-v8': 'Agentic v8', 'agentic-v9': 'Agentic v9', 'agentic-v10': 'Agentic v10', naive: 'Naive RAG', advanced: 'Advanced RAG', graph: 'Graph RAG' }[value ?? ''] ?? formatOptionalText(value));
 const statusLabel = (value: string) => ({ complete: '資料完整', incomplete_accounting: '用量不完整', incomplete_quality: '評分不完整', baseline_missing: '缺少基準模式結果', comparison_mode_missing: '缺少比較模式結果', unknown: '尚無狀態' }[value] ?? value);
 
 function compareModes(row: QuestionDeltaRow, baselineMode: string, targetMode: string): QuestionDeltaRow {
@@ -55,7 +55,8 @@ export default function QuestionAnalysisTab({ rows }: { rows?: QuestionDeltaRow[
   const [expanded, setExpanded] = useState<string | null>(null);
   const [baselineChoice, setBaselineChoice] = useState('naive');
   const [targetChoice, setTargetChoice] = useState('agentic');
-  const modes = [...new Set((rows ?? []).flatMap((row) => row.byMode.map((mode) => mode.mode)))];
+  // Configured aliases may be present without results (e.g. agentic-v10 vs agentic).
+  const modes = [...new Set((rows ?? []).flatMap((row) => row.byMode.filter((mode) => mode.sample_count > 0).map((mode) => mode.mode)))];
   const baselineMode = modes.find((mode) => mode === baselineChoice) ?? modes.find((mode) => mode === 'naive') ?? modes[0] ?? '';
   const targetModes = modes.filter((mode) => mode !== baselineMode);
   const targetMode = targetModes.find((mode) => mode === targetChoice) ?? targetModes.find((mode) => mode === 'agentic') ?? targetModes[0] ?? '';
@@ -77,8 +78,8 @@ export default function QuestionAnalysisTab({ rows }: { rows?: QuestionDeltaRow[
   return <Stack spacing={4}>
     <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
       <Box><Text as="label" htmlFor="comparison-baseline" fontSize="sm">基準模式</Text>
-        <Select id="comparison-baseline" size="sm" value={baselineMode} onChange={(event) => { setBaselineChoice(event.target.value); setStatus('all'); }}>
-          {modes.map((mode) => <option key={mode} value={mode}>{modeLabel(mode)}</option>)}
+        <Select id="comparison-baseline" size="sm" value={baselineMode} isDisabled={!modes.length} onChange={(event) => { setBaselineChoice(event.target.value); setStatus('all'); }}>
+          {modes.length ? modes.map((mode) => <option key={mode} value={mode}>{modeLabel(mode)}</option>) : <option value="">尚無作答樣本</option>}
         </Select></Box>
       <Box><Text as="label" htmlFor="comparison-target" fontSize="sm">比較模式</Text>
         <Select id="comparison-target" size="sm" value={targetMode} isDisabled={!targetModes.length} onChange={(event) => { setTargetChoice(event.target.value); setStatus('all'); }}>

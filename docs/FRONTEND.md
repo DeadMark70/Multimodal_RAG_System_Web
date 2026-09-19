@@ -2,6 +2,8 @@
 
 ## Question-first run navigation (2026-09-20)
 
+- Comparison selectors include only modes with completed samples in loaded question summaries. Empty configured aliases are omitted; distinct populated versions remain separate, and missing per-question results stay N/A.
+
 - Run Trace, Retrieval Evidence and Claim Evidence share separate Question, Mode/condition and Repeat controls. Questions sort naturally; a single loaded repeat is plain text. Version/profile/condition identities and actual run IDs stay distinct.
 - Question changes preserve the selected condition and repeat if loaded; otherwise select an available run. Actual run IDs, Agentic versions and shadow records stay distinct.
 - The page reports loaded run counts and whether more records exist. Loading remains manual and paginated; the selector does not fetch every run or generate answers.

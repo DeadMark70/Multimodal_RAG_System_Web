@@ -107,8 +107,32 @@ describe('QuestionAnalysisTab', () => {
     const view = renderWithTheme(<QuestionAnalysisTab rows={[{ ...fourModeQuestions[0], byMode: [modeSample('graph')] }]} />);
     expect(screen.getByLabelText('比較模式')).toBeDisabled();
     expect(screen.getByText(/至少需要兩種模式/)).toBeInTheDocument();
-    view.rerender(<ChakraProvider theme={theme}><QuestionAnalysisTab rows={[{ ...fourModeQuestions[0], byMode: [modeSample('graph'), modeSample('naive', { sample_count: 0 })] }]} /></ChakraProvider>);
+    view.rerender(<ChakraProvider theme={theme}><QuestionAnalysisTab rows={[
+      { ...fourModeQuestions[0], byMode: [modeSample('graph'), modeSample('naive', { sample_count: 0 })] },
+      { ...fourModeQuestions[1], byMode: [modeSample('naive')] },
+    ]} /></ChakraProvider>);
     expect(within(screen.getByRole('table')).getByText('缺少基準模式結果')).toBeInTheDocument();
     expect(screen.queryByText('0.0 個百分點')).not.toBeInTheDocument();
+  });
+
+  it.each(['agentic', 'agentic-v10'] as const)('excludes empty aliases and compares the actual %s results', (actualMode) => {
+    const emptyAlias = actualMode === 'agentic' ? 'agentic-v10' : 'agentic';
+    renderWithTheme(<QuestionAnalysisTab rows={[{ ...fourModeQuestions[0], byMode: [
+      modeSample(emptyAlias, { sample_count: 0, answer_correctness: null }),
+      modeSample(actualMode, { answer_correctness: 0.7 }), modeSample('naive'),
+    ] }]} />);
+    const baseline = screen.getByLabelText('基準模式');
+    expect(within(baseline).getAllByRole('option').map((option) => (option as HTMLOptionElement).value)).toEqual([actualMode, 'naive']);
+    expect(baseline).toHaveValue('naive');
+    expect(screen.getByLabelText('比較模式')).toHaveValue(actualMode);
+    expect(screen.getByText('+20.0 個百分點')).toBeInTheDocument();
+  });
+
+  it('keeps distinct populated Agentic versions and disables selection when there are no samples', () => {
+    const view = renderWithTheme(<QuestionAnalysisTab rows={[{ ...fourModeQuestions[0], byMode: [modeSample('agentic'), modeSample('agentic-v10'), modeSample('naive')] }]} />);
+    expect(within(screen.getByLabelText('基準模式')).getAllByRole('option')).toHaveLength(3);
+    view.rerender(<ChakraProvider theme={theme}><QuestionAnalysisTab rows={[{ ...fourModeQuestions[0], byMode: [modeSample('agentic', { sample_count: 0 })] }]} /></ChakraProvider>);
+    expect(screen.getByLabelText('基準模式')).toBeDisabled();
+    expect(screen.getByLabelText('比較模式')).toBeDisabled();
   });
 });

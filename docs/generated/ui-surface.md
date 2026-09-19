@@ -2,6 +2,8 @@
 
 ## Question-first run navigation (2026-09-20)
 
+- Baseline/comparison options exclude zero-sample configuration placeholders, including empty Agentic version aliases; populated versions remain selectable.
+
 - Separate Question, Mode/condition and Repeat controls navigate loaded records by actual run ID; single repeats use plain text. Question/mode changes preserve condition/repeat when available.
 - Run-based analysis pages show loaded record count and whether more pages remain, alongside manual load-more.
 - Question Analysis offers baseline/comparison selectors using per-mode summaries, nullable mean differences and expandable sample counts. Overview separates configured question/mode/repeat counts, retained answers and per-metric sample counts.
