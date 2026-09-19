@@ -90,12 +90,12 @@ export default function RunTraceTab({
       />
 
       {metadata ? (
-        <Grid templateColumns={{ base: '1fr', xl: 'repeat(4, 1fr)' }} gap={3}>
-          <GridItem borderWidth="1px" borderRadius="md" px={3} py={2}>
+        <Grid templateColumns={{ base: '1fr', md: 'repeat(3, minmax(0, 1fr))' }} gap={3}>
+          <GridItem colSpan={{ base: 1, md: 3 }} minW={0} borderWidth="1px" borderRadius="md" px={4} py={3}>
             <Heading size="xs" mb={2}>
               Answer
             </Heading>
-            <Text fontSize="sm">{metadata.finalAnswerPreview ?? 'No answer preview.'}</Text>
+            <Text fontSize="sm" whiteSpace="pre-wrap" overflowWrap="anywhere" lineHeight="tall">{metadata.finalAnswerPreview ?? 'No answer preview.'}</Text>
           </GridItem>
           <GridItem borderWidth="1px" borderRadius="md" px={3} py={2}>
             <Heading size="xs" mb={2}>

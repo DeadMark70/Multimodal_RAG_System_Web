@@ -1,5 +1,12 @@
 # Generated UI Surface
 
+## Evaluation layout follow-up (2026-09-19)
+
+- Full-width trace answer with three supporting summaries below.
+- Full-width campaign form; progress appears below only when a snapshot is available.
+- Question comparison uses page scrolling and a sticky header with wrapping cells.
+- Compact completed-job panel; campaign-wide completion disables the empty retry action.
+
 ## Evaluation overview simplification (2026-09-18)
 
 - Navigation keeps Overview, Question Analysis and Run Trace as the three primary tabs. A native advanced-analysis selector opens one additional selected tab; existing internal data-loading indexes, lazy mounting and campaign-switch isolation are preserved. The compact header shows the campaign name once. Main navigation/loading labels are Traditional Chinese and latency values use seconds.

@@ -9,6 +9,11 @@
 
 ## Acceptance Notes
 
+- Run Trace answers use the full content width with preserved line breaks; supporting metadata follows below.
+- Setup must not reserve an empty progress column. The form is full width, and a current execution snapshot appears below, including its terminal feedback.
+- The six-column question comparison uses wrapping cells and page-owned vertical scrolling with a sticky header.
+- Disable retry only when a non-updating campaign summary confirms complete answers, no failed runs and complete quality with no failed/missing scores. Completed partial reruns must not disable recovery for the rest of the campaign.
+
 - Evaluation campaigns should recover from backend snapshots after reconnect.
 - Results analysis and agent traces must be separate views because they serve different operator questions.
 - Campaign execution is preset-driven; the UI should not imply arbitrary unsaved model execution.

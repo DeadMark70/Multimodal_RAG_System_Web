@@ -64,6 +64,23 @@ function renderPanel() {
 }
 
 describe('EvaluationJobPanel', () => {
+  it('disables retry only when the current campaign summary confirms all work is complete', async () => {
+    const completed = { ...job, status: 'completed' as const, counts: { valid: 1, failed: 0, interrupted: 0 } };
+    mockListEvaluationJobItems.mockResolvedValue([]);
+    const summary = { ...completeFixture, campaign_id: 'cmp-1' };
+    const view = render(<ChakraProvider theme={theme}><EvaluationJobPanel campaignId="cmp-1" jobs={[completed]} summary={summary} /></ChakraProvider>);
+    const retry = screen.getByRole('button', { name: '重試失敗或中斷項目' });
+    expect(retry).toBeDisabled();
+    fireEvent.click(retry);
+    expect(mockCreateCampaignRerun).not.toHaveBeenCalled();
+    view.rerender(<ChakraProvider theme={theme}><EvaluationJobPanel campaignId="cmp-1" jobs={[completed]} summary={{ ...summary, analysis_status: 'updating' }} /></ChakraProvider>);
+    expect(retry).toBeEnabled();
+    view.rerender(<ChakraProvider theme={theme}><EvaluationJobPanel campaignId="cmp-1" jobs={[completed]} summary={{ ...summary, failed_run_count: 1, completed_run_count: 3 }} /></ChakraProvider>);
+    expect(retry).toBeEnabled();
+    view.rerender(<ChakraProvider theme={theme}><EvaluationJobPanel campaignId="cmp-1" jobs={[completed]} summary={{ ...summary, quality_status: 'partial', quality: { faithfulness: { ...summary.quality.faithfulness, failed_samples: 1, status: 'partial' } } }} /></ChakraProvider>);
+    expect(retry).toBeEnabled();
+    await waitFor(() => expect(mockListEvaluationJobItems).toHaveBeenCalled());
+  });
   it('hides historical retry warnings after completion while retaining them in details', async () => {
     const message = 'Provider temporarily unavailable; retrying request (attempt 2).';
     const completed = { ...job, status: 'completed' as const, latest_safe_error_message: message };

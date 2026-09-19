@@ -62,8 +62,8 @@ export default function QuestionAnalysisTab({ rows }: { rows?: QuestionDeltaRow[
           <option value="question">題號順序</option><option value="correctness-asc">正確度退步優先</option><option value="correctness-desc">正確度提升優先</option><option value="faithfulness-asc">忠實度退步優先</option><option value="faithfulness-desc">忠實度提升優先</option>
         </Select></Box>
     </HStack>
-    <Box overflow="auto" maxH="70vh" borderWidth="1px" borderRadius="md">
-      <Table size="sm" minW="860px" aria-label="逐題模式比較">
+    <Box borderWidth="1px" borderRadius="md">
+      <Table size="sm" width="100%" style={{ tableLayout: 'fixed' }} sx={{ 'th, td': { whiteSpace: 'normal', overflowWrap: 'anywhere', px: { base: 1, md: 3 } } }} aria-label="逐題模式比較">
         <Thead position="sticky" top={0} zIndex={1} bg="bg.panel"><Tr><Th>題目</Th><Th>分類</Th><Th isNumeric>正確度差異</Th><Th isNumeric>忠實度差異</Th><Th isNumeric>作答時間差異</Th><Th>資料狀態</Th></Tr></Thead>
         <Tbody>{filteredRows.map((row) => <Fragment key={row.questionId}>
           <Tr>

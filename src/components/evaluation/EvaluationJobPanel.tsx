@@ -580,11 +580,20 @@ export default function EvaluationJobPanel({
   )?.safe_error_message;
   const currentError = selectedJob.status === 'completed' || selectedJob.status === 'cancelled'
     ? null : latestSafeError ?? (!itemsLoaded ? selectedJob.latest_safe_error_message : null);
+  // A successful partial rerun alone does not prove the whole campaign is repaired.
+  const noRetryableItems = campaignSummary !== null
+    && campaignSummary.analysis_status !== 'updating'
+    && campaignSummary.completed_run_count === campaignSummary.total_run_count
+    && campaignSummary.failed_run_count === 0
+    && campaignSummary.quality_status === 'complete'
+    && qualityTotals.failed === 0
+    && qualityTotals.missing === 0;
+  const compact = selectedJob.status === 'completed';
 
   return (
-    <Box borderWidth="1px" borderRadius="lg" p={4} mb={4} bg="bg.panel">
-      <HStack justify="space-between" align="flex-start" flexWrap="wrap" gap={3} mb={3}>
-        <Box minW={0}>
+    <Box borderWidth="1px" borderRadius="lg" p={compact ? 3 : 4} mb={4} bg="bg.panel">
+      <HStack justify="space-between" align="flex-start" flexWrap="wrap" gap={3} mb={compact ? 2 : 3}>
+        <Box minW={0} display={compact ? 'flex' : 'block'} flexWrap="wrap" alignItems="baseline" columnGap={3}>
           <Heading size="sm">執行狀態與重跑</Heading>
           <Text color="text.secondary" fontSize="sm" mt={1}>
             最近一次{selectedJob.job_type === 'rerun' ? '重跑' : '執行'} · {new Date(selectedJob.created_at).toLocaleString('zh-TW')}
@@ -592,7 +601,7 @@ export default function EvaluationJobPanel({
         </Box>
         <Badge px={2} py={1} flexShrink={0} colorScheme={statusColor(selectedJob.status)}>{statusLabel(selectedJob.status)}</Badge>
       </HStack>
-      {campaignSummary ? <Box mb={3}>
+      {campaignSummary ? <Box mb={compact ? 2 : 3}>
         <HStack gap={3} flexWrap="wrap" fontSize="sm">
           <Text>作答完成：{campaignSummary.completed_run_count} / {campaignSummary.total_run_count}</Text>
           <Text>有效評分：{qualityTotals.valid}</Text>
@@ -601,7 +610,7 @@ export default function EvaluationJobPanel({
         </HStack>
         {campaignSummary.analysis_status === 'updating' ? <Text fontSize="sm" color="text.secondary">摘要更新中，暫時顯示上次統計。</Text> : null}
       </Box> : null}
-      <Box as="details" key={selectedJobKey} open={selectedJob.status !== 'completed'} mb={3}>
+      <Box as="details" key={selectedJobKey} open={selectedJob.status !== 'completed'} mb={compact ? 2 : 3}>
         <Box as="summary" cursor="pointer" fontSize="sm" color="text.secondary">最近一次{selectedJob.job_type === 'rerun' ? '重跑' : '執行'}的工作項目</Box>
         <HStack spacing={0} gap={2} flexWrap="wrap" mb={2}>
           {counts.map(([label, value]) => (
@@ -622,14 +631,15 @@ export default function EvaluationJobPanel({
       )}
       {loadError ? <Text role="alert" color="red.500" fontSize="sm" mb={3}>無法載入執行狀態：{loadError}</Text> : null}
       <HStack spacing={0} gap={2} flexWrap="wrap" sx={{ '& button': { flexShrink: 0, whiteSpace: 'nowrap' } }}>
-        <Button size="sm" onClick={() => setShowRerun(!showRerun)} aria-expanded={showRerun}>
+        <Button size="sm" variant={compact ? 'outline' : 'solid'} onClick={() => setShowRerun(!showRerun)} aria-expanded={showRerun}>
           {showRerun ? '收合重跑設定' : '補分／重跑設定'}
         </Button>
         <Button
           size="sm"
           variant="outline"
           onClick={() => void handleRetryFailed()}
-          isDisabled={disabledActions}
+          isDisabled={disabledActions || noRetryableItems}
+          title={noRetryableItems ? '整批評估已完成，沒有失敗或中斷項目可重試。' : undefined}
           isLoading={action === '重試失敗或中斷項目'}
         >
           重試失敗或中斷項目

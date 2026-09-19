@@ -1,5 +1,13 @@
 # FRONTEND
 
+## Evaluation layout follow-up (2026-09-19)
+
+- Run Trace places the answer across the full content width, preserving line breaks; retrieval, claims and token summaries sit below it.
+- Campaign setup uses a full-width form with progress underneath when a campaign snapshot exists. The empty progress column is removed; terminal feedback from the current execution remains visible.
+- Question comparison wraps within its available width and uses the page's vertical scroll region with a sticky table header, without a second table scrollbar.
+- Completed job panels use compact spacing and secondary rerun controls. Retry is disabled only when a current, complete campaign summary confirms no unfinished answers or failed/missing scores; a successful partial job alone is insufficient.
+- Existing language labels, request payloads and pagination remain unchanged.
+
 ## Evaluation overview simplification (2026-09-18)
 
 - Navigation keeps Overview, Question Analysis and Run Trace as the three primary tabs. A native advanced-analysis selector opens one additional selected tab; existing internal data-loading indexes, lazy mounting and campaign-switch isolation are preserved. The compact header shows the campaign name once. Main navigation/loading labels are Traditional Chinese and latency values use seconds.

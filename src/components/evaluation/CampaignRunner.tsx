@@ -724,7 +724,7 @@ export default function CampaignRunner() {
 
   return (
     <VStack align="stretch" spacing={6}>
-      <Grid templateColumns={{ base: '1fr', xl: '2fr 1fr' }} gap={6}>
+      <Grid templateColumns="minmax(0, 1fr)" gap={6}>
         <GridItem>
           <Box borderWidth="1px" borderRadius="lg" p={5}>
             <Heading size="md" mb={4}>建立評估活動</Heading>
@@ -1064,10 +1064,9 @@ export default function CampaignRunner() {
           </Box>
         </GridItem>
 
-        <GridItem>
+        {activeCampaign.snapshot && <GridItem>
           <Box borderWidth="1px" borderRadius="lg" p={5}>
             <Heading size="md" mb={4}>即時進度</Heading>
-            {activeCampaign.snapshot ? (
               <Stack spacing={3}>
                 <HStack justify="space-between">
                   <Text fontWeight="medium">{activeCampaign.snapshot.name || activeCampaign.snapshot.id}</Text>
@@ -1107,11 +1106,8 @@ export default function CampaignRunner() {
                   </Stack>
                 )}
               </Stack>
-            ) : (
-              <Text color="gray.500">目前沒有執行中的 campaign。</Text>
-            )}
           </Box>
-        </GridItem>
+        </GridItem>}
       </Grid>
 
       <Box borderWidth="1px" borderRadius="lg" p={5}>
